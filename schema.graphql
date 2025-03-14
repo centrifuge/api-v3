@@ -1,0 +1,705 @@
+type Timekeeper @entity {
+  id: ID! # "global"
+  lastPeriodStart: Date!
+}
+
+type SnapshotPeriod @entity {
+  id: ID!
+  start: Date! @index
+  day: Int! @index
+  weekDay: Int! @index
+  month: Int! @index
+  year: Int! @index
+
+  poolSnapshots: [PoolSnapshot] @derivedFrom(field: "period")
+  trancheSnapshots: [TrancheSnapshot] @derivedFrom(field: "period")
+  assetSnapshots: [AssetSnapshot] @derivedFrom(field: "period")
+  poolFeeSnapshots: [PoolFeeSnapshot] @derivedFrom(field: "period")
+}
+
+type Pool @entity {
+  id: ID! #poolId
+  # It's not possible to simply retrieve all entities, but it is supported
+  # to get all entities by a field. Hence we add the same type field to all
+  # pools, so we can do Pool.getByType("POOL").
+  blockchain: Blockchain! @index
+  type: String! @index
+  isActive: Boolean! @index
+
+  createdAt: Date
+  createdAtBlockNumber: Int
+
+  currency: Currency
+  metadata: String
+
+  name: String
+  assetClass: String
+  assetSubclass: String
+  icon: String
+
+  minEpochTime: Int
+  maxPortfolioValuationAge: Int
+
+  # This cannot reference Pool directly, since this leads to a cyclic dependency.
+  currentEpoch: Int
+  lastEpochClosed: Int
+  lastEpochExecuted: Int
+
+  normalizedNAV: BigInt # netAssetValue, normalized to 18 decimals
+
+  # NAV == totalReserve + offchainCashValue + portfolioValuation - sumPoolFeesPendingAmount
+  netAssetValue: BigInt # previously: portfolioValuation
+  totalReserve: BigInt
+  offchainCashValue: BigInt # previously: cashAssetValue
+  portfolioValuation: BigInt
+
+  availableReserve: BigInt
+  maxReserve: BigInt
+
+  weightedAverageInterestRatePerSec: BigInt
+  
+  # Aggregated transaction data over the last period
+  sumBorrowedAmountByPeriod: BigInt
+  sumRepaidAmountByPeriod: BigInt
+  sumPrincipalRepaidAmountByPeriod: BigInt
+  sumInterestRepaidAmountByPeriod: BigInt
+  sumUnscheduledRepaidAmountByPeriod: BigInt
+  
+  sumInvestedAmountByPeriod: BigInt
+  sumRedeemedAmountByPeriod: BigInt
+  sumNumberOfAssetsByPeriod: BigInt
+
+  sumNumberOfActiveAssets: BigInt
+  sumDebt: BigInt
+  sumDebtOverdue: BigInt
+  sumDebtWrittenOffByPeriod: BigInt
+  deltaPortfolioValuationByPeriod: BigInt
+  sumInterestAccruedByPeriod: BigInt
+
+  sumPoolFeesChargedAmountByPeriod: BigInt
+  sumPoolFeesAccruedAmountByPeriod: BigInt
+  sumPoolFeesPaidAmountByPeriod: BigInt
+
+  sumPoolFeesChargedAmount: BigInt #Applies to Fixed ONLY 
+  sumPoolFeesAccruedAmount: BigInt #Applies toChargedUpTo ONLY 
+  sumPoolFeesPaidAmount: BigInt #Applies to All 
+  sumPoolFeesPendingAmount: BigInt #Applies to All 
+
+  sumRealizedProfitFifoByPeriod: BigInt
+  sumUnrealizedProfitAtMarketPrice: BigInt
+  sumUnrealizedProfitAtNotional: BigInt
+  sumUnrealizedProfitByPeriod: BigInt
+
+  # Cumulated transaction data since pool creation
+  sumBorrowedAmount: BigInt
+  sumRepaidAmount: BigInt
+  sumPrincipalRepaidAmount: BigInt
+  sumInterestRepaidAmount: BigInt
+  sumUnscheduledRepaidAmount: BigInt
+  sumNumberOfAssets: BigInt
+  
+  sumBorrowsCount: BigInt
+  sumRepaysCount: BigInt
+  
+  tranches: [Tranche] @derivedFrom(field: "pool")
+  assets: [Asset] @derivedFrom(field: "pool")
+}
+
+#Tracks PoolState over Time
+type PoolSnapshot @entity {
+  id: ID! #poolId-blockNumber
+  pool: Pool!
+
+  timestamp: Date!
+  blockNumber: Int!
+  period: SnapshotPeriod @index
+  epoch: Epoch @index
+
+  normalizedNAV: BigInt # netAssetValue, normalized to 18 decimals
+
+  #States
+  netAssetValue: BigInt # previously: portfolioValuation
+  totalReserve: BigInt
+  offchainCashValue: BigInt # previously: cashAssetValue
+  portfolioValuation: BigInt
+  
+  availableReserve: BigInt
+  maxReserve: BigInt
+  
+  weightedAverageInterestRatePerSec: BigInt
+  
+  # Aggregated transaction data over the last period
+  sumBorrowedAmountByPeriod: BigInt
+  sumRepaidAmountByPeriod: BigInt
+  sumPrincipalRepaidAmountByPeriod: BigInt
+  sumInterestRepaidAmountByPeriod: BigInt
+  sumUnscheduledRepaidAmountByPeriod: BigInt
+  
+  sumInvestedAmountByPeriod: BigInt
+  sumRedeemedAmountByPeriod: BigInt
+  sumNumberOfAssetsByPeriod: BigInt
+
+  sumNumberOfActiveAssets: BigInt
+  sumDebt: BigInt
+  sumDebtOverdue: BigInt
+  sumDebtWrittenOffByPeriod: BigInt
+  deltaPortfolioValuationByPeriod: BigInt
+  sumInterestAccruedByPeriod: BigInt
+
+  sumPoolFeesChargedAmountByPeriod: BigInt
+  sumPoolFeesAccruedAmountByPeriod: BigInt
+  sumPoolFeesPaidAmountByPeriod: BigInt
+
+  sumPoolFeesChargedAmount: BigInt #Applies to Fixed ONLY 
+  sumPoolFeesAccruedAmount: BigInt #Applies toChargedUpTo ONLY 
+  sumPoolFeesPaidAmount: BigInt #Applies to All 
+  sumPoolFeesPendingAmount: BigInt #Applies to All 
+
+  sumRealizedProfitFifoByPeriod: BigInt
+  sumUnrealizedProfitAtMarketPrice: BigInt
+  sumUnrealizedProfitAtNotional: BigInt
+  sumUnrealizedProfitByPeriod: BigInt
+
+  # Cumulated transaction data since pool creation
+  sumBorrowedAmount: BigInt
+  sumRepaidAmount: BigInt
+  sumPrincipalRepaidAmount: BigInt
+  sumInterestRepaidAmount: BigInt
+  sumUnscheduledRepaidAmount: BigInt
+  sumNumberOfAssets: BigInt
+
+  sumBorrowsCount: BigInt
+  sumRepaysCount: BigInt
+}
+
+type Tranche @entity {
+  id: ID! #poolId-trancheId
+  blockchain: Blockchain! @index
+  type: String! @index
+  pool: Pool! @index
+  trancheId: String!
+
+  name: String
+  index: Int
+
+  isResidual: Boolean
+  seniority: Int
+  interestRatePerSec: BigInt
+  minRiskBuffer: BigInt
+
+  isActive: Boolean! @index
+
+  tokenSupply: BigInt
+  tokenPrice: BigInt
+  sumDebt: BigInt
+
+  sumOutstandingInvestOrdersByPeriod: BigInt
+  sumOutstandingRedeemOrdersByPeriod: BigInt
+  sumOutstandingRedeemOrdersCurrencyByPeriod: BigInt
+
+  sumFulfilledInvestOrdersByPeriod: BigInt
+  sumFulfilledRedeemOrdersByPeriod: BigInt
+  sumFulfilledRedeemOrdersCurrencyByPeriod: BigInt
+
+  yield7DaysAnnualized: BigInt
+  yield30DaysAnnualized: BigInt
+  yield90DaysAnnualized: BigInt
+  yieldSinceInception: BigInt
+  yieldSinceLastPeriod: BigInt
+  yieldMTD: BigInt
+  yieldQTD: BigInt
+  yieldYTD: BigInt
+
+}
+
+type TrancheSnapshot @entity {
+  id: ID! #poolId-trancheId-blockNumber
+  tranche: Tranche!
+
+  timestamp: Date!
+  blockNumber: Int!
+  period: SnapshotPeriod @index
+
+  tokenSupply: BigInt
+  tokenPrice: BigInt
+  sumDebt: BigInt
+
+  sumOutstandingInvestOrdersByPeriod: BigInt
+  sumOutstandingRedeemOrdersByPeriod: BigInt
+  sumOutstandingRedeemOrdersCurrencyByPeriod: BigInt
+
+  sumFulfilledInvestOrdersByPeriod: BigInt
+  sumFulfilledRedeemOrdersByPeriod: BigInt
+  sumFulfilledRedeemOrdersCurrencyByPeriod: BigInt
+
+  yield7DaysAnnualized: BigInt
+  yield30DaysAnnualized: BigInt
+  yield90DaysAnnualized: BigInt
+  yieldSinceInception: BigInt
+  yieldSinceLastPeriod: BigInt
+  yieldMTD: BigInt
+  yieldQTD: BigInt
+  yieldYTD: BigInt
+}
+
+type Epoch @entity {
+  id: ID! #poolId-epochIndex
+  pool: Pool!
+  index: Int!
+
+  openedAt: Date
+  closedAt: Date
+  executedAt: Date
+
+  # Aggregated data during this epoch
+  sumBorrowedAmount: BigInt
+  sumRepaidAmount: BigInt
+  sumInvestedAmount: BigInt
+  sumRedeemedAmount: BigInt
+  
+  sumPoolFeesPaidAmount: BigInt
+
+  epochStates: [EpochState] @derivedFrom(field: "epoch")
+  investorTransactions: [InvestorTransaction] @derivedFrom(field: "epoch")
+  assetTransactions: [AssetTransaction] @derivedFrom(field: "epoch")
+  poolFeeTransactions: [PoolFeeTransaction] @derivedFrom(field: "epoch")
+}
+
+type EpochState @entity {
+  id: ID! #poolId-epochIndex-trancheId
+  epoch: Epoch! @index
+  trancheId: String!
+
+  tokenPrice: BigInt
+
+  sumOutstandingInvestOrders: BigInt
+  sumOutstandingRedeemOrders: BigInt
+  sumOutstandingRedeemOrdersCurrency: BigInt
+  sumFulfilledInvestOrders: BigInt
+  sumFulfilledRedeemOrders: BigInt
+  sumFulfilledRedeemOrdersCurrency: BigInt
+
+  investFulfillmentPercentage: BigInt
+  redeemFulfillmentPercentage: BigInt
+}
+
+enum InvestorTransactionType {
+  INVEST_ORDER_UPDATE
+  REDEEM_ORDER_UPDATE
+  INVEST_ORDER_CANCEL
+  REDEEM_ORDER_CANCEL
+  INVEST_EXECUTION
+  REDEEM_EXECUTION
+  TRANSFER_IN
+  TRANSFER_OUT
+  INVEST_COLLECT
+  REDEEM_COLLECT
+  INVEST_LP_COLLECT
+  REDEEM_LP_COLLECT
+}
+
+type OutstandingOrder @entity {
+  id: ID! # pool id - tranche id - investor address
+  hash: String!
+  account: Account! @index #Account @index
+  pool: Pool! @index
+  tranche: Tranche! @index
+  epochNumber: Int!
+  timestamp: Date!
+
+  investAmount: BigInt!
+  redeemAmount: BigInt!
+}
+
+type InvestorTransaction @entity {
+  id: ID! # extrinsic hash - epoch number ( or 0 for EVM ) - transaction type
+  hash: String!
+  account: Account! @index #Account @index
+  pool: Pool! @index
+  tranche: Tranche! @index
+  epochNumber: Int
+  timestamp: Date!
+  epoch: Epoch @index
+
+  type: InvestorTransactionType!
+  tokenAmount: BigInt
+  currencyAmount: BigInt
+  tokenPrice: BigInt
+  transactionFee: BigInt
+
+  realizedProfitFifo: BigInt
+}
+
+enum AssetTransactionType {
+  CREATED
+  BORROWED
+  REPAID
+  CLOSED
+  CASH_TRANSFER
+  DEPOSIT_FROM_INVESTMENTS
+  WITHDRAWAL_FOR_REDEMPTIONS
+  WITHDRAWAL_FOR_FEES
+  INCREASE_DEBT
+  DECREASE_DEBT
+}
+
+type AssetTransaction @entity {
+  id: ID! # extrinsic hash - epoch number - transaction type
+  timestamp: Date!
+  pool: Pool! @index
+  hash: String!
+
+  account: Account @index
+  epochNumber: Int!
+  epoch: Epoch! @index
+  asset: Asset!
+  type: AssetTransactionType!
+
+  # applies to all BORROWED and REPAID transactions
+  amount: BigInt
+  principalAmount: BigInt
+  interestAmount: BigInt
+  unscheduledAmount: BigInt
+
+  # only applies to BORROWED and REPAID transactions for external assets
+  quantity: BigInt
+  settlementPrice: BigInt
+
+  # only applies to debt transfers
+  fromAsset: Asset
+  toAsset: Asset
+
+  realizedProfitFifo: BigInt
+}
+
+type AssetCashflow @entity {
+  id: ID! # pool id - asset id - cf timestamp
+  asset: Asset! @index
+
+  timestamp: Date!
+  principal: BigInt!
+  interest: BigInt!
+}
+
+type OracleTransaction @entity {
+  id: ID! # extrinsic hash - timestamp - oracle key
+  timestamp: Date!
+  # feeder: Account! @index
+  key: String!
+  value: BigInt!
+}
+
+type Account @entity {
+  id: ID!
+  chain: Blockchain!
+  evmAddress: String @index
+
+  pureProxies: [PureProxy] @derivedFrom(field: "account")
+
+  investorTransactions: [InvestorTransaction] @derivedFrom(field: "account")
+  assetTransactions: [AssetTransaction] @derivedFrom(field: "account")
+
+  outstandingOrders: [OutstandingOrder] @derivedFrom(field: "account")
+  trancheBalances: [TrancheBalance] @derivedFrom(field: "account")
+  currencyBalances: [CurrencyBalance] @derivedFrom(field: "account")
+}
+
+type TrancheBalance @entity {
+  id: ID! # address - pool id - tranche id
+  account: Account! @index
+  pool: Pool! @index
+  tranche: Tranche! @index
+
+  initialisedAt: Date!
+
+  pendingInvestCurrency: BigInt!
+  claimableTrancheTokens: BigInt!
+
+  pendingRedeemTrancheTokens: BigInt!
+  claimableCurrency: BigInt!
+
+  sumClaimedTrancheTokens: BigInt!
+  sumClaimedCurrency: BigInt!
+
+  unrealizedProfit: BigInt!
+}
+
+type InvestorPosition @entity {
+  id: ID! #address - poolId - trancheId - hash
+  account: Account! @index
+  pool: Pool! @index
+  tranche: Tranche! @index
+  timestamp: Date!
+  holdingQuantity: BigInt!
+  purchasePrice: BigInt!
+}
+
+enum AssetStatus {
+  CREATED
+  ACTIVE
+  CLOSED
+}
+
+enum AssetType {
+  OnchainCash
+  OffchainCash
+  Other
+}
+
+enum AssetValuationMethod {
+  Cash
+  DiscountedCashFlow
+  OutstandingDebt
+  Oracle
+}
+
+type Asset @entity {
+  id: ID! # poolId - assetId
+  createdAt: Date!
+
+  blockchain: Blockchain! @index
+  type: AssetType!
+  valuationMethod: AssetValuationMethod!
+
+  collateralNftClassId: BigInt @index
+  collateralNftItemId: BigInt @index
+
+  metadata: String
+  name: String
+  nftId: String # Tinlake only
+
+  advanceRate: BigInt
+  collateralValue: BigInt
+  probabilityOfDefault: BigInt
+  lossGivenDefault: BigInt
+  discountRate: BigInt
+
+  interestRatePerSec: BigInt
+
+  isAdminWrittenOff: Boolean
+
+  pool: Pool! @index
+
+  isActive: Boolean! @index
+  status: AssetStatus!
+
+  outstandingPrincipal: BigInt
+  outstandingInterest: BigInt
+  outstandingDebt: BigInt
+  presentValue: BigInt
+  currentPrice: BigInt
+  outstandingQuantity: BigInt
+  notional: BigInt
+  
+  actualMaturityDate: Date
+  timeToMaturity: Int
+  actualOriginationDate: Date
+  writeOffPercentage: BigInt
+  totalBorrowed: BigInt
+  totalRepaid: BigInt
+  totalRepaidPrincipal: BigInt
+  totalRepaidInterest: BigInt
+  totalRepaidUnscheduled: BigInt
+
+  borrowsCount: BigInt
+  repaysCount: BigInt
+
+  borrowedAmountByPeriod: BigInt
+  repaidAmountByPeriod: BigInt
+
+  interestAccruedByPeriod: BigInt
+
+  writeOffIndex: Int
+  writtenOffPercentageByPeriod: BigInt
+  writtenOffAmountByPeriod: BigInt
+  penaltyInterestRatePerSec: BigInt
+
+  unrealizedProfitAtMarketPrice: BigInt
+  unrealizedProfitAtNotional: BigInt
+  unrealizedProfitByPeriod: BigInt
+  sumRealizedProfitFifo: BigInt
+
+  positions: [AssetPosition] @derivedFrom(field: "asset")
+}
+
+type AssetSnapshot @entity {
+  id: ID! # poolId - loanId - blockNumber
+  asset: Asset!
+
+  timestamp: Date!
+  blockNumber: Int!
+  period: SnapshotPeriod @index
+
+  outstandingPrincipal: BigInt
+  outstandingInterest: BigInt
+  outstandingDebt: BigInt
+  presentValue: BigInt
+  currentPrice: BigInt
+  outstandingQuantity: BigInt
+  actualMaturityDate: Date
+  timeToMaturity: Int
+  actualOriginationDate: Date
+  writeOffPercentage: BigInt
+  totalBorrowed: BigInt
+  totalRepaid: BigInt
+  totalRepaidPrincipal: BigInt
+  totalRepaidInterest: BigInt
+  totalRepaidUnscheduled: BigInt
+
+  borrowedAmountByPeriod: BigInt
+  repaidAmountByPeriod: BigInt
+
+  interestAccruedByPeriod: BigInt
+
+  writtenOffPercentageByPeriod: BigInt
+  writtenOffAmountByPeriod: BigInt
+  penaltyInterestRatePerSec: BigInt
+
+  unrealizedProfitAtMarketPrice: BigInt
+  unrealizedProfitAtNotional: BigInt
+  unrealizedProfitByPeriod: BigInt
+  sumRealizedProfitFifo: BigInt
+}
+
+type AssetPosition @entity {
+  id: ID!
+  asset: Asset! @index
+  timestamp: Date!
+  holdingQuantity: BigInt!
+  purchasePrice: BigInt!
+}
+
+type PureProxy @entity {
+  id: ID!
+
+  account: Account! @index
+  createdBy: String!
+  proxyType: String
+}
+
+type Proxy @entity {
+  id: ID!
+
+  delegator: String!
+  delegatee: String!
+  proxyType: String
+  isRemoved: Boolean
+  delay: BigInt
+}
+
+type Currency @entity {
+  id: ID! # chainId - currencySpec - [currencySpec]
+  chain: Blockchain!
+  decimals: Int!
+  name: String
+  symbol: String
+
+  tokenAddress: String
+  escrowAddress: String
+  userEscrowAddress: String
+
+  pool: Pool
+  tranche: Tranche
+}
+
+type CurrencyBalance @entity {
+  id: ID! # address - currencyId
+  account: Account! @index
+
+  currency: Currency!
+  amount: BigInt!
+}
+
+type Blockchain @entity {
+  id: ID! #EVM chainId
+}
+
+enum PoolFeeStatus {
+  PROPOSED
+  ADDED
+  REMOVED
+}
+
+enum PoolFeeType {
+  Fixed
+  ChargedUpTo
+}
+
+type PoolFee @entity {
+  id: ID! # poolId - feeId
+  feeId: String!
+  type: PoolFeeType!
+  status: PoolFeeStatus!
+  isActive: Boolean! @index
+  blockchain: Blockchain! @index
+
+  createdAt: Date
+  createdAtBlockNumber: Int
+  createdAtEpoch: Int
+
+  name: String
+
+  pool: Pool! @index
+
+  sumChargedAmount: BigInt #Applies to Fixed ONLY
+  sumAccruedAmount: BigInt #Applies toChargedUpTo ONLY
+  sumPaidAmount: BigInt #Applies to All
+  pendingAmount: BigInt #Applies to All
+
+  sumChargedAmountByPeriod: BigInt #Applies to Fixed ONLY
+  sumAccruedAmountByPeriod: BigInt #Applies toChargedUpTo ONLY
+  sumPaidAmountByPeriod: BigInt #Applies to All
+}
+
+type PoolFeeSnapshot @entity {
+  id: ID! # poolId - feeId - blockNumber
+  feeId: String!
+  poolFee: PoolFee! @index
+
+  timestamp: Date!
+  blockNumber: Int!
+  period: SnapshotPeriod @index
+
+  sumChargedAmount: BigInt #Applies to Fixed ONLY
+  sumAccruedAmount: BigInt #Applies toChargedUpTo ONLY
+  sumPaidAmount: BigInt #Applies to All
+  pendingAmount: BigInt #Applies to All
+
+  sumChargedAmountByPeriod: BigInt #Applies to Fixed ONLY
+  sumAccruedAmountByPeriod: BigInt #Applies toChargedUpTo ONLY
+  sumPaidAmountByPeriod: BigInt #Applies to All
+}
+
+enum PoolFeeTransactionType {
+  PROPOSED
+  ADDED
+  REMOVED
+  CHARGED
+  UNCHARGED
+  PAID
+  ACCRUED
+}
+
+type PoolFeeTransaction @entity {
+  id: ID! # extrinsicHash - epochNumber - transaction type
+  poolFee: PoolFee! @index
+  type: PoolFeeTransactionType!
+
+  timestamp: Date!
+  blockNumber: Int!
+  epochNumber: Int!
+  epoch: Epoch!
+
+  amount: BigInt
+}
+
+type Attestation @entity {
+  id: ID! # extrinsicHash
+
+  pool: Pool!
+  timestamp: Date!
+
+  account: Account! @index
+
+  data: String
+}
