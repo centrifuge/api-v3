@@ -1,0 +1,1857 @@
+export const MultiShareClassAbi = [
+  {
+    inputs: [
+      {
+        internalType: "contract IPoolRegistry",
+        name: "poolRegistry_",
+        type: "address",
+      },
+      {
+        internalType: "address",
+        name: "deployer",
+        type: "address",
+      },
+    ],
+    stateMutability: "nonpayable",
+    type: "constructor",
+  },
+  {
+    inputs: [],
+    name: "AlreadyApproved",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "AlreadyUsedSalt",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "ApprovalRequired",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "ClaimDepositRequired",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "ClaimRedeemRequired",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "EpochNotFound",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidMetadataName",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidMetadataSize",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidMetadataSymbol",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidSalt",
+    type: "error",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint8",
+        name: "numberOfShareClasses",
+        type: "uint8",
+      },
+    ],
+    name: "MaxShareClassNumberExceeded",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "MulDiv_Overflow",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "NotAuthorized",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "PoolMissing",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "RevokeMoreThanIssued",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "ShareClassNotFound",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "Uint128_Overflow",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "UnrecognizedFileParam",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "ZeroApprovalAmount",
+    type: "error",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        indexed: true,
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        indexed: true,
+        internalType: "uint32",
+        name: "index",
+        type: "uint32",
+      },
+      {
+        indexed: false,
+        internalType: "string",
+        name: "name",
+        type: "string",
+      },
+      {
+        indexed: false,
+        internalType: "string",
+        name: "symbol",
+        type: "string",
+      },
+      {
+        indexed: false,
+        internalType: "bytes32",
+        name: "salt",
+        type: "bytes32",
+      },
+    ],
+    name: "AddedShareClass",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        indexed: true,
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        indexed: true,
+        internalType: "uint32",
+        name: "index",
+        type: "uint32",
+      },
+    ],
+    name: "AddedShareClass",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        indexed: true,
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        indexed: true,
+        internalType: "uint32",
+        name: "epoch",
+        type: "uint32",
+      },
+      {
+        indexed: false,
+        internalType: "AssetId",
+        name: "assetId",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "approvedPoolAmount",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "approvedAssetAmount",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "pendingAssetAmount",
+        type: "uint128",
+      },
+    ],
+    name: "ApprovedDeposits",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        indexed: true,
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        indexed: true,
+        internalType: "uint32",
+        name: "epoch",
+        type: "uint32",
+      },
+      {
+        indexed: false,
+        internalType: "AssetId",
+        name: "assetId",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "approvedShareClassAmount",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "pendingShareClassAmount",
+        type: "uint128",
+      },
+    ],
+    name: "ApprovedRedeems",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        indexed: true,
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        indexed: true,
+        internalType: "uint32",
+        name: "epoch",
+        type: "uint32",
+      },
+      {
+        indexed: false,
+        internalType: "bytes32",
+        name: "investor",
+        type: "bytes32",
+      },
+      {
+        indexed: false,
+        internalType: "AssetId",
+        name: "assetId",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "approvedAssetAmount",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "pendingAssetAmount",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "claimedShareAmount",
+        type: "uint128",
+      },
+    ],
+    name: "ClaimedDeposit",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        indexed: true,
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        indexed: true,
+        internalType: "uint32",
+        name: "epoch",
+        type: "uint32",
+      },
+      {
+        indexed: false,
+        internalType: "bytes32",
+        name: "investor",
+        type: "bytes32",
+      },
+      {
+        indexed: false,
+        internalType: "AssetId",
+        name: "assetId",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "approvedShareClassAmount",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "pendingShareClassAmount",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "claimedAssetAmount",
+        type: "uint128",
+      },
+    ],
+    name: "ClaimedRedeem",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "address",
+        name: "user",
+        type: "address",
+      },
+    ],
+    name: "Deny",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "bytes32",
+        name: "what",
+        type: "bytes32",
+      },
+      {
+        indexed: false,
+        internalType: "address",
+        name: "who",
+        type: "address",
+      },
+    ],
+    name: "File",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        indexed: true,
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        indexed: true,
+        internalType: "uint32",
+        name: "epoch",
+        type: "uint32",
+      },
+      {
+        indexed: false,
+        internalType: "D18",
+        name: "navPerShare",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "nav",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "issuedShareAmount",
+        type: "uint128",
+      },
+    ],
+    name: "IssuedShares",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        indexed: false,
+        internalType: "uint32",
+        name: "newIndex",
+        type: "uint32",
+      },
+    ],
+    name: "NewEpoch",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "address",
+        name: "user",
+        type: "address",
+      },
+    ],
+    name: "Rely",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        indexed: true,
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        indexed: true,
+        internalType: "uint32",
+        name: "epoch",
+        type: "uint32",
+      },
+      {
+        indexed: false,
+        internalType: "D18",
+        name: "navPerShare",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "nav",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "revokedShareAmount",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "revokedAssetAmount",
+        type: "uint128",
+      },
+    ],
+    name: "RevokedShares",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        indexed: true,
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        indexed: true,
+        internalType: "uint32",
+        name: "epoch",
+        type: "uint32",
+      },
+      {
+        indexed: false,
+        internalType: "bytes32",
+        name: "investor",
+        type: "bytes32",
+      },
+      {
+        indexed: false,
+        internalType: "AssetId",
+        name: "assetId",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "updatedAmountUser",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "updatedAmountTotal",
+        type: "uint128",
+      },
+    ],
+    name: "UpdatedDepositRequest",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        indexed: true,
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        indexed: false,
+        internalType: "string",
+        name: "name",
+        type: "string",
+      },
+      {
+        indexed: false,
+        internalType: "string",
+        name: "symbol",
+        type: "string",
+      },
+      {
+        indexed: false,
+        internalType: "bytes32",
+        name: "salt",
+        type: "bytes32",
+      },
+    ],
+    name: "UpdatedMetadata",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        indexed: true,
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "newAmount",
+        type: "uint128",
+      },
+    ],
+    name: "UpdatedNav",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        indexed: true,
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        indexed: true,
+        internalType: "uint32",
+        name: "epoch",
+        type: "uint32",
+      },
+      {
+        indexed: false,
+        internalType: "bytes32",
+        name: "investor",
+        type: "bytes32",
+      },
+      {
+        indexed: false,
+        internalType: "AssetId",
+        name: "payoutAssetId",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "updatedAmountUser",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "updatedAmountTotal",
+        type: "uint128",
+      },
+    ],
+    name: "UpdatedRedeemRequest",
+    type: "event",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "string",
+        name: "name",
+        type: "string",
+      },
+      {
+        internalType: "string",
+        name: "symbol",
+        type: "string",
+      },
+      {
+        internalType: "bytes32",
+        name: "salt",
+        type: "bytes32",
+      },
+      {
+        internalType: "bytes",
+        name: "",
+        type: "bytes",
+      },
+    ],
+    name: "addShareClass",
+    outputs: [
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+      {
+        internalType: "uint128",
+        name: "maxApproval",
+        type: "uint128",
+      },
+      {
+        internalType: "AssetId",
+        name: "paymentAssetId",
+        type: "uint128",
+      },
+      {
+        internalType: "contract IERC7726",
+        name: "valuation",
+        type: "address",
+      },
+    ],
+    name: "approveDeposits",
+    outputs: [
+      {
+        internalType: "uint128",
+        name: "approvedAssetAmount",
+        type: "uint128",
+      },
+      {
+        internalType: "uint128",
+        name: "approvedPoolAmount",
+        type: "uint128",
+      },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+      {
+        internalType: "uint128",
+        name: "maxApproval",
+        type: "uint128",
+      },
+      {
+        internalType: "AssetId",
+        name: "payoutAssetId",
+        type: "uint128",
+      },
+    ],
+    name: "approveRedeems",
+    outputs: [
+      {
+        internalType: "uint128",
+        name: "approvedShareAmount",
+        type: "uint128",
+      },
+      {
+        internalType: "uint128",
+        name: "pendingShareAmount",
+        type: "uint128",
+      },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+      {
+        internalType: "bytes32",
+        name: "investor",
+        type: "bytes32",
+      },
+      {
+        internalType: "AssetId",
+        name: "depositAssetId",
+        type: "uint128",
+      },
+    ],
+    name: "cancelDepositRequest",
+    outputs: [
+      {
+        internalType: "uint128",
+        name: "cancelledAssetAmount",
+        type: "uint128",
+      },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+      {
+        internalType: "bytes32",
+        name: "investor",
+        type: "bytes32",
+      },
+      {
+        internalType: "AssetId",
+        name: "payoutAssetId",
+        type: "uint128",
+      },
+    ],
+    name: "cancelRedeemRequest",
+    outputs: [
+      {
+        internalType: "uint128",
+        name: "cancelledShareAmount",
+        type: "uint128",
+      },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+      {
+        internalType: "bytes32",
+        name: "investor",
+        type: "bytes32",
+      },
+      {
+        internalType: "AssetId",
+        name: "depositAssetId",
+        type: "uint128",
+      },
+    ],
+    name: "claimDeposit",
+    outputs: [
+      {
+        internalType: "uint128",
+        name: "payoutShareAmount",
+        type: "uint128",
+      },
+      {
+        internalType: "uint128",
+        name: "paymentAssetAmount",
+        type: "uint128",
+      },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+      {
+        internalType: "bytes32",
+        name: "investor",
+        type: "bytes32",
+      },
+      {
+        internalType: "AssetId",
+        name: "depositAssetId",
+        type: "uint128",
+      },
+      {
+        internalType: "uint32",
+        name: "endEpochId",
+        type: "uint32",
+      },
+    ],
+    name: "claimDepositUntilEpoch",
+    outputs: [
+      {
+        internalType: "uint128",
+        name: "payoutShareAmount",
+        type: "uint128",
+      },
+      {
+        internalType: "uint128",
+        name: "paymentAssetAmount",
+        type: "uint128",
+      },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+      {
+        internalType: "bytes32",
+        name: "investor",
+        type: "bytes32",
+      },
+      {
+        internalType: "AssetId",
+        name: "payoutAssetId",
+        type: "uint128",
+      },
+    ],
+    name: "claimRedeem",
+    outputs: [
+      {
+        internalType: "uint128",
+        name: "payoutAssetAmount",
+        type: "uint128",
+      },
+      {
+        internalType: "uint128",
+        name: "paymentShareAmount",
+        type: "uint128",
+      },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+      {
+        internalType: "bytes32",
+        name: "investor",
+        type: "bytes32",
+      },
+      {
+        internalType: "AssetId",
+        name: "payoutAssetId",
+        type: "uint128",
+      },
+      {
+        internalType: "uint32",
+        name: "endEpochId",
+        type: "uint32",
+      },
+    ],
+    name: "claimRedeemUntilEpoch",
+    outputs: [
+      {
+        internalType: "uint128",
+        name: "payoutAssetAmount",
+        type: "uint128",
+      },
+      {
+        internalType: "uint128",
+        name: "paymentShareAmount",
+        type: "uint128",
+      },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "user",
+        type: "address",
+      },
+    ],
+    name: "deny",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        internalType: "AssetId",
+        name: "paymentAssetId",
+        type: "uint128",
+      },
+      {
+        internalType: "bytes32",
+        name: "investor",
+        type: "bytes32",
+      },
+    ],
+    name: "depositRequest",
+    outputs: [
+      {
+        internalType: "uint128",
+        name: "pending",
+        type: "uint128",
+      },
+      {
+        internalType: "uint32",
+        name: "lastUpdate",
+        type: "uint32",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        internalType: "AssetId",
+        name: "assetId",
+        type: "uint128",
+      },
+      {
+        internalType: "uint32",
+        name: "epochId_",
+        type: "uint32",
+      },
+    ],
+    name: "epochAmounts",
+    outputs: [
+      {
+        internalType: "uint128",
+        name: "depositPending",
+        type: "uint128",
+      },
+      {
+        internalType: "uint128",
+        name: "depositApproved",
+        type: "uint128",
+      },
+      {
+        internalType: "uint128",
+        name: "depositPool",
+        type: "uint128",
+      },
+      {
+        internalType: "uint128",
+        name: "depositShares",
+        type: "uint128",
+      },
+      {
+        internalType: "uint128",
+        name: "redeemPending",
+        type: "uint128",
+      },
+      {
+        internalType: "uint128",
+        name: "redeemApproved",
+        type: "uint128",
+      },
+      {
+        internalType: "uint128",
+        name: "redeemAssets",
+        type: "uint128",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+    ],
+    name: "epochId",
+    outputs: [
+      {
+        internalType: "uint32",
+        name: "",
+        type: "uint32",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        internalType: "AssetId",
+        name: "assetId",
+        type: "uint128",
+      },
+    ],
+    name: "epochPointers",
+    outputs: [
+      {
+        internalType: "uint32",
+        name: "latestDepositApproval",
+        type: "uint32",
+      },
+      {
+        internalType: "uint32",
+        name: "latestRedeemApproval",
+        type: "uint32",
+      },
+      {
+        internalType: "uint32",
+        name: "latestIssuance",
+        type: "uint32",
+      },
+      {
+        internalType: "uint32",
+        name: "latestRevocation",
+        type: "uint32",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+    ],
+    name: "exists",
+    outputs: [
+      {
+        internalType: "bool",
+        name: "",
+        type: "bool",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "bytes32",
+        name: "what",
+        type: "bytes32",
+      },
+      {
+        internalType: "address",
+        name: "data",
+        type: "address",
+      },
+    ],
+    name: "file",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+      {
+        internalType: "AssetId",
+        name: "depositAssetId",
+        type: "uint128",
+      },
+      {
+        internalType: "D18",
+        name: "navPerShare",
+        type: "uint128",
+      },
+    ],
+    name: "issueShares",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+      {
+        internalType: "AssetId",
+        name: "depositAssetId",
+        type: "uint128",
+      },
+      {
+        internalType: "D18",
+        name: "navPerShare",
+        type: "uint128",
+      },
+      {
+        internalType: "uint32",
+        name: "endEpochId",
+        type: "uint32",
+      },
+    ],
+    name: "issueSharesUntilEpoch",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+    ],
+    name: "metadata",
+    outputs: [
+      {
+        internalType: "string",
+        name: "name",
+        type: "string",
+      },
+      {
+        internalType: "string",
+        name: "symbol",
+        type: "string",
+      },
+      {
+        internalType: "bytes32",
+        name: "salt",
+        type: "bytes32",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+    ],
+    name: "metrics",
+    outputs: [
+      {
+        internalType: "uint128",
+        name: "totalIssuance",
+        type: "uint128",
+      },
+      {
+        internalType: "D18",
+        name: "navPerShare",
+        type: "uint128",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        internalType: "AssetId",
+        name: "paymentAssetId",
+        type: "uint128",
+      },
+    ],
+    name: "pendingDeposit",
+    outputs: [
+      {
+        internalType: "uint128",
+        name: "pending",
+        type: "uint128",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        internalType: "AssetId",
+        name: "payoutAssetId",
+        type: "uint128",
+      },
+    ],
+    name: "pendingRedeem",
+    outputs: [
+      {
+        internalType: "uint128",
+        name: "pending",
+        type: "uint128",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "poolRegistry",
+    outputs: [
+      {
+        internalType: "contract IPoolRegistry",
+        name: "",
+        type: "address",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+    ],
+    name: "previewNextShareClassId",
+    outputs: [
+      {
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "uint32",
+        name: "index",
+        type: "uint32",
+      },
+    ],
+    name: "previewShareClassId",
+    outputs: [
+      {
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+    ],
+    stateMutability: "pure",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        internalType: "AssetId",
+        name: "payoutAssetId",
+        type: "uint128",
+      },
+      {
+        internalType: "bytes32",
+        name: "investor",
+        type: "bytes32",
+      },
+    ],
+    name: "redeemRequest",
+    outputs: [
+      {
+        internalType: "uint128",
+        name: "pending",
+        type: "uint128",
+      },
+      {
+        internalType: "uint32",
+        name: "lastUpdate",
+        type: "uint32",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "user",
+        type: "address",
+      },
+    ],
+    name: "rely",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+      {
+        internalType: "uint128",
+        name: "amount",
+        type: "uint128",
+      },
+      {
+        internalType: "bytes32",
+        name: "investor",
+        type: "bytes32",
+      },
+      {
+        internalType: "AssetId",
+        name: "depositAssetId",
+        type: "uint128",
+      },
+    ],
+    name: "requestDeposit",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+      {
+        internalType: "uint128",
+        name: "amount",
+        type: "uint128",
+      },
+      {
+        internalType: "bytes32",
+        name: "investor",
+        type: "bytes32",
+      },
+      {
+        internalType: "AssetId",
+        name: "payoutAssetId",
+        type: "uint128",
+      },
+    ],
+    name: "requestRedeem",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+      {
+        internalType: "AssetId",
+        name: "payoutAssetId",
+        type: "uint128",
+      },
+      {
+        internalType: "D18",
+        name: "navPerShare",
+        type: "uint128",
+      },
+      {
+        internalType: "contract IERC7726",
+        name: "valuation",
+        type: "address",
+      },
+    ],
+    name: "revokeShares",
+    outputs: [
+      {
+        internalType: "uint128",
+        name: "payoutAssetAmount",
+        type: "uint128",
+      },
+      {
+        internalType: "uint128",
+        name: "payoutPoolAmount",
+        type: "uint128",
+      },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+      {
+        internalType: "AssetId",
+        name: "payoutAssetId",
+        type: "uint128",
+      },
+      {
+        internalType: "D18",
+        name: "navPerShare",
+        type: "uint128",
+      },
+      {
+        internalType: "contract IERC7726",
+        name: "valuation",
+        type: "address",
+      },
+      {
+        internalType: "uint32",
+        name: "endEpochId",
+        type: "uint32",
+      },
+    ],
+    name: "revokeSharesUntilEpoch",
+    outputs: [
+      {
+        internalType: "uint128",
+        name: "payoutAssetAmount",
+        type: "uint128",
+      },
+      {
+        internalType: "uint128",
+        name: "payoutPoolAmount",
+        type: "uint128",
+      },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "bytes32",
+        name: "salt",
+        type: "bytes32",
+      },
+    ],
+    name: "salts",
+    outputs: [
+      {
+        internalType: "bool",
+        name: "",
+        type: "bool",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+    ],
+    name: "shareClassCount",
+    outputs: [
+      {
+        internalType: "uint32",
+        name: "",
+        type: "uint32",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "",
+        type: "bytes16",
+      },
+    ],
+    name: "shareClassIds",
+    outputs: [
+      {
+        internalType: "bool",
+        name: "",
+        type: "bool",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "",
+        type: "uint64",
+      },
+      {
+        internalType: "bytes",
+        name: "",
+        type: "bytes",
+      },
+    ],
+    name: "update",
+    outputs: [],
+    stateMutability: "pure",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+      {
+        internalType: "string",
+        name: "name",
+        type: "string",
+      },
+      {
+        internalType: "string",
+        name: "symbol",
+        type: "string",
+      },
+      {
+        internalType: "bytes32",
+        name: "salt",
+        type: "bytes32",
+      },
+      {
+        internalType: "bytes",
+        name: "",
+        type: "bytes",
+      },
+    ],
+    name: "updateMetadata",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "PoolId",
+        name: "poolId",
+        type: "uint64",
+      },
+      {
+        internalType: "ShareClassId",
+        name: "shareClassId_",
+        type: "bytes16",
+      },
+    ],
+    name: "updateShareClassNav",
+    outputs: [
+      {
+        internalType: "uint128",
+        name: "",
+        type: "uint128",
+      },
+      {
+        internalType: "D18",
+        name: "",
+        type: "uint128",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "",
+        type: "address",
+      },
+    ],
+    name: "wards",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;

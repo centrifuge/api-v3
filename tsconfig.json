@@ -21,6 +21,6 @@
     // Skip type checking for node modules
     "skipLibCheck": true
   },
-  "include": ["./**/*.ts"],
+  "include": ["./**/*.ts", "ponder.schema.ts_bkp"],
   "exclude": ["node_modules"]
 }
