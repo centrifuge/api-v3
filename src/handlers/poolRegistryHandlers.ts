@@ -2,13 +2,14 @@ import { ponder } from "ponder:registry";
 import { PoolService } from "../services/PoolService";
 import { ShareClassService } from "../services/ShareClassService";
 import { logEvent } from "../helpers/logger";
+import { EpochService } from "../services";
 
 ponder.on("PoolRegistry:NewPool", async ({ event, context }) => {
-  logEvent(event);
+  logEvent(event, "NewPool");
   
   const { poolId, currency, shareClassManager, admin } = event.args;
 
-  const pool = await PoolService.create(context, {
+  const pool = await PoolService.init(context, {
     id: poolId,
     admin,
     shareClassManager,
@@ -18,12 +19,16 @@ ponder.on("PoolRegistry:NewPool", async ({ event, context }) => {
 
   const shareClassIds = await pool.getShareClassIds();
   const shareClassCreator = shareClassIds.map(([index, shareClassId]) => {
-    return ShareClassService.create(context, {
+    return ShareClassService.init(context, {
       index,
       id: shareClassId,
       poolId,
     });
   });
-  
-  await Promise.all(shareClassCreator);
+  const shareClasses = await Promise.all(shareClassCreator);
+
+  const epoch = await EpochService.init(context, {
+    poolId,
+    epochId: 1,
+  });
 });

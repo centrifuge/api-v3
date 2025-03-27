@@ -15,20 +15,14 @@ export default createConfig({
     PoolRegistry: {
       network: "sepolia",
       abi: PoolRegistryAbi,
-      address: "0xF932EFb431c8c881C501fcdFEa237C1f62ed4F55",
+      address: "0xbb020baa0d0e49bef14091ae7ac0186f578e21fc",
       startBlock: 7936599,
     },
     MultiShareClassAbi: {
       network: "sepolia",
       abi: MultiShareClassAbi,
+      address: "0x951d0b299ded4b7fd3511b2889578b28512047b7",
       startBlock: 7936599,
-      filter: {
-        event: [
-          "NewEpoch",
-          "AddedShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index, string name, string symbol, bytes32 salt)",
-          "AddedShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index)",
-        ],
-      },
     },
   },
 });

@@ -1,21 +1,20 @@
 import type { Context } from "ponder:registry";
-import { shareClasses } from "ponder:schema";
-import { MultiShareClassAbi } from "../../abis/MultiShareClassAbi";
-export class ShareClassService {
-  private readonly db: Context["db"];
-  private readonly client: Context["client"];
+import { ShareClass } from "ponder:schema";
+import { Service } from "./Service";
 
-  public data: typeof shareClasses.$inferSelect;
+export class ShareClassService extends Service<typeof ShareClass> {
+  protected readonly table = ShareClass;
 
-
-
-  constructor(context: Context, data: typeof shareClasses.$inferSelect) {
-    this.db = context.db;
-    this.client = context.client;
-    this.data = data;
+  static async init(context: Context, data: typeof ShareClass.$inferInsert) {
+    console.info("Initialising shareClass", data);
+    return new this(context, await context.db.insert(ShareClass).values(data));
   }
 
-  static async create(context: Context, data: typeof shareClasses.$inferInsert) {
-    return new this(context, await context.db.insert(shareClasses).values(data));
+  static async get(context: Context, query: typeof ShareClass.$inferSelect) {
+    const shareClass = await context.db.find(ShareClass, query);
+    if (!shareClass) {
+      throw new Error(`ShareClass with ${query} not found`);
+    }
+    return new this(context, shareClass);
   }
 }

@@ -1,31 +1,28 @@
 import type { Context } from "ponder:registry";
-import { pools } from "ponder:schema";
+import { Pool } from "ponder:schema";
 import { MultiShareClassAbi } from "../../abis/MultiShareClassAbi";
+import { Service } from "./Service";
 
-export class PoolService {
-  private readonly db: Context["db"];
-  private readonly client: Context["client"];
+export class PoolService extends Service<typeof Pool> {
+  protected readonly table = Pool;
 
-  public data: typeof pools.$inferSelect;
-
-  constructor(context: Context, data: typeof pools.$inferSelect) {
-    this.db = context.db;
-    this.client = context.client;
-    this.data = data;
+  static async init(context: Context, data: (typeof Pool)["$inferInsert"]) {
+    console.log("Initialising pool", data);
+    return new this(context, await context.db.insert(Pool).values(data));
   }
 
-  static async create(context: Context, data: typeof pools.$inferInsert) {
-    console.info("Creating pool: ", data);
-    return new this(context, await context.db.insert(pools).values(data));
-  }
-
-  static async get(context: Context, query: typeof pools.$inferSelect) {
-    const data = await context.db.find(pools, query);
-    if (!data) return undefined;
-    return new PoolService(context, data);
+  static async get(context: Context, query: typeof Pool.$inferSelect) {
+    const pool = await context.db.find(Pool, query);
+    if (!pool) {
+      throw new Error(`Pool with id ${query.id} not found`);
+    }
+    return new this(context, pool);
   }
 
   public getShareClassCount() {
+    if (!this.data.shareClassManager) {
+      throw new Error(`Pool with id ${this.data.id} has no shareClassManager`);
+    }
     return this.client.readContract({
       address: this.data.shareClassManager,
       abi: MultiShareClassAbi,
@@ -37,6 +34,8 @@ export class PoolService {
 
   public async getShareClassIds() {
     const shareClassCount = await this.getShareClassCount();
+    if (!this.data.shareClassManager)
+      throw new Error(`Pool with id ${this.data.id} has no shareClassManager`);
 
     const contractInfo = {
       address: this.data.shareClassManager,
