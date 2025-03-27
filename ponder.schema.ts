@@ -10,11 +10,11 @@ export const Pool = onchainTable("pool", (t) => ({
 
 export const PoolRelations = relations(Pool, ({ one, many }) => ({
   shareClasses: many(ShareClass),
-  epoches: many(Epoch),
+  epochs: many(Epoch),
   investorTransactions: many(InvestorTransaction),
 }));
 
-export const ShareClass = onchainTable("shareClasse", (t) => ({
+export const ShareClass = onchainTable("share_class", (t) => ({
   id: t.hex().primaryKey(),
   index: t.integer(),
   isActive: t.boolean().default(false),
@@ -47,7 +47,7 @@ export const EpochRelations = relations(Epoch, ({ one, many }) => ({
   investorTransactions: many(InvestorTransaction),
 }));
 
-export const InvestorTransactionType = onchainEnum("investorTransactionType", [
+export const InvestorTransactionType = onchainEnum("investor_transaction_type", [
   "INVEST_ORDER_UPDATE",
   "REDEEM_ORDER_UPDATE",
   "INVEST_ORDER_CANCEL",
@@ -58,7 +58,7 @@ export const InvestorTransactionType = onchainEnum("investorTransactionType", [
   "REDEEM_COLLECT",
 ]);
 
-export const InvestorTransaction = onchainTable("investorTransaction", (t) => ({
+export const InvestorTransaction = onchainTable("investor_transaction", (t) => ({
   id: t.hex().primaryKey(),
   account: t.hex().notNull(),
   poolId: t.bigint().notNull(),
