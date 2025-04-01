@@ -8,10 +8,12 @@ export class PoolService extends Service<typeof Pool> {
 
   static async init(context: Context, data: (typeof Pool)["$inferInsert"]) {
     console.log("Initialising pool", data);
-    return new this(context, await context.db.insert(Pool).values(data));
+    const insert = (await context.db.sql.insert(Pool).values(data).returning()).pop() ?? null;
+    if (!insert) throw new Error(`Pool with ${data} not inserted`);
+    return new this(context, insert);
   }
 
-  static async get(context: Context, query: typeof Pool.$inferSelect) {
+  static async get(context: Context, query: typeof Pool.$inferInsert) {
     const pool = await context.db.find(Pool, query);
     if (!pool) {
       throw new Error(`Pool with id ${query.id} not found`);
@@ -41,7 +43,7 @@ export class PoolService extends Service<typeof Pool> {
       address: this.data.shareClassManager,
       abi: MultiShareClassAbi,
       functionName: "previewShareClassId",
-      allowFailure: true,
+      allowFailure: false,
     } as const;
 
     const shareClassIndexes = [...Array(shareClassCount).keys()];
@@ -64,5 +66,10 @@ export class PoolService extends Service<typeof Pool> {
       shareClassesIds.push([index, response.result]);
     }
     return shareClassesIds;
+  }
+
+  public setCurrentEpochIndex(index: number) {
+    console.info(`Setting current epoch index to ${index} for pool ${this.data.id}`);
+    this.data.currentEpochIndex = index;
   }
 }

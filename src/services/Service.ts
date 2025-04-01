@@ -21,9 +21,11 @@ export abstract class Service<T extends PgTable> {
   }
 
   async save() {
-    this.data = await this.db
-      .update(this.table as any, { id: this.data.id })
-      .set(this.data);
+    const update = (await this.db.sql.update(this.table).set(this.data).returning()).pop() ?? null;
+    if (!update) throw new Error(`Failed to update ${this.table}`);
+    this.data = update;
     return this;
   }
 }
+
+

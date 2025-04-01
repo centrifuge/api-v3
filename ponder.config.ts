@@ -1,8 +1,13 @@
 import { createConfig, factory } from "ponder";
-import { http } from "viem";
+import { getAbiItem, http } from "viem";
 
 import { PoolRegistryAbi } from "./abis/PoolRegistryAbi";
+import { PoolManagerAbi } from "./abis/PoolManagerAbi";
 import { MultiShareClassAbi } from "./abis/MultiShareClassAbi";
+import { VaultAbi } from "./abis/VaultAbi";
+
+import { chains } from "./chains";
+const currentNetwork = chains['sepoliaV2']
 
 export default createConfig({
   networks: {
@@ -15,14 +20,30 @@ export default createConfig({
     PoolRegistry: {
       network: "sepolia",
       abi: PoolRegistryAbi,
-      address: "0xbb020baa0d0e49bef14091ae7ac0186f578e21fc",
-      startBlock: 7936599,
+      address: currentNetwork.contracts.poolRegistry,
+      startBlock: currentNetwork.startBlock,
     },
-    MultiShareClassAbi: {
+    MultiShareClass: {
       network: "sepolia",
       abi: MultiShareClassAbi,
-      address: "0x951d0b299ded4b7fd3511b2889578b28512047b7",
-      startBlock: 7936599,
+      address: currentNetwork.contracts.multiShareClass,
+      startBlock: currentNetwork.startBlock,
+    },
+    PoolManager: {
+      network: "sepolia",
+      abi: PoolManagerAbi,
+      address: currentNetwork.contracts.poolManager,
+      startBlock: currentNetwork.startBlock,
+    },
+    Vault: {
+      network: "sepolia",
+      address: factory({
+        address: currentNetwork.contracts.poolManager,
+        event: getAbiItem({ abi: PoolManagerAbi, name: "DeployVault" }),
+        parameter: "vault",
+      }),
+      abi: VaultAbi,
+      startBlock: currentNetwork.startBlock,
     },
   },
 });
