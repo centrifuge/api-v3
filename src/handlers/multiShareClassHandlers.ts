@@ -88,7 +88,7 @@ ponder.on(
       shareClassId,
       account: investor,
     });
-    await oo.decorateOutstandingOrder(updatedAt, updatedAtBlock, epochIndex);
+    await oo.decorateOutstandingOrder(updatedAt, updatedAtBlock);
     await oo.updateRequestedDepositAmount(updatedAmountUser);
     await oo.save();
   }
@@ -114,7 +114,7 @@ ponder.on(
       shareClassId,
       account: investor,
     });
-    await oo.decorateOutstandingOrder(updatedAt, updatedAtBlock, epochIndex);
+    await oo.decorateOutstandingOrder(updatedAt, updatedAtBlock);
     await oo.updateRequestedRedeemAmount(updatedAmountUser);
     await oo.save();
   }

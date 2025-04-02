@@ -74,7 +74,6 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
     tokenAmount: shares,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     txHash: event.transaction.hash,
-    epochIndex: currentEpochIndex!,
     createdAtBlock: Number(event.block.number),
   });
 });
@@ -99,7 +98,6 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
     tokenAmount: shares,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     txHash: event.transaction.hash,
-    epochIndex: currentEpochIndex!,
     createdAtBlock: Number(event.block.number),
   });
 });

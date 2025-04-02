@@ -22,7 +22,7 @@ export class ShareClassService extends Service<typeof ShareClass> {
   static async getOrInit(context: Context, query: typeof ShareClass.$inferInsert) {
     let shareClass =  await context.db.find(ShareClass, query);
     if (!shareClass) {
-      console.info(`Initialising shareClass: ${query}`);
+      console.info("Initialising shareClass: ", query);
       shareClass = (await context.db.sql.insert(ShareClass).values(query).returning()).pop() ?? null;
     }
     if (!shareClass) throw new Error(`ShareClass with ${query} not found`);

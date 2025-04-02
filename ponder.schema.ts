@@ -1,4 +1,4 @@
-import { onchainTable, onchainEnum, relations, primaryKey } from "ponder";
+import { onchainTable, onchainEnum, relations, primaryKey, index } from "ponder";
 
 export const Pool = onchainTable("pool", (t) => ({
   id: t.bigint().primaryKey(),
@@ -31,7 +31,11 @@ export const ShareClass = onchainTable("share_class", (t) => ({
   // Metrics fields
   totalIssuance: t.bigint().default(0n),
   navPerShare: t.bigint().default(0n),
-}));
+}),
+  (t) => ({
+    vaultIdx: index().on(t.vault),
+  })
+);
 
 export const ShareClassesRelations = relations(ShareClass, ({ one, many }) => ({
   pool: one(Pool, { fields: [ShareClass.poolId], references: [Pool.id] }),
@@ -55,7 +59,6 @@ export const Epoch = onchainTable(
 export const EpochRelations = relations(Epoch, ({ one, many }) => ({
   pool: one(Pool, { fields: [Epoch.poolId], references: [Pool.id] }),
   investorTransactions: many(InvestorTransaction),
-  outstandingOrders: many(OutstandingOrder),
 }));
 
 export const InvestorTransactionType = onchainEnum(
@@ -78,17 +81,21 @@ export const InvestorTransaction = onchainTable(
     txHash: t.hex().notNull(),
     poolId: t.bigint().notNull(),
     shareClassId: t.hex().notNull(),
-    account: t.hex().notNull(),
     type: InvestorTransactionType("investor_transaction_type").notNull(),
-    epochIndex: t.integer().notNull(),
+    account: t.hex().notNull(),
     createdAt: t.timestamp().notNull(),
     createdAtBlock: t.integer().notNull(),
+    epochIndex: t.integer(),
     tokenAmount: t.bigint(),
     currencyAmount: t.bigint(),
     tokenPrice: t.bigint(),
     transactionFee: t.bigint(),
   }),
-  (t) => ({ id: primaryKey({ columns: [t.txHash, t.epochIndex, t.type] }) })
+  (t) => ({
+    id: primaryKey({
+      columns: [t.poolId, t.shareClassId, t.account, t.type, t.txHash],
+    }),
+  })
 );
 
 export const InvestorTransactionRelations = relations(
@@ -109,26 +116,38 @@ export const InvestorTransactionRelations = relations(
   })
 );
 
-export const OutstandingOrder = onchainTable("outstanding_order", (t) => ({
-  poolId: t.bigint().notNull(),
-  shareClassId: t.hex().notNull(),
-  account: t.hex().notNull(),
-  updatedAt: t.timestamp(),
-  updatedAtBlock: t.integer(),
-  epochIndex: t.integer(),
- 
-  requestedDepositAmount: t.bigint().default(0n),
-  approvedDepositAmount: t.bigint().default(0n),
+export const OutstandingOrder = onchainTable(
+  "outstanding_order",
+  (t) => ({
+    poolId: t.bigint().notNull(),
+    shareClassId: t.hex().notNull(),
+    account: t.hex().notNull(),
+    updatedAt: t.timestamp(),
+    updatedAtBlock: t.integer(),
 
-  requestedRedeemAmount: t.bigint().default(0n),
-  approvedRedeemAmount: t.bigint().default(0n),
-  
-}),
-  (t) => ({ id: primaryKey({ columns: [t.poolId, t.shareClassId, t.account] }) })
+    requestedDepositAmount: t.bigint().default(0n),
+    approvedDepositAmount: t.bigint().default(0n),
+
+    requestedRedeemAmount: t.bigint().default(0n),
+    approvedRedeemAmount: t.bigint().default(0n),
+  }),
+  (t) => ({
+    id: primaryKey({ columns: [t.poolId, t.shareClassId, t.account] }),
+    poolIdx: index().on(t.poolId),
+    shareClassIdx: index().on(t.shareClassId),
+  })
 );
 
-export const OutstandingOrderRelations = relations(OutstandingOrder, ({ one }) => ({
-  pool: one(Pool, { fields: [OutstandingOrder.poolId], references: [Pool.id] }),
-  shareClass: one(ShareClass, { fields: [OutstandingOrder.shareClassId], references: [ShareClass.id] }),
-  epoch: one(Epoch, { fields: [OutstandingOrder.poolId, OutstandingOrder.epochIndex], references: [Epoch.poolId, Epoch.index] }),
-}));
+export const OutstandingOrderRelations = relations(
+  OutstandingOrder,
+  ({ one }) => ({
+    pool: one(Pool, {
+      fields: [OutstandingOrder.poolId],
+      references: [Pool.id],
+    }),
+    shareClass: one(ShareClass, {
+      fields: [OutstandingOrder.shareClassId],
+      references: [ShareClass.id],
+    }),
+  })
+);

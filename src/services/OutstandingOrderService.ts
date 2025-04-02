@@ -35,7 +35,7 @@ export class OutstandingOrderService extends Service<typeof OutstandingOrder> {
   ) {
     let outstandingOrder = await context.db.find(OutstandingOrder, query);
     if (!outstandingOrder) {
-      console.info(`Initialising OutstandingOrder: ${query}`);
+      console.info("Initialising OutstandingOrder: ", query);
       outstandingOrder =
         (
           await context.db.sql
@@ -96,11 +96,9 @@ export class OutstandingOrderService extends Service<typeof OutstandingOrder> {
   public decorateOutstandingOrder(
     updatedAt: Date,
     updatedAtBlock: number,
-    epochIndex: number
   ) {
     this.data.updatedAt = updatedAt;
     this.data.updatedAtBlock = updatedAtBlock;
-    this.data.epochIndex = epochIndex;
     return this;
   }
 
