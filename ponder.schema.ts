@@ -15,6 +15,7 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
   shareClasses: many(ShareClass),
   epochs: many(Epoch),
   investorTransactions: many(InvestorTransaction),
+  outstandingOrders: many(OutstandingOrder),
 }));
 
 export const ShareClass = onchainTable("share_class", (t) => ({
@@ -35,6 +36,7 @@ export const ShareClass = onchainTable("share_class", (t) => ({
 export const ShareClassesRelations = relations(ShareClass, ({ one, many }) => ({
   pool: one(Pool, { fields: [ShareClass.poolId], references: [Pool.id] }),
   investorTransactions: many(InvestorTransaction),
+  outstandingOrders: many(OutstandingOrder),
 }));
 
 export const Epoch = onchainTable(
@@ -53,6 +55,7 @@ export const Epoch = onchainTable(
 export const EpochRelations = relations(Epoch, ({ one, many }) => ({
   pool: one(Pool, { fields: [Epoch.poolId], references: [Pool.id] }),
   investorTransactions: many(InvestorTransaction),
+  outstandingOrders: many(OutstandingOrder),
 }));
 
 export const InvestorTransactionType = onchainEnum(
@@ -105,3 +108,27 @@ export const InvestorTransactionRelations = relations(
     }),
   })
 );
+
+export const OutstandingOrder = onchainTable("outstanding_order", (t) => ({
+  poolId: t.bigint().notNull(),
+  shareClassId: t.hex().notNull(),
+  account: t.hex().notNull(),
+  updatedAt: t.timestamp(),
+  updatedAtBlock: t.integer(),
+  epochIndex: t.integer(),
+ 
+  requestedDepositAmount: t.bigint().default(0n),
+  approvedDepositAmount: t.bigint().default(0n),
+
+  requestedRedeemAmount: t.bigint().default(0n),
+  approvedRedeemAmount: t.bigint().default(0n),
+  
+}),
+  (t) => ({ id: primaryKey({ columns: [t.poolId, t.shareClassId, t.account] }) })
+);
+
+export const OutstandingOrderRelations = relations(OutstandingOrder, ({ one }) => ({
+  pool: one(Pool, { fields: [OutstandingOrder.poolId], references: [Pool.id] }),
+  shareClass: one(ShareClass, { fields: [OutstandingOrder.shareClassId], references: [ShareClass.id] }),
+  epoch: one(Epoch, { fields: [OutstandingOrder.poolId, OutstandingOrder.epochIndex], references: [Epoch.poolId, Epoch.index] }),
+}));

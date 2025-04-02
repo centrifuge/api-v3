@@ -27,5 +27,3 @@ export abstract class Service<T extends PgTable> {
     return this;
   }
 }
-
-
