@@ -36,11 +36,13 @@ The project uses several services to maintain data consistency:
 
 ```bash
 # Install dependencies
-npm install
+yarn install --frozen-lockfile
 
 # Create .env file with your configuration
 cp .env.example .env
-# Edit .env with your settings
+# Edit .env with your settings (RPC endpoint and API key)
+
+yarn codegen
 ```
 
 ### Configuration
