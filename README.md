@@ -1,4 +1,4 @@
-# CFG API v2
+# CFG API V3
 
 A blockchain event indexer for the CFG protocol v3 built with [Ponder.sh](https://ponder.sh/).
 
