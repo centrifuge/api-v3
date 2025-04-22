@@ -1,8 +1,14 @@
-import { onchainTable, onchainEnum, relations, primaryKey, index } from "ponder";
+import {
+  onchainTable,
+  onchainEnum,
+  relations,
+  primaryKey,
+  index,
+} from "ponder";
 
 export const Pool = onchainTable("pool", (t) => ({
   id: t.bigint().primaryKey(),
-  isActive: t.boolean().default(false),
+  isActive: t.boolean().default(false).notNull(),
   createdAtBlock: t.integer(),
   createdAt: t.timestamp(),
   admin: t.hex(),
@@ -16,29 +22,30 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
   epochs: many(Epoch),
   investorTransactions: many(InvestorTransaction),
   outstandingOrders: many(OutstandingOrder),
+  vaults: many(Vault),
 }));
 
-export const ShareClass = onchainTable("share_class", (t) => ({
-  id: t.hex().primaryKey(),
-  index: t.integer(),
-  isActive: t.boolean().notNull().default(false),
-  poolId: t.bigint().notNull(),
-  vault: t.hex(),
-  // Metadata fields
-  name: t.text(),
-  symbol: t.text(),
-  salt: t.hex(),
-  // Metrics fields
-  totalIssuance: t.bigint().default(0n),
-  navPerShare: t.bigint().default(0n),
-}),
+export const ShareClass = onchainTable(
+  "share_class",
   (t) => ({
-    vaultIdx: index().on(t.vault),
-  })
+    id: t.hex().primaryKey(),
+    index: t.integer(),
+    isActive: t.boolean().notNull().default(false).notNull(),
+    poolId: t.bigint().notNull(),
+    // Metadata fields
+    name: t.text(),
+    symbol: t.text(),
+    salt: t.hex(),
+    // Metrics fields
+    totalIssuance: t.bigint().default(0n),
+    navPerShare: t.bigint().default(0n),
+  }),
+  (t) => ({})
 );
 
 export const ShareClassesRelations = relations(ShareClass, ({ one, many }) => ({
   pool: one(Pool, { fields: [ShareClass.poolId], references: [Pool.id] }),
+  vaults: many(Vault),
   investorTransactions: many(InvestorTransaction),
   outstandingOrders: many(OutstandingOrder),
 }));
@@ -59,6 +66,27 @@ export const Epoch = onchainTable(
 export const EpochRelations = relations(Epoch, ({ one, many }) => ({
   pool: one(Pool, { fields: [Epoch.poolId], references: [Pool.id] }),
   investorTransactions: many(InvestorTransaction),
+}));
+
+export const VaultType = onchainEnum("vault_type", ["SYNC", "ASYNC"]);
+
+export const Vault = onchainTable("vault", (t) => ({
+  id: t.hex().primaryKey(),
+  isActive: t.boolean().default(false).notNull(),
+  type: VaultType("vault_type").notNull(),
+  //centrifugeId: t.hex(),
+  poolId: t.bigint().notNull(),
+  shareClassId: t.hex().notNull(),
+  assetId: t.hex().notNull(),
+  manager: t.hex().notNull(),
+}));
+
+export const VaultRelations = relations(Vault, ({ one }) => ({
+  pool: one(Pool, { fields: [Vault.poolId], references: [Pool.id] }),
+  shareClass: one(ShareClass, {
+    fields: [Vault.shareClassId],
+    references: [ShareClass.id],
+  }),
 }));
 
 export const InvestorTransactionType = onchainEnum(

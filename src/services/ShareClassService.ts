@@ -40,12 +40,6 @@ export class ShareClassService extends Service<typeof ShareClass> {
     return results.map(result => new this(context, result));
   }
 
-  public setVault(vault: `0x${string}`) {
-    console.info(`Setting vault for shareClass ${this.data.id} to ${vault}`);
-    this.data.vault = vault;
-    return this;
-  }
-
   public setIndex(index: number) {
     console.info(`Setting index for shareClass ${this.data.id} to ${index}`);
     this.data.index = index;
