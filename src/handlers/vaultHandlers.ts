@@ -2,16 +2,18 @@ import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
 import { PoolService, ShareClassService } from "../services";
 import { ShareClass } from "ponder:schema";
-import { InvestorTransactionService } from "../services/InvestorTransactionService";
+import { InvestorTransactionService, VaultService } from "../services";
 
 ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   logEvent(event, "Vault:DepositRequest");
   const { controller, owner, requestId, sender, assets } = event.args;
-  const vault = event.transaction.to;
-
-  const shareClass = (await ShareClassService.query(context, { vault })).pop();
-  if (!shareClass) throw new Error(`ShareClass with vault ${vault} not found`);
-  const { poolId, id: shareClassId } = shareClass.read();
+  const vaultId = event.transaction.to;
+  if (!vaultId) throw new Error(`Vault id not found in event`);
+  const vault = await VaultService.get(context, { id: vaultId }) as VaultService;
+  
+  const { poolId, shareClassId } = vault.read();
+  const shareClass = (await ShareClassService.get(context, { poolId: poolId,  id: shareClassId}));
+  if (!shareClass) throw new Error(`ShareClass not found for vault ${vaultId}`);
 
   const pool = await PoolService.get(context, { id: poolId });
   if (!pool) throw new Error(`Pool with id ${poolId} not found`);
@@ -32,11 +34,13 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
 ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
   logEvent(event, "Vault:RedeemRequest");
   const { controller, owner, requestId, sender, assets } = event.args;
-  const vault = event.transaction.to;
-
-  const shareClass = (await ShareClassService.query(context, { vault })).pop();
-  if (!shareClass) throw new Error(`ShareClass with vault ${vault} not found`);
-  const { poolId, id: shareClassId } = shareClass.read();
+  const vaultId = event.transaction.to;
+  if (!vaultId) throw new Error(`Vault id not found in event`);
+  const vault = await VaultService.get(context, { id: vaultId });
+  
+  const { poolId, shareClassId } = vault.read();
+  const shareClass = (await ShareClassService.get(context, { poolId,  id: shareClassId}));
+  if (!shareClass) throw new Error(`ShareClass not found for vault ${vaultId}`);
 
   const pool = await PoolService.get(context, { id: poolId });
   if (!pool) throw new Error(`Pool with id ${poolId} not found`);
@@ -57,11 +61,13 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
 ponder.on("Vault:Deposit", async ({ event, context }) => {
   logEvent(event, "Vault:Deposit");
   const { sender, owner, assets, shares } = event.args;
-  const vault = event.transaction.to;
+  const vaultId = event.transaction.to;
+  if (!vaultId) throw new Error(`Vault id not found in event`);
+  const vault = await VaultService.get(context, { id: vaultId });
 
-  const shareClass = (await ShareClassService.query(context, { vault })).pop();
-  if (!shareClass) throw new Error(`ShareClass with vault ${vault} not found`);
-  const { poolId, id: shareClassId } = shareClass.read();
+  const { poolId, shareClassId } = vault.read();
+  const shareClass = (await ShareClassService.get(context, { poolId,  id: shareClassId}));
+  if (!shareClass) throw new Error(`ShareClass not found for vault ${vaultId}`);
 
   const pool = await PoolService.get(context, { id: poolId });
   if (!pool) throw new Error(`Pool with id ${poolId} not found`);
@@ -81,11 +87,13 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
 ponder.on("Vault:Withdraw", async ({ event, context }) => {
   logEvent(event, "Vault:Withdraw");
   const { sender, receiver, owner, assets, shares } = event.args;
-  const vault = event.transaction.to;
+  const vaultId = event.transaction.to;
+  if (!vaultId) throw new Error(`Vault id not found in event`);
+  const vault = await VaultService.get(context, { id: vaultId });
 
-  const shareClass = (await ShareClassService.query(context, { vault })).pop();
-  if (!shareClass) throw new Error(`ShareClass with vault ${vault} not found`);
-  const { poolId, id: shareClassId } = shareClass.read();
+  const { poolId, shareClassId } = vault.read();
+  const shareClass = (await ShareClassService.get(context, { poolId,  id: shareClassId}));
+  if (!shareClass) throw new Error(`ShareClass not found for vault ${vaultId}`);
 
   const pool = await PoolService.get(context, { id: poolId });
   if (!pool) throw new Error(`Pool with id ${poolId} not found`);

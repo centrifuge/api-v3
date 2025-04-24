@@ -1,18 +1,20 @@
 import type { Context } from "ponder:registry";
-import type { PgTable } from "drizzle-orm/pg-core";
+import { eq, and } from "drizzle-orm";
 
-export abstract class Service<T extends PgTable> {
-  static readonly table: PgTable;
-  //static init: <T extends PgTable, S extends Service<T>>(context: Context, data: T["$inferInsert"]) => Promise<S>;
-  //static get: <AT extends PgTable, U extends AT, S extends Service<U>>(context: Context, query: U["$inferSelect"]) => Promise<S>;
-  protected abstract readonly table: T;
+import { PgTableWithColumns, getTableConfig } from "drizzle-orm/pg-core";
+
+export class Service<T extends PgTableWithColumns<any>> {
+  protected readonly table: T;
+  protected readonly name: string;
   protected readonly db: Context["db"];
   protected readonly client: Context["client"];
   protected data: T["$inferSelect"];
 
-  constructor(context: Context, data: T["$inferSelect"]) {
+  constructor(table: T, name: string, context: Context, data: T["$inferInsert"]) {
     this.db = context.db;
     this.client = context.client;
+    this.table = table;
+    this.name = name;
     this.data = data;
   }
 
@@ -20,10 +22,96 @@ export abstract class Service<T extends PgTable> {
     return { ...this.data };
   }
 
-  async save() {
-    const update = (await this.db.sql.update(this.table).set(this.data).returning()).pop() ?? null;
-    if (!update) throw new Error(`Failed to update ${this.table}`);
+  public async save() {
+    console.info(`Saving ${this.name}`, this.data);
+    const pkFilter = primaryKeyFilter(this.table, this.data);
+    const update = (await this.db.sql.update(this.table).set(this.data).where(pkFilter).returning()).pop() ?? null;
+    if (!update) throw new Error(`Failed to update ${this.name}`);
     this.data = update;
     return this;
   }
+
+  public async delete() {
+    if (!this.data) throw new Error(`No data to delete for ${this.table}`);
+    await this.db.sql.delete(this.table).where(primaryKeyFilter(this.table, this.data));
+    return this;
+  }
+}
+
+function getPrimaryKeysFieldNames<T extends PgTableWithColumns<any>>(table: T) {
+  const config = getTableConfig(table);
+  const { primaryKeys, columns } = config;
+  const directPkNames = columns.filter((column) => column.primary).map((column) => column.name);
+  const compositePkNames = primaryKeys.flatMap((pk) => pk.columns.map((col) => col.name));
+  const primaryKeysFieldNames = [...directPkNames, ...compositePkNames];
+  return primaryKeysFieldNames;
+}
+
+function getPrimaryKeysFields<T extends PgTableWithColumns<any>>(table: T, data: T["$inferSelect"]) {
+  const primaryKeys = getPrimaryKeysFieldNames(table);
+  return pick(data, ...primaryKeys);
+}
+
+function pick<T, K extends keyof T>(obj: T, ...props: K[]): Pick<T, K> {
+  return props.reduce(function (result, prop) {
+    result[prop] = obj[prop];
+    return result;
+  }, {} as Pick<T, K>);
+}
+
+function primaryKeyFilter<T extends PgTableWithColumns<any>>(table: T, data: T["$inferSelect"]) {
+  const primaryKeys = Object.entries(getPrimaryKeysFields(table, data));
+  if (primaryKeys.length === 0) throw new Error(`No primary keys for ${table}`);
+  if (primaryKeys.length === 1) {
+    return eq(table[primaryKeys[0]![0]], primaryKeys[0]![1]);
+  } else {
+    return and(...primaryKeys.map(([columnName, columnValue]) => eq(table[columnName], columnValue.toString())));
+  }
+}
+
+function queryToFilter<T extends PgTableWithColumns<any>>(query: Partial<T['$inferInsert']>) {
+  const queryEntries = Object.entries(query);
+  return and(...queryEntries.map(([column, value]) => eq(column as any, value.toString())));
+}
+
+type Constructor<I> = new (...args: any[]) => I;
+export function mixinCommonStatics<C extends Constructor<I>, I extends Service<T>, T extends PgTableWithColumns<any>>(service: C, table: T, name: string) {
+    return class extends service {
+      static async init(context: Context, data: T['$inferInsert']) {
+        console.info(`Initialising ${name}`, data);
+        const insert =
+          (await context.db.sql.insert(table).values(data).returning()).pop() ??
+          null;
+        if (!insert) throw new Error(`${name} with ${data} not inserted`);
+        return new this(table, name, context, insert);
+      }
+
+      static async get(context: Context, query: Partial<T['$inferInsert']>) {
+        const entity = await context.db.find(table as any, query);
+        if (!entity) {
+          throw new Error(`${name} with ${query} not found`);
+        }
+        return new this(table, name, context, entity);
+      }
+
+      static async getOrInit(context: Context, query: T['$inferInsert']) {
+        let entity = await context.db.find(table as any, query);
+        if (!entity) {
+          console.info(`Initialising ${name}: `, query);
+          entity = ( await context.db.sql
+                .insert(table)
+                .values(query)
+                .returning()
+            ).pop() ?? null;
+          if (!entity) throw new Error(`Failed to initialise ${name}: ${query}`);
+        }
+        return new this(table, name, context, entity);
+      } 
+
+      static async query(context: Context, query: Partial<T['$inferInsert']>) {
+        const filter = queryToFilter(query);
+        const results = await context.db.sql.select().from(table as any).where(filter);
+        return results.map((result) => new this(table, name, context, result));
+      }
+    }
 }

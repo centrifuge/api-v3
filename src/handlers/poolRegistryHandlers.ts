@@ -16,12 +16,12 @@ ponder.on("PoolRegistry:NewPool", async ({ event, context }) => {
     isActive: true,
     createdAtBlock: Number(event.block.number),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
-  });
+  }) as PoolService;
   
   const epoch = await EpochService.init(context, {
     poolId,
     index: 1,
     createdAtBlock: Number(event.block.number),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
-  });
+  }) as EpochService;
 });

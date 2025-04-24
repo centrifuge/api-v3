@@ -12,8 +12,15 @@ const currentNetwork = chains['sepoliaV2']
 export default createConfig({
   networks: {
     sepolia: {
-      chainId: 11155111,
+      chainId: currentNetwork.chainId,
       transport: http(process.env.PONDER_RPC_URL_1),
+    },
+  },
+  blocks: {
+    sepolia: {
+      network: "sepolia",
+      startBlock: currentNetwork.startBlock,
+      interval: 300,
     },
   },
   contracts: {

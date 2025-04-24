@@ -13,7 +13,7 @@
 
     // Language and environment
     "moduleResolution": "bundler",
-    "module": "ESNext",
+    "module": "ES2022",
     "noEmit": true,
     "lib": ["ES2022"],
     "target": "ES2022",

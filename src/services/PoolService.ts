@@ -1,26 +1,9 @@
 import type { Context } from "ponder:registry";
 import { Pool } from "ponder:schema";
 import { MultiShareClassAbi } from "../../abis/MultiShareClassAbi";
-import { Service } from "./Service";
+import { Service, mixinCommonStatics } from "./Service";
 
-export class PoolService extends Service<typeof Pool> {
-  protected readonly table = Pool;
-
-  static async init(context: Context, data: (typeof Pool)["$inferInsert"]) {
-    console.log("Initialising pool", data);
-    const insert = (await context.db.sql.insert(Pool).values(data).returning()).pop() ?? null;
-    if (!insert) throw new Error(`Pool with ${data} not inserted`);
-    return new this(context, insert);
-  }
-
-  static async get(context: Context, query: typeof Pool.$inferInsert) {
-    const pool = await context.db.find(Pool, query);
-    if (!pool) {
-      throw new Error(`Pool with id ${query.id} not found`);
-    }
-    return new this(context, pool);
-  }
-
+export class PoolService extends mixinCommonStatics(Service<typeof Pool>, Pool, "Pool") {
   public getShareClassCount() {
     if (!this.data.shareClassManager) {
       throw new Error(`Pool with id ${this.data.id} has no shareClassManager`);

@@ -17,7 +17,7 @@ ponder.on(
     const shareClass = await ShareClassService.getOrInit(context, {
       id: shareClassId,
       poolId,
-    });
+    }) as ShareClassService;
     await shareClass.setIndex(index);
     await shareClass.save();
   }
@@ -38,7 +38,7 @@ ponder.on(
     const shareClass = await ShareClassService.getOrInit(context, {
       id: shareClassId,
       poolId,
-    });
+    }) as ShareClassService;
     await shareClass.setIndex(index);
     await shareClass.setMetadata(name, symbol, salt);
     await shareClass.save();
@@ -52,7 +52,7 @@ ponder.on("MultiShareClass:UpdatedMetadata", async ({ event, context }) => {
   const shareClass = await ShareClassService.getOrInit(context, {
     id: shareClassId,
     poolId,
-  });
+  }) as ShareClassService;
   await shareClass.setMetadata(name, symbol, salt);
   await shareClass.save();
 });
@@ -65,7 +65,7 @@ ponder.on("MultiShareClass:NewEpoch", async ({ event, context }) => {
     index: newIndex,
     createdAtBlock: Number(event.block.number),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
-  });
+  }) as EpochService;
 });
 
 ponder.on(
@@ -87,7 +87,7 @@ ponder.on(
       poolId,
       shareClassId,
       account: investor,
-    });
+    }) as OutstandingOrderService;
     await oo.decorateOutstandingOrder(updatedAt, updatedAtBlock);
     await oo.updateRequestedDepositAmount(updatedAmountUser);
     await oo.save();
@@ -113,7 +113,7 @@ ponder.on(
       poolId,
       shareClassId,
       account: investor,
-    });
+    }) as OutstandingOrderService;
     await oo.decorateOutstandingOrder(updatedAt, updatedAtBlock);
     await oo.updateRequestedRedeemAmount(updatedAmountUser);
     await oo.save();
@@ -135,7 +135,7 @@ ponder.on("MultiShareClass:ApprovedDeposits", async ({ event, context }) => {
   const oos = await OutstandingOrderService.query(context, {
     poolId,
     shareClassId,
-  });
+  }) as OutstandingOrderService[];
   for (const oo of oos) {
     await oo.computeApprovedDepositAmount(
       approvedAssetAmount,
@@ -160,7 +160,7 @@ ponder.on("MultiShareClass:ApprovedRedeems", async ({ event, context }) => {
   const oos = await OutstandingOrderService.query(context, {
     poolId,
     shareClassId,
-  });
+  }) as OutstandingOrderService[];
   for (const oo of oos) {
     await oo.computeApprovedRedeemAmount(
       approvedShareClassAmount,
@@ -184,7 +184,7 @@ ponder.on("MultiShareClass:IssuedShares", async ({ event, context }) => {
   } = event.args;
   const nextEpochIndex = epochIndex + 1;
 
-  const pool = await PoolService.get(context, { id: poolId });
+  const pool = await PoolService.get(context, { id: poolId }) as PoolService;
   if (!pool) throw new Error(`Pool not found for id ${poolId}`);
 
   const shareClass = await ShareClassService.get(context, {
@@ -194,7 +194,7 @@ ponder.on("MultiShareClass:IssuedShares", async ({ event, context }) => {
   if (!shareClass)
     throw new Error(`ShareClass not found for id ${shareClassId}`);
 
-  const epoch = await EpochService.get(context, { poolId, index: epochIndex });
+  const epoch = await EpochService.get(context, { poolId, index: epochIndex }) as EpochService;
   if (!epoch)
     throw new Error(`Epoch not found for pool ${poolId}, index ${epochIndex}`);
   await epoch.close(context, event.block);
@@ -215,7 +215,7 @@ ponder.on("MultiShareClass:IssuedShares", async ({ event, context }) => {
   const oos = await OutstandingOrderService.query(context, {
     poolId,
     shareClassId,
-  });
+  }) as OutstandingOrderService[];
 
   for (const oo of oos) {
     const { account, approvedDepositAmount, approvedRedeemAmount } = oo.read();

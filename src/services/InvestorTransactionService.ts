@@ -1,23 +1,9 @@
-import { Service } from "./Service";
-import { InvestorTransaction, InvestorTransactionType } from "ponder:schema";
+import { Service, mixinCommonStatics } from "./Service";
+import { InvestorTransaction } from "ponder:schema";
 import type { Context } from "ponder:registry";
 
 
-
-export class InvestorTransactionService extends Service<typeof InvestorTransaction> {
-  protected readonly table = InvestorTransaction;
-
-  static async init(context: Context, data: typeof InvestorTransaction.$inferInsert) {
-    console.info("Initialising investor transaction", data);
-    return new this(context, await context.db.insert(InvestorTransaction).values(data));
-  }
-
-  static async get(context: Context, query: typeof InvestorTransaction.$inferInsert) {
-    const investorTransaction = await context.db.find(InvestorTransaction, query);
-    if (!investorTransaction) throw new Error(`Investor transaction with ${query} not found`);
-    return new this(context, investorTransaction);
-  }
-
+export class InvestorTransactionService extends mixinCommonStatics(Service<typeof InvestorTransaction>, InvestorTransaction, "InvestorTransaction") {
   static async updateDepositRequest(context: Context, data: Omit<typeof InvestorTransaction.$inferInsert, "type">) {
     console.info("Creating investor transaction of type DEPOSIT_REQUEST_UPDATED with data:", data);
     return this.init(context, {...data, type: "DEPOSIT_REQUEST_UPDATED"});

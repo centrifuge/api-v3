@@ -29,6 +29,7 @@ export const chains = {
   },
   sepoliaV2: {
     startBlock: 8013700,
+    chainId: 11155111,
     contracts: {
       root: "0xd0c02f63149f841050c17a08405c27ed77e5aeb3",
       adminSafe: "0x423420ae467df6e90291fd0252c0a8a637c1e03f",
