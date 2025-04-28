@@ -9,7 +9,7 @@ ponder.on("PoolRegistry:NewPool", async ({ event, context }) => {
   const { poolId, currency, shareClassManager, admin } = event.args;
 
   const pool = await PoolService.init(context, {
-    id: poolId,
+    id: poolId.toString(),
     admin,
     shareClassManager,
     currency,
@@ -19,7 +19,7 @@ ponder.on("PoolRegistry:NewPool", async ({ event, context }) => {
   }) as PoolService;
   
   const epoch = await EpochService.init(context, {
-    poolId,
+    poolId: poolId.toString(),
     index: 1,
     createdAtBlock: Number(event.block.number),
     createdAt: new Date(Number(event.block.timestamp) * 1000),

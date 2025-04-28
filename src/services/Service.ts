@@ -1,9 +1,12 @@
 import type { Context } from "ponder:registry";
 import { eq, and } from "drizzle-orm";
 
-import { PgTableWithColumns, getTableConfig } from "drizzle-orm/pg-core";
+import { getTableConfig, PgTableWithColumns } from "drizzle-orm/pg-core";
+import { onchainTable } from "ponder";
 
-export class Service<T extends PgTableWithColumns<any>> {
+type OnchainTable = PgTableWithColumns<any>;
+
+export class Service<T extends OnchainTable> {
   protected readonly table: T;
   protected readonly name: string;
   protected readonly db: Context["db"];
@@ -38,44 +41,8 @@ export class Service<T extends PgTableWithColumns<any>> {
   }
 }
 
-function getPrimaryKeysFieldNames<T extends PgTableWithColumns<any>>(table: T) {
-  const config = getTableConfig(table);
-  const { primaryKeys, columns } = config;
-  const directPkNames = columns.filter((column) => column.primary).map((column) => column.name);
-  const compositePkNames = primaryKeys.flatMap((pk) => pk.columns.map((col) => col.name));
-  const primaryKeysFieldNames = [...directPkNames, ...compositePkNames];
-  return primaryKeysFieldNames;
-}
-
-function getPrimaryKeysFields<T extends PgTableWithColumns<any>>(table: T, data: T["$inferSelect"]) {
-  const primaryKeys = getPrimaryKeysFieldNames(table);
-  return pick(data, ...primaryKeys);
-}
-
-function pick<T, K extends keyof T>(obj: T, ...props: K[]): Pick<T, K> {
-  return props.reduce(function (result, prop) {
-    result[prop] = obj[prop];
-    return result;
-  }, {} as Pick<T, K>);
-}
-
-function primaryKeyFilter<T extends PgTableWithColumns<any>>(table: T, data: T["$inferSelect"]) {
-  const primaryKeys = Object.entries(getPrimaryKeysFields(table, data));
-  if (primaryKeys.length === 0) throw new Error(`No primary keys for ${table}`);
-  if (primaryKeys.length === 1) {
-    return eq(table[primaryKeys[0]![0]], primaryKeys[0]![1]);
-  } else {
-    return and(...primaryKeys.map(([columnName, columnValue]) => eq(table[columnName], columnValue.toString())));
-  }
-}
-
-function queryToFilter<T extends PgTableWithColumns<any>>(query: Partial<T['$inferInsert']>) {
-  const queryEntries = Object.entries(query);
-  return and(...queryEntries.map(([column, value]) => eq(column as any, value.toString())));
-}
-
 type Constructor<I> = new (...args: any[]) => I;
-export function mixinCommonStatics<C extends Constructor<I>, I extends Service<T>, T extends PgTableWithColumns<any>>(service: C, table: T, name: string) {
+export function mixinCommonStatics<C extends Constructor<I>, I extends Service<T>, T extends OnchainTable>(service: C, table: T, name: string) {
     return class extends service {
       static async init(context: Context, data: T['$inferInsert']) {
         console.info(`Initialising ${name}`, data);
@@ -86,7 +53,7 @@ export function mixinCommonStatics<C extends Constructor<I>, I extends Service<T
         return new this(table, name, context, insert);
       }
 
-      static async get(context: Context, query: Partial<T['$inferInsert']>) {
+      static async get(context: Context, query: NonNullable<T['$inferInsert']>) {
         const entity = await context.db.find(table as any, query);
         if (!entity) {
           throw new Error(`${name} with ${query} not found`);
@@ -108,10 +75,55 @@ export function mixinCommonStatics<C extends Constructor<I>, I extends Service<T
         return new this(table, name, context, entity);
       } 
 
-      static async query(context: Context, query: Partial<T['$inferInsert']>) {
-        const filter = queryToFilter(query);
-        const results = await context.db.sql.select().from(table as any).where(filter);
+      static async query(context: Context, query: Partial<T['$inferSelect']>) {
+        console.info(`Querying ${name}`, query);
+        const filter = queryToFilter(table, query);
+        const results = await context.db.sql.select().from(table as OnchainTable).where(filter);
+        console.info(`Found ${results.length} ${name}`);
         return results.map((result) => new this(table, name, context, result));
       }
     }
+}
+
+function getPrimaryKeysFieldNames<T extends OnchainTable>(table: T) {
+  const config = getTableConfig(table);
+  const { primaryKeys, columns } = config;
+  const directPkNames = columns.filter((column) => column.primary).map((column) => column.name);
+  const compositePkNames = primaryKeys.flatMap((pk) => pk.columns.map((col) => col.name));
+  const primaryKeysFieldNames = [...directPkNames, ...compositePkNames];
+  return primaryKeysFieldNames as (keyof T['$inferSelect'])[];
+}
+
+function getPrimaryKeysFields<T extends OnchainTable>(table: T, data: T["$inferSelect"]) {
+  const primaryKeys = getPrimaryKeysFieldNames(table);
+  return pick(data, ...primaryKeys);
+}
+
+function pick<T, K extends keyof T>(obj: T, ...props: K[]): Pick<T, K> {
+  return props.reduce(function (result, prop) {
+    result[prop] = obj[prop];
+    return result;
+  }, {} as Pick<T, K>);
+}
+
+function primaryKeyFilter<T extends OnchainTable>(table: T, data: T["$inferSelect"]) {
+  const primaryKeys = Object.entries(getPrimaryKeysFields(table, data))
+  if (primaryKeys.length === 0) throw new Error(`No primary keys for ${table}`);
+  if (primaryKeys.length === 1) {
+    return eq(table[primaryKeys[0]![0] as keyof T], primaryKeys[0]![1]);
+  } else {
+    return and(...primaryKeys.map(([columnName, columnValue]) => eq(table[columnName as keyof T], columnValue)));
+  }
+}
+
+function queryToFilter<T extends OnchainTable>(table: T, query: Partial<T['$inferInsert']>) {
+  const queryEntries = Object.entries(query);
+  const queries = queryEntries.map(([column, value]) => {
+    return eq(table[column as keyof T], value)
+  });
+  if (queries.length >= 1) {
+    return and(...queries);
+  } else {
+    return queries[0];
+  }
 }

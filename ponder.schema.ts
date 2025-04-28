@@ -6,8 +6,17 @@ import {
   index,
 } from "ponder";
 
-export const Pool = onchainTable("pool", (t) => ({
-  id: t.bigint().primaryKey(),
+type PgColumnsFunction = Extract<Parameters<typeof onchainTable>[1], Function>
+type PgColumnsBuilders = Parameters<PgColumnsFunction>[0]
+
+const BlockchainColumns = (t: PgColumnsBuilders) => ({
+  id: t.text().primaryKey(),
+  lastPeriodStart: t.timestamp(),
+})
+export const Blockchain = onchainTable("blockchain", BlockchainColumns);
+
+const PoolColumns = (t: PgColumnsBuilders) => ({
+  id: t.text().primaryKey(),
   isActive: t.boolean().default(false).notNull(),
   createdAtBlock: t.integer(),
   createdAt: t.timestamp(),
@@ -15,6 +24,9 @@ export const Pool = onchainTable("pool", (t) => ({
   shareClassManager: t.hex(),
   currency: t.bigint(),
   currentEpochIndex: t.integer().default(1),
+});
+export const Pool = onchainTable("pool", PoolColumns, (t) => ({
+  isActiveIdx: index().on(t.isActive),
 }));
 
 export const PoolRelations = relations(Pool, ({ one, many }) => ({
@@ -25,23 +37,20 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
   vaults: many(Vault),
 }));
 
-export const ShareClass = onchainTable(
-  "share_class",
-  (t) => ({
-    id: t.hex().primaryKey(),
-    index: t.integer(),
-    isActive: t.boolean().notNull().default(false).notNull(),
-    poolId: t.bigint().notNull(),
-    // Metadata fields
-    name: t.text(),
-    symbol: t.text(),
-    salt: t.hex(),
-    // Metrics fields
-    totalIssuance: t.bigint().default(0n),
-    navPerShare: t.bigint().default(0n),
-  }),
-  (t) => ({})
-);
+const ShareClassColumns = (t: PgColumnsBuilders) => ({
+  id: t.text().primaryKey(),
+  index: t.integer(),
+  isActive: t.boolean().notNull().default(false).notNull(),
+  poolId: t.text().notNull(),
+  // Metadata fields
+  name: t.text(),
+  symbol: t.text(),
+  salt: t.hex(),
+  // Metrics fields
+  totalIssuance: t.bigint().default(0n),
+  navPerShare: t.bigint().default(0n),
+}); 
+export const ShareClass = onchainTable("share_class", ShareClassColumns);
 
 export const ShareClassesRelations = relations(ShareClass, ({ one, many }) => ({
   pool: one(Pool, { fields: [ShareClass.poolId], references: [Pool.id] }),
@@ -50,18 +59,17 @@ export const ShareClassesRelations = relations(ShareClass, ({ one, many }) => ({
   outstandingOrders: many(OutstandingOrder),
 }));
 
-export const Epoch = onchainTable(
-  "epoch",
-  (t) => ({
-    poolId: t.bigint().notNull(),
-    index: t.integer().notNull(),
-    createdAtBlock: t.integer(),
-    createdAt: t.timestamp(),
-    closedAtBlock: t.integer(),
-    closedAt: t.timestamp(),
-  }),
-  (t) => ({ id: primaryKey({ columns: [t.poolId, t.index] }) })
-);
+const EpochColumns = (t: PgColumnsBuilders) => ({
+  poolId: t.text().notNull(),
+  index: t.integer().notNull(),
+  createdAtBlock: t.integer(),
+  createdAt: t.timestamp(),
+  closedAtBlock: t.integer(),
+  closedAt: t.timestamp(),
+});
+export const Epoch = onchainTable("epoch", EpochColumns, (t) => ({
+  id: primaryKey({ columns: [t.poolId, t.index] }),
+}));
 
 export const EpochRelations = relations(Epoch, ({ one, many }) => ({
   pool: one(Pool, { fields: [Epoch.poolId], references: [Pool.id] }),
@@ -70,16 +78,17 @@ export const EpochRelations = relations(Epoch, ({ one, many }) => ({
 
 export const VaultType = onchainEnum("vault_type", ["SYNC", "ASYNC"]);
 
-export const Vault = onchainTable("vault", (t) => ({
-  id: t.hex().primaryKey(),
+const VaultColumns = (t: PgColumnsBuilders) => ({
+  id: t.text().primaryKey(),
   isActive: t.boolean().default(false).notNull(),
   type: VaultType("vault_type").notNull(),
   //centrifugeId: t.hex(),
-  poolId: t.bigint().notNull(),
-  shareClassId: t.hex().notNull(),
-  assetId: t.hex().notNull(),
+  poolId: t.text().notNull(),
+  shareClassId: t.text().notNull(),
+  assetId: t.text().notNull(),
   manager: t.hex().notNull(),
-}));
+});
+export const Vault = onchainTable("vault", VaultColumns);
 
 export const VaultRelations = relations(Vault, ({ one }) => ({
   pool: one(Pool, { fields: [Vault.poolId], references: [Pool.id] }),
@@ -103,22 +112,23 @@ export const InvestorTransactionType = onchainEnum(
   ]
 );
 
+const InvestorTransactionColumns = (t: PgColumnsBuilders) => ({
+  txHash: t.hex().notNull(),
+  poolId: t.text().notNull(),
+  shareClassId: t.text().notNull(),
+  type: InvestorTransactionType("investor_transaction_type").notNull(),
+  account: t.text().notNull(),
+  createdAt: t.timestamp().notNull(),
+  createdAtBlock: t.integer().notNull(),
+  epochIndex: t.integer(),
+  tokenAmount: t.bigint(),
+  currencyAmount: t.bigint(),
+  tokenPrice: t.bigint(),
+  transactionFee: t.bigint(),
+});   
 export const InvestorTransaction = onchainTable(
   "investor_transaction",
-  (t) => ({
-    txHash: t.hex().notNull(),
-    poolId: t.bigint().notNull(),
-    shareClassId: t.hex().notNull(),
-    type: InvestorTransactionType("investor_transaction_type").notNull(),
-    account: t.hex().notNull(),
-    createdAt: t.timestamp().notNull(),
-    createdAtBlock: t.integer().notNull(),
-    epochIndex: t.integer(),
-    tokenAmount: t.bigint(),
-    currencyAmount: t.bigint(),
-    tokenPrice: t.bigint(),
-    transactionFee: t.bigint(),
-  }),
+  InvestorTransactionColumns,
   (t) => ({
     id: primaryKey({
       columns: [t.poolId, t.shareClassId, t.account, t.type, t.txHash],
@@ -144,21 +154,23 @@ export const InvestorTransactionRelations = relations(
   })
 );
 
+const OutstandingOrderColumns = (t: PgColumnsBuilders) => ({
+  poolId: t.text().notNull(),
+  shareClassId: t.text().notNull(),
+  account: t.text().notNull(),
+  updatedAt: t.timestamp(),
+  updatedAtBlock: t.integer(),
+
+  requestedDepositAmount: t.bigint().default(0n),
+  approvedDepositAmount: t.bigint().default(0n),
+
+  requestedRedeemAmount: t.bigint().default(0n),
+  approvedRedeemAmount: t.bigint().default(0n),
+});
+
 export const OutstandingOrder = onchainTable(
   "outstanding_order",
-  (t) => ({
-    poolId: t.bigint().notNull(),
-    shareClassId: t.hex().notNull(),
-    account: t.hex().notNull(),
-    updatedAt: t.timestamp(),
-    updatedAtBlock: t.integer(),
-
-    requestedDepositAmount: t.bigint().default(0n),
-    approvedDepositAmount: t.bigint().default(0n),
-
-    requestedRedeemAmount: t.bigint().default(0n),
-    approvedRedeemAmount: t.bigint().default(0n),
-  }),
+  OutstandingOrderColumns,
   (t) => ({
     id: primaryKey({ columns: [t.poolId, t.shareClassId, t.account] }),
     poolIdx: index().on(t.poolId),
@@ -179,3 +191,25 @@ export const OutstandingOrderRelations = relations(
     }),
   })
 );
+
+export const PoolSnapshot = onchainTable("pool_snapshot", snapshotColumns(PoolColumns, ['currency'] as const), (t) => ({
+  id: primaryKey({ columns: [t.id, t.blockNumber] }),
+}));
+export const ShareClassSnapshot = onchainTable("share_class_snapshot", snapshotColumns(ShareClassColumns, ['navPerShare', 'totalIssuance'] as const), (t) => ({
+  id: primaryKey({ columns: [t.id, t.blockNumber] }),
+}));
+
+function snapshotColumns<F extends PgColumnsFunction, O extends Array<keyof ReturnType<F>>>(columns: F, selectKeys: O) {
+  return (t: Parameters<F>[0]) => {
+    const initialColumns = columns(t);
+    const entries = Object.entries(initialColumns);
+    const selectedColumns = Object.fromEntries(entries.filter(([key]) => selectKeys.includes(key as keyof ReturnType<F>)));
+    const snapshotColumns = {
+      id: t.text().notNull(),
+      timestamp: t.timestamp().notNull(),
+      blockNumber: t.integer().notNull(),
+      ...selectedColumns as Pick<ReturnType<F>, O[number]>
+    };
+    return snapshotColumns;
+  }
+}
