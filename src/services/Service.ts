@@ -53,7 +53,7 @@ export function mixinCommonStatics<C extends Constructor<I>, I extends Service<T
         return new this(table, name, context, insert);
       }
 
-      static async get(context: Context, query: NonNullable<T['$inferInsert']>) {
+      static async get(context: Context, query: Partial<NonNullable<T['$inferInsert']>>) {
         const entity = await context.db.find(table as any, query);
         if (!entity) {
           throw new Error(`${name} with ${query} not found`);

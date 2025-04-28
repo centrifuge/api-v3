@@ -6,10 +6,12 @@ import { EpochService } from "../services";
 ponder.on("PoolRegistry:NewPool", async ({ event, context }) => {
   logEvent(event, "PoolRegistry:NewPool");
   
+  const { chainId } = context.network;
   const { poolId, currency, shareClassManager, admin } = event.args;
 
   const pool = await PoolService.init(context, {
     id: poolId.toString(),
+    blockchainId: chainId.toString(),
     admin,
     shareClassManager,
     currency,
