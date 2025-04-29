@@ -1,10 +1,12 @@
-export const PoolRegistryAbi = [
+export const HubRegistryAbi = [
   {
     inputs: [{ internalType: "address", name: "deployer", type: "address" }],
     stateMutability: "nonpayable",
     type: "constructor",
   },
-  { inputs: [], name: "EmptyAdmin", type: "error" },
+  { inputs: [], name: "AssetAlreadyRegistered", type: "error" },
+  { inputs: [], name: "AssetNotFound", type: "error" },
+  { inputs: [], name: "EmptyAccount", type: "error" },
   { inputs: [], name: "EmptyCurrency", type: "error" },
   { inputs: [], name: "EmptyShareClassManager", type: "error" },
   {
@@ -13,13 +15,33 @@ export const PoolRegistryAbi = [
     type: "error",
   },
   { inputs: [], name: "NotAuthorized", type: "error" },
-  { inputs: [], name: "Uint32_Overflow", type: "error" },
+  { inputs: [], name: "PoolAlreadyRegistered", type: "error" },
+  { inputs: [], name: "Uint128_Overflow", type: "error" },
   {
     anonymous: false,
     inputs: [
       { indexed: true, internalType: "address", name: "user", type: "address" },
     ],
     name: "Deny",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "AssetId",
+        name: "assetId",
+        type: "uint128",
+      },
+      {
+        indexed: false,
+        internalType: "uint8",
+        name: "decimals",
+        type: "uint8",
+      },
+    ],
+    name: "NewAsset",
     type: "event",
   },
   {
@@ -34,13 +56,7 @@ export const PoolRegistryAbi = [
       {
         indexed: true,
         internalType: "address",
-        name: "admin",
-        type: "address",
-      },
-      {
-        indexed: true,
-        internalType: "contract IShareClassManager",
-        name: "shareClassManager",
+        name: "manager",
         type: "address",
       },
       {
@@ -80,28 +96,27 @@ export const PoolRegistryAbi = [
     inputs: [
       { indexed: true, internalType: "PoolId", name: "poolId", type: "uint64" },
       {
-        indexed: true,
-        internalType: "address",
-        name: "admin",
-        type: "address",
-      },
-      { indexed: false, internalType: "bool", name: "canManage", type: "bool" },
-    ],
-    name: "UpdatedAdmin",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "PoolId", name: "poolId", type: "uint64" },
-      {
         indexed: false,
         internalType: "AssetId",
         name: "currency",
         type: "uint128",
       },
     ],
-    name: "UpdatedCurrency",
+    name: "UpdateCurrency",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "bytes32", name: "what", type: "bytes32" },
+      {
+        indexed: false,
+        internalType: "address",
+        name: "dependency",
+        type: "address",
+      },
+    ],
+    name: "UpdateDependency",
     type: "event",
   },
   {
@@ -110,18 +125,40 @@ export const PoolRegistryAbi = [
       { indexed: true, internalType: "PoolId", name: "poolId", type: "uint64" },
       {
         indexed: true,
-        internalType: "contract IShareClassManager",
-        name: "shareClassManager",
+        internalType: "address",
+        name: "manager",
         type: "address",
       },
+      { indexed: false, internalType: "bool", name: "canManage", type: "bool" },
     ],
-    name: "UpdatedShareClassManager",
+    name: "UpdateManager",
     type: "event",
   },
   {
     inputs: [{ internalType: "PoolId", name: "", type: "uint64" }],
     name: "currency",
     outputs: [{ internalType: "AssetId", name: "", type: "uint128" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "AssetId", name: "assetId", type: "uint128" }],
+    name: "decimals",
+    outputs: [{ internalType: "uint8", name: "decimals_", type: "uint8" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "asset_", type: "uint256" }],
+    name: "decimals",
+    outputs: [{ internalType: "uint8", name: "decimals_", type: "uint8" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "PoolId", name: "poolId_", type: "uint64" }],
+    name: "decimals",
+    outputs: [{ internalType: "uint8", name: "decimals_", type: "uint8" }],
     stateMutability: "view",
     type: "function",
   },
@@ -133,8 +170,22 @@ export const PoolRegistryAbi = [
     type: "function",
   },
   {
-    inputs: [{ internalType: "PoolId", name: "poolId", type: "uint64" }],
+    inputs: [{ internalType: "bytes32", name: "", type: "bytes32" }],
+    name: "dependency",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "PoolId", name: "poolId_", type: "uint64" }],
     name: "exists",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "AssetId", name: "assetId", type: "uint128" }],
+    name: "isRegistered",
     outputs: [{ internalType: "bool", name: "", type: "bool" }],
     stateMutability: "view",
     type: "function",
@@ -144,15 +195,8 @@ export const PoolRegistryAbi = [
       { internalType: "PoolId", name: "", type: "uint64" },
       { internalType: "address", name: "", type: "address" },
     ],
-    name: "isAdmin",
+    name: "manager",
     outputs: [{ internalType: "bool", name: "", type: "bool" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "latestId",
-    outputs: [{ internalType: "uint32", name: "", type: "uint32" }],
     stateMutability: "view",
     type: "function",
   },
@@ -165,16 +209,32 @@ export const PoolRegistryAbi = [
   },
   {
     inputs: [
-      { internalType: "address", name: "admin_", type: "address" },
+      { internalType: "uint16", name: "centrifugeId", type: "uint16" },
+      { internalType: "uint48", name: "postfix", type: "uint48" },
+    ],
+    name: "poolId",
+    outputs: [{ internalType: "PoolId", name: "poolId_", type: "uint64" }],
+    stateMutability: "pure",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "AssetId", name: "assetId", type: "uint128" },
+      { internalType: "uint8", name: "decimals_", type: "uint8" },
+    ],
+    name: "registerAsset",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "PoolId", name: "poolId_", type: "uint64" },
+      { internalType: "address", name: "manager_", type: "address" },
       { internalType: "AssetId", name: "currency_", type: "uint128" },
-      {
-        internalType: "contract IShareClassManager",
-        name: "shareClassManager_",
-        type: "address",
-      },
     ],
     name: "registerPool",
-    outputs: [{ internalType: "PoolId", name: "poolId", type: "uint64" }],
+    outputs: [],
     stateMutability: "nonpayable",
     type: "function",
   },
@@ -187,7 +247,7 @@ export const PoolRegistryAbi = [
   },
   {
     inputs: [
-      { internalType: "PoolId", name: "poolId", type: "uint64" },
+      { internalType: "PoolId", name: "poolId_", type: "uint64" },
       { internalType: "bytes", name: "metadata_", type: "bytes" },
     ],
     name: "setMetadata",
@@ -196,32 +256,8 @@ export const PoolRegistryAbi = [
     type: "function",
   },
   {
-    inputs: [{ internalType: "PoolId", name: "", type: "uint64" }],
-    name: "shareClassManager",
-    outputs: [
-      {
-        internalType: "contract IShareClassManager",
-        name: "",
-        type: "address",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
     inputs: [
-      { internalType: "PoolId", name: "poolId", type: "uint64" },
-      { internalType: "address", name: "admin_", type: "address" },
-      { internalType: "bool", name: "canManage", type: "bool" },
-    ],
-    name: "updateAdmin",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "PoolId", name: "poolId", type: "uint64" },
+      { internalType: "PoolId", name: "poolId_", type: "uint64" },
       { internalType: "AssetId", name: "currency_", type: "uint128" },
     ],
     name: "updateCurrency",
@@ -231,14 +267,21 @@ export const PoolRegistryAbi = [
   },
   {
     inputs: [
-      { internalType: "PoolId", name: "poolId", type: "uint64" },
-      {
-        internalType: "contract IShareClassManager",
-        name: "shareClassManager_",
-        type: "address",
-      },
+      { internalType: "bytes32", name: "what", type: "bytes32" },
+      { internalType: "address", name: "dependency_", type: "address" },
     ],
-    name: "updateShareClassManager",
+    name: "updateDependency",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "PoolId", name: "poolId_", type: "uint64" },
+      { internalType: "address", name: "manager_", type: "address" },
+      { internalType: "bool", name: "canManage", type: "bool" },
+    ],
+    name: "updateManager",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",

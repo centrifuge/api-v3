@@ -8,7 +8,7 @@ ponder.on("PoolManager:DeployVault", async ({ event, context }) => {
   const { chainId } = context.network;
   const {
     poolId,
-    trancheId,
+    scId,
     asset,
     tokenId,
     factory,
@@ -18,13 +18,13 @@ ponder.on("PoolManager:DeployVault", async ({ event, context }) => {
     id: vaultId.toString(),
     blockchainId: chainId.toString(),
     poolId: poolId.toString(),
-    shareClassId: trancheId.toString(),
+    shareClassId: scId.toString(),
     assetId: asset.toString(),
     type: "ASYNC",
     manager: factory,
   })) as VaultService;
   const shareClass = (await ShareClassService.getOrInit(context, {
-    id: trancheId.toString(),
+    id: scId.toString(),
     poolId: poolId.toString(),
   })) as ShareClassService;
 });

@@ -9,11 +9,10 @@ export class ShareClassService extends mixinCommonStatics(Service<typeof ShareCl
     return this;
   }
 
-  public setMetadata(name: string, symbol: string, salt: `0x${string}`) {
-    console.info(`Setting metadata for shareClass ${this.data.id} to ${name}, ${symbol}, ${salt}`);
+  public setMetadata(name: string, symbol: string) {
+    console.info(`Setting metadata for shareClass ${this.data.id} to ${name}, ${symbol}`);
     this.data.name = name;
     this.data.symbol = symbol;
-    this.data.salt = salt;
     return this;
   }
 }

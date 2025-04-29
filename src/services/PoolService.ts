@@ -1,6 +1,6 @@
 import type { Context } from "ponder:registry";
 import { Pool } from "ponder:schema";
-import { MultiShareClassAbi } from "../../abis/MultiShareClassAbi";
+import { ShareClassManagerAbi } from "../../abis/ShareClassManagerAbi";
 import { Service, mixinCommonStatics } from "./Service";
 
 export class PoolService extends mixinCommonStatics(Service<typeof Pool>, Pool, "Pool") {
@@ -10,7 +10,7 @@ export class PoolService extends mixinCommonStatics(Service<typeof Pool>, Pool, 
     }
     return this.client.readContract({
       address: this.data.shareClassManager,
-      abi: MultiShareClassAbi,
+      abi: ShareClassManagerAbi,
       functionName: "shareClassCount",
 
       args: [BigInt(this.data.id)],
@@ -24,7 +24,7 @@ export class PoolService extends mixinCommonStatics(Service<typeof Pool>, Pool, 
 
     const contractInfo = {
       address: this.data.shareClassManager,
-      abi: MultiShareClassAbi,
+      abi: ShareClassManagerAbi,
       functionName: "previewShareClassId",
       allowFailure: false,
     } as const;

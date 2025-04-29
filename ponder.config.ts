@@ -1,13 +1,13 @@
 import { createConfig, factory } from "ponder";
 import { getAbiItem, http } from "viem";
 
-import { PoolRegistryAbi } from "./abis/PoolRegistryAbi";
+import { HubRegistryAbi } from "./abis/HubRegistryAbi";
 import { PoolManagerAbi } from "./abis/PoolManagerAbi";
-import { MultiShareClassAbi } from "./abis/MultiShareClassAbi";
-import { VaultAbi } from "./abis/VaultAbi";
+import { ShareClassManagerAbi } from "./abis/ShareClassManagerAbi";
+import { BaseVaultAbi } from "./abis/BaseVaultAbi";
 
 import { chains } from "./chains";
-const currentNetwork = chains['sepoliaV2']
+const currentNetwork = chains['testnet']
 
 export default createConfig({
   networks: {
@@ -26,14 +26,14 @@ export default createConfig({
   contracts: {
     PoolRegistry: {
       network: "sepolia",
-      abi: PoolRegistryAbi,
-      address: currentNetwork.contracts.poolRegistry,
+      abi: HubRegistryAbi,
+      address: currentNetwork.contracts.hubRegistry,
       startBlock: currentNetwork.startBlock,
     },
-    MultiShareClass: {
+    ShareClassManager: {
       network: "sepolia",
-      abi: MultiShareClassAbi,
-      address: currentNetwork.contracts.multiShareClass,
+      abi: ShareClassManagerAbi,
+      address: currentNetwork.contracts.shareClassManager,
       startBlock: currentNetwork.startBlock,
     },
     PoolManager: {
@@ -49,7 +49,7 @@ export default createConfig({
         event: getAbiItem({ abi: PoolManagerAbi, name: "DeployVault" }),
         parameter: "vault",
       }),
-      abi: VaultAbi,
+      abi: BaseVaultAbi,
       startBlock: currentNetwork.startBlock,
     },
   },

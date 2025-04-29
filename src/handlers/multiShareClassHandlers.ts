@@ -10,9 +10,9 @@ import {
 
 // SHARE CLASS LIFECYCLE
 ponder.on(
-  "MultiShareClass:AddedShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index)",
+  "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index)",
   async ({ event, context }) => {
-    logEvent(event, "MultiShareClass:AddedShareClassShort");
+    logEvent(event, "ShareClassManager:AddShareClassShort");
     const { poolId, scId: shareClassId, index } = event.args;
     const shareClass = await ShareClassService.getOrInit(context, {
       id: shareClassId.toString(),
@@ -24,9 +24,9 @@ ponder.on(
 );
 
 ponder.on(
-  "MultiShareClass:AddedShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index, string name, string symbol, bytes32 salt)",
+  "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index, string name, string symbol, bytes32 salt)",
   async ({ event, context }) => {
-    logEvent(event, "MultiShareClass:AddedShareClassLong");
+    logEvent(event, "ShareClassManager:AddShareClassLong");
     const {
       poolId,
       scId: shareClassId,
@@ -40,25 +40,25 @@ ponder.on(
       poolId: poolId.toString(),
     }) as ShareClassService;
     await shareClass.setIndex(index);
-    await shareClass.setMetadata(name, symbol, salt);
+    await shareClass.setMetadata(name, symbol);
     await shareClass.save();
   }
 );
 
 // INVESTOR TRANSACTIONS
-ponder.on("MultiShareClass:UpdatedMetadata", async ({ event, context }) => {
-  logEvent(event, "MultiShareClass:UpdatedMetadata");
-  const { poolId, scId: shareClassId, name, symbol, salt } = event.args;
+ponder.on("ShareClassManager:UpdateMetadata", async ({ event, context }) => {
+  logEvent(event, "ShareClassManager:UpdatedMetadata");
+  const { poolId, scId: shareClassId, name, symbol } = event.args;
   const shareClass = await ShareClassService.getOrInit(context, {
     id: shareClassId,
     poolId: poolId.toString(),
   }) as ShareClassService;
-  await shareClass.setMetadata(name, symbol, salt);
+  await shareClass.setMetadata(name, symbol);
   await shareClass.save();
 });
 
-ponder.on("MultiShareClass:NewEpoch", async ({ event, context }) => {
-  logEvent(event, "MultiShareClass:NewEpoch");
+ponder.on("ShareClassManager:NewEpoch", async ({ event, context }) => {
+  logEvent(event, "ShareClassManager:NewEpoch");
   const { poolId, newIndex } = event.args;
   const newEpoch = await EpochService.init(context, {
     poolId: poolId.toString(),
@@ -69,9 +69,9 @@ ponder.on("MultiShareClass:NewEpoch", async ({ event, context }) => {
 });
 
 ponder.on(
-  "MultiShareClass:UpdatedDepositRequest",
+  "ShareClassManager:UpdateDepositRequest",
   async ({ event, context }) => {
-    logEvent(event, "MultiShareClass:UpdatedDepositRequest");
+    logEvent(event, "ShareClassManager:UpdateDepositRequest");
     const updatedAt = new Date(Number(event.block.timestamp) * 1000);
     const updatedAtBlock = Number(event.block.number);
     const {
@@ -95,9 +95,9 @@ ponder.on(
 );
 
 ponder.on(
-  "MultiShareClass:UpdatedRedeemRequest",
+  "ShareClassManager:UpdateRedeemRequest",
   async ({ event, context }) => {
-    logEvent(event, "MultiShareClass:UpdatedRedeemRequest");
+    logEvent(event, "ShareClassManager:UpdateRedeemRequest");
     const updatedAt = new Date(Number(event.block.timestamp) * 1000);
     const updatedAtBlock = Number(event.block.number);
     const {
@@ -120,13 +120,13 @@ ponder.on(
   }
 );
 
-ponder.on("MultiShareClass:ApprovedDeposits", async ({ event, context }) => {
-  logEvent(event, "MultiShareClass:ApprovedDeposits");
+ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
+  logEvent(event, "ShareClassManager:ApproveDeposits");
   const {
     poolId,
     scId: shareClassId,
     epoch: epochIndex,
-    assetId,
+    depositAssetId,
     approvedPoolAmount,
     approvedAssetAmount,
     pendingAssetAmount,
@@ -146,15 +146,15 @@ ponder.on("MultiShareClass:ApprovedDeposits", async ({ event, context }) => {
   await Promise.all(saves);
 });
 
-ponder.on("MultiShareClass:ApprovedRedeems", async ({ event, context }) => {
-  logEvent(event, "MultiShareClass:ApprovedRedeems");
+ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
+  logEvent(event, "ShareClassManager:ApproveRedeems");
   const {
     poolId,
     scId: shareClassId,
     epoch: epochIndex,
-    assetId,
-    approvedShareClassAmount,
-    pendingShareClassAmount,
+    payoutAssetId,
+    approvedShareAmount,
+    pendingShareAmount,
   } = event.args;
   const saves: Promise<OutstandingOrderService>[] = [];
   const oos = await OutstandingOrderService.query(context, {
@@ -163,24 +163,24 @@ ponder.on("MultiShareClass:ApprovedRedeems", async ({ event, context }) => {
   }) as OutstandingOrderService[];
   for (const oo of oos) {
     await oo.computeApprovedRedeemAmount(
-      approvedShareClassAmount,
-      pendingShareClassAmount
+      approvedShareAmount,
+      pendingShareAmount
     );
     saves.push(oo.save());
   }
   await Promise.all(saves);
 });
 
-ponder.on("MultiShareClass:IssuedShares", async ({ event, context }) => {
-  logEvent(event, "MultiShareClass:IssuedShares");
+ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
+  logEvent(event, "ShareClassManager:IssueShares");
   const {
     poolId,
     scId: shareClassId,
     epoch: epochIndex,
-    nav,
-    navPerShare,
-    newTotalIssuance,
-    issuedShareAmount,
+    // nav,
+    // navPerShare,
+    // newTotalIssuance,
+    // issuedShareAmount,
   } = event.args;
   const nextEpochIndex = epochIndex + 1;
 
