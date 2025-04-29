@@ -4,8 +4,8 @@ import { PoolService, ShareClassService } from "../services";
 import { ShareClass } from "ponder:schema";
 import { InvestorTransactionService, VaultService } from "../services";
 
-ponder.on("Vault:DepositRequest", async ({ event, context }) => {
-  logEvent(event, "Vault:DepositRequest");
+ponder.on("BaseVault:DepositRequest", async ({ event, context }) => {
+  logEvent(event, "BaseVault:DepositRequest");
   const { controller, owner, requestId, sender, assets } = event.args;
   const vaultId = event.transaction.to;
   if (!vaultId) throw new Error(`Vault id not found in event`);
