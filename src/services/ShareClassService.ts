@@ -1,4 +1,3 @@
-import type { Context } from "ponder:registry";
 import { ShareClass } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
 
@@ -8,11 +7,11 @@ export class ShareClassService extends mixinCommonStatics(Service<typeof ShareCl
     this.data.index = index;
     return this;
   }
-
-  public setMetadata(name: string, symbol: string) {
+  public setMetadata(name: string, symbol: string, salt?: `0x${string}`) {
     console.info(`Setting metadata for shareClass ${this.data.id} to ${name}, ${symbol}`);
     this.data.name = name;
     this.data.symbol = symbol;
+    this.data.salt = salt ?? null;
     return this;
   }
 }

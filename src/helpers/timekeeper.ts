@@ -1,6 +1,7 @@
 import type { Context, Event } from 'ponder:registry'
 import { BlockchainService } from '../services/BlockchainService'
-import config from '../../ponder.config'
+import { MessageDispatcherAbi } from '../../abis/MessageDispatcherAbi'
+import { currentNetwork } from '../../ponder.config'
 
 const SNAPSHOT_INTERVAL_SECONDS = 60 * 60 * 24 // 1 day
 /**
@@ -20,7 +21,12 @@ export class Timekeeper {
 
   public async init(context: Context): Promise<Timekeeper> {
     const chainId = context.network.chainId
-    const blockchain = await BlockchainService.getOrInit(context, { id: chainId }) as BlockchainService
+    const centrifugeId = await context.client.readContract({
+      address: currentNetwork.contracts.messageDispatcher,
+      abi: MessageDispatcherAbi,
+      functionName: 'localCentrifugeId'
+    })
+    const blockchain = await BlockchainService.getOrInit(context, { id: chainId.toString(), centrifugeId: centrifugeId.toString() }) as BlockchainService
     const lastPeriodStart = blockchain.read().lastPeriodStart
     if (!lastPeriodStart) blockchain.setLastPeriodStart(new Date(0))
     this.blockchains[chainId] = blockchain

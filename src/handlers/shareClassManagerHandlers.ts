@@ -40,7 +40,7 @@ ponder.on(
       poolId: poolId.toString(),
     }) as ShareClassService;
     await shareClass.setIndex(index);
-    await shareClass.setMetadata(name, symbol);
+    await shareClass.setMetadata(name, symbol, salt);
     await shareClass.save();
   }
 );
@@ -50,22 +50,11 @@ ponder.on("ShareClassManager:UpdateMetadata", async ({ event, context }) => {
   logEvent(event, "ShareClassManager:UpdatedMetadata");
   const { poolId, scId: shareClassId, name, symbol } = event.args;
   const shareClass = await ShareClassService.getOrInit(context, {
-    id: shareClassId,
+    id: shareClassId.toString(),
     poolId: poolId.toString(),
   }) as ShareClassService;
   await shareClass.setMetadata(name, symbol);
   await shareClass.save();
-});
-
-ponder.on("ShareClassManager:NewEpoch", async ({ event, context }) => {
-  logEvent(event, "ShareClassManager:NewEpoch");
-  const { poolId, newIndex } = event.args;
-  const newEpoch = await EpochService.init(context, {
-    poolId: poolId.toString(),
-    index: newIndex,
-    createdAtBlock: Number(event.block.number),
-    createdAt: new Date(Number(event.block.timestamp) * 1000),
-  }) as EpochService;
 });
 
 ponder.on(
@@ -79,9 +68,9 @@ ponder.on(
       scId: shareClassId,
       epoch: epochIndex,
       investor,
-      assetId,
-      updatedAmountUser,
-      updatedAmountTotal,
+      depositAssetId,
+      pendingUserAssetAmount,
+      pendingTotalAssetAmount,
     } = event.args;
     const oo = await OutstandingOrderService.getOrInit(context, {
       poolId: poolId.toString(),
@@ -89,7 +78,7 @@ ponder.on(
       account: investor.toString(),
     }) as OutstandingOrderService;
     await oo.decorateOutstandingOrder(updatedAt, updatedAtBlock);
-    await oo.updateRequestedDepositAmount(updatedAmountUser);
+    await oo.updateRequestedDepositAmount(pendingUserAssetAmount);
     await oo.save();
   }
 );
@@ -106,8 +95,8 @@ ponder.on(
       epoch: epochIndex,
       investor,
       payoutAssetId,
-      updatedAmountUser,
-      updatedAmountTotal,
+      pendingUserShareAmount,
+      pendingTotalShareAmount,
     } = event.args;
     const oo = await OutstandingOrderService.getOrInit(context, {
       poolId: poolId.toString() ,
@@ -115,7 +104,7 @@ ponder.on(
       account: investor.toString(),
     }) as OutstandingOrderService;
     await oo.decorateOutstandingOrder(updatedAt, updatedAtBlock);
-    await oo.updateRequestedRedeemAmount(updatedAmountUser);
+    await oo.updateRequestedRedeemAmount(pendingUserShareAmount);
     await oo.save();
   }
 );
@@ -199,6 +188,13 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
     throw new Error(`Epoch not found for pool ${poolId}, index ${epochIndex}`);
   await epoch.close(context, event.block);
   await epoch.save();
+
+  const newEpoch = await EpochService.init(context, {
+    poolId: poolId.toString(),
+    index: nextEpochIndex,
+    createdAtBlock: Number(event.block.number),
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+  }) as EpochService;
 
   await pool.setCurrentEpochIndex(nextEpochIndex);
   await pool.save();
