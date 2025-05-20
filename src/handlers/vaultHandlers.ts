@@ -17,7 +17,7 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
 
   const pool = await PoolService.get(context, { id: poolId });
   if (!pool) throw new Error(`Pool with id ${poolId} not found`);
-  const { currentEpochIndex } = pool.read();  
+  const { currentEpochIndex } = pool.read();
 
   const it = await InvestorTransactionService.updateDepositRequest(context, {
     poolId,

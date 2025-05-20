@@ -102,6 +102,7 @@ const VaultColumns = (t: PgColumnsBuilders) => ({
   localAssetAddress: t.text().notNull(),
   factory: t.text().notNull(),
   manager: t.text(),
+  tokenId: t.text(),
 });
 export const Vault = onchainTable("vault", VaultColumns, (t) => ({
   centrifugeIdIdx: index().on(t.centrifugeId),
@@ -217,7 +218,7 @@ const AssetColumns = (t: PgColumnsBuilders) => ({
   id: t.text().primaryKey(),
   centrifugeId: t.text(),
   decimals: t.integer(),
-  tokenId: t.bigint(),
+  tokenId: t.text(),
   tokenAddress: t.text(),
   name: t.text(),
   symbol: t.text(),
@@ -246,6 +247,18 @@ export const LocalAsset = onchainTable("local_asset", LocalAssetColumns, (t) => 
 export const LocalAssetRelations = relations(LocalAsset, ({ one }) => ({
   blockchain: one(Blockchain, { fields: [LocalAsset.centrifugeId], references: [Blockchain.centrifugeId] }),
   asset: one(Asset, { fields: [LocalAsset.assetId], references: [Asset.id] }),
+}));
+
+export const TokenColumns = (t: PgColumnsBuilders) => ({
+  address: t.text().primaryKey(),
+  centrifugeId: t.text().notNull(),
+  poolId: t.text().notNull(),
+  shareClassId: t.text().notNull(),
+});
+export const Token = onchainTable("token", TokenColumns);
+export const TokenRelations = relations(Token, ({ one }) => ({
+  blockchain: one(Blockchain, { fields: [Token.centrifugeId], references: [Blockchain.centrifugeId] }),
+  shareClass: one(ShareClass, { fields: [Token.shareClassId], references: [ShareClass.id] }),
 }));
 
 export const PoolSnapshot = onchainTable("pool_snapshot", snapshotColumns(PoolColumns, ['currency'] as const), (t) => ({

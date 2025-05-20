@@ -5,6 +5,8 @@ import { AssetService } from "../services/AssetService";
 import { LocalAssetService } from "../services/LocalAssetService";
 import { VaultKinds } from "ponder:schema";
 import { BlockchainService } from "../services/BlockchainService";
+import { ShareClassService } from "../services";
+import { TokenService } from "../services/TokenService";
 
 ponder.on("PoolManager:DeployVault", async ({ event, context }) => {
   logEvent(event, "PoolManager:DeployVault");
@@ -13,13 +15,14 @@ ponder.on("PoolManager:DeployVault", async ({ event, context }) => {
     poolId,
     scId: _shareClassId,
     asset: _localAssetAddress,
-    tokenId,
+    tokenId: _tokenId,
     factory: _factory,
     vault: _vaultId,
     kind,
   } = event.args;
   const shareClassId = _shareClassId.toString();
   const localAssetAddress = _localAssetAddress.toString();
+  const tokenId = _tokenId.toString();
   const factory = _factory.toString();
   const vaultId = _vaultId.toString();
   const vaultKind = VaultKinds[kind];
@@ -38,6 +41,7 @@ ponder.on("PoolManager:DeployVault", async ({ event, context }) => {
     localAssetAddress: localAssetAddress,
     factory: factory,
     kind: vaultKind,
+    tokenId
   })) as VaultService;
 });
 
@@ -48,20 +52,20 @@ ponder.on("PoolManager:RegisterAsset", async ({ event, context }) => {
   const {
     assetId: _assetId,
     asset: _localAssetAddress,
-    tokenId,
+    tokenId: _tokenId,
     name,
     symbol,
     decimals,
   } = event.args;
   const assetId = _assetId.toString();
   const localAssetAddress = _localAssetAddress.toString();
-
+  const tokenId = _tokenId.toString();
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
   })) as BlockchainService;
   const { centrifugeId } = blockchain.read();
 
-  const globalAsset = (await AssetService.getOrInit(context, {
+  const asset = (await AssetService.getOrInit(context, {
     id: assetId,
     centrifugeId,
     decimals: decimals,
@@ -70,7 +74,6 @@ ponder.on("PoolManager:RegisterAsset", async ({ event, context }) => {
     symbol: symbol,
   })) as AssetService;
 
-  const { id } = globalAsset.read();
 
   const localAsset = (await LocalAssetService.getOrInit(context, {
     assetId,
@@ -88,9 +91,33 @@ ponder.on("PoolManager:RegisterAsset", async ({ event, context }) => {
   }
 });
 
+ponder.on("PoolManager:AddShareClass", async ({ event, context }) => {
+  logEvent(event, "PoolManager:AddShareClass");
+  const { chainId: _chainId } = context.network;
+  const {
+    poolId: _poolId,
+    scId: _shareClassId,
+    token: _tokenAddress
+  } = event.args;
+  const chainId = _chainId.toString();
+  const poolId = _poolId.toString();
+  const shareClassId = _shareClassId.toString();
+  const tokenAddress = _tokenAddress.toString();
+  const blockchain = (await BlockchainService.get(context, {
+    id: chainId,
+  })) as BlockchainService;
+  const { centrifugeId } = blockchain.read();
+
+  const token = await TokenService.init(context, {
+    address: tokenAddress,
+    centrifugeId,
+    poolId,
+    shareClassId,
+  }) as TokenService;
+});
+
 ponder.on("PoolManager:LinkVault", async ({ event, context }) => {
   logEvent(event, "PoolManager:LinkVault");
-  const { chainId } = context.network;
   const {
     poolId: _poolId,
     scId: _shareClassId,
