@@ -287,7 +287,7 @@ export const AsyncVaultAbi = [
       {
         name: "",
         type: "address",
-        internalType: "contract IBaseInvestmentManager",
+        internalType: "contract IBaseRequestManager",
       },
     ],
     stateMutability: "view",
@@ -612,6 +612,19 @@ export const AsyncVaultAbi = [
     inputs: [],
     outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
     stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "vaultKind",
+    inputs: [],
+    outputs: [
+      {
+        name: "vaultKind_",
+        type: "uint8",
+        internalType: "enum VaultKind",
+      },
+    ],
+    stateMutability: "pure",
   },
   {
     type: "function",

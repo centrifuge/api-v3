@@ -5,8 +5,9 @@ import { InvestorTransactionService, VaultService } from "../services";
 
 ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   logEvent(event, "Vault:DepositRequest");
-  const { controller, owner, requestId, sender, assets } = event.args;
-  const vaultId = event.log.address;
+  const { controller, owner, requestId, sender: _senderAddress, assets } = event.args;
+  const vaultId = event.log.address.toString();
+  const senderAddress = _senderAddress.toString();
   if (!vaultId) throw new Error(`Vault id not found in event`);
   const vault = await VaultService.get(context, { id: vaultId }) as VaultService;
   
@@ -21,7 +22,7 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   const it = await InvestorTransactionService.updateDepositRequest(context, {
     poolId,
     shareClassId,
-    account: sender,
+    account: senderAddress,
     currencyAmount: assets,
     createdAt: new Date(),
     txHash: event.transaction.hash,
@@ -32,8 +33,9 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
 
 ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
   logEvent(event, "Vault:RedeemRequest");
-  const { controller, owner, requestId, sender, assets } = event.args;
-  const vaultId = event.log.address;
+  const { controller, owner, requestId, sender: _senderAddress, assets } = event.args;
+  const vaultId = event.log.address.toString();
+  const senderAddress = _senderAddress.toString();
   if (!vaultId) throw new Error(`Vault id not found in event`);
   const vault = await VaultService.get(context, { id: vaultId });
   
@@ -48,7 +50,7 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
   const it = await InvestorTransactionService.updateRedeemRequest(context, {
     poolId,
     shareClassId,
-    account: sender,
+    account: senderAddress,
     tokenAmount: assets,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     txHash: event.transaction.hash,
@@ -59,8 +61,9 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
 
 ponder.on("Vault:Deposit", async ({ event, context }) => {
   logEvent(event, "Vault:Deposit");
-  const { sender, owner, assets, shares } = event.args;
-  const vaultId = event.transaction.to;
+  const { sender: _senderAddress, owner, assets, shares } = event.args;
+  const vaultId = event.transaction.to?.toString();
+  const senderAddress = _senderAddress.toString();
   if (!vaultId) throw new Error(`Vault id not found in event`);
   const vault = await VaultService.get(context, { id: vaultId });
 
@@ -75,7 +78,7 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
   const it = await InvestorTransactionService.claimDeposit(context, {
     poolId,
     shareClassId,
-    account: sender,
+    account: senderAddress,
     tokenAmount: shares,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     txHash: event.transaction.hash,
@@ -85,8 +88,10 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
 
 ponder.on("Vault:Withdraw", async ({ event, context }) => {
   logEvent(event, "Vault:Withdraw");
-  const { sender, receiver, owner, assets, shares } = event.args;
-  const vaultId = event.transaction.to;
+  const { sender: _senderAddress, receiver: _receiverAddress, owner, assets, shares } = event.args;
+  const vaultId = event.transaction.to?.toString();
+  const senderAddress = _senderAddress.toString();
+  const receiverAddress = _receiverAddress.toString();
   if (!vaultId) throw new Error(`Vault id not found in event`);
   const vault = await VaultService.get(context, { id: vaultId });
 
@@ -101,7 +106,7 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
   const it = await InvestorTransactionService.claimRedeem(context, {
     poolId,
     shareClassId,
-    account: receiver,
+    account: receiverAddress,
     tokenAmount: shares,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     txHash: event.transaction.hash,

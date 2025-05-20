@@ -11,8 +11,8 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
   logEvent(event, "HubRegistry:NewPool");
 
   const { chainId } = context.network;
-  const { poolId, currency, manager } = event.args;
-
+  const { poolId, currency, manager: _manager } = event.args;
+  const manager = _manager.toString();
   const blockchain = await BlockchainService.get(context, { id: chainId.toString() }) as BlockchainService
   const { centrifugeId } = blockchain.read()
 
@@ -37,19 +37,20 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
 ponder.on("HubRegistry:NewAsset", async ({ event, context }) => { //Fires Second to complete
   logEvent(event, "HubRegistry:NewAsset");
   const { chainId } = context.network;
-  const { assetId, decimals } = event.args;
+  const { assetId: _assetId, decimals } = event.args;
   const {} = event.transaction
+  const assetId = _assetId.toString();
 
   const assetCentrifugeId = new BN(assetId.toString()).shrn(112).toString();
 
   const newAsset = (await AssetService.getOrInit(context, {
-    id: assetId.toString(),
+    id: assetId,
     centrifugeId: assetCentrifugeId,
     decimals,
   })) as AssetService;
 
   const localAsset = (await LocalAssetService.getOrInit(context, {
-    assetId: assetId.toString(),
+    assetId: assetId,
     centrifugeId: assetCentrifugeId,
   })) as LocalAssetService;
   localAsset.setStatus("REGISTERED");
