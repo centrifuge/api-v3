@@ -6,7 +6,7 @@ import { PoolSnapshot } from "ponder:schema";
 import { snapshotter } from "../helpers/snapshotter";
 const timekeeper = Timekeeper.start()
 
-ponder.on("sepolia:block", async ({ event, context }) => {
+ponder.on("ethereum:block", async ({ event, context }) => {
   const newPeriod = await timekeeper.processBlock(context, event)
   if (!newPeriod) return
   
@@ -14,7 +14,7 @@ ponder.on("sepolia:block", async ({ event, context }) => {
     isActive: true,
   }) as PoolService[];
 
-  logEvent(event, "sepolia:newPeriod")
+  logEvent(event, "ethereum:newPeriod")
   
   await snapshotter(context, event, pools, PoolSnapshot)
   

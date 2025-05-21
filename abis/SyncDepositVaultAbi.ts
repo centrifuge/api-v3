@@ -1,4 +1,29 @@
-export const BaseVaultAbi = [
+export const SyncDepositVaultAbi = [
+  {
+    type: "constructor",
+    inputs: [
+      { name: "poolId_", type: "uint64", internalType: "PoolId" },
+      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
+      { name: "asset_", type: "address", internalType: "address" },
+      {
+        name: "token_",
+        type: "address",
+        internalType: "contract IShareToken",
+      },
+      { name: "root_", type: "address", internalType: "address" },
+      {
+        name: "syncDepositManager_",
+        type: "address",
+        internalType: "contract ISyncDepositManager",
+      },
+      {
+        name: "asyncRedeemManager_",
+        type: "address",
+        internalType: "contract IAsyncRedeemManager",
+      },
+    ],
+    stateMutability: "nonpayable",
+  },
   {
     type: "function",
     name: "AUTHORIZE_OPERATOR_TYPEHASH",
@@ -18,6 +43,19 @@ export const BaseVaultAbi = [
     name: "asset",
     inputs: [],
     outputs: [{ name: "", type: "address", internalType: "address" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "asyncRedeemManager",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "contract IAsyncRedeemManager",
+      },
+    ],
     stateMutability: "view",
   },
   {
@@ -43,6 +81,59 @@ export const BaseVaultAbi = [
     ],
     outputs: [{ name: "success", type: "bool", internalType: "bool" }],
     stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "cancelRedeemRequest",
+    inputs: [
+      { name: "", type: "uint256", internalType: "uint256" },
+      { name: "controller", type: "address", internalType: "address" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "claimCancelRedeemRequest",
+    inputs: [
+      { name: "", type: "uint256", internalType: "uint256" },
+      { name: "receiver", type: "address", internalType: "address" },
+      { name: "controller", type: "address", internalType: "address" },
+    ],
+    outputs: [{ name: "shares", type: "uint256", internalType: "uint256" }],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "claimableCancelRedeemRequest",
+    inputs: [
+      { name: "", type: "uint256", internalType: "uint256" },
+      { name: "controller", type: "address", internalType: "address" },
+    ],
+    outputs: [
+      {
+        name: "claimableShares",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "claimableRedeemRequest",
+    inputs: [
+      { name: "", type: "uint256", internalType: "uint256" },
+      { name: "controller", type: "address", internalType: "address" },
+    ],
+    outputs: [
+      {
+        name: "claimableShares",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    stateMutability: "view",
   },
   {
     type: "function",
@@ -124,7 +215,7 @@ export const BaseVaultAbi = [
       {
         name: "",
         type: "address",
-        internalType: "contract IBaseInvestmentManager",
+        internalType: "contract IBaseRequestManager",
       },
     ],
     stateMutability: "view",
@@ -132,28 +223,28 @@ export const BaseVaultAbi = [
   {
     type: "function",
     name: "maxDeposit",
-    inputs: [{ name: "receiver", type: "address", internalType: "address" }],
+    inputs: [{ name: "owner", type: "address", internalType: "address" }],
     outputs: [{ name: "maxAssets", type: "uint256", internalType: "uint256" }],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "maxMint",
-    inputs: [{ name: "receiver", type: "address", internalType: "address" }],
+    inputs: [{ name: "owner", type: "address", internalType: "address" }],
     outputs: [{ name: "maxShares", type: "uint256", internalType: "uint256" }],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "maxRedeem",
-    inputs: [{ name: "owner", type: "address", internalType: "address" }],
+    inputs: [{ name: "controller", type: "address", internalType: "address" }],
     outputs: [{ name: "maxShares", type: "uint256", internalType: "uint256" }],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "maxWithdraw",
-    inputs: [{ name: "owner", type: "address", internalType: "address" }],
+    inputs: [{ name: "controller", type: "address", internalType: "address" }],
     outputs: [{ name: "maxAssets", type: "uint256", internalType: "uint256" }],
     stateMutability: "view",
   },
@@ -166,6 +257,64 @@ export const BaseVaultAbi = [
     ],
     outputs: [{ name: "assets", type: "uint256", internalType: "uint256" }],
     stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "onCancelRedeemClaimable",
+    inputs: [
+      { name: "controller", type: "address", internalType: "address" },
+      { name: "shares", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "onRedeemClaimable",
+    inputs: [
+      { name: "controller", type: "address", internalType: "address" },
+      { name: "assets", type: "uint256", internalType: "uint256" },
+      { name: "shares", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "onRedeemRequest",
+    inputs: [
+      { name: "controller", type: "address", internalType: "address" },
+      { name: "owner", type: "address", internalType: "address" },
+      { name: "shares", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "pendingCancelRedeemRequest",
+    inputs: [
+      { name: "", type: "uint256", internalType: "uint256" },
+      { name: "controller", type: "address", internalType: "address" },
+    ],
+    outputs: [{ name: "isPending", type: "bool", internalType: "bool" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "pendingRedeemRequest",
+    inputs: [
+      { name: "", type: "uint256", internalType: "uint256" },
+      { name: "controller", type: "address", internalType: "address" },
+    ],
+    outputs: [
+      {
+        name: "pendingShares",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    stateMutability: "view",
   },
   {
     type: "function",
@@ -191,16 +340,16 @@ export const BaseVaultAbi = [
   {
     type: "function",
     name: "previewRedeem",
-    inputs: [{ name: "shares", type: "uint256", internalType: "uint256" }],
-    outputs: [{ name: "assets", type: "uint256", internalType: "uint256" }],
-    stateMutability: "view",
+    inputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "pure",
   },
   {
     type: "function",
     name: "previewWithdraw",
-    inputs: [{ name: "assets", type: "uint256", internalType: "uint256" }],
-    outputs: [{ name: "shares", type: "uint256", internalType: "uint256" }],
-    stateMutability: "view",
+    inputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "pure",
   },
   {
     type: "function",
@@ -245,7 +394,7 @@ export const BaseVaultAbi = [
     inputs: [
       { name: "shares", type: "uint256", internalType: "uint256" },
       { name: "receiver", type: "address", internalType: "address" },
-      { name: "owner", type: "address", internalType: "address" },
+      { name: "controller", type: "address", internalType: "address" },
     ],
     outputs: [{ name: "assets", type: "uint256", internalType: "uint256" }],
     stateMutability: "nonpayable",
@@ -255,6 +404,17 @@ export const BaseVaultAbi = [
     name: "rely",
     inputs: [{ name: "user", type: "address", internalType: "address" }],
     outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "requestRedeem",
+    inputs: [
+      { name: "shares", type: "uint256", internalType: "uint256" },
+      { name: "controller", type: "address", internalType: "address" },
+      { name: "owner", type: "address", internalType: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
     stateMutability: "nonpayable",
   },
   {
@@ -307,10 +467,36 @@ export const BaseVaultAbi = [
   },
   {
     type: "function",
+    name: "syncDepositManager",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "contract ISyncDepositManager",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     name: "totalAssets",
     inputs: [],
     outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
     stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "vaultKind",
+    inputs: [],
+    outputs: [
+      {
+        name: "vaultKind_",
+        type: "uint8",
+        internalType: "enum VaultKind",
+      },
+    ],
+    stateMutability: "pure",
   },
   {
     type: "function",
@@ -325,10 +511,97 @@ export const BaseVaultAbi = [
     inputs: [
       { name: "assets", type: "uint256", internalType: "uint256" },
       { name: "receiver", type: "address", internalType: "address" },
-      { name: "owner", type: "address", internalType: "address" },
+      { name: "controller", type: "address", internalType: "address" },
     ],
     outputs: [{ name: "shares", type: "uint256", internalType: "uint256" }],
     stateMutability: "nonpayable",
+  },
+  {
+    type: "event",
+    name: "CancelRedeemClaim",
+    inputs: [
+      {
+        name: "controller",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "receiver",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "requestId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
+      },
+      {
+        name: "sender",
+        type: "address",
+        indexed: false,
+        internalType: "address",
+      },
+      {
+        name: "shares",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "CancelRedeemClaimable",
+    inputs: [
+      {
+        name: "controller",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "requestId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
+      },
+      {
+        name: "shares",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "CancelRedeemRequest",
+    inputs: [
+      {
+        name: "controller",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "requestId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
+      },
+      {
+        name: "sender",
+        type: "address",
+        indexed: false,
+        internalType: "address",
+      },
+    ],
+    anonymous: false,
   },
   {
     type: "event",
@@ -420,6 +693,74 @@ export const BaseVaultAbi = [
   },
   {
     type: "event",
+    name: "RedeemClaimable",
+    inputs: [
+      {
+        name: "controller",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "requestId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
+      },
+      {
+        name: "assets",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+      {
+        name: "shares",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "RedeemRequest",
+    inputs: [
+      {
+        name: "controller",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "owner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "requestId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
+      },
+      {
+        name: "sender",
+        type: "address",
+        indexed: false,
+        internalType: "address",
+      },
+      {
+        name: "assets",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
     name: "Rely",
     inputs: [
       {
@@ -482,5 +823,6 @@ export const BaseVaultAbi = [
   { type: "error", name: "RequestRedeemFailed", inputs: [] },
   { type: "error", name: "SafeTransferEthFailed", inputs: [] },
   { type: "error", name: "SafeTransferFailed", inputs: [] },
+  { type: "error", name: "SafeTransferFromFailed", inputs: [] },
   { type: "error", name: "TransferFromFailed", inputs: [] },
 ] as const;

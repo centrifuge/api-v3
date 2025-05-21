@@ -4,3 +4,8 @@ export * from "./EpochService";
 export * from "./OutstandingOrderService";
 export * from "./InvestorTransactionService";
 export * from "./VaultService";
+export * from "./LocalTokenService";
+export * from "./TokenService";
+export * from "./LocalAssetService";
+export * from "./AssetService";
+export * from "./BlockchainService";

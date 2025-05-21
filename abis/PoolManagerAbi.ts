@@ -6,11 +6,6 @@ export const PoolManagerAbi = [
         name: "tokenFactory_",
         type: "address",
       },
-      {
-        internalType: "contract IVaultFactory[]",
-        name: "vaultFactories",
-        type: "address[]",
-      },
       { internalType: "address", name: "deployer", type: "address" },
     ],
     stateMutability: "nonpayable",
@@ -24,6 +19,7 @@ export const PoolManagerAbi = [
   { inputs: [], name: "InvalidHook", type: "error" },
   { inputs: [], name: "InvalidPool", type: "error" },
   { inputs: [], name: "InvalidPrice", type: "error" },
+  { inputs: [], name: "LocalTransferNotAllowed", type: "error" },
   { inputs: [], name: "MalformedVaultUpdateMessage", type: "error" },
   { inputs: [], name: "MulDiv_Overflow", type: "error" },
   { inputs: [], name: "NoCode", type: "error" },
@@ -116,6 +112,12 @@ export const PoolManagerAbi = [
         internalType: "contract IBaseVault",
         name: "vault",
         type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "enum VaultKind",
+        name: "kind",
+        type: "uint8",
       },
     ],
     name: "DeployVault",
@@ -469,6 +471,19 @@ export const PoolManagerAbi = [
   },
   {
     inputs: [],
+    name: "asyncRequestManager",
+    outputs: [
+      {
+        internalType: "contract IAsyncRequestManager",
+        name: "",
+        type: "address",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
     name: "balanceSheet",
     outputs: [{ internalType: "address", name: "", type: "address" }],
     stateMutability: "view",
@@ -581,6 +596,35 @@ export const PoolManagerAbi = [
     type: "function",
   },
   {
+    inputs: [
+      { internalType: "PoolId", name: "poolId", type: "uint64" },
+      { internalType: "ShareClassId", name: "scId", type: "bytes16" },
+      { internalType: "AssetId", name: "assetId", type: "uint128" },
+    ],
+    name: "markersPricePoolPerAsset",
+    outputs: [
+      { internalType: "uint64", name: "computedAt", type: "uint64" },
+      { internalType: "uint64", name: "maxAge", type: "uint64" },
+      { internalType: "uint64", name: "validUntil", type: "uint64" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "PoolId", name: "poolId", type: "uint64" },
+      { internalType: "ShareClassId", name: "scId", type: "bytes16" },
+    ],
+    name: "markersPricePoolPerShare",
+    outputs: [
+      { internalType: "uint64", name: "computedAt", type: "uint64" },
+      { internalType: "uint64", name: "maxAge", type: "uint64" },
+      { internalType: "uint64", name: "validUntil", type: "uint64" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
     inputs: [],
     name: "poolEscrowFactory",
     outputs: [
@@ -608,10 +652,7 @@ export const PoolManagerAbi = [
       { internalType: "bool", name: "checkValidity", type: "bool" },
     ],
     name: "priceAssetPerShare",
-    outputs: [
-      { internalType: "D18", name: "price", type: "uint128" },
-      { internalType: "uint64", name: "computedAt", type: "uint64" },
-    ],
+    outputs: [{ internalType: "D18", name: "price", type: "uint128" }],
     stateMutability: "view",
     type: "function",
   },
@@ -623,10 +664,7 @@ export const PoolManagerAbi = [
       { internalType: "bool", name: "checkValidity", type: "bool" },
     ],
     name: "pricePoolPerAsset",
-    outputs: [
-      { internalType: "D18", name: "price", type: "uint128" },
-      { internalType: "uint64", name: "computedAt", type: "uint64" },
-    ],
+    outputs: [{ internalType: "D18", name: "price", type: "uint128" }],
     stateMutability: "view",
     type: "function",
   },
@@ -637,10 +675,7 @@ export const PoolManagerAbi = [
       { internalType: "bool", name: "checkValidity", type: "bool" },
     ],
     name: "pricePoolPerShare",
-    outputs: [
-      { internalType: "D18", name: "price", type: "uint128" },
-      { internalType: "uint64", name: "computedAt", type: "uint64" },
-    ],
+    outputs: [{ internalType: "D18", name: "price", type: "uint128" }],
     stateMutability: "view",
     type: "function",
   },
@@ -721,6 +756,19 @@ export const PoolManagerAbi = [
     name: "shareToken",
     outputs: [
       { internalType: "contract IShareToken", name: "", type: "address" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "syncRequestManager",
+    outputs: [
+      {
+        internalType: "contract ISyncRequestManager",
+        name: "",
+        type: "address",
+      },
     ],
     stateMutability: "view",
     type: "function",
