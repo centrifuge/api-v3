@@ -6,21 +6,27 @@ import {
   index,
 } from "ponder";
 
-type PgColumnsFunction = Extract<Parameters<typeof onchainTable>[1], Function>
-type PgColumnsBuilders = Parameters<PgColumnsFunction>[0]
+type PgColumnsFunction = Extract<Parameters<typeof onchainTable>[1], Function>;
+type PgColumnsBuilders = Parameters<PgColumnsFunction>[0];
 
 const BlockchainColumns = (t: PgColumnsBuilders) => ({
   id: t.text().primaryKey(),
   centrifugeId: t.text().notNull(),
   lastPeriodStart: t.timestamp(),
-})
-export const Blockchain = onchainTable("blockchain", BlockchainColumns, (t) => ({
-  centrifugeIdIdx: index().on(t.centrifugeId),
-}));
+});
+export const Blockchain = onchainTable(
+  "blockchain",
+  BlockchainColumns,
+  (t) => ({
+    centrifugeIdIdx: index().on(t.centrifugeId),
+  })
+);
 
 export const BlockchainRelations = relations(Blockchain, ({ many }) => ({
-  pools: many(Pool),
-  vaults: many(Vault),
+  pools: many(Pool, { relationName: "pools" }),
+  vaults: many(Vault, { relationName: "vaults" }),
+  localAssets: many(LocalAsset, { relationName: "localAssets" }),
+  localTokens: many(LocalToken, { relationName: "localTokens" }),
 }));
 
 const PoolColumns = (t: PgColumnsBuilders) => ({
@@ -36,22 +42,23 @@ const PoolColumns = (t: PgColumnsBuilders) => ({
 });
 export const Pool = onchainTable("pool", PoolColumns, (t) => ({
   isActiveIdx: index().on(t.isActive),
+  centrifugeIdIdx: index().on(t.centrifugeId),
 }));
 
 export const PoolRelations = relations(Pool, ({ one, many }) => ({
-  blockchain: one(Blockchain, { fields: [Pool.centrifugeId], references: [Blockchain.centrifugeId] }),
-  shareClasses: many(ShareClass),
-  epochs: many(Epoch),
-  investorTransactions: many(InvestorTransaction),
-  outstandingOrders: many(OutstandingOrder),
-  vaults: many(Vault),
-  snapshots: many(PoolSnapshot),
+  blockchain: one(Blockchain, {
+    fields: [Pool.centrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
+  shareClasses: many(ShareClass, { relationName: "shareClasses" }),
+  epochs: many(Epoch, { relationName: "epochs" }),
+  snapshots: many(PoolSnapshot, { relationName: "snapshots" }),
 }));
 
 const ShareClassColumns = (t: PgColumnsBuilders) => ({
   id: t.text().primaryKey(),
   index: t.integer(),
-  isActive: t.boolean().notNull().default(false).notNull(),
+  isActive: t.boolean().notNull().default(false),
   poolId: t.text().notNull(),
   // Metadata fields
   name: t.text(),
@@ -60,14 +67,17 @@ const ShareClassColumns = (t: PgColumnsBuilders) => ({
   // Metrics fields
   totalIssuance: t.bigint().default(0n),
   navPerShare: t.bigint().default(0n),
-}); 
-export const ShareClass = onchainTable("share_class", ShareClassColumns);
+});
+export const ShareClass = onchainTable("share_class", ShareClassColumns, (t) => ({
+  poolIdx: index().on(t.poolId),
+}));
 
 export const ShareClassesRelations = relations(ShareClass, ({ one, many }) => ({
   pool: one(Pool, { fields: [ShareClass.poolId], references: [Pool.id] }),
-  vaults: many(Vault),
-  investorTransactions: many(InvestorTransaction),
-  outstandingOrders: many(OutstandingOrder),
+  vault: one(Vault, { fields: [ShareClass.id], references: [Vault.shareClassId] }),
+  token: one(Token, { fields: [ShareClass.id], references: [Token.shareClassId] }),
+  investorTransactions: many(InvestorTransaction, { relationName: "investorTransactions" }),
+  outstandingOrders: many(OutstandingOrder, { relationName: "outstandingOrders" }),
 }));
 
 const EpochColumns = (t: PgColumnsBuilders) => ({
@@ -84,12 +94,17 @@ export const Epoch = onchainTable("epoch", EpochColumns, (t) => ({
 
 export const EpochRelations = relations(Epoch, ({ one, many }) => ({
   pool: one(Pool, { fields: [Epoch.poolId], references: [Pool.id] }),
-  investorTransactions: many(InvestorTransaction),
+  investorTransactions: many(InvestorTransaction, { relationName: "investorTransactions" }),
 }));
 
-export const VaultKinds = ['Async', 'Sync', 'SyncDepositAsyncRedeem'] as const;
+export const VaultKinds = ["Async", "Sync", "SyncDepositAsyncRedeem"] as const;
 export const VaultKind = onchainEnum("vault_kind", VaultKinds);
-export const VaultStatuses = ['LinkInProgress', 'UnlinkInProgress', 'Linked', 'Unlinked'] as const;
+export const VaultStatuses = [
+  "LinkInProgress",
+  "UnlinkInProgress",
+  "Linked",
+  "Unlinked",
+] as const;
 export const VaultStatus = onchainEnum("vault_status", VaultStatuses);
 const VaultColumns = (t: PgColumnsBuilders) => ({
   id: t.text().primaryKey(),
@@ -102,22 +117,30 @@ const VaultColumns = (t: PgColumnsBuilders) => ({
   localAssetAddress: t.text().notNull(),
   factory: t.text().notNull(),
   manager: t.text(),
-  tokenId: t.text(),
+  tokenId: t.text().notNull(),
 });
 export const Vault = onchainTable("vault", VaultColumns, (t) => ({
   centrifugeIdIdx: index().on(t.centrifugeId),
   statusIdx: index().on(t.status),
-  poolIdIdx: index().on(t.poolId),
   shareClassIdIdx: index().on(t.shareClassId),
 }));
 export const VaultRelations = relations(Vault, ({ one }) => ({
-  blockchain: one(Blockchain, { fields: [Vault.centrifugeId], references: [Blockchain.centrifugeId] }),
-  pool: one(Pool, { fields: [Vault.poolId], references: [Pool.id] }),
+  blockchain: one(Blockchain, {
+    fields: [Vault.centrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
   shareClass: one(ShareClass, {
     fields: [Vault.shareClassId],
     references: [ShareClass.id],
   }),
-  localAsset: one(LocalAsset, { fields: [Vault.localAssetAddress], references: [LocalAsset.address] }),
+  localAsset: one(LocalAsset, {
+    fields: [Vault.localAssetAddress],
+    references: [LocalAsset.address],
+  }),
+  localToken: one(LocalToken, {
+    fields: [Vault.shareClassId],
+    references: [LocalToken.shareClassId],
+  }),
 }));
 
 export const InvestorTransactionType = onchainEnum(
@@ -147,7 +170,7 @@ const InvestorTransactionColumns = (t: PgColumnsBuilders) => ({
   currencyAmount: t.bigint(),
   tokenPrice: t.bigint(),
   transactionFee: t.bigint(),
-});   
+});
 export const InvestorTransaction = onchainTable(
   "investor_transaction",
   InvestorTransactionColumns,
@@ -203,10 +226,6 @@ export const OutstandingOrder = onchainTable(
 export const OutstandingOrderRelations = relations(
   OutstandingOrder,
   ({ one }) => ({
-    pool: one(Pool, {
-      fields: [OutstandingOrder.poolId],
-      references: [Pool.id],
-    }),
     shareClass: one(ShareClass, {
       fields: [OutstandingOrder.shareClassId],
       references: [ShareClass.id],
@@ -218,8 +237,6 @@ const AssetColumns = (t: PgColumnsBuilders) => ({
   id: t.text().primaryKey(),
   centrifugeId: t.text(),
   decimals: t.integer(),
-  tokenId: t.text(),
-  tokenAddress: t.text(),
   name: t.text(),
   symbol: t.text(),
   createdAt: t.timestamp(),
@@ -227,8 +244,11 @@ const AssetColumns = (t: PgColumnsBuilders) => ({
 });
 export const Asset = onchainTable("asset", AssetColumns);
 export const AssetRelations = relations(Asset, ({ one, many }) => ({
-  blockchain: one(Blockchain, { fields: [Asset.centrifugeId], references: [Blockchain.centrifugeId] }),
-  localAssets: many(LocalAsset),
+  blockchain: one(Blockchain, {
+    fields: [Asset.centrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
+  localAssets: many(LocalAsset, { relationName: "localAssets" }),
 }));
 
 const LocalAssetColumns = (t: PgColumnsBuilders) => ({
@@ -238,32 +258,65 @@ const LocalAssetColumns = (t: PgColumnsBuilders) => ({
   name: t.text(),
   symbol: t.text(),
   status: LocalAssetStatus("local_asset_status"),
-})
+});
 
-export const LocalAssetStatus = onchainEnum("local_asset_status", ["IN_PROGRESS", "REGISTERED"]);
-export const LocalAsset = onchainTable("local_asset", LocalAssetColumns, (t) => ({
-  id: primaryKey({ columns: [t.assetId, t.centrifugeId] }),
-}));
+export const LocalAssetStatus = onchainEnum("local_asset_status", [
+  "IN_PROGRESS",
+  "REGISTERED",
+]);
+export const LocalAsset = onchainTable(
+  "local_asset",
+  LocalAssetColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.assetId, t.centrifugeId] }),
+  })
+);
 export const LocalAssetRelations = relations(LocalAsset, ({ one }) => ({
-  blockchain: one(Blockchain, { fields: [LocalAsset.centrifugeId], references: [Blockchain.centrifugeId] }),
+  blockchain: one(Blockchain, {
+    fields: [LocalAsset.centrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
   asset: one(Asset, { fields: [LocalAsset.assetId], references: [Asset.id] }),
 }));
 
 export const TokenColumns = (t: PgColumnsBuilders) => ({
-  address: t.text().primaryKey(),
-  centrifugeId: t.text().notNull(),
+  id: t.text().primaryKey(),
   poolId: t.text().notNull(),
   shareClassId: t.text().notNull(),
 });
 export const Token = onchainTable("token", TokenColumns);
-export const TokenRelations = relations(Token, ({ one }) => ({
-  blockchain: one(Blockchain, { fields: [Token.centrifugeId], references: [Blockchain.centrifugeId] }),
-  shareClass: one(ShareClass, { fields: [Token.shareClassId], references: [ShareClass.id] }),
+export const TokenRelations = relations(Token, ({ one, many }) => ({
+  shareClass: one(ShareClass, {
+    fields: [Token.shareClassId],
+    references: [ShareClass.id],
+  }),
+  localTokens: many(LocalToken, { relationName: "localTokens" }),
 }));
 
-export const PoolSnapshot = onchainTable("pool_snapshot", snapshotColumns(PoolColumns, ['currency'] as const), (t) => ({
-  id: primaryKey({ columns: [t.id, t.blockNumber] }),
+export const LocalTokenColumns = (t: PgColumnsBuilders) => ({
+  address: t.text().primaryKey(),
+  centrifugeId: t.text().notNull(),
+  shareClassId: t.text().notNull()
+});
+export const LocalToken = onchainTable("local_token", LocalTokenColumns);
+export const LocalTokenRelations = relations(LocalToken, ({ one }) => ({
+  blockchain: one(Blockchain, {
+    fields: [LocalToken.centrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
+  token: one(Token, {
+    fields: [LocalToken.shareClassId],
+    references: [Token.shareClassId],
+  }),
 }));
+
+export const PoolSnapshot = onchainTable(
+  "pool_snapshot",
+  snapshotColumns(PoolColumns, ["currency"] as const),
+  (t) => ({
+    id: primaryKey({ columns: [t.id, t.blockNumber] }),
+  })
+);
 export const PoolSnapshotRelations = relations(PoolSnapshot, ({ one }) => ({
   pool: one(Pool, {
     fields: [PoolSnapshot.id],
@@ -271,21 +324,30 @@ export const PoolSnapshotRelations = relations(PoolSnapshot, ({ one }) => ({
   }),
 }));
 
-export const ShareClassSnapshot = onchainTable("share_class_snapshot", snapshotColumns(ShareClassColumns, ['navPerShare', 'totalIssuance'] as const), (t) => ({
-  id: primaryKey({ columns: [t.id, t.blockNumber] }),
-}));
+export const ShareClassSnapshot = onchainTable(
+  "share_class_snapshot",
+  snapshotColumns(ShareClassColumns, ["navPerShare", "totalIssuance"] as const),
+  (t) => ({
+    id: primaryKey({ columns: [t.id, t.blockNumber] }),
+  })
+);
 
-function snapshotColumns<F extends PgColumnsFunction, O extends Array<keyof ReturnType<F>>>(columns: F, selectKeys: O) {
+function snapshotColumns<
+  F extends PgColumnsFunction,
+  O extends Array<keyof ReturnType<F>>
+>(columns: F, selectKeys: O) {
   return (t: Parameters<F>[0]) => {
     const initialColumns = columns(t);
     const entries = Object.entries(initialColumns);
-    const selectedColumns = Object.fromEntries(entries.filter(([key]) => selectKeys.includes(key as keyof ReturnType<F>)));
+    const selectedColumns = Object.fromEntries(
+      entries.filter(([key]) => selectKeys.includes(key as keyof ReturnType<F>))
+    );
     const snapshotColumns = {
       id: t.text().notNull(),
       timestamp: t.timestamp().notNull(),
       blockNumber: t.integer().notNull(),
-      ...selectedColumns as Pick<ReturnType<F>, O[number]>
+      ...(selectedColumns as Pick<ReturnType<F>, O[number]>),
     };
     return snapshotColumns;
-  }
+  };
 }
