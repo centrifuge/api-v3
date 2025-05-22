@@ -310,6 +310,55 @@ export const LocalTokenRelations = relations(LocalToken, ({ one }) => ({
   }),
 }));
 
+const HoldingColumns = (t: PgColumnsBuilders) => ({
+  poolId: t.text().notNull(),
+  shareClassId: t.text().primaryKey(),
+  assetId: t.text().notNull(),
+  valuation: t.text().notNull(),
+  isLiability: t.boolean().notNull(),
+  pendingAssetAmountIncrease: t.bigint().default(0n),
+  pendingAssetAmountDecrease: t.bigint().default(0n),
+  pendingAssetValueIncrease: t.bigint().default(0n),
+  pendingAssetValueDecrease: t.bigint().default(0n),
+  realizedAssetAmount: t.bigint().default(0n),
+  realizedAssetValue: t.bigint().default(0n),
+  assetAmount: t.bigint().default(0n),
+  assetValue: t.bigint().default(0n),
+  updatedAt: t.timestamp(),
+  updatedAtBlock: t.integer(),
+});
+
+export const Holding = onchainTable("holdings", HoldingColumns, (t) => ({
+  poolIdx: index().on(t.poolId),
+}));
+
+export const HoldingsRelations = relations(Holding, ({ one }) => ({
+  shareClass: one(ShareClass, {
+    fields: [Holding.shareClassId],
+    references: [ShareClass.id],
+  }),
+}));
+
+export const HoldingAccountTypes = ["Asset", "Equity", "Loss", "Gain", "Expense", "Liability"] as const;
+export const HoldingAccountType = onchainEnum("holding_account_type", HoldingAccountTypes);
+export const HoldingAccountColumns = (t: PgColumnsBuilders) => ({
+  id: t.text().primaryKey(),
+  shareClassId: t.text().notNull(),
+  kind: HoldingAccountType("holding_account_type").notNull(),
+});
+
+export const HoldingAccount = onchainTable("holding_accounts", HoldingAccountColumns, (t) => ({
+}));
+
+export const HoldingAccountRelations = relations(HoldingAccount, ({ one }) => ({
+  holding: one(Holding, {
+    fields: [HoldingAccount.shareClassId],
+    references: [Holding.shareClassId],
+  }),
+}));
+
+
+// Snapshots
 export const PoolSnapshot = onchainTable(
   "pool_snapshot",
   snapshotColumns(PoolColumns, ["currency"] as const),

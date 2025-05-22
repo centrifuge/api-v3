@@ -9,3 +9,4 @@ export * from "./TokenService";
 export * from "./LocalAssetService";
 export * from "./AssetService";
 export * from "./BlockchainService";
+export * from "./HoldingService";
