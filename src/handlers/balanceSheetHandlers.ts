@@ -19,12 +19,11 @@ ponder.on("BalanceSheet:Deposit", async ({ event, context }) => {
   const localAssetAddress = _localAssetAddress.toString();
   const provider = _provider.toString();
 
-  const holding = await HoldingService.get(context, { shareClassId });
+  //const holding = await HoldingService.get(context, { shareClassId });
 });
 
 ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
   logEvent(event, "BalanceSheet:Withdraw");
   const { chainId: _chainId } = context.network;
-  const { poolId, scId, asset, tokenId, receiver, amount, pricePoolPerAsset } =
-    event.args;
+  const { poolId, scId, asset, tokenId, receiver, amount, pricePoolPerAsset } = event.args;
 });

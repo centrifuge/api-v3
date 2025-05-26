@@ -316,14 +316,17 @@ const HoldingColumns = (t: PgColumnsBuilders) => ({
   assetId: t.text().notNull(),
   valuation: t.text().notNull(),
   isLiability: t.boolean().notNull(),
-  pendingAssetAmountIncrease: t.bigint().default(0n),
-  pendingAssetAmountDecrease: t.bigint().default(0n),
-  pendingAssetValueIncrease: t.bigint().default(0n),
-  pendingAssetValueDecrease: t.bigint().default(0n),
-  realizedAssetAmount: t.bigint().default(0n),
-  realizedAssetValue: t.bigint().default(0n),
-  assetAmount: t.bigint().default(0n),
-  assetValue: t.bigint().default(0n),
+  // Spoke side amounts and values
+  spokeAssetAmount: t.bigint().default(0n),
+  spokeAssetValue: t.bigint().default(0n),
+  // Hub side amounts and values
+  hubAssetAmount: t.bigint().default(0n),
+  hubAssetValue: t.bigint().default(0n),
+  // Price tracking
+  spokePendingPrice: t.bigint().default(0n),
+  spokePrice: t.bigint().default(0n),
+
+  
   updatedAt: t.timestamp(),
   updatedAtBlock: t.integer(),
 });
