@@ -26,7 +26,7 @@ export const BlockchainRelations = relations(Blockchain, ({ many }) => ({
   pools: many(Pool, { relationName: "pools" }),
   vaults: many(Vault, { relationName: "vaults" }),
   localAssets: many(LocalAsset, { relationName: "localAssets" }),
-  localTokens: many(LocalToken, { relationName: "localTokens" }),
+  tokens: many(Token, { relationName: "tokens" }),
 }));
 
 const PoolColumns = (t: PgColumnsBuilders) => ({
@@ -137,9 +137,9 @@ export const VaultRelations = relations(Vault, ({ one }) => ({
     fields: [Vault.localAssetAddress],
     references: [LocalAsset.address],
   }),
-  localToken: one(LocalToken, {
+  token: one(Token, {
     fields: [Vault.shareClassId],
-    references: [LocalToken.shareClassId],
+    references: [Token.shareClassId],
   }),
 }));
 
@@ -280,32 +280,23 @@ export const LocalAssetRelations = relations(LocalAsset, ({ one }) => ({
 }));
 
 export const TokenColumns = (t: PgColumnsBuilders) => ({
-  id: t.text().primaryKey(),
-  poolId: t.text().notNull(),
-  shareClassId: t.text().notNull(),
-});
-export const Token = onchainTable("token", TokenColumns);
-export const TokenRelations = relations(Token, ({ one, many }) => ({
-  shareClass: one(ShareClass, {
-    fields: [Token.shareClassId],
-    references: [ShareClass.id],
-  }),
-  localTokens: many(LocalToken, { relationName: "localTokens" }),
-}));
-
-export const LocalTokenColumns = (t: PgColumnsBuilders) => ({
-  address: t.text().primaryKey(),
   centrifugeId: t.text().notNull(),
-  shareClassId: t.text().notNull()
+  shareClassId: t.text().notNull(),
+  address: t.text().notNull(),
+  vaultId: t.text(),
+  tokenId: t.text(),
 });
-export const LocalToken = onchainTable("local_token", LocalTokenColumns);
-export const LocalTokenRelations = relations(LocalToken, ({ one }) => ({
+export const Token = onchainTable("token", TokenColumns, (t) => ({
+  id: primaryKey({ columns: [t.centrifugeId, t.shareClassId] }),
+  addressIdx: index().on(t.address),
+}));
+export const TokenRelations = relations(Token, ({ one }) => ({
   blockchain: one(Blockchain, {
-    fields: [LocalToken.centrifugeId],
+    fields: [Token.centrifugeId],
     references: [Blockchain.centrifugeId],
   }),
   token: one(Token, {
-    fields: [LocalToken.shareClassId],
+    fields: [Token.shareClassId],
     references: [Token.shareClassId],
   }),
 }));
