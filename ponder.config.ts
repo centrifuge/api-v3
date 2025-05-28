@@ -5,10 +5,12 @@ import { HubRegistryAbi } from "./abis/HubRegistryAbi";
 import { PoolManagerAbi } from "./abis/PoolManagerAbi";
 import { ShareClassManagerAbi } from "./abis/ShareClassManagerAbi";
 import { MessageDispatcherAbi } from "./abis/MessageDispatcherAbi";
-
-import { chains } from "./chains";
+import { HoldingsAbi } from "./abis/HoldingsAbi";
+import { BalanceSheetAbi } from "./abis/BalanceSheetAbi";
 import { AsyncVaultAbi } from "./abis/AsyncVaultAbi";
 import { SyncDepositVaultAbi } from "./abis/SyncDepositVaultAbi";
+
+import { chains } from "./chains";
 
 export const currentNetwork = chains['testnet']
 
@@ -59,6 +61,18 @@ export default createConfig({
       network: "ethereum",
       abi: MessageDispatcherAbi,
       address: currentNetwork.contracts.messageDispatcher,
+      startBlock: currentNetwork.startBlock,
+    },
+    Holdings: {
+      network: "ethereum",
+      abi: HoldingsAbi,
+      address: currentNetwork.contracts.holdings,
+      startBlock: currentNetwork.startBlock,
+    },
+    BalanceSheet: {
+      network: "ethereum",
+        abi: BalanceSheetAbi,
+        address: currentNetwork.contracts.balanceSheet,
       startBlock: currentNetwork.startBlock,
     },
   },

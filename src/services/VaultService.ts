@@ -1,4 +1,3 @@
-import type { Context } from "ponder:registry";
 import { Vault } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
 import { VaultStatuses } from "ponder:schema";
