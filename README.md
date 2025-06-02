@@ -39,7 +39,7 @@ The project uses several services to maintain data consistency:
 yarn install --frozen-lockfile
 
 # Create .env file with your configuration
-cp .env.example .env
+cp .env.example .env.local
 # Edit .env with your settings (RPC endpoint and API key)
 
 yarn codegen
