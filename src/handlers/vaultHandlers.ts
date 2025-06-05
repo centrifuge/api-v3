@@ -1,6 +1,6 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
-import { PoolService, ShareClassService } from "../services";
+import { PoolService, TokenService } from "../services";
 import { InvestorTransactionService, VaultService } from "../services";
 
 ponder.on("Vault:DepositRequest", async ({ event, context }) => {
@@ -11,9 +11,9 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   if (!vaultId) throw new Error(`Vault id not found in event`);
   const vault = await VaultService.get(context, { id: vaultId }) as VaultService;
   
-  const { poolId, shareClassId } = vault.read();
-  const shareClass = (await ShareClassService.get(context, { poolId: poolId,  id: shareClassId}));
-  if (!shareClass) throw new Error(`ShareClass not found for vault ${vaultId}`);
+  const { poolId, tokenId } = vault.read();
+  const token = (await TokenService.get(context, { poolId: poolId,  id: tokenId}));
+  if (!token) throw new Error(`Token not found for vault ${vaultId}`);
 
   const pool = await PoolService.get(context, { id: poolId });
   if (!pool) throw new Error(`Pool with id ${poolId} not found`);
@@ -21,7 +21,7 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
 
   const it = await InvestorTransactionService.updateDepositRequest(context, {
     poolId,
-    shareClassId,
+    tokenId,
     account: senderAddress,
     currencyAmount: assets,
     createdAt: new Date(),
@@ -39,9 +39,9 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
   if (!vaultId) throw new Error(`Vault id not found in event`);
   const vault = await VaultService.get(context, { id: vaultId });
   
-  const { poolId, shareClassId } = vault.read();
-  const shareClass = (await ShareClassService.get(context, { poolId,  id: shareClassId}));
-  if (!shareClass) throw new Error(`ShareClass not found for vault ${vaultId}`);
+  const { poolId, tokenId } = vault.read();
+  const token = (await TokenService.get(context, { poolId,  id: tokenId}));
+  if (!token) throw new Error(`Token not found for vault ${vaultId}`);
 
   const pool = await PoolService.get(context, { id: poolId });
   if (!pool) throw new Error(`Pool with id ${poolId} not found`);
@@ -49,7 +49,7 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
 
   const it = await InvestorTransactionService.updateRedeemRequest(context, {
     poolId,
-    shareClassId,
+    tokenId,
     account: senderAddress,
     tokenAmount: assets,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
@@ -67,9 +67,9 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
   if (!vaultId) throw new Error(`Vault id not found in event`);
   const vault = await VaultService.get(context, { id: vaultId });
 
-  const { poolId, shareClassId } = vault.read();
-  const shareClass = (await ShareClassService.get(context, { poolId,  id: shareClassId}));
-  if (!shareClass) throw new Error(`ShareClass not found for vault ${vaultId}`);
+  const { poolId, tokenId } = vault.read();
+  const token = (await TokenService.get(context, { poolId,  id: tokenId}));
+  if (!token) throw new Error(`Token not found for vault ${vaultId}`);
 
   const pool = await PoolService.get(context, { id: poolId });
   if (!pool) throw new Error(`Pool with id ${poolId} not found`);
@@ -77,7 +77,7 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
 
   const it = await InvestorTransactionService.claimDeposit(context, {
     poolId,
-    shareClassId,
+    tokenId,
     account: senderAddress,
     tokenAmount: shares,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
@@ -95,9 +95,9 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
   if (!vaultId) throw new Error(`Vault id not found in event`);
   const vault = await VaultService.get(context, { id: vaultId });
 
-  const { poolId, shareClassId } = vault.read();
-  const shareClass = (await ShareClassService.get(context, { poolId,  id: shareClassId}));
-  if (!shareClass) throw new Error(`ShareClass not found for vault ${vaultId}`);
+  const { poolId, tokenId } = vault.read();
+  const token = (await TokenService.get(context, { poolId,  id: tokenId}));
+  if (!token) throw new Error(`Token not found for vault ${vaultId}`);
 
   const pool = await PoolService.get(context, { id: poolId });
   if (!pool) throw new Error(`Pool with id ${poolId} not found`);
@@ -105,7 +105,7 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
 
   const it = await InvestorTransactionService.claimRedeem(context, {
     poolId,
-    shareClassId,
+    tokenId,
     account: receiverAddress,
     tokenAmount: shares,
     createdAt: new Date(Number(event.block.timestamp) * 1000),

@@ -10,13 +10,13 @@ ponder.on("Holdings:Initialize", async ({ event, context }) => {
   const [_poolId, _shareClassId, _assetId, _valuation, isLiability, accounts] =
     event.args;
   const poolId = _poolId.toString();
-  const shareClassId = _shareClassId.toString();
+  const tokenId = _shareClassId.toString();
   const assetId = _assetId.toString();
   const valuation = _valuation.toString();
 
   const holding = await HoldingService.init(context, {
     poolId,
-    shareClassId,
+    tokenId,
     assetId,
     valuation,
     isLiability,
@@ -31,7 +31,7 @@ ponder.on("Holdings:Initialize", async ({ event, context }) => {
     const holdingAccount = await HoldingAccountService.getOrInit(context, {
       id: accountId,
       kind,
-      shareClassId,
+      tokenId,
     });
   }
 });
@@ -43,12 +43,12 @@ ponder.on("Holdings:Increase", async ({ event, context }) => {
     event.args;
 
   const poolId = _poolId.toString();
-  const shareClassId = _scId.toString();
+  const tokenId = _scId.toString();
   const assetId = _assetId.toString();
 
   const holding = await HoldingService.get(context, {
     poolId,
-    shareClassId,
+    tokenId,
     assetId,
   }) as HoldingService;
 
@@ -63,12 +63,12 @@ ponder.on("Holdings:Decrease", async ({ event, context }) => {
     event.args;
 
   const poolId = _poolId.toString();
-  const shareClassId = _scId.toString();
+  const tokenId = _scId.toString();
   const assetId = _assetId.toString();
 
   const holding = await HoldingService.get(context, {
     poolId,
-    shareClassId,
+    tokenId,
     assetId,
   }) as HoldingService;
 
@@ -83,12 +83,12 @@ ponder.on("Holdings:Update", async ({ event, context }) => {
     event.args;
 
   const poolId = _poolId.toString();
-  const shareClassId = _scId.toString();
+  const tokenId = _scId.toString();
   const assetId = _assetId.toString();
 
   const holding = await HoldingService.get(context, {
     poolId,
-    shareClassId,
+    tokenId,
     assetId,
   }) as HoldingService;
 
