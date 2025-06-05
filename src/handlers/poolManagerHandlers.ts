@@ -1,7 +1,7 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
 import { VaultKinds } from "ponder:schema";
-import { BlockchainService, AssetRegistryService, AssetService, VaultService, TokenService, TokenInstanceService } from "../services";
+import { BlockchainService, AssetRegistrationService, AssetService, VaultService, TokenService, TokenInstanceService } from "../services";
 
 ponder.on("PoolManager:DeployVault", async ({ event, context }) => {
   logEvent(event, "PoolManager:DeployVault");
@@ -46,14 +46,14 @@ ponder.on("PoolManager:RegisterAsset", async ({ event, context }) => {
   logEvent(event, "PoolManager:RegisterAsset");
   const { chainId } = context.network;
   const {
-    assetId: _assetRegistryId,
+    assetId: _assetRegistrationId,
     asset: _assetAddress,
     tokenId: _tokenId,
     name,
     symbol,
     decimals,
   } = event.args;
-  const assetRegistryId = _assetRegistryId.toString();
+  const assetRegistrationId = _assetRegistrationId.toString();
   const assetAddress = _assetAddress.toString();
   const tokenId = _tokenId.toString();
   const blockchain = (await BlockchainService.get(context, {
@@ -61,17 +61,17 @@ ponder.on("PoolManager:RegisterAsset", async ({ event, context }) => {
   })) as BlockchainService;
   const { centrifugeId } = blockchain.read();
 
-  const assetRegistry = (await AssetRegistryService.getOrInit(context, {
-    id: assetRegistryId,
+  const assetRegistration = (await AssetRegistrationService.getOrInit(context, {
+    assetId: assetRegistrationId,
     centrifugeId,
     decimals: decimals,
     name: name,
     symbol: symbol,
-  })) as AssetRegistryService;
+  })) as AssetRegistrationService;
 
 
   const localAsset = (await AssetService.getOrInit(context, {
-    assetRegistryId,
+    assetRegistrationId,
     centrifugeId,
     name: name,
     symbol: symbol,

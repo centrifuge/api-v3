@@ -6,6 +6,6 @@ export * from "./InvestorTransactionService";
 export * from "./VaultService";
 export * from "./TokenInstanceService";
 export * from "./LocalAssetService";
-export * from "./AssetRegistryService";
+export * from "./AssetRegistrationService";
 export * from "./BlockchainService";
 export * from "./HoldingService";
