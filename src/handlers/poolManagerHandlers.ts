@@ -1,7 +1,7 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
 import { VaultKinds } from "ponder:schema";
-import { BlockchainService, LocalAssetService, AssetService, VaultService, TokenService } from "../services";
+import { BlockchainService, AssetRegistryService, AssetService, VaultService, TokenService, TokenInstanceService } from "../services";
 
 ponder.on("PoolManager:DeployVault", async ({ event, context }) => {
   logEvent(event, "PoolManager:DeployVault");
@@ -9,16 +9,16 @@ ponder.on("PoolManager:DeployVault", async ({ event, context }) => {
   const {
     poolId: _poolId,
     scId: _shareClassId,
-    asset: _localAssetAddress,
+    asset: _assetAddress,
     tokenId: _tokenId,
     factory: _factory,
     vault: _vaultId,
     kind,
   } = event.args;
   const poolId = _poolId.toString()
-  const shareClassId = _shareClassId.toString();
-  const localAssetAddress = _localAssetAddress.toString();
-  const tokenId = _tokenId.toString();
+  const tokenId = _shareClassId.toString();
+  const assetAddress = _assetAddress.toString();
+  //const tokenId = _tokenId.toString(); TODO: update to track ERC tokens
   const factory = _factory.toString();
   const vaultId = _vaultId.toString();
   const vaultKind = VaultKinds[kind];
@@ -33,11 +33,11 @@ ponder.on("PoolManager:DeployVault", async ({ event, context }) => {
     id: vaultId,
     centrifugeId,
     poolId: poolId,
-    shareClassId: shareClassId,
-    localAssetAddress: localAssetAddress,
+    tokenId: tokenId,
+    assetAddress,
     factory: factory,
     kind: vaultKind,
-    tokenId
+    //tokenId
   })) as VaultService;
 });
 
@@ -46,37 +46,37 @@ ponder.on("PoolManager:RegisterAsset", async ({ event, context }) => {
   logEvent(event, "PoolManager:RegisterAsset");
   const { chainId } = context.network;
   const {
-    assetId: _assetId,
-    asset: _localAssetAddress,
+    assetId: _assetRegistryId,
+    asset: _assetAddress,
     tokenId: _tokenId,
     name,
     symbol,
     decimals,
   } = event.args;
-  const assetId = _assetId.toString();
-  const localAssetAddress = _localAssetAddress.toString();
+  const assetRegistryId = _assetRegistryId.toString();
+  const assetAddress = _assetAddress.toString();
   const tokenId = _tokenId.toString();
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
   })) as BlockchainService;
   const { centrifugeId } = blockchain.read();
 
-  const asset = (await AssetService.getOrInit(context, {
-    id: assetId,
+  const assetRegistry = (await AssetRegistryService.getOrInit(context, {
+    id: assetRegistryId,
     centrifugeId,
     decimals: decimals,
     name: name,
     symbol: symbol,
-  })) as AssetService;
+  })) as AssetRegistryService;
 
 
-  const localAsset = (await LocalAssetService.getOrInit(context, {
-    assetId,
+  const localAsset = (await AssetService.getOrInit(context, {
+    assetRegistryId,
     centrifugeId,
     name: name,
     symbol: symbol,
-    address: localAssetAddress,
-  })) as LocalAssetService;
+    address: assetAddress,
+  })) as AssetService;
 
   const { status } = localAsset.read();
 
@@ -91,22 +91,22 @@ ponder.on("PoolManager:AddShareClass", async ({ event, context }) => {
   const { chainId: _chainId } = context.network;
   const {
     poolId: _poolId,
-    scId: _shareClassId,
+    scId: _tokenId,
     token: _tokenAddress
   } = event.args;
   const chainId = _chainId.toString();
-  const shareClassId = _shareClassId.toString();
+  const tokenId = _tokenId.toString();
   const tokenAddress = _tokenAddress.toString();
   const blockchain = (await BlockchainService.get(context, {
     id: chainId,
   })) as BlockchainService;
   const { centrifugeId } = blockchain.read();
 
-  const token = await TokenService.getOrInit(context, {
+  const tokenInstance = await TokenInstanceService.getOrInit(context, {
     address: tokenAddress,
-    shareClassId,
+    tokenId,
     centrifugeId,
-  }) as TokenService;
+  }) as TokenInstanceService;
 });
 
 ponder.on("PoolManager:LinkVault", async ({ event, context }) => {
@@ -114,17 +114,17 @@ ponder.on("PoolManager:LinkVault", async ({ event, context }) => {
   const { chainId: _chainId } = context.network;
   const {
     poolId: _poolId,
-    scId: _shareClassId,
-    asset: _localAssetAddress,
-    tokenId: _tokenId,
+    scId: _tokenId,
+    asset: _assetAddress,
+    //tokenId: _tokenId, TODO: Update property name
     vault: _vaultId,
   } = event.args;
   const chainId = _chainId.toString();
   const poolId = _poolId.toString();
-  const shareClassId = _shareClassId.toString();
-  const localAssetAddress = _localAssetAddress.toString();
-  const vaultId = _vaultId.toString();
   const tokenId = _tokenId.toString();
+  const assetAddress = _assetAddress.toString();
+  const vaultId = _vaultId.toString();
+  //const tokenId = _tokenId.toString(); TODO: Update property name
   const vault = (await VaultService.get(context, {
     id: vaultId,
   })) as VaultService;
@@ -137,16 +137,16 @@ ponder.on("PoolManager:LinkVault", async ({ event, context }) => {
   vault.setStatus("Linked");
   await vault.save();
 
-  const token = (await TokenService.query(context, {
-    shareClassId,
+  const tokenInstance = (await TokenInstanceService.query(context, {
+    tokenId,
     centrifugeId,
-  }) as TokenService[]).pop();
+  }) as TokenInstanceService[]).pop();
 
-  if (!token) throw new Error("Token not found for share class");
+  if (!tokenInstance) throw new Error("TokenInstance not found for share class");
 
-  token.setVaultId(vaultId);
-  token.setTokenId(tokenId);
-  await token.save();
+  tokenInstance.setVaultId(vaultId);
+  tokenInstance.setTokenId(tokenId);
+  await tokenInstance.save();
 });
 
 ponder.on("PoolManager:UnlinkVault", async ({ event, context }) => {
@@ -154,14 +154,14 @@ ponder.on("PoolManager:UnlinkVault", async ({ event, context }) => {
   const { chainId } = context.network;
   const {
       poolId: _poolId,
-      scId: _shareClassId,
-      asset: _localAssetAddress,
-      tokenId,
+      scId: _tokenId,
+      asset: _assetAddress,
+      //tokenId, TODO: Update property name
       vault: _vaultId,
     } = event.args;
     const poolId = _poolId.toString();
-    const shareClassId = _shareClassId.toString();
-    const localAssetAddress = _localAssetAddress.toString();
+    const tokenId = _tokenId.toString();
+    const assetAddress = _assetAddress.toString();
     const vaultId = _vaultId.toString();
   
     const vault = (await VaultService.get(context, {

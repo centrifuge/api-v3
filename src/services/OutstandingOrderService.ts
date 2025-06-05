@@ -16,7 +16,7 @@ export class OutstandingOrderService extends mixinCommonStatics(Service<typeof O
 
   public updateRequestedDepositAmount(amount: bigint) {
     console.info(
-      `Updating deposit amount for OutstandingOrder ${this.data.poolId}-${this.data.shareClassId}-${this.data.account} to ${amount}`
+      `Updating deposit amount for OutstandingOrder ${this.data.poolId}-${this.data.tokenId}-${this.data.account} to ${amount}`
     );
     this.data.requestedDepositAmount = amount;
     return this;
@@ -24,7 +24,7 @@ export class OutstandingOrderService extends mixinCommonStatics(Service<typeof O
 
   public updateRequestedRedeemAmount(amount: bigint) {
     console.info(
-      `Updating redeem amount for OutstandingOrder ${this.data.poolId}-${this.data.shareClassId}-${this.data.account} to ${amount}`
+      `Updating redeem amount for OutstandingOrder ${this.data.poolId}-${this.data.tokenId}-${this.data.account} to ${amount}`
     );
     this.data.requestedRedeemAmount = amount;
     return this;
@@ -36,7 +36,7 @@ export class OutstandingOrderService extends mixinCommonStatics(Service<typeof O
   ) {
     if (this.data.requestedDepositAmount === null)
       throw new Error(
-        `Requested deposit amount for OutstandingOrder ${this.data.poolId}-${this.data.shareClassId}-${this.data.account} is not set`
+        `Requested deposit amount for OutstandingOrder ${this.data.poolId}-${this.data.tokenId}-${this.data.account} is not set`
       );
     const _requestedDepositAmount = new BN(
       this.data.requestedDepositAmount.toString()
@@ -49,7 +49,7 @@ export class OutstandingOrderService extends mixinCommonStatics(Service<typeof O
       .div(_approvedAssetAmount.add(_pendingAssetAmount));
     this.data.approvedDepositAmount = BigInt(_approvedDepositAmount.toString());
     console.info(
-      `Computed approved deposit amount for OutstandingOrder ${this.data.poolId}-${this.data.shareClassId}-${this.data.account} to ${this.data.approvedDepositAmount}`
+      `Computed approved deposit amount for OutstandingOrder ${this.data.poolId}-${this.data.tokenId}-${this.data.account} to ${this.data.approvedDepositAmount}`
     );
     return this;
   }
@@ -60,7 +60,7 @@ export class OutstandingOrderService extends mixinCommonStatics(Service<typeof O
   ) {
     if (this.data.requestedRedeemAmount === null)
       throw new Error(
-        `Requested redeem amount for OutstandingOrder ${this.data.poolId}-${this.data.shareClassId}-${this.data.account} is not set`
+        `Requested redeem amount for OutstandingOrder ${this.data.poolId}-${this.data.tokenId}-${this.data.account} is not set`
       );
     const _requestedRedeemAmount = new BN(
       this.data.requestedRedeemAmount.toString()
@@ -74,7 +74,7 @@ export class OutstandingOrderService extends mixinCommonStatics(Service<typeof O
       .div(_approvedShareClassAmount.add(_pendingShareClassAmount));
     this.data.approvedRedeemAmount = BigInt(_approvedRedeemAmount.toString());
     console.info(
-      `Computed approved redeem amount for OutstandingOrder ${this.data.poolId}-${this.data.shareClassId}-${this.data.account} to ${this.data.approvedRedeemAmount}`
+      `Computed approved redeem amount for OutstandingOrder ${this.data.poolId}-${this.data.tokenId}-${this.data.account} to ${this.data.approvedRedeemAmount}`
     );
     return this;
   }
@@ -82,22 +82,22 @@ export class OutstandingOrderService extends mixinCommonStatics(Service<typeof O
   public executeRequests() {
     if (this.data.requestedDepositAmount === null)
       throw new Error(
-        `Requested deposit amount for OutstandingOrder ${this.data.poolId}-${this.data.shareClassId}-${this.data.account} is not set`
+        `Requested deposit amount for OutstandingOrder ${this.data.poolId}-${this.data.tokenId}-${this.data.account} is not set`
       );
     if (this.data.approvedDepositAmount === null)
       throw new Error(
-        `Approved deposit amount for OutstandingOrder ${this.data.poolId}-${this.data.shareClassId}-${this.data.account} is not set`
+        `Approved deposit amount for OutstandingOrder ${this.data.poolId}-${this.data.tokenId}-${this.data.account} is not set`
       );
     this.data.requestedDepositAmount -= this.data.approvedDepositAmount;
     this.data.approvedDepositAmount = 0n;
 
     if (this.data.requestedRedeemAmount === null)
       throw new Error(
-        `Requested redeem amount for OutstandingOrder ${this.data.poolId}-${this.data.shareClassId}-${this.data.account} is not set`
+        `Requested redeem amount for OutstandingOrder ${this.data.poolId}-${this.data.tokenId}-${this.data.account} is not set`
       );
     if (this.data.approvedRedeemAmount === null)
       throw new Error(
-        `Approved redeem amount for OutstandingOrder ${this.data.poolId}-${this.data.shareClassId}-${this.data.account} is not set`
+        `Approved redeem amount for OutstandingOrder ${this.data.poolId}-${this.data.tokenId}-${this.data.account} is not set`
       );
     this.data.requestedRedeemAmount -= this.data.approvedRedeemAmount;
     this.data.approvedRedeemAmount = 0n;
@@ -106,14 +106,14 @@ export class OutstandingOrderService extends mixinCommonStatics(Service<typeof O
 
   public async clear() {
     console.info(
-      `Clearing OutstandingOrder ${this.data.poolId}-${this.data.shareClassId}-${this.data.account}`
+      `Clearing OutstandingOrder ${this.data.poolId}-${this.data.tokenId}-${this.data.account}`
     );
     await this.db.sql
       .delete(OutstandingOrder)
       .where(
         and(
           eq(this.table.poolId, this.data.poolId),
-          eq(this.table.shareClassId, this.data.shareClassId),
+          eq(this.table.tokenId, this.data.tokenId),
           eq(this.table.account, this.data.account)
         )
       );

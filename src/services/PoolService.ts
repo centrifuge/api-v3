@@ -9,7 +9,7 @@ export class PoolService extends mixinCommonStatics(Service<typeof Pool>, Pool, 
       throw new Error(`Pool with id ${this.data.id} has no shareClassManager`);
     }
     return this.client.readContract({
-      address: this.data.shareClassManager,
+      address: this.data.shareClassManager as `0x${string}`,
       abi: ShareClassManagerAbi,
       functionName: "shareClassCount",
 
@@ -23,7 +23,7 @@ export class PoolService extends mixinCommonStatics(Service<typeof Pool>, Pool, 
       throw new Error(`Pool with id ${this.data.id} has no shareClassManager`);
 
     const contractInfo = {
-      address: this.data.shareClassManager,
+      address: this.data.shareClassManager as `0x${string}`,
       abi: ShareClassManagerAbi,
       functionName: "previewShareClassId",
       allowFailure: false,
@@ -46,7 +46,7 @@ export class PoolService extends mixinCommonStatics(Service<typeof Pool>, Pool, 
         );
         continue;
       }
-      shareClassesIds.push([index, response.result]);
+      shareClassesIds.push([index, response.result as `0x${string}`]);
     }
     return shareClassesIds;
   }

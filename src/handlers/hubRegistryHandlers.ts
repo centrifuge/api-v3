@@ -2,8 +2,7 @@ import { ponder } from "ponder:registry";
 import { PoolService } from "../services/PoolService";
 import { logEvent } from "../helpers/logger";
 import { EpochService } from "../services";
-import { AssetService } from "../services/AssetService";
-import { LocalAssetService } from "../services/LocalAssetService";
+import { AssetRegistryService, AssetService } from "../services";
 import { BN } from "bn.js";
 import { BlockchainService } from "../services/BlockchainService";
 
@@ -37,22 +36,22 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
 ponder.on("HubRegistry:NewAsset", async ({ event, context }) => { //Fires Second to complete
   logEvent(event, "HubRegistry:NewAsset");
   const { chainId } = context.network;
-  const { assetId: _assetId, decimals } = event.args;
+  const { assetId: _assetRegistryId, decimals } = event.args;
   const {} = event.transaction
-  const assetId = _assetId.toString();
+  const assetRegistryId = _assetRegistryId.toString();
 
-  const assetCentrifugeId = new BN(assetId.toString()).shrn(112).toString();
+  const assetCentrifugeId = new BN(assetRegistryId.toString()).shrn(112).toString();
 
-  const newAsset = (await AssetService.getOrInit(context, {
-    id: assetId,
+  const newAssetRegistry = (await AssetRegistryService.getOrInit(context, {
+    id: assetRegistryId,
     centrifugeId: assetCentrifugeId,
     decimals,
-  })) as AssetService;
+  })) as AssetRegistryService;
 
-  const localAsset = (await LocalAssetService.getOrInit(context, {
-    assetId: assetId,
+  const asset = (await AssetService.getOrInit(context, {
+    assetRegistryId,
     centrifugeId: assetCentrifugeId,
-  })) as LocalAssetService;
-  localAsset.setStatus("REGISTERED");
-  await localAsset.save()
+  })) as AssetService;
+  asset.setStatus("REGISTERED");
+  await asset.save()
 });
