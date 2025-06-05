@@ -232,8 +232,8 @@ export const OutstandingOrderRelations = relations(
   })
 );
 
-const AssetRegistryColumns = (t: PgColumnsBuilders) => ({
-  id: t.text().primaryKey(),
+const AssetRegistrationColumns = (t: PgColumnsBuilders) => ({
+  assetId: t.text().notNull(),
   centrifugeId: t.text(),
   decimals: t.integer(),
   name: t.text(),
@@ -241,17 +241,19 @@ const AssetRegistryColumns = (t: PgColumnsBuilders) => ({
   createdAt: t.timestamp(),
   createdAtBlock: t.integer(),
 });
-export const AssetRegistry = onchainTable("asset_registry", AssetRegistryColumns);
-export const AssetRegistryRelations = relations(AssetRegistry, ({ one, many }) => ({
+export const AssetRegistration = onchainTable("asset_registration", AssetRegistrationColumns, (t) => ({
+  id: primaryKey({ columns: [t.centrifugeId, t.assetId] }),
+}));
+export const AssetRegistrationRelations = relations(AssetRegistration, ({ one, many }) => ({
   blockchain: one(Blockchain, {
-    fields: [AssetRegistry.centrifugeId],
+    fields: [AssetRegistration.centrifugeId],
     references: [Blockchain.centrifugeId],
   }),
   assets: many(Asset, { relationName: "assets" }),
 }));
 
 const AssetColumns = (t: PgColumnsBuilders) => ({
-  assetRegistryId: t.text().notNull(),
+  assetRegistrationId: t.text().notNull(),
   centrifugeId: t.text().notNull(),
   address: t.text(),
   name: t.text(),
@@ -267,7 +269,7 @@ export const Asset = onchainTable(
   "asset",
   AssetColumns,
   (t) => ({
-    id: primaryKey({ columns: [t.assetRegistryId, t.centrifugeId] }),
+    id: primaryKey({ columns: [t.assetRegistrationId, t.centrifugeId] }),
   })
 );
 export const AssetRelations = relations(Asset, ({ one }) => ({
@@ -275,7 +277,7 @@ export const AssetRelations = relations(Asset, ({ one }) => ({
     fields: [Asset.centrifugeId],
     references: [Blockchain.centrifugeId],
   }),
-  assetRegistry: one(AssetRegistry, { fields: [Asset.assetRegistryId], references: [AssetRegistry.id] }),
+  assetRegistration: one(AssetRegistration, { fields: [Asset.assetRegistrationId], references: [AssetRegistration.assetId] }),
 }));
 
 export const TokenInstanceColumns = (t: PgColumnsBuilders) => ({
