@@ -171,3 +171,66 @@ ponder.on("PoolManager:UnlinkVault", async ({ event, context }) => {
   vault.setStatus("Unlinked");
   await vault.save();
 });
+
+ponder.on("PoolManager:PriceUpdate(uint64 indexed poolId, bytes16 indexed scId, address indexed asset, uint256 tokenId, uint256 price, uint64 computedAt)", async ({ event, context}) => {
+  logEvent(event, "PoolManager:PriceUpdate");
+  const { chainId } = context.network;
+  const {
+    poolId: _poolId,
+    scId: _tokenId,
+    asset: _assetAddress,
+    // tokenId: _tokenId,
+    price: tokenPrice,
+    computedAt: _computedAt,
+  } = event.args;
+  const poolId = _poolId.toString();
+  const tokenId = _tokenId.toString();
+  const assetAddress = _assetAddress.toString();
+  const computedAt = new Date(Number(_computedAt.toString())*1000);
+
+  const blockchain = (await BlockchainService.get(context, {
+    id: chainId.toString(),
+  })) as BlockchainService;
+  const { centrifugeId } = blockchain.read();
+
+  const tokenInstance = (await TokenInstanceService.get(context, {
+    tokenId,
+    centrifugeId,
+  })) as TokenInstanceService;
+
+  if (!tokenInstance) throw new Error("TokenInstance not found for share class");
+
+  await tokenInstance.setTokenPrice(tokenPrice);
+  await tokenInstance.setComputedAt(computedAt);
+  await tokenInstance.save();
+})
+
+ponder.on("PoolManager:PriceUpdate(uint64 indexed poolId, bytes16 indexed scId, uint256 price, uint64 computedAt)", async ({ event, context}) => {
+  logEvent(event, "PoolManager:PriceUpdate");
+  const { chainId } = context.network;
+  const {
+    poolId: _poolId,
+    scId: _tokenId,
+    price: tokenPrice,
+    computedAt: _computedAt,
+  } = event.args;
+  const poolId = _poolId.toString();
+  const tokenId = _tokenId.toString();
+  const computedAt = new Date(Number(_computedAt.toString())*1000);
+
+  const blockchain = (await BlockchainService.get(context, {
+    id: chainId.toString(),
+  })) as BlockchainService;
+  const { centrifugeId } = blockchain.read();
+
+  const tokenInstance = (await TokenInstanceService.get(context, {
+    tokenId,
+    centrifugeId,
+  })) as TokenInstanceService;
+
+  if (!tokenInstance) throw new Error("TokenInstance not found for share class");
+
+  await tokenInstance.setTokenPrice(tokenPrice);
+  await tokenInstance.setComputedAt(computedAt);
+  await tokenInstance.save();
+})

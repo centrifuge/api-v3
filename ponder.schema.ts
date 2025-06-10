@@ -66,7 +66,7 @@ const TokenColumns = (t: PgColumnsBuilders) => ({
   salt: t.text(),
   // Metrics fields
   totalIssuance: t.bigint().default(0n),
-  navPerShare: t.bigint().default(0n),
+  tokenPrice: t.bigint().default(0n),
 });
 export const Token = onchainTable("share_class", TokenColumns, (t) => ({
   poolIdx: index().on(t.poolId),
@@ -285,6 +285,9 @@ export const TokenInstanceColumns = (t: PgColumnsBuilders) => ({
   tokenId: t.text().notNull(),
   address: t.text().notNull(),
   vaultId: t.text(),
+  tokenPrice: t.bigint().default(0n),
+  computedAt: t.timestamp(),
+  totalIssuance: t.bigint().default(0n)
 });
 export const TokenInstance = onchainTable("token_instance", TokenInstanceColumns, (t) => ({
   id: primaryKey({ columns: [t.centrifugeId, t.tokenId] }),
@@ -377,7 +380,7 @@ export const PoolSnapshotRelations = relations(PoolSnapshot, ({ one }) => ({
 
 export const TokenSnapshot = onchainTable(
   "token_snapshot",
-  snapshotColumns(TokenColumns, ["navPerShare", "totalIssuance"] as const),
+  snapshotColumns(TokenColumns, ["tokenPrice", "totalIssuance"] as const),
   (t) => ({
     id: primaryKey({ columns: [t.id, t.blockNumber] }),
   })

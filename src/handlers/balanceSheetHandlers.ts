@@ -1,6 +1,6 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
-import { HoldingService } from "../services";
+import { BlockchainService, HoldingService, TokenInstanceService } from "../services";
 
 ponder.on("BalanceSheet:Deposit", async ({ event, context }) => {
   logEvent(event, "BalanceSheet:Deposit");
@@ -25,5 +25,71 @@ ponder.on("BalanceSheet:Deposit", async ({ event, context }) => {
 ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
   logEvent(event, "BalanceSheet:Withdraw");
   const { chainId: _chainId } = context.network;
-  const { poolId, scId: tokenId, asset, receiver, amount, pricePoolPerAsset } = event.args;
+  const {
+    poolId,
+    scId: tokenId,
+    asset,
+    receiver,
+    amount,
+    pricePoolPerAsset,
+  } = event.args;
+});
+
+ponder.on("BalanceSheet:Issue", async ({ event, context }) => {
+  logEvent(event, "BalanceSheet:Issue");
+  const { chainId: _chainId } = context.network;
+  const chainId = _chainId.toString();
+  const {
+    poolId: _poolId,
+    scId: _tokenId,
+    to: _receiver,
+    //pricePerShare,
+    shares,
+  } = event.args;
+  const poolId = _poolId.toString();
+  const tokenId = _tokenId.toString();
+  const receiver = _receiver.toString();
+
+  const blockchain = (await BlockchainService.get(context, {
+    id: chainId.toString(),
+  })) as BlockchainService;
+  const { centrifugeId } = blockchain.read();
+
+  const tokenInstance = (await TokenInstanceService.get(context, {
+    tokenId,
+    centrifugeId,
+  })) as TokenInstanceService;
+  if (!tokenInstance) throw new Error("TokenInstance not found for share class");
+  
+  await tokenInstance.increaseTotalIssuance(shares);
+  await tokenInstance.save();
+});
+
+ponder.on("BalanceSheet:Revoke", async ({ event, context }) => {
+  logEvent(event, "BalanceSheet:Revoke");
+  const { chainId: _chainId } = context.network;
+  const chainId = _chainId.toString();
+  const {
+    poolId: _poolId,
+    scId: _tokenId,
+    from: _sender,
+    shares,
+  } = event.args;
+  const poolId = _poolId.toString();
+  const tokenId = _tokenId.toString();
+  const sender = _sender.toString();
+
+  const blockchain = (await BlockchainService.get(context, {
+    id: chainId.toString(),
+  })) as BlockchainService;
+  const { centrifugeId } = blockchain.read(); 
+
+  const tokenInstance = (await TokenInstanceService.get(context, {
+    tokenId,
+    centrifugeId,
+  })) as TokenInstanceService;
+  if (!tokenInstance) throw new Error("TokenInstance not found for share class");
+
+  await tokenInstance.decreaseTotalIssuance(shares);
+  await tokenInstance.save();
 });
