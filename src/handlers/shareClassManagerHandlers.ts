@@ -256,3 +256,57 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
     }
   }
 });
+
+ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
+  logEvent(event, "ShareClassManager:UpdateShareClass");
+  const {
+    poolId: _poolId,
+    scId: _tokenId,
+    navPoolPerShare: tokenPrice,
+  } = event.args;
+  const poolId = _poolId.toString();
+  const tokenId = _tokenId.toString();
+  const token = await TokenService.get(context, {
+    id: tokenId,
+    poolId,
+  }) as TokenService;
+  if (!token) throw new Error(`Token not found for id ${tokenId}`);
+  await token.setTokenPrice(tokenPrice);
+  await token.save();
+});
+
+ponder.on("ShareClassManager:RemoteIssueShares", async ({ event, context }) => {
+  logEvent(event, "ShareClassManager:RemoteIssueShares");
+  const {
+    poolId: _poolId,
+    scId: _tokenId,
+    issuedShareAmount,
+  } = event.args;
+  const poolId = _poolId.toString();
+  const tokenId = _tokenId.toString();
+  const token = await TokenService.get(context, {
+    id: tokenId,
+    poolId,
+  }) as TokenService;
+  if (!token) throw new Error(`Token not found for id ${tokenId}`);
+  await token.increaseTotalSupply(issuedShareAmount);
+  await token.save();
+});
+
+ponder.on("ShareClassManager:RemoteRevokeShares", async ({ event, context }) => {
+  logEvent(event, "ShareClassManager:RemoteRevokeShares");
+  const {
+    poolId: _poolId,
+    scId: _tokenId,
+    revokedAssetAmount,
+  } = event.args;
+  const poolId = _poolId.toString();
+  const tokenId = _tokenId.toString();
+  const token = await TokenService.get(context, {
+    id: tokenId,
+    poolId,
+  }) as TokenService;
+  if (!token) throw new Error(`Token not found for id ${tokenId}`);
+  await token.decreaseTotalSupply(revokedAssetAmount);
+  await token.save();
+});

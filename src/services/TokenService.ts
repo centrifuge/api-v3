@@ -14,4 +14,23 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
     this.data.salt = salt ?? null;
     return this;
   }
+  public setTokenPrice(price: bigint) {
+    console.info(`Setting price for shareClass ${this.data.id} to ${price}`);
+    this.data.tokenPrice = price;
+    return this;
+  }
+
+  public increaseTotalSupply(tokenAmount: bigint) {
+    console.info(`Increasing total supply for shareClass ${this.data.id} by ${tokenAmount}`);
+    if(this.data.totalIssuance === null) throw new Error(`Total supply for shareClass ${this.data.id} is not set`);
+    this.data.totalIssuance += tokenAmount;
+    return this;
+  }
+
+  public decreaseTotalSupply(tokenAmount: bigint) {
+    console.info(`Decreasing total supply for shareClass ${this.data.id} by ${tokenAmount}`);
+    if(this.data.totalIssuance === null) throw new Error(`Total supply for shareClass ${this.data.id} is not set`);
+    this.data.totalIssuance -= tokenAmount;
+    return this;
+  }
 }
