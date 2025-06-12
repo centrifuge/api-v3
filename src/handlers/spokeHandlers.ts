@@ -3,8 +3,8 @@ import { logEvent } from "../helpers/logger";
 import { VaultKinds } from "ponder:schema";
 import { BlockchainService, AssetRegistrationService, AssetService, VaultService, TokenService, TokenInstanceService } from "../services";
 
-ponder.on("PoolManager:DeployVault", async ({ event, context }) => {
-  logEvent(event, "PoolManager:DeployVault");
+ponder.on("Spoke:DeployVault", async ({ event, context }) => {
+  logEvent(event, "Spoke:DeployVault");
   const { chainId } = context.network;
   const {
     poolId: _poolId,
@@ -41,9 +41,9 @@ ponder.on("PoolManager:DeployVault", async ({ event, context }) => {
   })) as VaultService;
 });
 
-ponder.on("PoolManager:RegisterAsset", async ({ event, context }) => {
+ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
   //Fires first to request registration to HUB
-  logEvent(event, "PoolManager:RegisterAsset");
+  logEvent(event, "Spoke:RegisterAsset");
   const { chainId } = context.network;
   const {
     assetId: _assetRegistrationId,
@@ -86,8 +86,8 @@ ponder.on("PoolManager:RegisterAsset", async ({ event, context }) => {
   }
 });
 
-ponder.on("PoolManager:AddShareClass", async ({ event, context }) => {
-  logEvent(event, "PoolManager:AddShareClass");
+ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
+  logEvent(event, "Spoke:AddShareClass");
   const { chainId: _chainId } = context.network;
   const {
     poolId: _poolId,
@@ -109,8 +109,8 @@ ponder.on("PoolManager:AddShareClass", async ({ event, context }) => {
   }) as TokenInstanceService;
 });
 
-ponder.on("PoolManager:LinkVault", async ({ event, context }) => {
-  logEvent(event, "PoolManager:LinkVault");
+ponder.on("Spoke:LinkVault", async ({ event, context }) => {
+  logEvent(event, "Spoke:LinkVault");
   const { chainId: _chainId } = context.network;
   const {
     poolId: _poolId,
@@ -149,8 +149,8 @@ ponder.on("PoolManager:LinkVault", async ({ event, context }) => {
   await tokenInstance.save();
 });
 
-ponder.on("PoolManager:UnlinkVault", async ({ event, context }) => {
-  logEvent(event, "PoolManager:UnlinkVault");
+ponder.on("Spoke:UnlinkVault", async ({ event, context }) => {
+  logEvent(event, "Spoke:UnlinkVault");
   const { chainId } = context.network;
   const {
       poolId: _poolId,
@@ -172,45 +172,13 @@ ponder.on("PoolManager:UnlinkVault", async ({ event, context }) => {
   await vault.save();
 });
 
-ponder.on("PoolManager:PriceUpdate(uint64 indexed poolId, bytes16 indexed scId, address indexed asset, uint256 tokenId, uint256 price, uint64 computedAt)", async ({ event, context}) => {
-  logEvent(event, "PoolManager:PriceUpdate");
+ponder.on("Spoke:UpdateSharePrice", async ({ event, context}) => {
+  logEvent(event, "Spoke:PriceUpdate");
   const { chainId } = context.network;
   const {
     poolId: _poolId,
     scId: _tokenId,
-    asset: _assetAddress,
     // tokenId: _tokenId,
-    price: tokenPrice,
-    computedAt: _computedAt,
-  } = event.args;
-  const poolId = _poolId.toString();
-  const tokenId = _tokenId.toString();
-  const assetAddress = _assetAddress.toString();
-  const computedAt = new Date(Number(_computedAt.toString())*1000);
-
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  const { centrifugeId } = blockchain.read();
-
-  const tokenInstance = (await TokenInstanceService.get(context, {
-    tokenId,
-    centrifugeId,
-  })) as TokenInstanceService;
-
-  if (!tokenInstance) throw new Error("TokenInstance not found for share class");
-
-  await tokenInstance.setTokenPrice(tokenPrice);
-  await tokenInstance.setComputedAt(computedAt);
-  await tokenInstance.save();
-})
-
-ponder.on("PoolManager:PriceUpdate(uint64 indexed poolId, bytes16 indexed scId, uint256 price, uint64 computedAt)", async ({ event, context}) => {
-  logEvent(event, "PoolManager:PriceUpdate");
-  const { chainId } = context.network;
-  const {
-    poolId: _poolId,
-    scId: _tokenId,
     price: tokenPrice,
     computedAt: _computedAt,
   } = event.args;
