@@ -2,7 +2,7 @@ import { createConfig, factory, mergeAbis } from "ponder";
 import { getAbiItem, http } from "viem";
 
 import { HubRegistryAbi } from "./abis/HubRegistryAbi";
-import { PoolManagerAbi } from "./abis/PoolManagerAbi";
+import { SpokeAbi } from "./abis/SpokeAbi";
 import { ShareClassManagerAbi } from "./abis/ShareClassManagerAbi";
 import { MessageDispatcherAbi } from "./abis/MessageDispatcherAbi";
 import { HoldingsAbi } from "./abis/HoldingsAbi";
@@ -12,12 +12,12 @@ import { SyncDepositVaultAbi } from "./abis/SyncDepositVaultAbi";
 
 import { chains } from "./chains";
 
-export const currentNetwork = chains['testnet']
+export const currentNetwork = chains['testnet'][0]
 
 export default createConfig({
   networks: {
     ethereum: {
-      chainId: currentNetwork.chainId,
+      chainId: currentNetwork.network.chainId,
       transport: http(process.env.PONDER_RPC_URL_1),
     },
   },
@@ -41,17 +41,17 @@ export default createConfig({
       address: currentNetwork.contracts.shareClassManager,
       startBlock: currentNetwork.startBlock,
     },
-    PoolManager: {
+    Spoke: {
       network: "ethereum",
-      abi: PoolManagerAbi,
-      address: currentNetwork.contracts.poolManager,
+      abi: SpokeAbi,
+      address: currentNetwork.contracts.spoke,
       startBlock: currentNetwork.startBlock,
     },
     Vault: {
       network: "ethereum",
       address: factory({
-        address: currentNetwork.contracts.poolManager,
-        event: getAbiItem({ abi: PoolManagerAbi, name: "DeployVault" }),
+        address: currentNetwork.contracts.spoke,
+        event: getAbiItem({ abi: SpokeAbi, name: "DeployVault" }),
         parameter: "vault",
       }),
       abi: mergeAbis([SyncDepositVaultAbi, AsyncVaultAbi]),

@@ -1,4 +1,4 @@
-export const PoolManagerAbi = [
+export const SpokeAbi = [
   {
     inputs: [
       {
@@ -21,28 +21,32 @@ export const PoolManagerAbi = [
   { inputs: [], name: "InvalidPrice", type: "error" },
   { inputs: [], name: "LocalTransferNotAllowed", type: "error" },
   { inputs: [], name: "MalformedVaultUpdateMessage", type: "error" },
-  { inputs: [], name: "MulDiv_Overflow", type: "error" },
   { inputs: [], name: "NoCode", type: "error" },
   { inputs: [], name: "NotAuthorized", type: "error" },
   { inputs: [], name: "OldHook", type: "error" },
   { inputs: [], name: "OldMetadata", type: "error" },
   { inputs: [], name: "PoolAlreadyAdded", type: "error" },
   { inputs: [], name: "SafeTransferEthFailed", type: "error" },
-  { inputs: [], name: "SafeTransferFailed", type: "error" },
   { inputs: [], name: "ShareClassAlreadyRegistered", type: "error" },
   { inputs: [], name: "ShareTokenDoesNotExist", type: "error" },
   { inputs: [], name: "ShareTokenTransferFailed", type: "error" },
-  { inputs: [], name: "SliceOutOfBounds", type: "error" },
   { inputs: [], name: "TooFewDecimals", type: "error" },
   { inputs: [], name: "TooManyDecimals", type: "error" },
   { inputs: [], name: "TransferFromFailed", type: "error" },
-  { inputs: [], name: "Uint128_Overflow", type: "error" },
   { inputs: [], name: "UnauthorizedSender", type: "error" },
   { inputs: [], name: "UnknownAsset", type: "error" },
-  { inputs: [], name: "UnknownMessageType", type: "error" },
   { inputs: [], name: "UnknownToken", type: "error" },
-  { inputs: [], name: "UnknownUpdateContractType", type: "error" },
   { inputs: [], name: "UnknownVault", type: "error" },
+  {
+    inputs: [
+      { internalType: "address", name: "target", type: "address" },
+      { internalType: "bytes4", name: "selector", type: "bytes4" },
+      { internalType: "bytes", name: "reason", type: "bytes" },
+      { internalType: "bytes", name: "details", type: "bytes" },
+    ],
+    name: "WrappedError",
+    type: "error",
+  },
   {
     anonymous: false,
     inputs: [
@@ -109,7 +113,7 @@ export const PoolManagerAbi = [
       },
       {
         indexed: false,
-        internalType: "contract IBaseVault",
+        internalType: "contract IVault",
         name: "vault",
         type: "address",
       },
@@ -121,6 +125,32 @@ export const PoolManagerAbi = [
       },
     ],
     name: "DeployVault",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "PoolId", name: "poolId", type: "uint64" },
+      {
+        indexed: true,
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "receiver",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint128",
+        name: "amount",
+        type: "uint128",
+      },
+    ],
+    name: "ExecuteTransferShares",
     type: "event",
   },
   {
@@ -176,76 +206,12 @@ export const PoolManagerAbi = [
       },
       {
         indexed: false,
-        internalType: "contract IBaseVault",
+        internalType: "contract IVault",
         name: "vault",
         type: "address",
       },
     ],
     name: "LinkVault",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "PoolId", name: "poolId", type: "uint64" },
-      {
-        indexed: true,
-        internalType: "ShareClassId",
-        name: "scId",
-        type: "bytes16",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "asset",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "tokenId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "price",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint64",
-        name: "computedAt",
-        type: "uint64",
-      },
-    ],
-    name: "PriceUpdate",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "PoolId", name: "poolId", type: "uint64" },
-      {
-        indexed: true,
-        internalType: "ShareClassId",
-        name: "scId",
-        type: "bytes16",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "price",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint64",
-        name: "computedAt",
-        type: "uint64",
-      },
-    ],
-    name: "PriceUpdate",
     type: "event",
   },
   {
@@ -281,6 +247,12 @@ export const PoolManagerAbi = [
         internalType: "uint8",
         name: "decimals",
         type: "uint8",
+      },
+      {
+        indexed: false,
+        internalType: "bool",
+        name: "isInitialization",
+        type: "bool",
       },
     ],
     name: "RegisterAsset",
@@ -356,12 +328,50 @@ export const PoolManagerAbi = [
       },
       {
         indexed: false,
-        internalType: "contract IBaseVault",
+        internalType: "contract IVault",
         name: "vault",
         type: "address",
       },
     ],
     name: "UnlinkVault",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "PoolId", name: "poolId", type: "uint64" },
+      {
+        indexed: true,
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "asset",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "tokenId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "price",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint64",
+        name: "computedAt",
+        type: "uint64",
+      },
+    ],
+    name: "UpdateAssetPrice",
     type: "event",
   },
   {
@@ -438,6 +448,32 @@ export const PoolManagerAbi = [
     type: "event",
   },
   {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "PoolId", name: "poolId", type: "uint64" },
+      {
+        indexed: true,
+        internalType: "ShareClassId",
+        name: "scId",
+        type: "bytes16",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "price",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint64",
+        name: "computedAt",
+        type: "uint64",
+      },
+    ],
+    name: "UpdateSharePrice",
+    type: "event",
+  },
+  {
     inputs: [{ internalType: "PoolId", name: "poolId", type: "uint64" }],
     name: "addPool",
     outputs: [],
@@ -470,26 +506,6 @@ export const PoolManagerAbi = [
     type: "function",
   },
   {
-    inputs: [],
-    name: "asyncRequestManager",
-    outputs: [
-      {
-        internalType: "contract IAsyncRequestManager",
-        name: "",
-        type: "address",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "balanceSheet",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
     inputs: [{ internalType: "address", name: "user", type: "address" }],
     name: "deny",
     outputs: [],
@@ -508,9 +524,19 @@ export const PoolManagerAbi = [
       },
     ],
     name: "deployVault",
-    outputs: [
-      { internalType: "contract IBaseVault", name: "", type: "address" },
+    outputs: [{ internalType: "contract IVault", name: "", type: "address" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "PoolId", name: "poolId", type: "uint64" },
+      { internalType: "ShareClassId", name: "scId", type: "bytes16" },
+      { internalType: "bytes32", name: "receiver", type: "bytes32" },
+      { internalType: "uint128", name: "amount", type: "uint128" },
     ],
+    name: "executeTransferShares",
+    outputs: [],
     stateMutability: "nonpayable",
     type: "function",
   },
@@ -543,18 +569,6 @@ export const PoolManagerAbi = [
     type: "function",
   },
   {
-    inputs: [
-      { internalType: "PoolId", name: "poolId", type: "uint64" },
-      { internalType: "ShareClassId", name: "scId", type: "bytes16" },
-      { internalType: "address", name: "destinationAddress", type: "address" },
-      { internalType: "uint128", name: "amount", type: "uint128" },
-    ],
-    name: "handleTransferShares",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
     inputs: [{ internalType: "AssetId", name: "assetId", type: "uint128" }],
     name: "idToAsset",
     outputs: [
@@ -566,10 +580,7 @@ export const PoolManagerAbi = [
   },
   {
     inputs: [
-      { internalType: "PoolId", name: "", type: "uint64" },
-      { internalType: "ShareClassId", name: "", type: "bytes16" },
-      { internalType: "address", name: "", type: "address" },
-      { internalType: "contract IBaseVault", name: "vault", type: "address" },
+      { internalType: "contract IVault", name: "vault", type: "address" },
     ],
     name: "isLinked",
     outputs: [{ internalType: "bool", name: "", type: "bool" }],
@@ -587,8 +598,23 @@ export const PoolManagerAbi = [
     inputs: [
       { internalType: "PoolId", name: "poolId", type: "uint64" },
       { internalType: "ShareClassId", name: "scId", type: "bytes16" },
+      {
+        internalType: "contract IShareToken",
+        name: "shareToken_",
+        type: "address",
+      },
+    ],
+    name: "linkToken",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "PoolId", name: "poolId", type: "uint64" },
+      { internalType: "ShareClassId", name: "scId", type: "bytes16" },
       { internalType: "AssetId", name: "assetId", type: "uint128" },
-      { internalType: "contract IBaseVault", name: "vault", type: "address" },
+      { internalType: "contract IVault", name: "vault", type: "address" },
     ],
     name: "linkVault",
     outputs: [],
@@ -641,18 +667,6 @@ export const PoolManagerAbi = [
     inputs: [{ internalType: "PoolId", name: "poolId", type: "uint64" }],
     name: "pools",
     outputs: [{ internalType: "uint256", name: "createdAt", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "PoolId", name: "poolId", type: "uint64" },
-      { internalType: "ShareClassId", name: "scId", type: "bytes16" },
-      { internalType: "AssetId", name: "assetId", type: "uint128" },
-      { internalType: "bool", name: "checkValidity", type: "bool" },
-    ],
-    name: "priceAssetPerShare",
-    outputs: [{ internalType: "D18", name: "price", type: "uint128" }],
     stateMutability: "view",
     type: "function",
   },
@@ -729,6 +743,25 @@ export const PoolManagerAbi = [
     type: "function",
   },
   {
+    inputs: [
+      { internalType: "PoolId", name: "poolId", type: "uint64" },
+      { internalType: "ShareClassId", name: "scId", type: "bytes16" },
+      { internalType: "AssetId", name: "assetId", type: "uint128" },
+      { internalType: "address", name: "asset", type: "address" },
+      { internalType: "uint256", name: "tokenId", type: "uint256" },
+      {
+        internalType: "contract IVaultFactory",
+        name: "factory",
+        type: "address",
+      },
+      { internalType: "contract IVault", name: "vault", type: "address" },
+    ],
+    name: "registerVault",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
     inputs: [{ internalType: "address", name: "user", type: "address" }],
     name: "rely",
     outputs: [],
@@ -740,7 +773,7 @@ export const PoolManagerAbi = [
     name: "sender",
     outputs: [
       {
-        internalType: "contract IVaultMessageSender",
+        internalType: "contract ISpokeMessageSender",
         name: "",
         type: "address",
       },
@@ -752,23 +785,33 @@ export const PoolManagerAbi = [
     inputs: [
       { internalType: "PoolId", name: "poolId", type: "uint64" },
       { internalType: "ShareClassId", name: "scId", type: "bytes16" },
+      { internalType: "AssetId", name: "assetId", type: "uint128" },
+      { internalType: "uint64", name: "maxPriceAge", type: "uint64" },
+    ],
+    name: "setMaxAssetPriceAge",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "PoolId", name: "poolId", type: "uint64" },
+      { internalType: "ShareClassId", name: "scId", type: "bytes16" },
+      { internalType: "uint64", name: "maxPriceAge", type: "uint64" },
+    ],
+    name: "setMaxSharePriceAge",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "PoolId", name: "poolId", type: "uint64" },
+      { internalType: "ShareClassId", name: "scId", type: "bytes16" },
     ],
     name: "shareToken",
     outputs: [
       { internalType: "contract IShareToken", name: "", type: "address" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "syncRequestManager",
-    outputs: [
-      {
-        internalType: "contract ISyncRequestManager",
-        name: "",
-        type: "address",
-      },
     ],
     stateMutability: "view",
     type: "function",
@@ -800,7 +843,7 @@ export const PoolManagerAbi = [
       { internalType: "PoolId", name: "poolId", type: "uint64" },
       { internalType: "ShareClassId", name: "scId", type: "bytes16" },
       { internalType: "AssetId", name: "assetId", type: "uint128" },
-      { internalType: "contract IBaseVault", name: "vault", type: "address" },
+      { internalType: "contract IVault", name: "vault", type: "address" },
     ],
     name: "unlinkVault",
     outputs: [],
@@ -811,19 +854,8 @@ export const PoolManagerAbi = [
     inputs: [
       { internalType: "PoolId", name: "poolId", type: "uint64" },
       { internalType: "ShareClassId", name: "scId", type: "bytes16" },
-      { internalType: "bytes", name: "payload", type: "bytes" },
-    ],
-    name: "update",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "PoolId", name: "poolId", type: "uint64" },
-      { internalType: "ShareClassId", name: "scId", type: "bytes16" },
       { internalType: "address", name: "target", type: "address" },
-      { internalType: "bytes", name: "update_", type: "bytes" },
+      { internalType: "bytes", name: "update", type: "bytes" },
     ],
     name: "updateContract",
     outputs: [],
@@ -859,7 +891,7 @@ export const PoolManagerAbi = [
     inputs: [
       { internalType: "PoolId", name: "poolId", type: "uint64" },
       { internalType: "ShareClassId", name: "scId", type: "bytes16" },
-      { internalType: "bytes", name: "update_", type: "bytes" },
+      { internalType: "bytes", name: "update", type: "bytes" },
     ],
     name: "updateRestriction",
     outputs: [],
@@ -891,7 +923,20 @@ export const PoolManagerAbi = [
   },
   {
     inputs: [
-      { internalType: "contract IBaseVault", name: "vault", type: "address" },
+      { internalType: "PoolId", name: "poolId", type: "uint64" },
+      { internalType: "ShareClassId", name: "scId", type: "bytes16" },
+      { internalType: "AssetId", name: "assetId", type: "uint128" },
+      { internalType: "address", name: "vaultOrFactory", type: "address" },
+      { internalType: "enum VaultUpdateKind", name: "kind", type: "uint8" },
+    ],
+    name: "updateVault",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "contract IVault", name: "vault", type: "address" },
     ],
     name: "vaultDetails",
     outputs: [
@@ -900,7 +945,6 @@ export const PoolManagerAbi = [
           { internalType: "AssetId", name: "assetId", type: "uint128" },
           { internalType: "address", name: "asset", type: "address" },
           { internalType: "uint256", name: "tokenId", type: "uint256" },
-          { internalType: "bool", name: "isWrapper", type: "bool" },
           { internalType: "bool", name: "isLinked", type: "bool" },
         ],
         internalType: "struct VaultDetails",
