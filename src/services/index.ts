@@ -5,7 +5,7 @@ export * from "./OutstandingOrderService";
 export * from "./InvestorTransactionService";
 export * from "./VaultService";
 export * from "./TokenInstanceService";
-export * from "./LocalAssetService";
+export * from "./AssetService";
 export * from "./AssetRegistrationService";
 export * from "./BlockchainService";
 export * from "./HoldingService";

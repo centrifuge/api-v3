@@ -6,4 +6,9 @@ export class AssetRegistrationService extends mixinCommonStatics(
   Service<typeof AssetRegistration>,
   AssetRegistration,
   "AssetRegistration"
-) {}
+) {
+  public setStatus(status: typeof AssetRegistration.$inferSelect['status']) {
+    this.data.status = status;
+    return this
+  }
+}
