@@ -6,7 +6,7 @@ import { HoldingAccountTypes } from "ponder:schema";
 
 ponder.on("Holdings:Initialize", async ({ event, context }) => {
   logEvent(event, "Holdings:Create");
-  const { chainId: _chainId } = context.network;
+  const _chainId = context.chain.id as number
   const [_poolId, _shareClassId, _assetId, _valuation, isLiability, accounts] =
     event.args;
   const poolId = _poolId.toString();
@@ -38,7 +38,7 @@ ponder.on("Holdings:Initialize", async ({ event, context }) => {
 
 ponder.on("Holdings:Increase", async ({ event, context }) => {
   logEvent(event, "Holdings:Increase");
-  const { chainId: _chainId } = context.network;
+  const _chainId = context.chain.id as number
   const [_poolId, _scId, _assetId, pricePoolPerAsset, amount, increasedValue] =
     event.args;
 
@@ -58,7 +58,7 @@ ponder.on("Holdings:Increase", async ({ event, context }) => {
 
 ponder.on("Holdings:Decrease", async ({ event, context }) => {
   logEvent(event, "Holdings:Decrease");
-  const { chainId: _chainId } = context.network;
+  const _chainId = context.chain.id as number
   const [_poolId, _scId, _assetId, pricePoolPerAsset, amount, decreasedValue] =
     event.args;
 
@@ -78,7 +78,7 @@ ponder.on("Holdings:Decrease", async ({ event, context }) => {
 
 ponder.on("Holdings:Update", async ({ event, context }) => {
   logEvent(event, "Holdings:Update");
-  const { chainId: _chainId } = context.network;
+  const _chainId = context.chain.id as number
   const [_poolId, _scId, _assetId, isPositive, diffValue] =
     event.args;
 

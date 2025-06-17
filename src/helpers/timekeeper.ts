@@ -1,7 +1,6 @@
 import type { Context, Event } from 'ponder:registry'
 import { BlockchainService } from '../services/BlockchainService'
-import { MessageDispatcherAbi } from '../../abis/MessageDispatcherAbi'
-import { currentNetwork } from '../../ponder.config'
+import { currentChains } from '../../ponder.config'
 
 const SNAPSHOT_INTERVAL_SECONDS = 60 * 60 * 24 // 1 day
 /**
@@ -20,12 +19,8 @@ export class Timekeeper {
   }
 
   public async init(context: Context): Promise<Timekeeper> {
-    const chainId = context.network.chainId
-    const centrifugeId = await context.client.readContract({
-      address: currentNetwork.contracts.messageDispatcher,
-      abi: MessageDispatcherAbi,
-      functionName: 'localCentrifugeId'
-    })
+    const chainId = context.chain.id as number
+    const centrifugeId = currentChains.find(network => network.network.chainId === chainId)!.network.centrifugeId
     const blockchain = await BlockchainService.getOrInit(context, { id: chainId.toString(), centrifugeId: centrifugeId.toString() }) as BlockchainService
     const lastPeriodStart = blockchain.read().lastPeriodStart
     if (!lastPeriodStart) blockchain.setLastPeriodStart(new Date(0))
@@ -49,7 +44,7 @@ export class Timekeeper {
   }
 
   public async processBlock(context: Context, blockEvent: Event): Promise<boolean> {
-    const chainId = context.network.chainId
+    const chainId = context.chain.id as number
     const timestamp = new Date(Number(blockEvent.block.timestamp) * 1000)
     if (!this.isInitialized(chainId)) await this.init(context)
     const blockPeriodStart = getPeriodStart(timestamp)
@@ -59,7 +54,7 @@ export class Timekeeper {
   }
 
   public async update(context: Context) {
-    const chainId = context.network.chainId
+    const chainId = context.chain.id as number
     if (!this.isInitialized(chainId)) throw new Error(`Timekeeper not initialized for chain ${chainId}`)
     await this.blockchains[chainId]!.save()
     return this

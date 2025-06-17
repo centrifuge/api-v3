@@ -1,5 +1,5 @@
-import { createConfig, factory, mergeAbis } from "ponder";
-import { getAbiItem, http } from "viem";
+import { BlockConfig, createConfig, factory, mergeAbis, ChainConfig, ContractConfig } from "ponder";
+import { getAbiItem, http, Transport } from "viem";
 
 import { HubRegistryAbi } from "./abis/HubRegistryAbi";
 import { SpokeAbi } from "./abis/SpokeAbi";
@@ -10,70 +10,73 @@ import { BalanceSheetAbi } from "./abis/BalanceSheetAbi";
 import { AsyncVaultAbi } from "./abis/AsyncVaultAbi";
 import { SyncDepositVaultAbi } from "./abis/SyncDepositVaultAbi";
 
-import { chains } from "./chains";
+import { chains as _chains } from "./chains";
 
-export const currentNetwork = chains['testnet'][0]
+export const currentChains = _chains['testnet']
+type Networks = typeof currentChains[number]['network']['network']
+
+const chains = currentChains.reduce<Record<Networks, ChainConfig>>((acc, network) => {
+  acc[network.network.network] = {
+    id: network.network.chainId,
+    rpc: http(network.network.endpoint),
+  }
+  return acc
+}, {} as Record<Networks, ChainConfig>)
+
+const blocks = currentChains.reduce<Record<string, BlockConfig>>((acc, network) => {
+  acc[network.network.network] = {
+    chain: network.network.network,
+    startBlock: network.startBlock,
+    interval: 300,
+  }
+  return acc
+}, {} as Record<string, BlockConfig>)
 
 export default createConfig({
-  networks: {
-    ethereum: {
-      chainId: currentNetwork.network.chainId,
-      transport: http(process.env.PONDER_RPC_URL_1),
-    },
-  },
-  blocks: {
-    ethereum: {
-      network: "ethereum",
-      startBlock: currentNetwork.startBlock,
-      interval: 300,
-    },
-  },
+  chains,
+  blocks,
   contracts: {
     HubRegistry: {
-      network: "ethereum",
       abi: HubRegistryAbi,
-      address: currentNetwork.contracts.hubRegistry,
-      startBlock: currentNetwork.startBlock,
+      chain: getContractChain('hubRegistry')
     },
     ShareClassManager: {
-      network: "ethereum",
       abi: ShareClassManagerAbi,
-      address: currentNetwork.contracts.shareClassManager,
-      startBlock: currentNetwork.startBlock,
+      chain: getContractChain('shareClassManager')
     },
     Spoke: {
-      network: "ethereum",
       abi: SpokeAbi,
-      address: currentNetwork.contracts.spoke,
-      startBlock: currentNetwork.startBlock,
+      chain: getContractChain('spoke')
     },
     Vault: {
-      network: "ethereum",
-      address: factory({
-        address: currentNetwork.contracts.spoke,
+      abi: mergeAbis([SyncDepositVaultAbi, AsyncVaultAbi]),
+      chain: getContractChain('spoke',{
         event: getAbiItem({ abi: SpokeAbi, name: "DeployVault" }),
         parameter: "vault",
       }),
-      abi: mergeAbis([SyncDepositVaultAbi, AsyncVaultAbi]),
-      startBlock: currentNetwork.startBlock,
     },
     MessageDispatcher: {
-      network: "ethereum",
       abi: MessageDispatcherAbi,
-      address: currentNetwork.contracts.messageDispatcher,
-      startBlock: currentNetwork.startBlock,
+      chain: getContractChain('messageDispatcher')
     },
     Holdings: {
-      network: "ethereum",
       abi: HoldingsAbi,
-      address: currentNetwork.contracts.holdings,
-      startBlock: currentNetwork.startBlock,
+      chain: getContractChain('holdings')
     },
     BalanceSheet: {
-      network: "ethereum",
-        abi: BalanceSheetAbi,
-        address: currentNetwork.contracts.balanceSheet,
-      startBlock: currentNetwork.startBlock,
+      abi: BalanceSheetAbi,
+      chain: getContractChain('balanceSheet')
     },
   },
 });
+
+type MultichainContractChain = Exclude<ContractConfig['chain'], string>
+function getContractChain(contractName: keyof typeof currentChains[number]['contracts'], factoryConfig?: Omit<Parameters<typeof factory>[0], 'address'>): MultichainContractChain {
+  return currentChains.reduce<MultichainContractChain>((acc, network) => {
+    acc[network.network.network] = {
+      address: factoryConfig ? factory({...factoryConfig, address: network.contracts[contractName]}) : network.contracts[contractName],
+      startBlock: network.startBlock,
+    }
+    return acc
+  }, {} as MultichainContractChain)
+}

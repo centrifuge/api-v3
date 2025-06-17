@@ -4,7 +4,7 @@ import { BlockchainService, HoldingService, TokenInstanceService } from "../serv
 
 ponder.on("BalanceSheet:Deposit", async ({ event, context }) => {
   logEvent(event, "BalanceSheet:Deposit");
-  const { chainId: _chainId } = context.network;
+  const _chainId = context.chain.id as number
   const {
     poolId: _poolId,
     scId: _tokenId,
@@ -24,7 +24,7 @@ ponder.on("BalanceSheet:Deposit", async ({ event, context }) => {
 
 ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
   logEvent(event, "BalanceSheet:Withdraw");
-  const { chainId: _chainId } = context.network;
+  const _chainId = context.chain.id as number
   const {
     poolId,
     scId: tokenId,
@@ -37,7 +37,7 @@ ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
 
 ponder.on("BalanceSheet:Issue", async ({ event, context }) => {
   logEvent(event, "BalanceSheet:Issue");
-  const { chainId: _chainId } = context.network;
+  const _chainId = context.chain.id as number
   const chainId = _chainId.toString();
   const {
     poolId: _poolId,
@@ -67,7 +67,7 @@ ponder.on("BalanceSheet:Issue", async ({ event, context }) => {
 
 ponder.on("BalanceSheet:Revoke", async ({ event, context }) => {
   logEvent(event, "BalanceSheet:Revoke");
-  const { chainId: _chainId } = context.network;
+  const _chainId = context.chain.id as number
   const chainId = _chainId.toString();
   const {
     poolId: _poolId,

@@ -5,7 +5,7 @@ import { BlockchainService, AssetRegistrationService, AssetService, VaultService
 
 ponder.on("Spoke:DeployVault", async ({ event, context }) => {
   logEvent(event, "Spoke:DeployVault");
-  const { chainId } = context.network;
+  const chainId = context.chain.id as number
   const {
     poolId: _poolId,
     scId: _shareClassId,
@@ -44,7 +44,7 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
 ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
   //Fires first to request registration to HUB
   logEvent(event, "Spoke:RegisterAsset");
-  const { chainId } = context.network;
+  const chainId = context.chain.id as number
   const {
     assetId: _assetRegistrationId,
     asset: _assetAddress,
@@ -69,26 +69,25 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
     symbol: symbol,
   })) as AssetRegistrationService;
 
+  const { status } = assetRegistration.read();
 
-  const localAsset = (await AssetService.getOrInit(context, {
+  if (!status) {
+    assetRegistration.setStatus("IN_PROGRESS");
+    await assetRegistration.save();
+  }
+
+  const asset = (await AssetService.getOrInit(context, {
     assetRegistrationId,
     centrifugeId,
     name: name,
     symbol: symbol,
     address: assetAddress,
   })) as AssetService;
-
-  const { status } = localAsset.read();
-
-  if (!status) {
-    localAsset.setStatus("IN_PROGRESS");
-    await localAsset.save();
-  }
 });
 
 ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
   logEvent(event, "Spoke:AddShareClass");
-  const { chainId: _chainId } = context.network;
+  const _chainId = context.chain.id as number
   const {
     poolId: _poolId,
     scId: _tokenId,
@@ -111,7 +110,7 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
 
 ponder.on("Spoke:LinkVault", async ({ event, context }) => {
   logEvent(event, "Spoke:LinkVault");
-  const { chainId: _chainId } = context.network;
+  const _chainId = context.chain.id as number
   const {
     poolId: _poolId,
     scId: _tokenId,
@@ -151,7 +150,7 @@ ponder.on("Spoke:LinkVault", async ({ event, context }) => {
 
 ponder.on("Spoke:UnlinkVault", async ({ event, context }) => {
   logEvent(event, "Spoke:UnlinkVault");
-  const { chainId } = context.network;
+  const _chainId = context.chain.id as number
   const {
       poolId: _poolId,
       scId: _tokenId,
@@ -159,6 +158,7 @@ ponder.on("Spoke:UnlinkVault", async ({ event, context }) => {
       //tokenId, TODO: Update property name
       vault: _vaultId,
     } = event.args;
+    const chainId = _chainId.toString();
     const poolId = _poolId.toString();
     const tokenId = _tokenId.toString();
     const assetAddress = _assetAddress.toString();
@@ -174,7 +174,7 @@ ponder.on("Spoke:UnlinkVault", async ({ event, context }) => {
 
 ponder.on("Spoke:UpdateSharePrice", async ({ event, context}) => {
   logEvent(event, "Spoke:PriceUpdate");
-  const { chainId } = context.network;
+  const chainId = context.chain.id as number
   const {
     poolId: _poolId,
     scId: _tokenId,
