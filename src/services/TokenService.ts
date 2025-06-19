@@ -2,6 +2,16 @@ import { Token } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
 
 export class TokenService extends mixinCommonStatics(Service<typeof Token>, Token, "Token") {
+  public activate() {
+    console.info(`Activating shareClass ${this.data.id}`);
+    this.data.isActive = true;
+    return this;
+  }
+  public deactivate() { 
+    console.info(`Deactivating shareClass ${this.data.id}`);
+    this.data.isActive = false;
+    return this;
+  }
   public setIndex(index: number) {
     console.info(`Setting index for shareClass ${this.data.id} to ${index}`);
     this.data.index = index;

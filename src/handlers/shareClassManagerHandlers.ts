@@ -6,6 +6,7 @@ import {
   TokenService,
   OutstandingOrderService,
   InvestorTransactionService,
+  BlockchainService,
 } from "../services";
 
 // SHARE CLASS LIFECYCLE
@@ -13,14 +14,24 @@ ponder.on(
   "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index)",
   async ({ event, context }) => {
     logEvent(event, "ShareClassManager:AddShareClassShort");
+    const chainId = context.chain.id
+    if(typeof chainId !== "number") throw new Error("Chain ID is required")
     const { poolId: _poolId, scId: _tokenId, index } = event.args;
+    
     const poolId = _poolId.toString();
     const tokenId = _tokenId.toString();
+
+    const blockchain = await BlockchainService.get(context, { id: chainId.toString() })
+    const { centrifugeId } = blockchain.read()
+    
+    
     const token = await TokenService.getOrInit(context, {
       id: tokenId,
       poolId,
+      centrifugeId
     }) as TokenService;
     await token.setIndex(index);
+    await token.activate();
     await token.save();
   }
 );
@@ -29,6 +40,8 @@ ponder.on(
   "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index, string name, string symbol, bytes32 salt)",
   async ({ event, context }) => {
     logEvent(event, "ShareClassManager:AddShareClassLong");
+    const chainId = context.chain.id
+    if(typeof chainId !== "number") throw new Error("Chain ID is required")
     const {
       poolId: _poolId,
       scId: _tokenId,
@@ -39,12 +52,18 @@ ponder.on(
     } = event.args;
     const poolId = _poolId.toString();
     const tokenId = _tokenId.toString();
+
+    const blockchain = await BlockchainService.get(context, { id: chainId.toString() })
+    const { centrifugeId } = blockchain.read()
+    
     const token = await TokenService.getOrInit(context, {
       id: tokenId,
       poolId,
+      centrifugeId
     }) as TokenService;
     await token.setIndex(index);
     await token.setMetadata(name, symbol, salt);
+    await token.activate();
     await token.save();
   }
 );
@@ -52,12 +71,19 @@ ponder.on(
 // INVESTOR TRANSACTIONS
 ponder.on("ShareClassManager:UpdateMetadata", async ({ event, context }) => {
   logEvent(event, "ShareClassManager:UpdatedMetadata");
+  const chainId = context.chain.id
+  if(typeof chainId !== "number") throw new Error("Chain ID is required")
   const { poolId: _poolId, scId: _tokenId, name, symbol } = event.args;
   const poolId = _poolId.toString();
   const tokenId = _tokenId.toString();
+
+  const blockchain = await BlockchainService.get(context, { id: chainId.toString() })
+  const { centrifugeId } = blockchain.read()
+  
   const token = await TokenService.getOrInit(context, {
     id: tokenId,
     poolId,
+    centrifugeId
   }) as TokenService;
   await token.setMetadata(name, symbol);
   await token.save();

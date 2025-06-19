@@ -59,6 +59,7 @@ const TokenColumns = (t: PgColumnsBuilders) => ({
   id: t.text().primaryKey(),
   index: t.integer(),
   isActive: t.boolean().notNull().default(false),
+  centrifugeId: t.text().notNull(),
   poolId: t.text().notNull(),
   // Metadata fields
   name: t.text(),
@@ -70,6 +71,7 @@ const TokenColumns = (t: PgColumnsBuilders) => ({
 });
 export const Token = onchainTable("token", TokenColumns, (t) => ({
   poolIdx: index().on(t.poolId),
+  centrifugeIdIdx: index().on(t.centrifugeId),
 }));
 
 export const TokenRelations = relations(Token, ({ one, many }) => ({
