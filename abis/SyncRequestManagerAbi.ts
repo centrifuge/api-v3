@@ -18,13 +18,14 @@ export const SyncRequestManagerAbi = [
     inputs: [
       { name: "poolId", type: "uint64", internalType: "PoolId" },
       { name: "scId", type: "bytes16", internalType: "ShareClassId" },
+      { name: "assetId", type: "uint128", internalType: "AssetId" },
       {
         name: "vault_",
         type: "address",
-        internalType: "contract IBaseVault",
+        internalType: "contract IVault",
       },
       { name: "asset_", type: "address", internalType: "address" },
-      { name: "assetId", type: "uint128", internalType: "AssetId" },
+      { name: "tokenId", type: "uint256", internalType: "uint256" },
     ],
     outputs: [],
     stateMutability: "nonpayable",
@@ -194,19 +195,6 @@ export const SyncRequestManagerAbi = [
   },
   {
     type: "function",
-    name: "poolManager",
-    inputs: [],
-    outputs: [
-      {
-        name: "",
-        type: "address",
-        internalType: "contract IPoolManager",
-      },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
     name: "previewDeposit",
     inputs: [
       {
@@ -324,13 +312,14 @@ export const SyncRequestManagerAbi = [
     inputs: [
       { name: "poolId", type: "uint64", internalType: "PoolId" },
       { name: "scId", type: "bytes16", internalType: "ShareClassId" },
+      { name: "assetId", type: "uint128", internalType: "AssetId" },
       {
         name: "vault_",
         type: "address",
-        internalType: "contract IBaseVault",
+        internalType: "contract IVault",
       },
       { name: "asset_", type: "address", internalType: "address" },
-      { name: "assetId", type: "uint128", internalType: "AssetId" },
+      { name: "tokenId", type: "uint256", internalType: "uint256" },
     ],
     outputs: [],
     stateMutability: "nonpayable",
@@ -368,6 +357,13 @@ export const SyncRequestManagerAbi = [
   },
   {
     type: "function",
+    name: "spoke",
+    inputs: [],
+    outputs: [{ name: "", type: "address", internalType: "contract ISpoke" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     name: "update",
     inputs: [
       { name: "poolId", type: "uint64", internalType: "PoolId" },
@@ -397,12 +393,16 @@ export const SyncRequestManagerAbi = [
     type: "function",
     name: "vault",
     inputs: [
-      { name: "", type: "uint64", internalType: "PoolId" },
+      { name: "poolId", type: "uint64", internalType: "PoolId" },
       { name: "scId", type: "bytes16", internalType: "ShareClassId" },
       { name: "assetId", type: "uint128", internalType: "AssetId" },
     ],
     outputs: [
-      { name: "", type: "address", internalType: "contract IBaseVault" },
+      {
+        name: "vault",
+        type: "address",
+        internalType: "contract IBaseVault",
+      },
     ],
     stateMutability: "view",
   },
@@ -414,25 +414,7 @@ export const SyncRequestManagerAbi = [
       { name: "scId", type: "bytes16", internalType: "ShareClassId" },
       { name: "assetId", type: "uint128", internalType: "AssetId" },
     ],
-    outputs: [
-      { name: "", type: "address", internalType: "contract IBaseVault" },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "vaultKind",
-    inputs: [
-      {
-        name: "vault_",
-        type: "address",
-        internalType: "contract IBaseVault",
-      },
-    ],
-    outputs: [
-      { name: "", type: "uint8", internalType: "enum VaultKind" },
-      { name: "", type: "address", internalType: "address" },
-    ],
+    outputs: [{ name: "", type: "address", internalType: "contract IVault" }],
     stateMutability: "view",
   },
   {
@@ -558,13 +540,24 @@ export const SyncRequestManagerAbi = [
   { type: "error", name: "NoCode", inputs: [] },
   { type: "error", name: "NotAuthorized", inputs: [] },
   { type: "error", name: "SafeTransferEthFailed", inputs: [] },
-  { type: "error", name: "SafeTransferFailed", inputs: [] },
+  { type: "error", name: "SecondaryManagerDoesNotExist", inputs: [] },
   { type: "error", name: "SenderNotVault", inputs: [] },
   { type: "error", name: "ShareTokenDoesNotExist", inputs: [] },
   { type: "error", name: "SliceOutOfBounds", inputs: [] },
   { type: "error", name: "Uint128_Overflow", inputs: [] },
+  { type: "error", name: "Uint64_Overflow", inputs: [] },
   { type: "error", name: "UnknownMessageType", inputs: [] },
   { type: "error", name: "UnknownUpdateContractType", inputs: [] },
   { type: "error", name: "VaultAlreadyExists", inputs: [] },
   { type: "error", name: "VaultDoesNotExist", inputs: [] },
+  {
+    type: "error",
+    name: "WrappedError",
+    inputs: [
+      { name: "target", type: "address", internalType: "address" },
+      { name: "selector", type: "bytes4", internalType: "bytes4" },
+      { name: "reason", type: "bytes", internalType: "bytes" },
+      { name: "details", type: "bytes", internalType: "bytes" },
+    ],
+  },
 ] as const;

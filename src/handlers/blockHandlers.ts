@@ -10,6 +10,7 @@ const timekeeper = Timekeeper.start()
 
 async function processBlock(args: Parameters<Parameters<typeof ponder.on>[1]>[0]) {
   const chainName  = args.context.chain.name
+  const chainId = args.context.chain.id
   const { event, context } = args
   const newPeriod = await timekeeper.processBlock(context, event)
   if (!newPeriod) return

@@ -50,7 +50,7 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
     fields: [Pool.centrifugeId],
     references: [Blockchain.centrifugeId],
   }),
-  tokenes: many(Token, { relationName: "tokenes" }),
+  tokens: many(Token, { relationName: "tokens" }),
   epochs: many(Epoch, { relationName: "epochs" }),
   snapshots: many(PoolSnapshot, { relationName: "snapshots" }),
 }));
@@ -68,7 +68,7 @@ const TokenColumns = (t: PgColumnsBuilders) => ({
   totalIssuance: t.bigint().default(0n),
   tokenPrice: t.bigint().default(0n),
 });
-export const Token = onchainTable("share_class", TokenColumns, (t) => ({
+export const Token = onchainTable("token", TokenColumns, (t) => ({
   poolIdx: index().on(t.poolId),
 }));
 

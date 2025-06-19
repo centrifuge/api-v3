@@ -8,7 +8,7 @@
     "start": "ponder start",
     "db": "ponder db",
     "codegen": "ponder codegen",
-    "lint": "eslint .",
+    "lint": "eslint src/",
     "typecheck": "tsc",
     "schema": "tsx graphqlToPonderSchema.ts"
   },
@@ -21,6 +21,8 @@
   "devDependencies": {
     "@types/bn.js": "^5.1.6",
     "@types/node": "^20.9.0",
+    "@typescript-eslint/eslint-plugin": "^8.34.1",
+    "@typescript-eslint/parser": "^8.34.1",
     "eslint": "^8.53.0",
     "eslint-config-ponder": "^0.8.33",
     "tsx": "^4.19.2",

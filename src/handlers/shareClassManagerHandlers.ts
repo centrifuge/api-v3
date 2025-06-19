@@ -298,7 +298,7 @@ ponder.on("ShareClassManager:RemoteRevokeShares", async ({ event, context }) => 
   const {
     poolId: _poolId,
     scId: _tokenId,
-    revokedAssetAmount,
+    revokedShareAmount,
   } = event.args;
   const poolId = _poolId.toString();
   const tokenId = _tokenId.toString();
@@ -307,6 +307,6 @@ ponder.on("ShareClassManager:RemoteRevokeShares", async ({ event, context }) => 
     poolId,
   }) as TokenService;
   if (!token) throw new Error(`Token not found for id ${tokenId}`);
-  await token.decreaseTotalSupply(revokedAssetAmount);
+  await token.decreaseTotalSupply(revokedShareAmount);
   await token.save();
 });

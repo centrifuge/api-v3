@@ -3,13 +3,12 @@ import { PoolService } from "../services/PoolService";
 import { logEvent } from "../helpers/logger";
 import { EpochService } from "../services";
 import { AssetRegistrationService, AssetService } from "../services";
-import { BN } from "bn.js";
 import { BlockchainService } from "../services/BlockchainService";
 
 ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
   logEvent(event, "HubRegistry:NewPool");
-
-  const chainId = context.chain.id as number
+  const chainId = context.chain.id
+  if (typeof chainId !== 'number') throw new Error('Chain ID is required')
   const { poolId, currency, manager: _manager } = event.args;
   const manager = _manager.toString();
   const blockchain = await BlockchainService.get(context, { id: chainId.toString() }) as BlockchainService
@@ -35,26 +34,27 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
 
 ponder.on("HubRegistry:NewAsset", async ({ event, context }) => { //Fires Second to complete
   logEvent(event, "HubRegistry:NewAsset");
-  const chainId = context.chain.id as number
+  const chainId = context.chain.id
+  if (typeof chainId !== 'number') throw new Error('Chain ID is required')
+  
   const { assetId: _assetRegistrationId, decimals } = event.args;
-  const {} = event.transaction
-  const assetRegistrationId = _assetRegistrationId.toString();
 
-  const assetCentrifugeId = new BN(assetRegistrationId.toString()).shrn(112).toString();
+  const blockchain = await BlockchainService.get(context, { id: chainId.toString() }) as BlockchainService
+  const { centrifugeId } = blockchain.read()
+
+  const assetRegistrationId = _assetRegistrationId.toString()
 
   const assetRegistration = (await AssetRegistrationService.getOrInit(context, {
     assetId: assetRegistrationId,
-    centrifugeId: assetCentrifugeId,
+    centrifugeId,
     decimals,
   })) as AssetRegistrationService;
 
   assetRegistration.setStatus("REGISTERED");
   await assetRegistration.save()
-  
-
-  const asset = (await AssetService.getOrInit(context, {
-    assetRegistrationId,
-    centrifugeId: assetCentrifugeId,
-  })) as AssetService;
-  
 });
+
+function getCentrifugeId(assetId: bigint): string {
+  // Perform the right shift by 112 bits
+  return Number(assetId >> 112n).toString();
+}

@@ -6,17 +6,28 @@ export class HoldingService extends mixinCommonStatics(
   Holding,
   "Holding"
 ) {
+
+  public setValuation(valuation: string) {
+    this.data.valuation = valuation;
+    return this;
+  }
+
+  public setIsLiability(isLiability: boolean) {
+    this.data.isLiability = isLiability;
+    return this;
+  }
+
   public increase(
     amount: bigint,
     increaseValue: bigint,
     pricePoolPerAsset: bigint
   ) {
-    const { hubAssetAmount, hubAssetValue } = this.data;
-    if (hubAssetAmount === null || hubAssetValue === null) {
+    const { assetAmount, assetValue } = this.data;
+    if (assetAmount === null || assetValue === null) {
       throw new Error("Hub asset amount or value is null");
     }
-    this.data.hubAssetAmount! += amount;
-    this.data.hubAssetValue! += increaseValue;
+    this.data.assetAmount! += amount;
+    this.data.assetValue! += increaseValue;
     return this;
   }
 
@@ -25,21 +36,21 @@ export class HoldingService extends mixinCommonStatics(
     decreaseValue: bigint,
     pricePoolPerAsset: bigint
   ) {
-    const { hubAssetAmount, hubAssetValue } = this.data;
-    if (hubAssetAmount === null || hubAssetValue === null) {
+    const { assetAmount, assetValue } = this.data;
+    if (assetAmount === null || assetValue === null) {
       throw new Error("Hub asset amount or value is null");
     }
-    this.data.hubAssetAmount! -= amount;
-    this.data.hubAssetValue! -= decreaseValue;
+    this.data.assetAmount! -= amount;
+    this.data.assetValue! -= decreaseValue;
     return this;
   }
 
   public update(isPositive: boolean, diffValue: bigint) {
-    const { hubAssetAmount, hubAssetValue } = this.data;
-    if (hubAssetAmount === null || hubAssetValue === null) {
+    const { assetAmount, assetValue } = this.data;
+    if (assetAmount === null || assetValue === null) {
       throw new Error("Hub asset amount or value is null");
     }
-    this.data.hubAssetValue! += isPositive ? diffValue : -diffValue;
+    this.data.assetValue! += isPositive ? diffValue : -diffValue;
     return this;
   }
 }

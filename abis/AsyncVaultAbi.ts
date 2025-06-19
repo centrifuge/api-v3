@@ -92,6 +92,19 @@ export const AsyncVaultAbi = [
   },
   {
     type: "function",
+    name: "baseManager",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "contract IBaseRequestManager",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     name: "cancelDepositRequest",
     inputs: [
       { name: "", type: "uint256", internalType: "uint256" },
@@ -287,7 +300,7 @@ export const AsyncVaultAbi = [
       {
         name: "",
         type: "address",
-        internalType: "contract IBaseRequestManager",
+        internalType: "contract IVaultManager",
       },
     ],
     stateMutability: "view",
@@ -1107,7 +1120,15 @@ export const AsyncVaultAbi = [
   { type: "error", name: "RequestDepositFailed", inputs: [] },
   { type: "error", name: "RequestRedeemFailed", inputs: [] },
   { type: "error", name: "SafeTransferEthFailed", inputs: [] },
-  { type: "error", name: "SafeTransferFailed", inputs: [] },
-  { type: "error", name: "SafeTransferFromFailed", inputs: [] },
   { type: "error", name: "TransferFromFailed", inputs: [] },
+  {
+    type: "error",
+    name: "WrappedError",
+    inputs: [
+      { name: "target", type: "address", internalType: "address" },
+      { name: "selector", type: "bytes4", internalType: "bytes4" },
+      { name: "reason", type: "bytes", internalType: "bytes" },
+      { name: "details", type: "bytes", internalType: "bytes" },
+    ],
+  },
 ] as const;

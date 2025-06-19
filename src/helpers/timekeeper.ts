@@ -19,7 +19,9 @@ export class Timekeeper {
   }
 
   public async init(context: Context): Promise<Timekeeper> {
-    const chainId = context.chain.id as number
+    const chainId = context.chain.id
+    console.log('Initializing timekeeper for chainId', chainId)
+    if (typeof chainId !== 'number') throw new Error('Chain ID is required')
     const centrifugeId = currentChains.find(network => network.network.chainId === chainId)!.network.centrifugeId
     const blockchain = await BlockchainService.getOrInit(context, { id: chainId.toString(), centrifugeId: centrifugeId.toString() }) as BlockchainService
     const lastPeriodStart = blockchain.read().lastPeriodStart

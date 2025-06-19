@@ -52,9 +52,7 @@ export const SyncDepositVaultFactoryAbi = [
       },
       { name: "wards_", type: "address[]", internalType: "address[]" },
     ],
-    outputs: [
-      { name: "", type: "address", internalType: "contract IBaseVault" },
-    ],
+    outputs: [{ name: "", type: "address", internalType: "contract IVault" }],
     stateMutability: "nonpayable",
   },
   {

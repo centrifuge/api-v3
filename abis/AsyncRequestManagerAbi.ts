@@ -7,7 +7,6 @@ export const AsyncRequestManagerAbi = [
         type: "address",
         internalType: "contract IEscrow",
       },
-      { name: "root_", type: "address", internalType: "address" },
       { name: "deployer", type: "address", internalType: "address" },
     ],
     stateMutability: "nonpayable",
@@ -18,13 +17,14 @@ export const AsyncRequestManagerAbi = [
     inputs: [
       { name: "poolId", type: "uint64", internalType: "PoolId" },
       { name: "scId", type: "bytes16", internalType: "ShareClassId" },
+      { name: "assetId", type: "uint128", internalType: "AssetId" },
       {
         name: "vault_",
         type: "address",
-        internalType: "contract IBaseVault",
+        internalType: "contract IVault",
       },
       { name: "asset_", type: "address", internalType: "address" },
-      { name: "assetId", type: "uint128", internalType: "AssetId" },
+      { name: "", type: "uint256", internalType: "uint256" },
     ],
     outputs: [],
     stateMutability: "nonpayable",
@@ -58,6 +58,18 @@ export const AsyncRequestManagerAbi = [
       },
     ],
     stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "callback",
+    inputs: [
+      { name: "poolId", type: "uint64", internalType: "PoolId" },
+      { name: "scId", type: "bytes16", internalType: "ShareClassId" },
+      { name: "assetId", type: "uint128", internalType: "AssetId" },
+      { name: "payload", type: "bytes", internalType: "bytes" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
     type: "function",
@@ -210,41 +222,27 @@ export const AsyncRequestManagerAbi = [
   },
   {
     type: "function",
-    name: "fulfillCancelDepositRequest",
-    inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId", type: "bytes16", internalType: "ShareClassId" },
-      { name: "user", type: "address", internalType: "address" },
-      { name: "assetId", type: "uint128", internalType: "AssetId" },
-      { name: "assets", type: "uint128", internalType: "uint128" },
-      { name: "fulfillment", type: "uint128", internalType: "uint128" },
-    ],
-    outputs: [],
-    stateMutability: "nonpayable",
-  },
-  {
-    type: "function",
-    name: "fulfillCancelRedeemRequest",
-    inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId", type: "bytes16", internalType: "ShareClassId" },
-      { name: "user", type: "address", internalType: "address" },
-      { name: "assetId", type: "uint128", internalType: "AssetId" },
-      { name: "shares", type: "uint128", internalType: "uint128" },
-    ],
-    outputs: [],
-    stateMutability: "nonpayable",
-  },
-  {
-    type: "function",
     name: "fulfillDepositRequest",
     inputs: [
       { name: "poolId", type: "uint64", internalType: "PoolId" },
       { name: "scId", type: "bytes16", internalType: "ShareClassId" },
       { name: "user", type: "address", internalType: "address" },
       { name: "assetId", type: "uint128", internalType: "AssetId" },
-      { name: "assets", type: "uint128", internalType: "uint128" },
-      { name: "shares", type: "uint128", internalType: "uint128" },
+      {
+        name: "fulfilledAssets",
+        type: "uint128",
+        internalType: "uint128",
+      },
+      {
+        name: "fulfilledShares",
+        type: "uint128",
+        internalType: "uint128",
+      },
+      {
+        name: "cancelledAssets",
+        type: "uint128",
+        internalType: "uint128",
+      },
     ],
     outputs: [],
     stateMutability: "nonpayable",
@@ -257,8 +255,21 @@ export const AsyncRequestManagerAbi = [
       { name: "scId", type: "bytes16", internalType: "ShareClassId" },
       { name: "user", type: "address", internalType: "address" },
       { name: "assetId", type: "uint128", internalType: "AssetId" },
-      { name: "assets", type: "uint128", internalType: "uint128" },
-      { name: "shares", type: "uint128", internalType: "uint128" },
+      {
+        name: "fulfilledAssets",
+        type: "uint128",
+        internalType: "uint128",
+      },
+      {
+        name: "fulfilledShares",
+        type: "uint128",
+        internalType: "uint128",
+      },
+      {
+        name: "cancelledShares",
+        type: "uint128",
+        internalType: "uint128",
+      },
     ],
     outputs: [],
     stateMutability: "nonpayable",
@@ -284,12 +295,8 @@ export const AsyncRequestManagerAbi = [
     outputs: [
       { name: "maxMint", type: "uint128", internalType: "uint128" },
       { name: "maxWithdraw", type: "uint128", internalType: "uint128" },
-      {
-        name: "depositPrice",
-        type: "uint256",
-        internalType: "uint256",
-      },
-      { name: "redeemPrice", type: "uint256", internalType: "uint256" },
+      { name: "depositPrice", type: "uint128", internalType: "D18" },
+      { name: "redeemPrice", type: "uint128", internalType: "D18" },
       {
         name: "pendingDepositRequest",
         type: "uint128",
@@ -482,32 +489,6 @@ export const AsyncRequestManagerAbi = [
   },
   {
     type: "function",
-    name: "poolEscrowProvider",
-    inputs: [],
-    outputs: [
-      {
-        name: "",
-        type: "address",
-        internalType: "contract IPoolEscrowProvider",
-      },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "poolManager",
-    inputs: [],
-    outputs: [
-      {
-        name: "",
-        type: "address",
-        internalType: "contract IPoolManager",
-      },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
     name: "priceLastUpdated",
     inputs: [
       {
@@ -571,13 +552,14 @@ export const AsyncRequestManagerAbi = [
     inputs: [
       { name: "poolId", type: "uint64", internalType: "PoolId" },
       { name: "scId", type: "bytes16", internalType: "ShareClassId" },
+      { name: "assetId", type: "uint128", internalType: "AssetId" },
       {
         name: "vault_",
         type: "address",
-        internalType: "contract IBaseVault",
+        internalType: "contract IVault",
       },
       { name: "asset_", type: "address", internalType: "address" },
-      { name: "assetId", type: "uint128", internalType: "AssetId" },
+      { name: "", type: "uint256", internalType: "uint256" },
     ],
     outputs: [],
     stateMutability: "nonpayable",
@@ -611,7 +593,7 @@ export const AsyncRequestManagerAbi = [
       { name: "shares", type: "uint256", internalType: "uint256" },
       { name: "controller", type: "address", internalType: "address" },
       { name: "owner", type: "address", internalType: "address" },
-      { name: "", type: "address", internalType: "address" },
+      { name: "sender_", type: "address", internalType: "address" },
     ],
     outputs: [{ name: "", type: "bool", internalType: "bool" }],
     stateMutability: "nonpayable",
@@ -636,22 +618,9 @@ export const AsyncRequestManagerAbi = [
   },
   {
     type: "function",
-    name: "root",
+    name: "spoke",
     inputs: [],
-    outputs: [{ name: "", type: "address", internalType: "address" }],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "sender",
-    inputs: [],
-    outputs: [
-      {
-        name: "",
-        type: "address",
-        internalType: "contract IVaultMessageSender",
-      },
-    ],
+    outputs: [{ name: "", type: "address", internalType: "contract ISpoke" }],
     stateMutability: "view",
   },
   {
@@ -666,7 +635,7 @@ export const AsyncRequestManagerAbi = [
       {
         name: "vault",
         type: "address",
-        internalType: "contract IAsyncVault",
+        internalType: "contract IBaseVault",
       },
     ],
     stateMutability: "view",
@@ -679,22 +648,8 @@ export const AsyncRequestManagerAbi = [
       { name: "scId", type: "bytes16", internalType: "ShareClassId" },
       { name: "assetId", type: "uint128", internalType: "AssetId" },
     ],
-    outputs: [
-      { name: "", type: "address", internalType: "contract IBaseVault" },
-    ],
+    outputs: [{ name: "", type: "address", internalType: "contract IVault" }],
     stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "vaultKind",
-    inputs: [
-      { name: "", type: "address", internalType: "contract IBaseVault" },
-    ],
-    outputs: [
-      { name: "", type: "uint8", internalType: "enum VaultKind" },
-      { name: "", type: "address", internalType: "address" },
-    ],
-    stateMutability: "pure",
   },
   {
     type: "function",
@@ -718,6 +673,37 @@ export const AsyncRequestManagerAbi = [
     ],
     outputs: [{ name: "shares", type: "uint256", internalType: "uint256" }],
     stateMutability: "nonpayable",
+  },
+  {
+    type: "event",
+    name: "AddVault",
+    inputs: [
+      {
+        name: "poolId",
+        type: "uint64",
+        indexed: true,
+        internalType: "PoolId",
+      },
+      {
+        name: "scId",
+        type: "bytes16",
+        indexed: true,
+        internalType: "ShareClassId",
+      },
+      {
+        name: "assetId",
+        type: "uint128",
+        indexed: true,
+        internalType: "AssetId",
+      },
+      {
+        name: "vault",
+        type: "address",
+        indexed: false,
+        internalType: "contract IVault",
+      },
+    ],
+    anonymous: false,
   },
   {
     type: "event",
@@ -760,6 +746,37 @@ export const AsyncRequestManagerAbi = [
         type: "address",
         indexed: true,
         internalType: "address",
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "RemoveVault",
+    inputs: [
+      {
+        name: "poolId",
+        type: "uint64",
+        indexed: true,
+        internalType: "PoolId",
+      },
+      {
+        name: "scId",
+        type: "bytes16",
+        indexed: true,
+        internalType: "ShareClassId",
+      },
+      {
+        name: "assetId",
+        type: "uint128",
+        indexed: true,
+        internalType: "AssetId",
+      },
+      {
+        name: "vault",
+        type: "address",
+        indexed: false,
+        internalType: "contract IVault",
       },
     ],
     anonymous: false,
@@ -821,13 +838,25 @@ export const AsyncRequestManagerAbi = [
   { type: "error", name: "NoPendingRequest", inputs: [] },
   { type: "error", name: "NotAuthorized", inputs: [] },
   { type: "error", name: "SafeTransferEthFailed", inputs: [] },
-  { type: "error", name: "SafeTransferFailed", inputs: [] },
-  { type: "error", name: "SenderNotVault", inputs: [] },
   { type: "error", name: "ShareTokenAmountIsZero", inputs: [] },
   { type: "error", name: "ShareTokenTransferFailed", inputs: [] },
+  { type: "error", name: "SliceOutOfBounds", inputs: [] },
   { type: "error", name: "TransferNotAllowed", inputs: [] },
   { type: "error", name: "Uint128_Overflow", inputs: [] },
+  { type: "error", name: "Uint64_Overflow", inputs: [] },
+  { type: "error", name: "UnknownRequestCallbackType", inputs: [] },
+  { type: "error", name: "UnknownRequestCallbackType", inputs: [] },
   { type: "error", name: "VaultAlreadyExists", inputs: [] },
   { type: "error", name: "VaultDoesNotExist", inputs: [] },
+  {
+    type: "error",
+    name: "WrappedError",
+    inputs: [
+      { name: "target", type: "address", internalType: "address" },
+      { name: "selector", type: "bytes4", internalType: "bytes4" },
+      { name: "reason", type: "bytes", internalType: "bytes" },
+      { name: "details", type: "bytes", internalType: "bytes" },
+    ],
+  },
   { type: "error", name: "ZeroAmountNotAllowed", inputs: [] },
 ] as const;
