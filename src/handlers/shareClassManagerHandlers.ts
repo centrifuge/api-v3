@@ -8,6 +8,8 @@ import {
   InvestorTransactionService,
   BlockchainService,
 } from "../services";
+import { snapshotter } from "../helpers/snapshotter";
+import { TokenSnapshot } from "ponder:schema";
 
 // SHARE CLASS LIFECYCLE
 ponder.on(
@@ -297,6 +299,7 @@ ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
     poolId,
   }) as TokenService;
   if (!token) throw new Error(`Token not found for id ${tokenId}`);
+  await snapshotter(context, event, [token], TokenSnapshot)
   await token.setTokenPrice(tokenPrice);
   await token.save();
 });
@@ -315,6 +318,7 @@ ponder.on("ShareClassManager:RemoteIssueShares", async ({ event, context }) => {
     poolId,
   }) as TokenService;
   if (!token) throw new Error(`Token not found for id ${tokenId}`);
+  await snapshotter(context, event, [token], TokenSnapshot)
   await token.increaseTotalSupply(issuedShareAmount);
   await token.save();
 });
@@ -333,6 +337,7 @@ ponder.on("ShareClassManager:RemoteRevokeShares", async ({ event, context }) => 
     poolId,
   }) as TokenService;
   if (!token) throw new Error(`Token not found for id ${tokenId}`);
+  await snapshotter(context, event, [token], TokenSnapshot)
   await token.decreaseTotalSupply(revokedShareAmount);
   await token.save();
 });
