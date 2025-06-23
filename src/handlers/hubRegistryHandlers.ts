@@ -15,7 +15,7 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
   const { centrifugeId } = blockchain.read()
 
   const pool = (await PoolService.init(context, {
-    id: poolId.toString(),
+    id: poolId,
     centrifugeId,
     shareClassManager: manager,
     currency,
@@ -25,7 +25,7 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
   })) as PoolService;
 
   const epoch = (await EpochService.init(context, {
-    poolId: poolId.toString(),
+    poolId: poolId,
     index: 1,
     createdAtBlock: Number(event.block.number),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
