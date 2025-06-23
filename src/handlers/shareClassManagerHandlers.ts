@@ -16,22 +16,23 @@ ponder.on(
   "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index)",
   async ({ event, context }) => {
     logEvent(event, "ShareClassManager:AddShareClassShort");
-    const chainId = context.chain.id
-    if(typeof chainId !== "number") throw new Error("Chain ID is required")
+    const chainId = context.chain.id;
+    if (typeof chainId !== "number") throw new Error("Chain ID is required");
     const { poolId: _poolId, scId: _tokenId, index } = event.args;
-    
-    const poolId = _poolId.toString();
+
+    const poolId = _poolId;
     const tokenId = _tokenId.toString();
 
-    const blockchain = await BlockchainService.get(context, { id: chainId.toString() })
-    const { centrifugeId } = blockchain.read()
-    
-    
-    const token = await TokenService.getOrInit(context, {
+    const blockchain = await BlockchainService.get(context, {
+      id: chainId.toString(),
+    });
+    const { centrifugeId } = blockchain.read();
+
+    const token = (await TokenService.getOrInit(context, {
       id: tokenId,
       poolId,
-      centrifugeId
-    }) as TokenService;
+      centrifugeId,
+    })) as TokenService;
     await token.setIndex(index);
     await token.activate();
     await token.save();
@@ -42,8 +43,8 @@ ponder.on(
   "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index, string name, string symbol, bytes32 salt)",
   async ({ event, context }) => {
     logEvent(event, "ShareClassManager:AddShareClassLong");
-    const chainId = context.chain.id
-    if(typeof chainId !== "number") throw new Error("Chain ID is required")
+    const chainId = context.chain.id;
+    if (typeof chainId !== "number") throw new Error("Chain ID is required");
     const {
       poolId: _poolId,
       scId: _tokenId,
@@ -52,17 +53,19 @@ ponder.on(
       symbol,
       salt,
     } = event.args;
-    const poolId = _poolId.toString();
+    const poolId = _poolId;
     const tokenId = _tokenId.toString();
 
-    const blockchain = await BlockchainService.get(context, { id: chainId.toString() })
-    const { centrifugeId } = blockchain.read()
-    
-    const token = await TokenService.getOrInit(context, {
+    const blockchain = await BlockchainService.get(context, {
+      id: chainId.toString(),
+    });
+    const { centrifugeId } = blockchain.read();
+
+    const token = (await TokenService.getOrInit(context, {
       id: tokenId,
       poolId,
-      centrifugeId
-    }) as TokenService;
+      centrifugeId,
+    })) as TokenService;
     await token.setIndex(index);
     await token.setMetadata(name, symbol, salt);
     await token.activate();
@@ -73,20 +76,22 @@ ponder.on(
 // INVESTOR TRANSACTIONS
 ponder.on("ShareClassManager:UpdateMetadata", async ({ event, context }) => {
   logEvent(event, "ShareClassManager:UpdatedMetadata");
-  const chainId = context.chain.id
-  if(typeof chainId !== "number") throw new Error("Chain ID is required")
+  const chainId = context.chain.id;
+  if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const { poolId: _poolId, scId: _tokenId, name, symbol } = event.args;
-  const poolId = _poolId.toString();
+  const poolId = _poolId;
   const tokenId = _tokenId.toString();
 
-  const blockchain = await BlockchainService.get(context, { id: chainId.toString() })
-  const { centrifugeId } = blockchain.read()
-  
-  const token = await TokenService.getOrInit(context, {
+  const blockchain = await BlockchainService.get(context, {
+    id: chainId.toString(),
+  });
+  const { centrifugeId } = blockchain.read();
+
+  const token = (await TokenService.getOrInit(context, {
     id: tokenId,
     poolId,
-    centrifugeId
-  }) as TokenService;
+    centrifugeId,
+  })) as TokenService;
   await token.setMetadata(name, symbol);
   await token.save();
 });
@@ -101,19 +106,18 @@ ponder.on(
       poolId: _poolId,
       scId: _tokenId,
       epoch: epochIndex,
-      investor: _investorAddress,
+      investor: investorAddress,
       depositAssetId,
       pendingUserAssetAmount,
       pendingTotalAssetAmount,
     } = event.args;
-    const poolId = _poolId.toString();
+    const poolId = _poolId;
     const tokenId = _tokenId.toString();
-    const investorAddress = _investorAddress.toString();
-    const oo = await OutstandingOrderService.getOrInit(context, {
+    const oo = (await OutstandingOrderService.getOrInit(context, {
       poolId,
       tokenId,
       account: investorAddress,
-    }) as OutstandingOrderService;
+    })) as OutstandingOrderService;
     await oo.decorateOutstandingOrder(updatedAt, updatedAtBlock);
     await oo.updateRequestedDepositAmount(pendingUserAssetAmount);
     await oo.save();
@@ -130,14 +134,13 @@ ponder.on(
       poolId: _poolId,
       scId: _tokenId,
       epoch: epochIndex,
-      investor: _investorAddress,
+      investor: investorAddress,
       payoutAssetId,
       pendingUserShareAmount,
       pendingTotalShareAmount,
     } = event.args;
-    const poolId = _poolId.toString();
+    const poolId = _poolId;
     const tokenId = _tokenId.toString();
-    const investorAddress = _investorAddress.toString();
     const oo = await OutstandingOrderService.getOrInit(context, {
       poolId,
       tokenId,
@@ -160,11 +163,10 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
     approvedAssetAmount,
     pendingAssetAmount,
   } = event.args;
-  const poolId = _poolId.toString();
+  const poolId = _poolId;
   const tokenId = _tokenId.toString();
   const saves: Promise<OutstandingOrderService>[] = [];
   const oos = await OutstandingOrderService.query(context, {
-    poolId,
     tokenId,
   }) as OutstandingOrderService[];
   for (const oo of oos) {
@@ -187,11 +189,10 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
     approvedShareAmount,
     pendingShareAmount,
   } = event.args;
-  const poolId = _poolId.toString();
+  const poolId = _poolId;
   const tokenId = _tokenId.toString();
   const saves: Promise<OutstandingOrderService>[] = [];
   const oos = await OutstandingOrderService.query(context, {
-    poolId,
     tokenId,
   }) as OutstandingOrderService[];
   for (const oo of oos) {
@@ -215,7 +216,7 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
     // newTotalIssuance,
     // issuedShareAmount,
   } = event.args;
-  const poolId = _poolId.toString();
+  const poolId = _poolId;
   const tokenId = _tokenId.toString();
   const nextEpochIndex = epochIndex + 1;
 
@@ -224,12 +225,11 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
 
   const token = await TokenService.get(context, {
     id: tokenId,
-    poolId,
   });
   if (!token)
     throw new Error(`Token not found for id ${tokenId}`);
 
-  const epoch = await EpochService.get(context, { poolId: poolId.toString(), index: epochIndex }) as EpochService;
+  const epoch = await EpochService.get(context, { poolId, index: epochIndex }) as EpochService;
   if (!epoch)
     throw new Error(`Epoch not found for pool ${poolId}, index ${epochIndex}`);
   await epoch.close(context, event.block);
@@ -255,8 +255,7 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
   };
 
   const oos = await OutstandingOrderService.query(context, {
-    poolId: poolId,
-    tokenId: tokenId,
+    tokenId,
   }) as OutstandingOrderService[];
 
   for (const oo of oos) {
@@ -292,11 +291,10 @@ ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
     scId: _tokenId,
     navPoolPerShare: tokenPrice,
   } = event.args;
-  const poolId = _poolId.toString();
+  const poolId = _poolId;
   const tokenId = _tokenId.toString();
   const token = await TokenService.get(context, {
     id: tokenId,
-    poolId,
   }) as TokenService;
   if (!token) throw new Error(`Token not found for id ${tokenId}`);
   await snapshotter(context, event, [token], TokenSnapshot)
@@ -311,11 +309,10 @@ ponder.on("ShareClassManager:RemoteIssueShares", async ({ event, context }) => {
     scId: _tokenId,
     issuedShareAmount,
   } = event.args;
-  const poolId = _poolId.toString();
+  const poolId = _poolId;
   const tokenId = _tokenId.toString();
   const token = await TokenService.get(context, {
     id: tokenId,
-    poolId,
   }) as TokenService;
   if (!token) throw new Error(`Token not found for id ${tokenId}`);
   await snapshotter(context, event, [token], TokenSnapshot)
@@ -330,11 +327,10 @@ ponder.on("ShareClassManager:RemoteRevokeShares", async ({ event, context }) => 
     scId: _tokenId,
     revokedShareAmount,
   } = event.args;
-  const poolId = _poolId.toString();
+  const poolId = _poolId;
   const tokenId = _tokenId.toString();
   const token = await TokenService.get(context, {
     id: tokenId,
-    poolId,
   }) as TokenService;
   if (!token) throw new Error(`Token not found for id ${tokenId}`);
   await snapshotter(context, event, [token], TokenSnapshot)

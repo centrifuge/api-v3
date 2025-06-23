@@ -13,7 +13,7 @@ export class PoolService extends mixinCommonStatics(Service<typeof Pool>, Pool, 
       abi: ShareClassManagerAbi,
       functionName: "shareClassCount",
 
-      args: [BigInt(this.data.id)],
+      args: [this.data.id],
     });
   }
 

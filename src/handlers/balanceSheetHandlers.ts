@@ -12,7 +12,7 @@ ponder.on("BalanceSheet:Deposit", async ({ event, context }) => {
     //tokenId: _tokenId, TODO: Update property name
     amount,
   } = event.args;
-  const poolId = _poolId.toString();
+  const poolId = _poolId;
   const tokenId = _tokenId.toString();
   const assetAddress = _assetAddress.toString();
 
@@ -43,7 +43,7 @@ ponder.on("BalanceSheet:Issue", async ({ event, context }) => {
     //pricePerShare,
     shares,
   } = event.args;
-  const poolId = _poolId.toString();
+  const poolId = _poolId;
   const tokenId = _tokenId.toString();
   const receiver = _receiver.toString();
 
@@ -72,7 +72,7 @@ ponder.on("BalanceSheet:Revoke", async ({ event, context }) => {
     from: _sender,
     shares,
   } = event.args;
-  const poolId = _poolId.toString();
+  const poolId = _poolId;
   const tokenId = _tokenId.toString();
   const sender = _sender.toString();
 

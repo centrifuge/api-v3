@@ -76,6 +76,7 @@ export function mixinCommonStatics<
     ) {
       console.log("get", name, query);
       const entity = await context.db.find(table as any, query);
+      console.log(`Found ${name}: `, entity);
       if (!entity) {
         throw new Error(`${name} with ${JSON.stringify(query)} not found`);
       }
@@ -85,6 +86,7 @@ export function mixinCommonStatics<
     static async getOrInit(context: Context, query: T["$inferInsert"]) {
       console.log("getOrInit", name, query);
       let entity = await context.db.find(table as any, query);
+      console.log(`Found ${name}: `, entity);
       if (!entity) {
         console.info(`Initialising ${name}: `, query);
         entity =

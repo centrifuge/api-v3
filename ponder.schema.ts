@@ -30,9 +30,9 @@ export const BlockchainRelations = relations(Blockchain, ({ many }) => ({
 }));
 
 const PoolColumns = (t: PgColumnsBuilders) => ({
-  id: t.text().primaryKey(),
+  id: t.bigint().notNull(),
   centrifugeId: t.text().notNull(),
-  isActive: t.boolean().default(false).notNull(),
+  isActive: t.boolean().notNull().default(false),
   createdAtBlock: t.integer(),
   createdAt: t.timestamp(),
   admin: t.text(),
@@ -41,6 +41,7 @@ const PoolColumns = (t: PgColumnsBuilders) => ({
   currentEpochIndex: t.integer().default(1),
 });
 export const Pool = onchainTable("pool", PoolColumns, (t) => ({
+  id: primaryKey({ columns: [t.id] }),
   isActiveIdx: index().on(t.isActive),
   centrifugeIdIdx: index().on(t.centrifugeId),
 }));
@@ -56,11 +57,11 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
 }));
 
 const TokenColumns = (t: PgColumnsBuilders) => ({
-  id: t.text().primaryKey(),
+  id: t.text().notNull(),
   index: t.integer(),
   isActive: t.boolean().notNull().default(false),
   centrifugeId: t.text().notNull(),
-  poolId: t.text().notNull(),
+  poolId: t.bigint().notNull(),
   // Metadata fields
   name: t.text(),
   symbol: t.text(),
@@ -70,6 +71,7 @@ const TokenColumns = (t: PgColumnsBuilders) => ({
   tokenPrice: t.bigint().default(0n),
 });
 export const Token = onchainTable("token", TokenColumns, (t) => ({
+  id: primaryKey({ columns: [t.id] }),
   poolIdx: index().on(t.poolId),
   centrifugeIdIdx: index().on(t.centrifugeId),
 }));
@@ -83,7 +85,7 @@ export const TokenRelations = relations(Token, ({ one, many }) => ({
 }));
 
 const EpochColumns = (t: PgColumnsBuilders) => ({
-  poolId: t.text().notNull(),
+  poolId: t.bigint().notNull(),
   index: t.integer().notNull(),
   createdAtBlock: t.integer(),
   createdAt: t.timestamp(),
@@ -114,7 +116,7 @@ const VaultColumns = (t: PgColumnsBuilders) => ({
   isActive: t.boolean().default(false).notNull(),
   kind: VaultKind("vault_kind"),
   status: VaultStatus("vault_status"),
-  poolId: t.text().notNull(),
+  poolId: t.bigint().notNull(),
   tokenId: t.text().notNull(),
   assetAddress: t.text().notNull(),
   factory: t.text().notNull(),
@@ -160,7 +162,7 @@ export const InvestorTransactionType = onchainEnum(
 
 const InvestorTransactionColumns = (t: PgColumnsBuilders) => ({
   txHash: t.text().notNull(),
-  poolId: t.text().notNull(),
+  poolId: t.bigint().notNull(),
   tokenId: t.text().notNull(),
   type: InvestorTransactionType("investor_transaction_type").notNull(),
   account: t.text().notNull(),
@@ -201,7 +203,7 @@ export const InvestorTransactionRelations = relations(
 );
 
 const OutstandingOrderColumns = (t: PgColumnsBuilders) => ({
-  poolId: t.text().notNull(),
+  poolId: t.bigint().notNull(),
   tokenId: t.text().notNull(),
   account: t.text().notNull(),
   updatedAt: t.timestamp(),
@@ -218,7 +220,7 @@ export const OutstandingOrder = onchainTable(
   "outstanding_order",
   OutstandingOrderColumns,
   (t) => ({
-    id: primaryKey({ columns: [t.poolId, t.tokenId, t.account] }),
+    id: primaryKey({ columns: [t.tokenId, t.account] }),
     poolIdx: index().on(t.poolId),
     tokenIdx: index().on(t.tokenId),
   })
@@ -311,7 +313,7 @@ export const TokenInstanceRelations = relations(TokenInstance, ({ one }) => ({
 }));
 
 const HoldingColumns = (t: PgColumnsBuilders) => ({
-  poolId: t.text().notNull(),
+  poolId: t.bigint().notNull(),
   tokenId: t.text().notNull(),
   isInitialized: t.boolean().notNull().default(false),
   isLiability: t.boolean(),
@@ -359,7 +361,7 @@ export const HoldingAccountRelations = relations(HoldingAccount, ({ one }) => ({
 }));
 
 export const HoldingEscrowColumns = (t: PgColumnsBuilders) => ({
-  poolId: t.text().notNull(),
+  poolId: t.bigint().notNull(),
   tokenId: t.text().notNull(),
   assetRegistrationId: t.text().notNull(),
   assetAmount: t.bigint().default(0n),
@@ -386,7 +388,7 @@ export const HoldingEscrowRelations = relations(HoldingEscrow, ({ one, many }) =
 // Snapshots
 export const PoolSnapshot = onchainTable(
   "pool_snapshot",
-  snapshotColumns(PoolColumns, ["currency"] as const),
+  snapshotColumns(PoolColumns, ["id", "currency"] as const),
   (t) => ({
     id: primaryKey({ columns: [t.id, t.blockNumber] }),
   })
@@ -400,7 +402,7 @@ export const PoolSnapshotRelations = relations(PoolSnapshot, ({ one }) => ({
 
 export const TokenSnapshot = onchainTable(
   "token_snapshot",
-  snapshotColumns(TokenColumns, ["tokenPrice", "totalIssuance"] as const),
+  snapshotColumns(TokenColumns, ["id", "tokenPrice", "totalIssuance"] as const),
   (t) => ({
     id: primaryKey({ columns: [t.id, t.blockNumber] }),
   })
@@ -417,7 +419,6 @@ function snapshotColumns<
       entries.filter(([key]) => selectKeys.includes(key as keyof ReturnType<F>))
     );
     const snapshotColumns = {
-      id: t.text().notNull(),
       timestamp: t.timestamp().notNull(),
       blockNumber: t.integer().notNull(),
       ...(selectedColumns as Pick<ReturnType<F>, O[number]>),

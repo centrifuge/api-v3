@@ -9,7 +9,7 @@ ponder.on("Holdings:Initialize", async ({ event, context }) => {
   const _chainId = context.chain.id as number;
   const [_poolId, _shareClassId, _assetId, _valuation, isLiability, accounts] =
     event.args;
-  const poolId = _poolId.toString();
+  const poolId = _poolId;
   const tokenId = _shareClassId.toString();
   const assetId = _assetId.toString();
   const valuation = _valuation.toString();
@@ -46,7 +46,7 @@ ponder.on("Holdings:Increase", async ({ event, context }) => {
     event.args;
 
   const chainId = _chainId.toString();
-  const poolId = _poolId.toString();
+  const poolId = _poolId;
   const tokenId = _scId.toString();
   const assetId = _assetId.toString();
 
@@ -68,7 +68,7 @@ ponder.on("Holdings:Decrease", async ({ event, context }) => {
     event.args;
 
   const chainId = _chainId.toString();
-  const poolId = _poolId.toString();
+  const poolId = _poolId;
   const tokenId = _scId.toString();
   const assetId = _assetId.toString();
 
@@ -95,7 +95,7 @@ ponder.on("Holdings:Update", async ({ event, context }) => {
   } = event.args;
 
   const chainId = _chainId.toString();
-  const poolId = _poolId.toString();
+  const poolId = _poolId;
   const tokenId = _scId.toString();
   const assetId = _assetId.toString();
 

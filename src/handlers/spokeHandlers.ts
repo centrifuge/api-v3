@@ -15,7 +15,7 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
     vault: _vaultId,
     kind,
   } = event.args;
-  const poolId = _poolId.toString()
+  const poolId = _poolId
   const tokenId = _shareClassId.toString();
   const assetAddress = _assetAddress.toString();
   //const tokenId = _tokenId.toString(); TODO: update to track ERC tokens
@@ -119,7 +119,7 @@ ponder.on("Spoke:LinkVault", async ({ event, context }) => {
     vault: _vaultId,
   } = event.args;
   const chainId = _chainId.toString();
-  const poolId = _poolId.toString();
+  const poolId = _poolId;
   const tokenId = _tokenId.toString();
   const assetAddress = _assetAddress.toString();
   const vaultId = _vaultId.toString();
@@ -159,7 +159,7 @@ ponder.on("Spoke:UnlinkVault", async ({ event, context }) => {
       vault: _vaultId,
     } = event.args;
     const chainId = _chainId.toString();
-    const poolId = _poolId.toString();
+    const poolId = _poolId;
     const tokenId = _tokenId.toString();
     const assetAddress = _assetAddress.toString();
     const vaultId = _vaultId.toString();
@@ -182,7 +182,7 @@ ponder.on("Spoke:UpdateSharePrice", async ({ event, context}) => {
     price: tokenPrice,
     computedAt: _computedAt,
   } = event.args;
-  const poolId = _poolId.toString();
+  const poolId = _poolId;
   const tokenId = _tokenId.toString();
   const computedAt = new Date(Number(_computedAt.toString())*1000);
 
