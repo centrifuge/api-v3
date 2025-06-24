@@ -77,6 +77,45 @@ The indexer builds and maintains a structured database with the following primar
 
 Once running, the Ponder indexer provides a GraphQL API for querying indexed data. URL printed on start.
 
+## Entity Relationships
+```mermaid
+erDiagram
+  direction LR
+  Blockchain ||--o{ Pool : ""
+  Blockchain ||--o{ Vault : ""
+  Blockchain ||--o{ Asset : ""
+  Blockchain ||--o{ TokenInstance : ""
+  Blockchain ||--o{ AssetRegistration : ""
+
+  Pool ||--o{ PoolSnapshot : ""
+  Pool ||--o{ Token : ""
+  Pool ||--o{ Epoch : ""
+
+  Asset }o--|| Blockchain : ""
+  Asset }o--|| AssetRegistration : ""
+
+
+  TokenInstance }o--|| Blockchain : ""
+  TokenInstance }o--|| Token : ""
+
+  Vault }o--|| Blockchain : ""
+  Vault }o--|| Token : ""
+  Vault }o--|| Asset : ""
+  Vault }o--|| TokenInstance : ""
+
+  InvestorTransaction }o--|| Pool : ""
+  InvestorTransaction }o--|| Epoch : ""
+  InvestorTransaction }o--|| Token : ""
+
+  OutstandingOrder }o--|| Token : ""
+
+  Holding }o--|| Token : ""
+  Holding  }o--|| HoldingAccount : ""
+
+  HoldingEscrow }o--|| Holding : ""
+  HoldingEscrow }o--|| Asset : ""
+  HoldingEscrow }o--|| Escrow : ""
+```
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
