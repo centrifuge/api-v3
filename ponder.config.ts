@@ -11,6 +11,8 @@ import { AsyncVaultAbi } from "./abis/AsyncVaultAbi";
 import { SyncDepositVaultAbi } from "./abis/SyncDepositVaultAbi";
 
 import { chains as _chains, endpoints, startBlocks } from "./chains";
+import { PoolEscrowFactoryAbi } from "./abis/PoolEscrowFactoryAbi";
+import { PoolEscrowAbi } from "./abis/PoolEscrowAbi";
 
 export const selectedNetworks = process.env.SELECTED_NETWORKS!.split(',')
 export const currentChains = _chains.filter(chain => selectedNetworks.includes(chain.network.chainId.toString()))
@@ -69,6 +71,17 @@ const config = {
     BalanceSheet: {
       abi: BalanceSheetAbi,
       chain: getContractChain('balanceSheet')
+    },
+    PoolEscrow: {
+      abi: PoolEscrowAbi,
+      chain: getContractChain('poolEscrowFactory', {
+        event: getAbiItem({ abi: PoolEscrowFactoryAbi, name: "DeployPoolEscrow" }),
+        parameter: "escrow",
+      })
+    },
+    PoolEscrowFactory: {
+      abi: PoolEscrowFactoryAbi,
+      chain: getContractChain('poolEscrowFactory')
     },
   },
 } as const
