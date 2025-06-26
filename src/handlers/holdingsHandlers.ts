@@ -2,8 +2,9 @@ import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
 import { HoldingService } from "../services/HoldingService";
 import { HoldingAccountService } from "../services/HoldingAccountService";
-import { HoldingAccountTypes } from "ponder:schema";
+import { HoldingAccountTypes, HoldingSnapshot } from "ponder:schema";
 import { BlockchainService } from "../services/BlockchainService";
+import { snapshotter } from "../helpers/snapshotter";
 
 ponder.on("Holdings:Initialize", async ({ event, context }) => {
   logEvent(event, "Holdings:Create");
@@ -70,6 +71,8 @@ ponder.on("Holdings:Increase", async ({ event, context }) => {
     assetRegistrationId,
   })) as HoldingService;
 
+  await snapshotter(context, event, [holding], HoldingSnapshot);
+
   await holding.increase(amount, increasedValue, pricePoolPerAsset);
   await holding.save();
 });
@@ -96,6 +99,8 @@ ponder.on("Holdings:Decrease", async ({ event, context }) => {
     tokenId,
     assetRegistrationId,
   })) as HoldingService;
+
+
 
   await holding.decrease(amount, decreasedValue, pricePoolPerAsset);
   await holding.save();
@@ -129,6 +134,8 @@ ponder.on("Holdings:Update", async ({ event, context }) => {
     assetRegistrationId,
   })) as HoldingService;
 
+  await snapshotter(context, event, [holding], HoldingSnapshot);
+
   await holding.update(isPositive, diffValue);
   await holding.save();
 });
@@ -159,6 +166,8 @@ ponder.on("Holdings:UpdateValuation", async ({ event, context }) => {
     tokenId,
     assetRegistrationId,
   })) as HoldingService;
+
+  await snapshotter(context, event, [holding], HoldingSnapshot);
 
   await holding.setValuation(valuation);
   await holding.save();
