@@ -37,15 +37,13 @@ ponder.on("HubRegistry:NewAsset", async ({ event, context }) => { //Fires Second
   const chainId = context.chain.id
   if (typeof chainId !== 'number') throw new Error('Chain ID is required')
   
-  const { assetId: _assetRegistrationId, decimals } = event.args;
+  const { assetId: assetRegistrationId, decimals } = event.args;
 
   const blockchain = await BlockchainService.get(context, { id: chainId.toString() }) as BlockchainService
   const { centrifugeId } = blockchain.read()
 
-  const assetRegistrationId = _assetRegistrationId.toString()
-
   const assetRegistration = (await AssetRegistrationService.getOrInit(context, {
-    assetId: assetRegistrationId,
+    id: assetRegistrationId,
     centrifugeId,
     decimals,
   })) as AssetRegistrationService;
@@ -54,7 +52,7 @@ ponder.on("HubRegistry:NewAsset", async ({ event, context }) => { //Fires Second
   await assetRegistration.save()
 });
 
-function getCentrifugeId(assetId: bigint): string {
+function getCentrifugeId(assetId: bigint): string | null {
   // Perform the right shift by 112 bits
   return Number(assetId >> 112n).toString();
 }

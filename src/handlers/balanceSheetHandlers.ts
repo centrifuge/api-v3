@@ -1,36 +1,6 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
-import { BlockchainService, HoldingService, TokenInstanceService } from "../services";
-
-ponder.on("BalanceSheet:Deposit", async ({ event, context }) => {
-  logEvent(event, "BalanceSheet:Deposit");
-  const _chainId = context.chain.id as number
-  const {
-    poolId: _poolId,
-    scId: _tokenId,
-    asset: _assetAddress,
-    //tokenId: _tokenId, TODO: Update property name
-    amount,
-  } = event.args;
-  const poolId = _poolId;
-  const tokenId = _tokenId.toString();
-  const assetAddress = _assetAddress.toString();
-
-  //const holding = await HoldingService.get(context, { shareClassId });
-});
-
-ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
-  logEvent(event, "BalanceSheet:Withdraw");
-  const _chainId = context.chain.id as number
-  const {
-    poolId,
-    scId: tokenId,
-    asset,
-    receiver,
-    amount,
-    pricePoolPerAsset,
-  } = event.args;
-});
+import { AssetRegistrationService, AssetService, BlockchainService, EscrowService, HoldingEscrowService, TokenInstanceService } from "../services";
 
 ponder.on("BalanceSheet:Issue", async ({ event, context }) => {
   logEvent(event, "BalanceSheet:Issue");
@@ -90,3 +60,93 @@ ponder.on("BalanceSheet:Revoke", async ({ event, context }) => {
   await tokenInstance.decreaseTotalIssuance(shares);
   await tokenInstance.save();
 });
+
+ponder.on("BalanceSheet:NoteDeposit", async ({ event, context }) => {
+  logEvent(event, "BalanceSheet:NoteDeposit");
+  const _chainId = context.chain.id
+  if (typeof _chainId !== 'number') throw new Error('Chain ID is required')
+  const {
+    poolId,
+    scId: tokenId,
+    asset: assetAddress,
+    amount,
+    pricePoolPerAsset,
+  } = event.args;
+
+  const chainId = _chainId.toString();
+  const blockchain = (await BlockchainService.get(context, {
+    id: chainId.toString(),
+  })) as BlockchainService;
+  const { centrifugeId } = blockchain.read();
+
+  const assetRegistrationQuery = await AssetRegistrationService.query(context, {
+    assetAddress,
+  }) as AssetRegistrationService[];
+
+  const assetRegistration = assetRegistrationQuery.pop();
+  if (!assetRegistration) throw new Error("AssetRegistration not found for asset");
+  const { id: assetRegistrationId } = assetRegistration.read();
+
+  const escrowQuery = await EscrowService.query(context, { poolId, centrifugeId })
+  if (escrowQuery.length !== 1) throw new Error("Expecting 1 escrow for pool and centrifugeId");
+  const escrow = escrowQuery.pop();
+  const { address: escrowAddress } = escrow!.read();
+
+  const holdingEscrow = await HoldingEscrowService.getOrInit(context, {
+    centrifugeId,
+    poolId,
+    tokenId,
+    assetAddress,
+    assetRegistrationId,
+    escrowAddress,
+  }) as HoldingEscrowService;
+
+  await holdingEscrow.increaseAssetAmount(amount);
+  await holdingEscrow.setAssetPrice(pricePoolPerAsset);
+  await holdingEscrow.save();
+});
+
+ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
+  logEvent(event, "BalanceSheet:Withdraw");
+  const _chainId = context.chain.id
+  if (typeof _chainId !== 'number') throw new Error('Chain ID is required')
+  const {
+    poolId,
+    scId: tokenId,
+    asset: assetAddress,
+    amount,
+    pricePoolPerAsset,
+  } = event.args;
+
+  const chainId = _chainId.toString();
+  const blockchain = (await BlockchainService.get(context, {
+    id: chainId.toString(),
+  })) as BlockchainService;
+  const { centrifugeId } = blockchain.read();
+
+  const assetRegistrationQuery = await AssetRegistrationService.query(context, {
+    assetAddress,
+  }) as AssetRegistrationService[];
+
+  const assetRegistration = assetRegistrationQuery.pop();
+  if (!assetRegistration) throw new Error("AssetRegistration not found for asset");
+  const { id: assetRegistrationId } = assetRegistration.read();
+
+  const escrowQuery = await EscrowService.query(context, { poolId, centrifugeId })
+  if (escrowQuery.length !== 1) throw new Error("Expecting 1 escrow for pool and centrifugeId");
+  const escrow = escrowQuery.pop();
+  const { address: escrowAddress } = escrow!.read();
+
+  const holdingEscrow = await HoldingEscrowService.getOrInit(context, {
+    centrifugeId,
+    poolId,
+    tokenId,
+    assetAddress,
+    assetRegistrationId,
+    escrowAddress,
+  }) as HoldingEscrowService;
+
+  await holdingEscrow.decreaseAssetAmount(amount);
+  await holdingEscrow.setAssetPrice(pricePoolPerAsset);
+  await holdingEscrow.save();
+})
