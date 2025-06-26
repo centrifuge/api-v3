@@ -3,23 +3,32 @@ import { logEvent } from "../helpers/logger";
 import { HoldingService } from "../services/HoldingService";
 import { HoldingAccountService } from "../services/HoldingAccountService";
 import { HoldingAccountTypes } from "ponder:schema";
+import { BlockchainService } from "../services/BlockchainService";
 
 ponder.on("Holdings:Initialize", async ({ event, context }) => {
   logEvent(event, "Holdings:Create");
-  const _chainId = context.chain.id as number;
-  const [_poolId, _shareClassId, _assetId, _valuation, isLiability, accounts] =
+  const _chainId = context.chain.id;
+  if (typeof _chainId !== "number") throw new Error("Chain ID is required");
+  const [_poolId, shareClassId, assetRegistrationId, _valuation, isLiability, accounts] =
     event.args;
+  const chainId = _chainId.toString();
   const poolId = _poolId;
-  const tokenId = _shareClassId.toString();
-  const assetId = _assetId.toString();
+  const tokenId = shareClassId;
   const valuation = _valuation.toString();
 
-  const holding = await HoldingService.getOrInit(context, {
+  const blockchain = (await BlockchainService.get(context, {
+    id: chainId,
+  })) as BlockchainService;
+  const { centrifugeId } = blockchain.read();
+
+  const holding = (await HoldingService.getOrInit(context, {
+    centrifugeId,
     poolId,
     tokenId,
-    assetId,
-  }) as HoldingService
+    assetRegistrationId,
+  })) as HoldingService;
 
+  await holding.initialize();
   await holding.setValuation(valuation);
   await holding.setIsLiability(isLiability);
   await holding.save();
@@ -40,20 +49,25 @@ ponder.on("Holdings:Initialize", async ({ event, context }) => {
 
 ponder.on("Holdings:Increase", async ({ event, context }) => {
   logEvent(event, "Holdings:Increase");
-  const _chainId = context.chain.id
-  if (typeof _chainId !== 'number') throw new Error('Chain ID is required')
-  const [_poolId, _scId, _assetId, pricePoolPerAsset, amount, increasedValue] =
+  const _chainId = context.chain.id;
+  if (typeof _chainId !== "number") throw new Error("Chain ID is required");
+  const [_poolId, _scId, assetRegistrationId, pricePoolPerAsset, amount, increasedValue] =
     event.args;
 
   const chainId = _chainId.toString();
   const poolId = _poolId;
   const tokenId = _scId.toString();
-  const assetId = _assetId.toString();
+
+  const blockchain = (await BlockchainService.get(context, {
+    id: chainId,
+  })) as BlockchainService;
+  const { centrifugeId } = blockchain.read();
 
   const holding = (await HoldingService.getOrInit(context, {
+    centrifugeId,
     poolId,
     tokenId,
-    assetId,
+    assetRegistrationId,
   })) as HoldingService;
 
   await holding.increase(amount, increasedValue, pricePoolPerAsset);
@@ -62,20 +76,25 @@ ponder.on("Holdings:Increase", async ({ event, context }) => {
 
 ponder.on("Holdings:Decrease", async ({ event, context }) => {
   logEvent(event, "Holdings:Decrease");
-  const _chainId = context.chain.id
-  if (typeof _chainId !== 'number') throw new Error('Chain ID is required')
-  const [_poolId, _scId, _assetId, pricePoolPerAsset, amount, decreasedValue] =
+  const _chainId = context.chain.id;
+  if (typeof _chainId !== "number") throw new Error("Chain ID is required");
+  const [_poolId, _scId, assetRegistrationId, pricePoolPerAsset, amount, decreasedValue] =
     event.args;
 
   const chainId = _chainId.toString();
   const poolId = _poolId;
   const tokenId = _scId.toString();
-  const assetId = _assetId.toString();
+
+  const blockchain = (await BlockchainService.get(context, {
+    id: chainId,
+  })) as BlockchainService;
+  const { centrifugeId } = blockchain.read();
 
   const holding = (await HoldingService.getOrInit(context, {
+    centrifugeId,
     poolId,
     tokenId,
-    assetId,
+    assetRegistrationId,
   })) as HoldingService;
 
   await holding.decrease(amount, decreasedValue, pricePoolPerAsset);
@@ -84,12 +103,12 @@ ponder.on("Holdings:Decrease", async ({ event, context }) => {
 
 ponder.on("Holdings:Update", async ({ event, context }) => {
   logEvent(event, "Holdings:Update");
-  const _chainId = context.chain.id
-  if (typeof _chainId !== 'number') throw new Error('Chain ID is required')
+  const _chainId = context.chain.id;
+  if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const {
     poolId: _poolId,
     scId: _scId,
-    assetId: _assetId,
+    assetId: assetRegistrationId,
     isPositive,
     diffValue,
   } = event.args;
@@ -97,14 +116,50 @@ ponder.on("Holdings:Update", async ({ event, context }) => {
   const chainId = _chainId.toString();
   const poolId = _poolId;
   const tokenId = _scId.toString();
-  const assetId = _assetId.toString();
+
+  const blockchain = (await BlockchainService.get(context, {
+    id: chainId,
+  })) as BlockchainService;
+  const { centrifugeId } = blockchain.read();
 
   const holding = (await HoldingService.getOrInit(context, {
+    centrifugeId,
     poolId,
     tokenId,
-    assetId,
+    assetRegistrationId,
   })) as HoldingService;
 
   await holding.update(isPositive, diffValue);
+  await holding.save();
+});
+
+ponder.on("Holdings:UpdateValuation", async ({ event, context }) => {
+  logEvent(event, "Holdings:UpdateValuation");
+  const _chainId = context.chain.id;
+  if (typeof _chainId !== "number") throw new Error("Chain ID is required");
+  const {
+    poolId: _poolId,
+    scId: _scId,
+    assetId: assetRegistrationId,
+    valuation,
+  } = event.args;
+
+  const chainId = _chainId.toString();
+  const poolId = _poolId;
+  const tokenId = _scId.toString();
+
+  const blockchain = (await BlockchainService.get(context, {
+    id: chainId,
+  })) as BlockchainService;
+  const { centrifugeId } = blockchain.read();
+
+  const holding = (await HoldingService.getOrInit(context, {
+    centrifugeId,
+    poolId,
+    tokenId,
+    assetRegistrationId,
+  })) as HoldingService;
+
+  await holding.setValuation(valuation);
   await holding.save();
 });

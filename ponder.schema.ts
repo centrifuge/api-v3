@@ -242,8 +242,9 @@ export const AssetRegistrationStatus = onchainEnum("asset_registration_status", 
 ]);
 
 const AssetRegistrationColumns = (t: PgColumnsBuilders) => ({
-  assetId: t.text().notNull(),
-  centrifugeId: t.text(),
+  id: t.bigint().notNull(),
+  centrifugeId: t.text().notNull(),
+  assetAddress: t.text(),
   status: AssetRegistrationStatus("asset_registration_status"),
   decimals: t.integer(),
   name: t.text(),
@@ -252,23 +253,26 @@ const AssetRegistrationColumns = (t: PgColumnsBuilders) => ({
   createdAtBlock: t.integer(),
 });
 export const AssetRegistration = onchainTable("asset_registration", AssetRegistrationColumns, (t) => ({
-  id: primaryKey({ columns: [t.centrifugeId, t.assetId] }),
+  id: primaryKey({ columns: [t.id] }),
 }));
 export const AssetRegistrationRelations = relations(AssetRegistration, ({ one, many }) => ({
   blockchain: one(Blockchain, {
     fields: [AssetRegistration.centrifugeId],
     references: [Blockchain.centrifugeId],
   }),
-  assets: many(Asset, { relationName: "assets" }),
+  asset: one(Asset, {
+    fields: [AssetRegistration.assetAddress],
+    references: [Asset.address],
+  }),
 }));
 
 // TODO: introduce asset types ERC-20 or ERC-6909
 
 const AssetColumns = (t: PgColumnsBuilders) => ({
-  assetRegistrationId: t.text().notNull(),
   centrifugeId: t.text().notNull(),
+  address: t.text().notNull(),
   assetTokenId: t.text(),
-  address: t.text(),
+  decimals: t.integer(),
   name: t.text(),
   symbol: t.text(),
 });
@@ -277,15 +281,15 @@ export const Asset = onchainTable(
   "asset",
   AssetColumns,
   (t) => ({
-    id: primaryKey({ columns: [t.assetRegistrationId, t.centrifugeId] }),
+    id: primaryKey({ columns: [t.address] }),
   })
 );
-export const AssetRelations = relations(Asset, ({ one }) => ({
+export const AssetRelations = relations(Asset, ({ one, many }) => ({
   blockchain: one(Blockchain, {
     fields: [Asset.centrifugeId],
     references: [Blockchain.centrifugeId],
   }),
-  assetRegistration: one(AssetRegistration, { fields: [Asset.assetRegistrationId], references: [AssetRegistration.assetId] }),
+  assetRegistrations: many(AssetRegistration, { relationName: "assetRegistrations" }),
 }));
 
 export const TokenInstanceColumns = (t: PgColumnsBuilders) => ({
@@ -313,32 +317,38 @@ export const TokenInstanceRelations = relations(TokenInstance, ({ one }) => ({
 }));
 
 const HoldingColumns = (t: PgColumnsBuilders) => ({
+  centrifugeId: t.text().notNull(),
   poolId: t.bigint().notNull(),
   tokenId: t.text().notNull(),
   isInitialized: t.boolean().notNull().default(false),
   isLiability: t.boolean(),
   valuation: t.text(),
-  assetId: t.text().notNull(),
+  assetRegistrationId: t.bigint().notNull(),
+  
   // Spoke side amounts and values
-  assetAmount: t.bigint().default(0n),
-  assetValue: t.bigint().default(0n),
-  assetPrice: t.bigint().default(0n),
+  assetQuantity: t.bigint().notNull() .default(0n),
+  totalValue: t.bigint().notNull().default(0n),
 
   updatedAt: t.timestamp(),
   updatedAtBlock: t.integer(),
 });
 
 export const Holding = onchainTable("holding", HoldingColumns, (t) => ({
-  id: primaryKey({ columns: [t.tokenId, t.assetId] }),
+  id: primaryKey({ columns: [t.tokenId, t.assetRegistrationId] }),
+  centrifugeIdIdx: index().on(t.centrifugeId),
   poolIdx: index().on(t.poolId),
   tokenIdx: index().on(t.tokenId),
-  assetIdx: index().on(t.assetId),
+  assetRegistrationIdx: index().on(t.assetRegistrationId),
 }));
 
 export const HoldingsRelations = relations(Holding, ({ one }) => ({
   token: one(Token, {
     fields: [Holding.tokenId],
     references: [Token.id],
+  }),
+  holdingEscrow: one(HoldingEscrow, {
+    fields: [Holding.tokenId, Holding.assetRegistrationId],
+    references: [HoldingEscrow.tokenId, HoldingEscrow.assetRegistrationId],
   }),
 }));
 
@@ -378,11 +388,12 @@ export const EscrowRelations = relations(Escrow, ({ one, many }) => ({
 
 
 export const HoldingEscrowColumns = (t: PgColumnsBuilders) => ({
+  centrifugeId: t.text().notNull(),
   poolId: t.bigint().notNull(),
   tokenId: t.text().notNull(),
-  assetRegistrationId: t.text().notNull(),
+  assetRegistrationId: t.bigint().notNull(),
+  assetAddress: t.text().notNull(),
   assetAmount: t.bigint().default(0n),
-  assetValue: t.bigint().default(0n),
   assetPrice: t.bigint().default(0n),
   escrowAddress: t.text().notNull(),
 });
@@ -395,11 +406,11 @@ export const HoldingEscrow = onchainTable("holding_escrow", HoldingEscrowColumns
 export const HoldingEscrowRelations = relations(HoldingEscrow, ({ one, many }) => ({
   holding: one(Holding, {
     fields: [HoldingEscrow.tokenId, HoldingEscrow.assetRegistrationId],
-    references: [Holding.tokenId, Holding.assetId],
+    references: [Holding.tokenId, Holding.assetRegistrationId],
   }),
   asset: one(Asset, {
-    fields: [HoldingEscrow.assetRegistrationId],
-    references: [Asset.assetRegistrationId],
+    fields: [HoldingEscrow.assetAddress],
+    references: [Asset.address],
   }),
   escrow: one(Escrow, {
     fields: [HoldingEscrow.escrowAddress],

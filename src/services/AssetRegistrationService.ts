@@ -11,4 +11,9 @@ export class AssetRegistrationService extends mixinCommonStatics(
     this.data.status = status;
     return this
   }
+
+  public setAssetAddress(assetAddress: typeof AssetRegistration.$inferSelect['assetAddress']) {
+    this.data.assetAddress = assetAddress;
+    return this
+  }
 }

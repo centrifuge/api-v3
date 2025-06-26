@@ -22,12 +22,12 @@ export class HoldingService extends mixinCommonStatics(
     increaseValue: bigint,
     pricePoolPerAsset: bigint
   ) {
-    const { assetAmount, assetValue } = this.data;
-    if (assetAmount === null || assetValue === null) {
+    const { assetQuantity, totalValue } = this.data;
+    if (assetQuantity === null || totalValue === null) {
       throw new Error("Hub asset amount or value is null");
     }
-    this.data.assetAmount! += amount;
-    this.data.assetValue! += increaseValue;
+    this.data.assetQuantity! += amount;
+    this.data.totalValue! += increaseValue;
     return this;
   }
 
@@ -36,21 +36,26 @@ export class HoldingService extends mixinCommonStatics(
     decreaseValue: bigint,
     pricePoolPerAsset: bigint
   ) {
-    const { assetAmount, assetValue } = this.data;
-    if (assetAmount === null || assetValue === null) {
+    const { assetQuantity, totalValue } = this.data;
+    if (assetQuantity === null || totalValue === null) {
       throw new Error("Hub asset amount or value is null");
     }
-    this.data.assetAmount! -= amount;
-    this.data.assetValue! -= decreaseValue;
+    this.data.assetQuantity! -= amount;
+    this.data.totalValue! -= decreaseValue;
     return this;
   }
 
   public update(isPositive: boolean, diffValue: bigint) {
-    const { assetAmount, assetValue } = this.data;
-    if (assetAmount === null || assetValue === null) {
-      throw new Error("Hub asset amount or value is null");
+    const { totalValue } = this.data;
+    if (totalValue === null) {
+      throw new Error("Hub total value is null");
     }
-    this.data.assetValue! += isPositive ? diffValue : -diffValue;
+    this.data.totalValue! += isPositive ? diffValue : -diffValue;
+    return this;
+  }
+
+  public initialize() {
+    this.data.isInitialized = true;
     return this;
   }
 }

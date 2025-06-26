@@ -9,3 +9,6 @@ export * from "./AssetService";
 export * from "./AssetRegistrationService";
 export * from "./BlockchainService";
 export * from "./HoldingService";
+export * from "./HoldingEscrowService";
+export * from "./EscrowService";
+export * from "./HoldingAccountService";
