@@ -441,6 +441,14 @@ export const TokenSnapshot = onchainTable(
   })
 );
 
+export const HoldingSnapshot = onchainTable(
+  "holding_snapshot",
+  snapshotColumns(HoldingColumns, ["tokenId", "assetRegistrationId", "assetQuantity", "totalValue"] as const),
+  (t) => ({
+    id: primaryKey({ columns: [t.tokenId, t.assetRegistrationId, t.blockNumber] }),
+  })
+);
+
 function snapshotColumns<
   F extends PgColumnsFunction,
   O extends Array<keyof ReturnType<F>>
