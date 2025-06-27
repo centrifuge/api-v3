@@ -3,7 +3,7 @@ import { ponder } from "ponder:registry";
 import type { Context, Event } from "ponder:registry";
 import { PgTableWithColumns } from "drizzle-orm/pg-core";
 
-type TriggerEvent = Parameters<typeof ponder.on>[0] | `${string}:newPeriod`
+type TriggerEvent = Parameters<typeof ponder.on>[0] | `${string}:NewPeriod`
 
 export async function snapshotter<
   S extends Service<T>,

@@ -71,7 +71,7 @@ ponder.on("Holdings:Increase", async ({ event, context }) => {
     assetRegistrationId,
   })) as HoldingService;
 
-  await snapshotter(context, event, [holding], HoldingSnapshot);
+  await snapshotter(context, event, "Holdings:Increase", [holding], HoldingSnapshot);
 
   await holding.increase(amount, increasedValue, pricePoolPerAsset);
   await holding.save();
@@ -134,7 +134,7 @@ ponder.on("Holdings:Update", async ({ event, context }) => {
     assetRegistrationId,
   })) as HoldingService;
 
-  await snapshotter(context, event, [holding], HoldingSnapshot);
+  await snapshotter(context, event, "Holdings:Update", [holding], HoldingSnapshot);
 
   await holding.update(isPositive, diffValue);
   await holding.save();
@@ -167,7 +167,7 @@ ponder.on("Holdings:UpdateValuation", async ({ event, context }) => {
     assetRegistrationId,
   })) as HoldingService;
 
-  await snapshotter(context, event, [holding], HoldingSnapshot);
+  await snapshotter(context, event, "Holdings:UpdateValuation", [holding], HoldingSnapshot);
 
   await holding.setValuation(valuation);
   await holding.save();

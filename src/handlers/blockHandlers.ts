@@ -14,7 +14,7 @@ async function processBlock(args: Parameters<Parameters<typeof ponder.on>[1]>[0]
   const { event, context } = args
   const newPeriod = await timekeeper.processBlock(context, event)
   if (!newPeriod) return
-  logEvent(event, `${chainName}:newPeriod`)
+  logEvent(event, `${chainName}:NewPeriod`)
   const chainId = args.context.chain.id
   if(typeof chainId !== "number") throw new Error("Chain ID is required")
   const blockchain = await BlockchainService.get(context, { id: chainId.toString() })
@@ -30,8 +30,8 @@ async function processBlock(args: Parameters<Parameters<typeof ponder.on>[1]>[0]
     centrifugeId
   }) as TokenService[];
 
-  await snapshotter(context, event, `${chainName}:newPeriod`, pools, PoolSnapshot)
-  await snapshotter(context, event, `${chainName}:newPeriod`, tokens, TokenSnapshot)
+  await snapshotter(context, event, `${chainName}:NewPeriod`, pools, PoolSnapshot)
+  await snapshotter(context, event, `${chainName}:NewPeriod`, tokens, TokenSnapshot)
 }
 
 currentChains.forEach(chain => {
