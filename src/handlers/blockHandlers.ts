@@ -30,8 +30,8 @@ async function processBlock(args: Parameters<Parameters<typeof ponder.on>[1]>[0]
     centrifugeId
   }) as TokenService[];
 
-  await snapshotter(context, event, pools, PoolSnapshot)
-  await snapshotter(context, event, tokens, TokenSnapshot)
+  await snapshotter(context, event, `${chainName}:newPeriod`, pools, PoolSnapshot)
+  await snapshotter(context, event, `${chainName}:newPeriod`, tokens, TokenSnapshot)
 }
 
 currentChains.forEach(chain => {

@@ -449,6 +449,7 @@ export const HoldingSnapshot = onchainTable(
   })
 );
 
+
 function snapshotColumns<
   F extends PgColumnsFunction,
   O extends Array<keyof ReturnType<F>>
@@ -462,6 +463,7 @@ function snapshotColumns<
     const snapshotColumns = {
       timestamp: t.timestamp().notNull(),
       blockNumber: t.integer().notNull(),
+      trigger: t.text().notNull(),
       ...(selectedColumns as Pick<ReturnType<F>, O[number]>),
     };
     return snapshotColumns;

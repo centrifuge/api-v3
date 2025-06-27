@@ -297,7 +297,7 @@ ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
     id: tokenId,
   }) as TokenService;
   if (!token) throw new Error(`Token not found for id ${tokenId}`);
-  await snapshotter(context, event, [token], TokenSnapshot)
+  await snapshotter(context, event, "ShareClassManager:UpdateShareClass", [token], TokenSnapshot)
   await token.setTokenPrice(tokenPrice);
   await token.save();
 });
@@ -315,7 +315,7 @@ ponder.on("ShareClassManager:RemoteIssueShares", async ({ event, context }) => {
     id: tokenId,
   }) as TokenService;
   if (!token) throw new Error(`Token not found for id ${tokenId}`);
-  await snapshotter(context, event, [token], TokenSnapshot)
+  await snapshotter(context, event, "ShareClassManager:RemoteIssueShares", [token], TokenSnapshot)
   await token.increaseTotalSupply(issuedShareAmount);
   await token.save();
 });
@@ -333,7 +333,7 @@ ponder.on("ShareClassManager:RemoteRevokeShares", async ({ event, context }) => 
     id: tokenId,
   }) as TokenService;
   if (!token) throw new Error(`Token not found for id ${tokenId}`);
-  await snapshotter(context, event, [token], TokenSnapshot)
+  await snapshotter(context, event, "ShareClassManager:RemoteRevokeShares", [token], TokenSnapshot)
   await token.decreaseTotalSupply(revokedShareAmount);
   await token.save();
 });
