@@ -266,12 +266,10 @@ export const AssetRegistrationRelations = relations(AssetRegistration, ({ one, m
   }),
 }));
 
-// TODO: introduce asset types ERC-20 or ERC-6909
-
 const AssetColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   address: t.text().notNull(),
-  assetTokenId: t.text(),
+  assetTokenId: t.bigint(),
   decimals: t.integer(),
   name: t.text(),
   symbol: t.text(),
