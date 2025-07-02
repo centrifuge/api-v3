@@ -10,7 +10,7 @@ export class TokenInstanceService extends mixinCommonStatics(Service<typeof Toke
 
   public setTokenId(tokenId: string) {
     console.log(`Setting tokenId for token ${this.data.centrifugeId}-${this.data.tokenId}`, tokenId);
-    //this.data.tokenId = tokenId; TODO: update for other type tokens
+    this.data.tokenId = tokenId;
     return this;
   }
 

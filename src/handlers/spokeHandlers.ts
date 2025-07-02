@@ -15,20 +15,16 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
   logEvent(event, "Spoke:DeployVault");
   const chainId = context.chain.id as number;
   const {
-    poolId: _poolId,
-    scId: _shareClassId,
-    asset: _assetAddress,
-    tokenId: _tokenId,
-    factory: _factory,
-    vault: _vaultId,
+    poolId,
+    scId: tokenId,
+    asset: assetAddress,
+    tokenId: assetTokenId,
+    factory,
+    vault: vaultId,
     kind,
   } = event.args;
-  const poolId = _poolId;
-  const tokenId = _shareClassId.toString();
-  const assetAddress = _assetAddress.toString();
+
   //const tokenId = _tokenId.toString(); TODO: update to track ERC tokens
-  const factory = _factory.toString();
-  const vaultId = _vaultId.toString();
   const vaultKind = VaultKinds[kind];
   if (!vaultKind) throw new Error("Invalid vault kind");
 
@@ -40,22 +36,23 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
   const vault = (await VaultService.init(context, {
     id: vaultId,
     centrifugeId,
-    poolId: poolId,
-    tokenId: tokenId,
+    poolId,
+    tokenId,
     assetAddress,
     factory: factory,
     kind: vaultKind,
-    //tokenId
   })) as VaultService;
 });
 
 ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
   //Fires first to request registration to HUB
   logEvent(event, "Spoke:RegisterAsset");
-  const chainId = context.chain.id as number;
+  const chainId = context.chain.id;
+  if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const {
     assetId: assetRegistrationId,
     asset: assetAddress,
+    tokenId: assetTokenId,
     name,
     symbol,
     decimals,
@@ -90,6 +87,7 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
     decimals: decimals,
     name: name,
     symbol: symbol,
+    assetTokenId,
   })) as AssetService;
 });
 
@@ -119,12 +117,11 @@ ponder.on("Spoke:LinkVault", async ({ event, context }) => {
     poolId: poolId,
     scId: tokenId,
     asset: assetAddress,
-    //tokenId: _tokenId, TODO: Update property name
+    tokenId: assetTokenId,
     vault: _vaultId,
   } = event.args;
   const chainId = _chainId.toString();
   const vaultId = _vaultId.toString();
-  //const tokenId = _tokenId.toString(); TODO: Update property name
   const vault = (await VaultService.get(context, {
     id: vaultId,
   })) as VaultService;
@@ -148,7 +145,6 @@ ponder.on("Spoke:LinkVault", async ({ event, context }) => {
     throw new Error("TokenInstance not found for share class");
 
   tokenInstance.setVaultId(vaultId);
-  tokenInstance.setTokenId(tokenId);
   await tokenInstance.save();
 });
 
@@ -225,5 +221,4 @@ ponder.on("Spoke:UpdateAssetPrice", async ({ event, context }) => {
     await holdingEscrow.setAssetPrice(assetPrice);
     await holdingEscrow.save();
   }
-
 });
