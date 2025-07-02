@@ -5,11 +5,11 @@ import {
   BlockchainService,
   AssetRegistrationService,
   AssetService,
+  getAssetCentrifugeId,
   VaultService,
   TokenInstanceService,
   HoldingEscrowService,
 } from "../services";
-import { PgColumnBuilder } from "ponder";
 
 ponder.on("Spoke:DeployVault", async ({ event, context }) => {
   logEvent(event, "Spoke:DeployVault");
@@ -61,6 +61,7 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
     id: chainId.toString(),
   })) as BlockchainService;
   const { centrifugeId } = blockchain.read();
+  const assetCentrifugeId = getAssetCentrifugeId(assetRegistrationId);
 
   const assetRegistration = (await AssetRegistrationService.getOrInit(context, {
     centrifugeId,
@@ -71,15 +72,17 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
     symbol: symbol,
   })) as AssetRegistrationService;
 
-  const { status, assetAddress: assetRegistrationAddress } =
+  const { status, assetAddress: assetRegistrationAddress, assetCentrifugeId: assetRegistrationAssetCentrifugeId } =
     assetRegistration.read();
 
   const hasNoStatus = !status;
   const hasNoAssetAddress = !assetRegistrationAddress;
+  const hasNoAssetCentrifugeId = !assetRegistrationAssetCentrifugeId;
 
   if (hasNoStatus) assetRegistration.setStatus("IN_PROGRESS");
   if (hasNoAssetAddress) assetRegistration.setAssetAddress(assetAddress);
-  if (hasNoStatus || hasNoAssetAddress) await assetRegistration.save();
+  if (hasNoAssetCentrifugeId) assetRegistration.setAssetCentrifugeId(assetCentrifugeId);
+  if (hasNoStatus || hasNoAssetAddress || hasNoAssetCentrifugeId) await assetRegistration.save();
 
   const asset = (await AssetService.getOrInit(context, {
     centrifugeId,

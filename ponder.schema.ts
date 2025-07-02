@@ -245,6 +245,7 @@ const AssetRegistrationColumns = (t: PgColumnsBuilders) => ({
   id: t.bigint().notNull(),
   centrifugeId: t.text().notNull(),
   assetAddress: t.text(),
+  assetCentrifugeId: t.text(),
   status: AssetRegistrationStatus("asset_registration_status"),
   decimals: t.integer(),
   name: t.text(),
@@ -253,7 +254,7 @@ const AssetRegistrationColumns = (t: PgColumnsBuilders) => ({
   createdAtBlock: t.integer(),
 });
 export const AssetRegistration = onchainTable("asset_registration", AssetRegistrationColumns, (t) => ({
-  id: primaryKey({ columns: [t.id] }),
+  id: primaryKey({ columns: [t.id, t.centrifugeId] }),
 }));
 export const AssetRegistrationRelations = relations(AssetRegistration, ({ one, many }) => ({
   blockchain: one(Blockchain, {
