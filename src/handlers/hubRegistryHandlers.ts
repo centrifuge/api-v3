@@ -2,7 +2,7 @@ import { ponder } from "ponder:registry";
 import { PoolService } from "../services/PoolService";
 import { logEvent } from "../helpers/logger";
 import { EpochService } from "../services";
-import { AssetRegistrationService, AssetService } from "../services";
+import { AssetRegistrationService, getAssetCentrifugeId } from "../services";
 import { BlockchainService } from "../services/BlockchainService";
 
 ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
@@ -38,6 +38,7 @@ ponder.on("HubRegistry:NewAsset", async ({ event, context }) => { //Fires Second
   if (typeof chainId !== 'number') throw new Error('Chain ID is required')
   
   const { assetId: assetRegistrationId, decimals } = event.args;
+  const assetCentrifugeId = getAssetCentrifugeId(assetRegistrationId);
 
   const blockchain = await BlockchainService.get(context, { id: chainId.toString() }) as BlockchainService
   const { centrifugeId } = blockchain.read()
@@ -48,11 +49,9 @@ ponder.on("HubRegistry:NewAsset", async ({ event, context }) => { //Fires Second
     decimals,
   })) as AssetRegistrationService;
 
+  assetRegistration.setAssetCentrifugeId(assetCentrifugeId);
   assetRegistration.setStatus("REGISTERED");
   await assetRegistration.save()
 });
 
-function getCentrifugeId(assetId: bigint): string | null {
-  // Perform the right shift by 112 bits
-  return Number(assetId >> 112n).toString();
-}
+
