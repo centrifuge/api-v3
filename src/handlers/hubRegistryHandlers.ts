@@ -36,15 +36,15 @@ ponder.on("HubRegistry:NewAsset", async ({ event, context }) => { //Fires Second
   logEvent(event, "HubRegistry:NewAsset");
   const chainId = context.chain.id
   if (typeof chainId !== 'number') throw new Error('Chain ID is required')
-  
-  const { assetId: assetRegistrationId, decimals } = event.args;
-  const assetCentrifugeId = getAssetCentrifugeId(assetRegistrationId);
+
+  const { assetId, decimals } = event.args;
+  const assetCentrifugeId = getAssetCentrifugeId(assetId);
 
   const blockchain = await BlockchainService.get(context, { id: chainId.toString() }) as BlockchainService
   const { centrifugeId } = blockchain.read()
 
   const assetRegistration = (await AssetRegistrationService.getOrInit(context, {
-    id: assetRegistrationId,
+    assetId,
     centrifugeId,
     decimals,
   })) as AssetRegistrationService;
