@@ -10,7 +10,7 @@ ponder.on("Holdings:Initialize", async ({ event, context }) => {
   logEvent(event, "Holdings:Create");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
-  const [_poolId, shareClassId, assetRegistrationId, _valuation, isLiability, accounts] =
+  const [_poolId, shareClassId, assetId, _valuation, isLiability, accounts] =
     event.args;
   const chainId = _chainId.toString();
   const poolId = _poolId;
@@ -26,7 +26,7 @@ ponder.on("Holdings:Initialize", async ({ event, context }) => {
     centrifugeId,
     poolId,
     tokenId,
-    assetRegistrationId,
+    assetId,
   })) as HoldingService;
 
   await holding.initialize();
@@ -52,7 +52,7 @@ ponder.on("Holdings:Increase", async ({ event, context }) => {
   logEvent(event, "Holdings:Increase");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
-  const [_poolId, _scId, assetRegistrationId, pricePoolPerAsset, amount, increasedValue] =
+  const [_poolId, _scId, assetId, pricePoolPerAsset, amount, increasedValue] =
     event.args;
 
   const chainId = _chainId.toString();
@@ -68,7 +68,7 @@ ponder.on("Holdings:Increase", async ({ event, context }) => {
     centrifugeId,
     poolId,
     tokenId,
-    assetRegistrationId,
+    assetId,
   })) as HoldingService;
 
   await snapshotter(context, event, "Holdings:Increase", [holding], HoldingSnapshot);
@@ -81,7 +81,7 @@ ponder.on("Holdings:Decrease", async ({ event, context }) => {
   logEvent(event, "Holdings:Decrease");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
-  const [_poolId, _scId, assetRegistrationId, pricePoolPerAsset, amount, decreasedValue] =
+  const [_poolId, _scId, assetId, pricePoolPerAsset, amount, decreasedValue] =
     event.args;
 
   const chainId = _chainId.toString();
@@ -97,7 +97,7 @@ ponder.on("Holdings:Decrease", async ({ event, context }) => {
     centrifugeId,
     poolId,
     tokenId,
-    assetRegistrationId,
+    assetId,
   })) as HoldingService;
 
 
@@ -113,7 +113,7 @@ ponder.on("Holdings:Update", async ({ event, context }) => {
   const {
     poolId: _poolId,
     scId: _scId,
-    assetId: assetRegistrationId,
+    assetId: assetId,
     isPositive,
     diffValue,
   } = event.args;
@@ -131,7 +131,7 @@ ponder.on("Holdings:Update", async ({ event, context }) => {
     centrifugeId,
     poolId,
     tokenId,
-    assetRegistrationId,
+    assetId,
   })) as HoldingService;
 
   await snapshotter(context, event, "Holdings:Update", [holding], HoldingSnapshot);
@@ -147,7 +147,7 @@ ponder.on("Holdings:UpdateValuation", async ({ event, context }) => {
   const {
     poolId: _poolId,
     scId: _scId,
-    assetId: assetRegistrationId,
+    assetId,
     valuation,
   } = event.args;
 
@@ -164,7 +164,7 @@ ponder.on("Holdings:UpdateValuation", async ({ event, context }) => {
     centrifugeId,
     poolId,
     tokenId,
-    assetRegistrationId,
+    assetId,
   })) as HoldingService;
 
   await snapshotter(context, event, "Holdings:UpdateValuation", [holding], HoldingSnapshot);

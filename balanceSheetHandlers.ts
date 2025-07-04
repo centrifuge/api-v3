@@ -79,10 +79,9 @@ ponder.on("BalanceSheet:NoteDeposit", async ({ event, context }) => {
   })) as BlockchainService;
   const { centrifugeId } = blockchain.read();
 
-  const assetQuery = await AssetService.query(context, {address: assetAddress}) as AssetService[];
-  const asset = assetQuery.pop();
-  if (!asset) throw new Error("Asset not found");
+  const asset = await AssetService.get(context, {address: assetAddress}) as AssetService;
   const { id: assetId } = asset.read();
+
 
 
   const escrowQuery = await EscrowService.query(context, { poolId, centrifugeId })
@@ -122,13 +121,13 @@ ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
   })) as BlockchainService;
   const { centrifugeId } = blockchain.read();
 
-  const assetQuery = await AssetService.query(context, {
-    address: assetAddress,
-  }) as AssetService[];
+  const assetRegistrationQuery = await AssetRegistrationService.query(context, {
+    assetAddress,
+  }) as AssetRegistrationService[];
 
-  const asset = assetQuery.pop();
-  if (!asset) throw new Error("Asset not found");
-  const { id: assetId } = asset.read();
+  const assetRegistration = assetRegistrationQuery.pop();
+  if (!assetRegistration) throw new Error("AssetRegistration not found for asset");
+  const { id: assetId } = assetRegistration.read();
 
   const escrowQuery = await EscrowService.query(context, { poolId, centrifugeId })
   if (escrowQuery.length !== 1) throw new Error("Expecting 1 escrow for pool and centrifugeId");

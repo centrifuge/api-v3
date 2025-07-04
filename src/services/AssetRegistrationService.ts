@@ -12,11 +12,6 @@ export class AssetRegistrationService extends mixinCommonStatics(
     return this
   }
 
-  public setAssetAddress(assetAddress: typeof AssetRegistration.$inferSelect['assetAddress']) {
-    this.data.assetAddress = assetAddress;
-    return this
-  }
-
   public setAssetCentrifugeId(assetCentrifugeId: typeof AssetRegistration.$inferSelect['assetCentrifugeId']) {
     this.data.assetCentrifugeId = assetCentrifugeId;
     return this

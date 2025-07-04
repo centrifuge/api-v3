@@ -50,7 +50,7 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const {
-    assetId: assetRegistrationId,
+    assetId,
     asset: assetAddress,
     tokenId: assetTokenId,
     name,
@@ -61,30 +61,27 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
     id: chainId.toString(),
   })) as BlockchainService;
   const { centrifugeId } = blockchain.read();
-  const assetCentrifugeId = getAssetCentrifugeId(assetRegistrationId);
+  const assetCentrifugeId = getAssetCentrifugeId(assetId);
 
   const assetRegistration = (await AssetRegistrationService.getOrInit(context, {
     centrifugeId,
-    id: assetRegistrationId,
-    assetAddress: assetAddress,
+    assetId,
     decimals: decimals,
     name: name,
     symbol: symbol,
   })) as AssetRegistrationService;
 
-  const { status, assetAddress: assetRegistrationAddress, assetCentrifugeId: assetRegistrationAssetCentrifugeId } =
+  const { status, assetCentrifugeId: assetRegistrationAssetCentrifugeId } =
     assetRegistration.read();
 
   const hasNoStatus = !status;
-  const hasNoAssetAddress = !assetRegistrationAddress;
   const hasNoAssetCentrifugeId = !assetRegistrationAssetCentrifugeId;
-
   if (hasNoStatus) assetRegistration.setStatus("IN_PROGRESS");
-  if (hasNoAssetAddress) assetRegistration.setAssetAddress(assetAddress);
   if (hasNoAssetCentrifugeId) assetRegistration.setAssetCentrifugeId(assetCentrifugeId);
-  if (hasNoStatus || hasNoAssetAddress || hasNoAssetCentrifugeId) await assetRegistration.save();
+  if (hasNoStatus || hasNoAssetCentrifugeId) await assetRegistration.save();
 
   const asset = (await AssetService.getOrInit(context, {
+    id: assetId,
     centrifugeId,
     address: assetAddress,
     decimals: decimals,
