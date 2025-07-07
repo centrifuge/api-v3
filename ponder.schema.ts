@@ -10,14 +10,16 @@ type PgColumnsFunction = Extract<Parameters<typeof onchainTable>[1], Function>;
 type PgColumnsBuilders = Parameters<PgColumnsFunction>[0];
 
 const BlockchainColumns = (t: PgColumnsBuilders) => ({
-  id: t.text().primaryKey(),
+  id: t.text().notNull(),
   centrifugeId: t.text().notNull(),
   lastPeriodStart: t.timestamp(),
 });
+
 export const Blockchain = onchainTable(
   "blockchain",
   BlockchainColumns,
   (t) => ({
+    id: primaryKey({ columns: [t.id] }),
     centrifugeIdIdx: index().on(t.centrifugeId),
   })
 );
@@ -27,6 +29,52 @@ export const BlockchainRelations = relations(Blockchain, ({ many }) => ({
   vaults: many(Vault, { relationName: "vaults" }),
   assets: many(Asset, { relationName: "assets" }),
   tokenInstances: many(TokenInstance, { relationName: "tokenInstances" }),
+}));
+
+const DeploymentColumns = (t: PgColumnsBuilders) => ({
+  chainId: t.text().notNull(),
+  centrifugeId: t.text().notNull(),
+  root: t.hex(),
+  guardian: t.hex(),
+  gasService: t.hex(),
+  gateway: t.hex(),
+  multiAdapter: t.hex(),
+  messageProcessor: t.hex(),
+  messageDispatcher: t.hex(),
+  hubRegistry: t.hex(),
+  accounting: t.hex(),
+  holdings: t.hex(),
+  shareClassManager: t.hex(),
+  hub: t.hex(),
+  identityValuation: t.hex(),
+  poolEscrowFactory: t.hex(),
+  routerEscrow: t.hex(),
+  globalEscrow: t.hex(),
+  freezeOnlyHook: t.hex(),
+  redemptionRestrictionsHook: t.hex(),
+  fullRestrictionsHook: t.hex(),
+  tokenFactory: t.hex(),
+  asyncRequestManager: t.hex(),
+  syncManager: t.hex(),
+  asyncVaultFactory: t.hex(),
+  syncDepositVaultFactory: t.hex(),
+  spoke: t.hex(),
+  vaultRouter: t.hex(),
+  balanceSheet: t.hex(),
+  wormholeAdapter: t.hex(),
+  axelarAdapter: t.hex(),
+});
+
+export const Deployment = onchainTable("deployment", DeploymentColumns, (t) => ({
+  id: primaryKey({ columns: [t.chainId] }),
+  centrifugeIdIdx: index().on(t.centrifugeId),
+}));
+
+export const DeploymentRelations = relations(Deployment, ({ one }) => ({
+  blockchain: one(Blockchain, {
+    fields: [Deployment.chainId],
+    references: [Blockchain.id],
+  }),
 }));
 
 const PoolColumns = (t: PgColumnsBuilders) => ({
