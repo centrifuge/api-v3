@@ -12,3 +12,4 @@ export * from "./HoldingService";
 export * from "./HoldingEscrowService";
 export * from "./EscrowService";
 export * from "./HoldingAccountService";
+export * from "./DeploymentService";
