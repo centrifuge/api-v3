@@ -65,10 +65,14 @@ const DeploymentColumns = (t: PgColumnsBuilders) => ({
   axelarAdapter: t.hex(),
 });
 
-export const Deployment = onchainTable("deployment", DeploymentColumns, (t) => ({
-  id: primaryKey({ columns: [t.chainId] }),
-  centrifugeIdIdx: index().on(t.centrifugeId),
-}));
+export const Deployment = onchainTable(
+  "deployment",
+  DeploymentColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.chainId] }),
+    centrifugeIdIdx: index().on(t.centrifugeId),
+  })
+);
 
 export const DeploymentRelations = relations(Deployment, ({ one }) => ({
   blockchain: one(Blockchain, {
@@ -128,8 +132,12 @@ export const TokenRelations = relations(Token, ({ one, many }) => ({
   pool: one(Pool, { fields: [Token.poolId], references: [Pool.id] }),
   vaults: many(Vault, { relationName: "vaults" }),
   tokenInstances: many(TokenInstance, { relationName: "tokenInstances" }),
-  investorTransactions: many(InvestorTransaction, { relationName: "investorTransactions" }),
-  outstandingOrders: many(OutstandingOrder, { relationName: "outstandingOrders" }),
+  investorTransactions: many(InvestorTransaction, {
+    relationName: "investorTransactions",
+  }),
+  outstandingOrders: many(OutstandingOrder, {
+    relationName: "outstandingOrders",
+  }),
 }));
 
 const EpochColumns = (t: PgColumnsBuilders) => ({
@@ -146,7 +154,9 @@ export const Epoch = onchainTable("epoch", EpochColumns, (t) => ({
 
 export const EpochRelations = relations(Epoch, ({ one, many }) => ({
   pool: one(Pool, { fields: [Epoch.poolId], references: [Pool.id] }),
-  investorTransactions: many(InvestorTransaction, { relationName: "investorTransactions" }),
+  investorTransactions: many(InvestorTransaction, {
+    relationName: "investorTransactions",
+  }),
 }));
 
 export const VaultKinds = ["Async", "Sync", "SyncDepositAsyncRedeem"] as const;
@@ -205,7 +215,9 @@ export const InvestorTransactionType = onchainEnum(
     "REDEEM_REQUEST_EXECUTED",
     "DEPOSIT_CLAIMED",
     "REDEEM_CLAIMED",
-  ]
+    "SYNC_DEPOSIT",
+    "SYNC_REDEEM",
+  ] as const
 );
 
 const InvestorTransactionColumns = (t: PgColumnsBuilders) => ({
@@ -284,10 +296,10 @@ export const OutstandingOrderRelations = relations(
   })
 );
 
-export const AssetRegistrationStatus = onchainEnum("asset_registration_status", [
-  "IN_PROGRESS",
-  "REGISTERED",
-]);
+export const AssetRegistrationStatus = onchainEnum(
+  "asset_registration_status",
+  ["IN_PROGRESS", "REGISTERED"]
+);
 
 const AssetRegistrationColumns = (t: PgColumnsBuilders) => ({
   assetId: t.bigint().notNull(),
@@ -300,19 +312,26 @@ const AssetRegistrationColumns = (t: PgColumnsBuilders) => ({
   createdAt: t.timestamp(),
   createdAtBlock: t.integer(),
 });
-export const AssetRegistration = onchainTable("asset_registration", AssetRegistrationColumns, (t) => ({
-  id: primaryKey({ columns: [t.assetId, t.centrifugeId] }),
-}));
-export const AssetRegistrationRelations = relations(AssetRegistration, ({ one, many }) => ({
-  blockchain: one(Blockchain, {
-    fields: [AssetRegistration.centrifugeId],
-    references: [Blockchain.centrifugeId],
-  }),
-  asset: one(Asset, {
-    fields: [AssetRegistration.assetId],
-    references: [Asset.id],
-  }),
-}));
+export const AssetRegistration = onchainTable(
+  "asset_registration",
+  AssetRegistrationColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.assetId, t.centrifugeId] }),
+  })
+);
+export const AssetRegistrationRelations = relations(
+  AssetRegistration,
+  ({ one, many }) => ({
+    blockchain: one(Blockchain, {
+      fields: [AssetRegistration.centrifugeId],
+      references: [Blockchain.centrifugeId],
+    }),
+    asset: one(Asset, {
+      fields: [AssetRegistration.assetId],
+      references: [Asset.id],
+    }),
+  })
+);
 
 const AssetColumns = (t: PgColumnsBuilders) => ({
   id: t.bigint().notNull(),
@@ -324,20 +343,18 @@ const AssetColumns = (t: PgColumnsBuilders) => ({
   symbol: t.text(),
 });
 
-export const Asset = onchainTable(
-  "asset",
-  AssetColumns,
-  (t) => ({
-    id: primaryKey({ columns: [t.id] }),
-    addressIdx: index().on(t.address),
-  })
-);
+export const Asset = onchainTable("asset", AssetColumns, (t) => ({
+  id: primaryKey({ columns: [t.id] }),
+  addressIdx: index().on(t.address),
+}));
 export const AssetRelations = relations(Asset, ({ one, many }) => ({
   blockchain: one(Blockchain, {
     fields: [Asset.centrifugeId],
     references: [Blockchain.centrifugeId],
   }),
-  assetRegistrations: many(AssetRegistration, { relationName: "assetRegistrations" }),
+  assetRegistrations: many(AssetRegistration, {
+    relationName: "assetRegistrations",
+  }),
 }));
 
 export const TokenInstanceColumns = (t: PgColumnsBuilders) => ({
@@ -347,12 +364,16 @@ export const TokenInstanceColumns = (t: PgColumnsBuilders) => ({
   vaultId: t.text(),
   tokenPrice: t.bigint().default(0n),
   computedAt: t.timestamp(),
-  totalIssuance: t.bigint().default(0n)
+  totalIssuance: t.bigint().default(0n),
 });
-export const TokenInstance = onchainTable("token_instance", TokenInstanceColumns, (t) => ({
-  id: primaryKey({ columns: [t.centrifugeId, t.tokenId] }),
-  addressIdx: index().on(t.address),
-}));
+export const TokenInstance = onchainTable(
+  "token_instance",
+  TokenInstanceColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.centrifugeId, t.tokenId] }),
+    addressIdx: index().on(t.address),
+  })
+);
 export const TokenInstanceRelations = relations(TokenInstance, ({ one }) => ({
   blockchain: one(Blockchain, {
     fields: [TokenInstance.centrifugeId],
@@ -372,9 +393,9 @@ const HoldingColumns = (t: PgColumnsBuilders) => ({
   isLiability: t.boolean(),
   valuation: t.text(),
   assetId: t.bigint().notNull(),
-  
+
   // Spoke side amounts and values
-  assetQuantity: t.bigint().notNull() .default(0n),
+  assetQuantity: t.bigint().notNull().default(0n),
   totalValue: t.bigint().notNull().default(0n),
 
   updatedAt: t.timestamp(),
@@ -400,16 +421,29 @@ export const HoldingsRelations = relations(Holding, ({ one }) => ({
   }),
 }));
 
-export const HoldingAccountTypes = ["Asset", "Equity", "Loss", "Gain", "Expense", "Liability"] as const;
-export const HoldingAccountType = onchainEnum("holding_account_type", HoldingAccountTypes);
+export const HoldingAccountTypes = [
+  "Asset",
+  "Equity",
+  "Loss",
+  "Gain",
+  "Expense",
+  "Liability",
+] as const;
+export const HoldingAccountType = onchainEnum(
+  "holding_account_type",
+  HoldingAccountTypes
+);
 export const HoldingAccountColumns = (t: PgColumnsBuilders) => ({
   id: t.text().primaryKey(),
   tokenId: t.text().notNull(),
   kind: HoldingAccountType("holding_account_type").notNull(),
 });
 
-export const HoldingAccount = onchainTable("holding_account", HoldingAccountColumns, (t) => ({
-}));
+export const HoldingAccount = onchainTable(
+  "holding_account",
+  HoldingAccountColumns,
+  (t) => ({})
+);
 
 export const HoldingAccountRelations = relations(HoldingAccount, ({ one }) => ({
   holding: one(Holding, {
@@ -434,7 +468,6 @@ export const EscrowRelations = relations(Escrow, ({ one, many }) => ({
   holdingEscrows: many(HoldingEscrow, { relationName: "holdingEscrows" }),
 }));
 
-
 export const HoldingEscrowColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   poolId: t.bigint().notNull(),
@@ -445,26 +478,33 @@ export const HoldingEscrowColumns = (t: PgColumnsBuilders) => ({
   assetPrice: t.bigint().default(0n),
   escrowAddress: t.hex().notNull(),
 });
-export const HoldingEscrow = onchainTable("holding_escrow", HoldingEscrowColumns, (t) => ({
-  id: primaryKey({ columns: [t.tokenId, t.assetId] }),
-  poolIdx: index().on(t.poolId),
-  tokenIdx: index().on(t.tokenId),
-  assetIdx: index().on(t.assetId),
-}));
-export const HoldingEscrowRelations = relations(HoldingEscrow, ({ one, many }) => ({
-  holding: one(Holding, {
-    fields: [HoldingEscrow.tokenId, HoldingEscrow.assetId],
-    references: [Holding.tokenId, Holding.assetId],
-  }),
-  asset: one(Asset, {
-    fields: [HoldingEscrow.assetAddress],
-    references: [Asset.address],
-  }),
-  escrow: one(Escrow, {
-    fields: [HoldingEscrow.escrowAddress],
-    references: [Escrow.address],
-  }),
-}));
+export const HoldingEscrow = onchainTable(
+  "holding_escrow",
+  HoldingEscrowColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.tokenId, t.assetId] }),
+    poolIdx: index().on(t.poolId),
+    tokenIdx: index().on(t.tokenId),
+    assetIdx: index().on(t.assetId),
+  })
+);
+export const HoldingEscrowRelations = relations(
+  HoldingEscrow,
+  ({ one, many }) => ({
+    holding: one(Holding, {
+      fields: [HoldingEscrow.tokenId, HoldingEscrow.assetId],
+      references: [Holding.tokenId, Holding.assetId],
+    }),
+    asset: one(Asset, {
+      fields: [HoldingEscrow.assetAddress],
+      references: [Asset.address],
+    }),
+    escrow: one(Escrow, {
+      fields: [HoldingEscrow.escrowAddress],
+      references: [Escrow.address],
+    }),
+  })
+);
 
 // Snapshots
 export const PoolSnapshot = onchainTable(
@@ -491,12 +531,16 @@ export const TokenSnapshot = onchainTable(
 
 export const HoldingSnapshot = onchainTable(
   "holding_snapshot",
-  snapshotColumns(HoldingColumns, ["tokenId", "assetId", "assetQuantity", "totalValue"] as const),
+  snapshotColumns(HoldingColumns, [
+    "tokenId",
+    "assetId",
+    "assetQuantity",
+    "totalValue",
+  ] as const),
   (t) => ({
     id: primaryKey({ columns: [t.tokenId, t.assetId, t.blockNumber] }),
   })
 );
-
 
 function snapshotColumns<
   F extends PgColumnsFunction,
