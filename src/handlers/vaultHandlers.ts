@@ -66,7 +66,7 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
     poolId,
     tokenId,
     account: senderAddress,
-    currencyAmount: assets,
+    tokenAmount: assets,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     txHash: event.transaction.hash,
     epochIndex: currentEpochIndex!,
