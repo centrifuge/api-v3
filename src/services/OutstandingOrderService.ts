@@ -1,10 +1,25 @@
 import { Context } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
-import {  OutstandingOrder } from "ponder:schema";
-import { eq, and, Table } from "drizzle-orm";
+import { OutstandingOrder } from "ponder:schema";
+import { eq, and } from "drizzle-orm";
 import { BN } from "bn.js";
 
+/**
+ * Service class for managing outstanding orders in the system.
+ * 
+ * This service handles deposit and redeem operations for outstanding orders,
+ * including computation of approved amounts and execution of requests.
+ * Extends the base Service class with common static methods.
+ */
 export class OutstandingOrderService extends mixinCommonStatics(Service<typeof OutstandingOrder>, OutstandingOrder, "OutstandingOrder") {
+  
+  /**
+   * Updates the timestamp and block information for the outstanding order.
+   * 
+   * @param updatedAt - The new timestamp when the order was last updated
+   * @param updatedAtBlock - The block number when the order was last updated
+   * @returns The service instance for method chaining
+   */
   public decorateOutstandingOrder(
     updatedAt: Date,
     updatedAtBlock: number,
@@ -14,6 +29,12 @@ export class OutstandingOrderService extends mixinCommonStatics(Service<typeof O
     return this;
   }
 
+  /**
+   * Updates the requested deposit amount for the outstanding order.
+   * 
+   * @param amount - The new requested deposit amount as a bigint
+   * @returns The service instance for method chaining
+   */
   public updateRequestedDepositAmount(amount: bigint) {
     console.info(
       `Updating deposit amount for OutstandingOrder ${this.data.poolId}-${this.data.tokenId}-${this.data.account} to ${amount}`
@@ -22,6 +43,12 @@ export class OutstandingOrderService extends mixinCommonStatics(Service<typeof O
     return this;
   }
 
+  /**
+   * Updates the requested redeem amount for the outstanding order.
+   * 
+   * @param amount - The new requested redeem amount as a bigint
+   * @returns The service instance for method chaining
+   */
   public updateRequestedRedeemAmount(amount: bigint) {
     console.info(
       `Updating redeem amount for OutstandingOrder ${this.data.poolId}-${this.data.tokenId}-${this.data.account} to ${amount}`
@@ -30,6 +57,17 @@ export class OutstandingOrderService extends mixinCommonStatics(Service<typeof O
     return this;
   }
 
+  /**
+   * Computes the approved deposit amount based on available assets and pending amounts.
+   * 
+   * Uses the formula: requestedDepositAmount * (approvedAssetAmount / (approvedAssetAmount + pendingAssetAmount))
+   * This ensures proportional distribution of available assets among pending requests.
+   * 
+   * @param approvedAssetAmount - The total amount of approved assets available
+   * @param pendingAssetAmount - The total amount of pending assets
+   * @returns The service instance for method chaining
+   * @throws {Error} When requestedDepositAmount is not set
+   */
   public computeApprovedDepositAmount(
     approvedAssetAmount: bigint,
     pendingAssetAmount: bigint
@@ -54,6 +92,17 @@ export class OutstandingOrderService extends mixinCommonStatics(Service<typeof O
     return this;
   }
 
+  /**
+   * Computes the approved redeem amount based on available share class amounts and pending amounts.
+   * 
+   * Uses the formula: requestedRedeemAmount * (approvedShareClassAmount / (approvedShareClassAmount + pendingShareClassAmount))
+   * This ensures proportional distribution of available share classes among pending requests.
+   * 
+   * @param approvedShareClassAmount - The total amount of approved share classes available
+   * @param pendingShareClassAmount - The total amount of pending share classes
+   * @returns The service instance for method chaining
+   * @throws {Error} When requestedRedeemAmount is not set
+   */
   public computeApprovedRedeemAmount(
     approvedShareClassAmount: bigint,
     pendingShareClassAmount: bigint
@@ -79,6 +128,15 @@ export class OutstandingOrderService extends mixinCommonStatics(Service<typeof O
     return this;
   }
 
+  /**
+   * Executes the approved deposit and redeem requests by subtracting the approved amounts
+   * from the requested amounts and resetting the approved amounts to zero.
+   * 
+   * This method processes both deposit and redeem operations in sequence.
+   * 
+   * @returns The service instance for method chaining
+   * @throws {Error} When requestedDepositAmount, approvedDepositAmount, requestedRedeemAmount, or approvedRedeemAmount is not set
+   */
   public executeRequests() {
     if (this.data.requestedDepositAmount === null)
       throw new Error(
@@ -104,6 +162,13 @@ export class OutstandingOrderService extends mixinCommonStatics(Service<typeof O
     return this;
   }
 
+  /**
+   * Removes the outstanding order from the database.
+   * 
+   * Deletes the record based on the combination of poolId, tokenId, and account.
+   * 
+   * @returns Promise that resolves when the deletion is complete
+   */
   public async clear() {
     console.info(
       `Clearing OutstandingOrder ${this.data.poolId}-${this.data.tokenId}-${this.data.account}`
