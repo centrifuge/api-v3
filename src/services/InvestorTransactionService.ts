@@ -149,6 +149,42 @@ export class InvestorTransactionService extends mixinCommonStatics(
   }
 
   /**
+   * Creates an investor transaction record for a claimable deposit.
+   * 
+   * @param context - The Ponder context for database operations
+   * @param query - The transaction data excluding the type field
+   * @returns Promise resolving to the created investor transaction
+   */
+  static async depositClaimable(
+    context: Context,
+    query: Omit<typeof InvestorTransaction.$inferInsert, "type">
+  ) {
+    console.info(
+      "Creating investor transaction of type DEPOSIT_CLAIMABLE with data:",
+      query
+    );
+    return this.init(context, { ...query, type: "DEPOSIT_CLAIMABLE" });
+  }
+
+  /**
+   * Creates an investor transaction record for a claimable redeem.
+   * 
+   * @param context - The Ponder context for database operations
+   * @param query - The transaction data excluding the type field
+   * @returns Promise resolving to the created investor transaction
+   */
+  static async redeemClaimable(
+    context: Context,
+    query: Omit<typeof InvestorTransaction.$inferInsert, "type">
+  ) {
+    console.info(
+      "Creating investor transaction of type REDEEM_CLAIMABLE with data:",
+      query
+    );
+    return this.init(context, { ...query, type: "REDEEM_CLAIMABLE" });
+  }
+
+  /**
    * Creates an investor transaction record for a deposit synchronization event.
    * 
    * @param context - The Ponder context for database operations

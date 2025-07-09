@@ -32,11 +32,11 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   const it = await InvestorTransactionService.updateDepositRequest(context, {
     poolId,
     tokenId,
-    account: senderAddress,
+    account: senderAddress.substring(0, 42),
     currencyAmount: assets,
-    createdAt: new Date(),
     txHash: event.transaction.hash,
     epochIndex: currentEpochIndex!,
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
   });
 });
@@ -65,12 +65,64 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
   const it = await InvestorTransactionService.updateRedeemRequest(context, {
     poolId,
     tokenId,
-    account: senderAddress,
+    account: senderAddress.substring(0, 42),
     tokenAmount: assets,
-    createdAt: new Date(Number(event.block.timestamp) * 1000),
     txHash: event.transaction.hash,
-    epochIndex: currentEpochIndex!,
+    epochIndex: currentEpochIndex,
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
+  });
+});
+
+ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
+  logEvent(event, "Vault:DepositClaimable");
+  const { controller: accountAddress, assets, shares } = event.args;
+  const vaultId = event.log.address;
+  if (!vaultId) throw new Error(`Vault id not found in event`);
+  const vault = await VaultService.get(context, { id: vaultId });
+  const { poolId, tokenId, kind } = vault.read();
+
+  if (kind !== "Async") return;
+
+  const token = await TokenService.get(context, { poolId, id: tokenId });
+  if (!token) throw new Error(`Token not found for vault ${vaultId}`);
+
+  const it = await InvestorTransactionService.depositClaimable(context, {
+    poolId,
+    tokenId,
+    account: accountAddress.substring(0, 42),
+    tokenAmount: shares,
+    currencyAmount: assets,
+    tokenPrice: getTokenPrice(shares, assets),
+    txHash: event.transaction.hash,
+    createdAtBlock: Number(event.block.number),
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+  });
+});
+
+ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
+  logEvent(event, "Vault:RedeemClaimable");
+  const { controller: accountAddress, assets, shares } = event.args;
+  const vaultId = event.log.address;
+  if (!vaultId) throw new Error(`Vault id not found in event`);
+  const vault = await VaultService.get(context, { id: vaultId });
+  const { poolId, tokenId, kind } = vault.read();
+
+  if (kind === "Sync") return;
+
+  const token = await TokenService.get(context, { poolId, id: tokenId });
+  if (!token) throw new Error(`Token not found for vault ${vaultId}`);
+
+  const it = await InvestorTransactionService.redeemClaimable(context, {
+    poolId,
+    tokenId,
+    account: accountAddress.substring(0, 42),
+    tokenAmount: shares,
+    currencyAmount: assets,
+    tokenPrice: getTokenPrice(shares, assets),
+    txHash: event.transaction.hash,
+    createdAtBlock: Number(event.block.number),
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
   });
 });
 
@@ -82,55 +134,62 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
   const vault = await VaultService.get(context, { id: vaultId });
   const { poolId, tokenId, kind } = vault.read();
 
-  if (kind === "Async") return;
-
   const token = await TokenService.get(context, { poolId, id: tokenId });
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
 
-  const it = await InvestorTransactionService.syncDeposit(context, {
+  const itData = {
     poolId,
     tokenId,
-    account: senderAddress,
+    account: senderAddress.substring(0, 42),
     tokenAmount: shares,
     currencyAmount: assets,
     tokenPrice: getTokenPrice(shares, assets),
     txHash: event.transaction.hash,
     createdAtBlock: Number(event.block.number),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
-  });
+  };
+
+  switch (kind) {
+    case "Async":
+      await InvestorTransactionService.claimDeposit(context, itData);
+      break;
+    default:
+      await InvestorTransactionService.syncDeposit(context, itData);
+      break;
+  }
 });
 
 ponder.on("Vault:Withdraw", async ({ event, context }) => {
   logEvent(event, "Vault:Withdraw");
-  const {
-    sender: senderAddress,
-    receiver: receiverAddress,
-    owner,
-    assets,
-    shares,
-  } = event.args;
+  const { sender: senderAddress, receiver: receiverAddress, assets, shares } = event.args;
   const vaultId = event.log.address;
   if (!vaultId) throw new Error(`Vault id not found in event`);
   const vault = await VaultService.get(context, { id: vaultId });
-  const { kind } = vault.read();
+  const { poolId, tokenId, kind } = vault.read();
 
-  if (kind !== "Sync") return;
-
-  const { poolId, tokenId } = vault.read();
   const token = await TokenService.get(context, { poolId, id: tokenId });
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
 
-  const it = await InvestorTransactionService.syncRedeem(context, {
+  const itData = {
     poolId,
     tokenId,
-    account: receiverAddress,
+    account: receiverAddress.substring(0, 42),
     tokenAmount: shares,
     currencyAmount: assets,
     tokenPrice: getTokenPrice(shares, assets),
     txHash: event.transaction.hash,
     createdAtBlock: Number(event.block.number),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
-  });
+  };
+
+  switch (kind) {
+    case "Sync":
+      await InvestorTransactionService.syncRedeem(context, itData);
+      break;
+    default:
+      await InvestorTransactionService.claimRedeem(context, itData);
+      break;
+  }
 });
 
 function getTokenPrice(tokenAmount: bigint, currencyAmount: bigint) {
