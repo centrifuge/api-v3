@@ -200,7 +200,7 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
     // nav,
     // navPerShare,
     // newTotalIssuance,
-    // issuedShareAmount,
+    issuedShareAmount,
   } = event.args;
   const nextEpochIndex = epochIndex + 1;
 
@@ -247,14 +247,14 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
     if (approvedDepositAmount && approvedDepositAmount > 0n) {
       await InvestorTransactionService.executeDepositRequest(context, {
         ...baseTransactionData,
-        account,
+        account: account.substring(0, 42),
         currencyAmount: approvedDepositAmount,
       });
     }
     if (approvedRedeemAmount && approvedRedeemAmount > 0n) {
       await InvestorTransactionService.executeRedeemRequest(context, {
         ...baseTransactionData,
-        account,
+        account: account.substring(0, 42),
         tokenAmount: approvedRedeemAmount,
       });
     }
@@ -321,33 +321,3 @@ ponder.on("ShareClassManager:RemoteRevokeShares", async ({ event, context }) => 
   await token.decreaseTotalSupply(revokedShareAmount);
   await token.save();
 });
-
-ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
-  logEvent(event, "ShareClassManager:ClaimDeposit");
-  const {
-    poolId,
-    scId: tokenId,
-    epoch: epochIndex,
-    investor: investorAddress,
-    depositAssetId,
-    paymentAssetAmount,
-    pendingAssetAmount,
-    claimedShareAmount,
-    issuedAt,
-  } = event.args;
-});
-
-ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
-  logEvent(event, "ShareClassManager:ClaimRedeem");
-  const {
-    poolId,
-    scId: tokenId,
-    epoch: epochIndex,
-    investor: investorAddress,
-    payoutAssetId,
-    paymentShareAmount,
-    pendingShareAmount,
-    claimedAssetAmount,
-    revokedAt,
-  } = event.args;
-})
