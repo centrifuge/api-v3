@@ -513,7 +513,7 @@ export const PoolSnapshot = onchainTable(
   "pool_snapshot",
   snapshotColumns(PoolColumns, ["id", "currency"] as const),
   (t) => ({
-    id: primaryKey({ columns: [t.id, t.blockNumber] }),
+    id: primaryKey({ columns: [t.id, t.blockNumber, t.trigger] }),
   })
 );
 export const PoolSnapshotRelations = relations(PoolSnapshot, ({ one }) => ({
@@ -527,7 +527,7 @@ export const TokenSnapshot = onchainTable(
   "token_snapshot",
   snapshotColumns(TokenColumns, ["id", "tokenPrice", "totalIssuance"] as const),
   (t) => ({
-    id: primaryKey({ columns: [t.id, t.blockNumber] }),
+    id: primaryKey({ columns: [t.id, t.blockNumber, t.trigger] }),
   })
 );
 
@@ -540,7 +540,9 @@ export const HoldingSnapshot = onchainTable(
     "totalValue",
   ] as const),
   (t) => ({
-    id: primaryKey({ columns: [t.tokenId, t.assetId, t.blockNumber] }),
+    id: primaryKey({
+      columns: [t.tokenId, t.assetId, t.blockNumber, t.trigger],
+    }),
   })
 );
 
