@@ -33,7 +33,7 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
   })) as BlockchainService;
   const { centrifugeId } = blockchain.read();
 
-  const vault = (await VaultService.init(context, {
+  const vault = (await VaultService.getOrInit(context, {
     id: vaultId,
     centrifugeId,
     poolId,
