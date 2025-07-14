@@ -169,7 +169,7 @@ export const VaultStatuses = [
 ] as const;
 export const VaultStatus = onchainEnum("vault_status", VaultStatuses);
 const VaultColumns = (t: PgColumnsBuilders) => ({
-  id: t.text().primaryKey(),
+  id: t.text().notNull(),
   centrifugeId: t.text().notNull(),
   isActive: t.boolean().default(false).notNull(),
   kind: VaultKind("vault_kind"),
@@ -181,6 +181,7 @@ const VaultColumns = (t: PgColumnsBuilders) => ({
   manager: t.text(),
 });
 export const Vault = onchainTable("vault", VaultColumns, (t) => ({
+  id: primaryKey({ columns: [t.id] }),
   centrifugeIdIdx: index().on(t.centrifugeId),
   statusIdx: index().on(t.status),
   tokenIdIdx: index().on(t.tokenId),
