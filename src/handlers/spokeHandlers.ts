@@ -33,7 +33,7 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
   })) as BlockchainService;
   const { centrifugeId } = blockchain.read();
 
-  const vault = (await VaultService.getOrInit(context, {
+  const vault = (await VaultService.init(context, {
     id: vaultId,
     centrifugeId,
     poolId,
@@ -112,24 +112,26 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
 
 ponder.on("Spoke:LinkVault", async ({ event, context }) => {
   logEvent(event, "Spoke:LinkVault");
-  const _chainId = context.chain.id as number;
+  const chainId = context.chain.id;
+  if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const {
     poolId: poolId,
     scId: tokenId,
     asset: assetAddress,
     tokenId: assetTokenId,
-    vault: _vaultId,
+    vault: vaultId,
   } = event.args;
-  const chainId = _chainId.toString();
-  const vaultId = _vaultId.toString();
-  const vault = (await VaultService.get(context, {
-    id: vaultId,
-  })) as VaultService;
 
   const blockchain = (await BlockchainService.get(context, {
-    id: chainId,
+    id: chainId.toString(),
   })) as BlockchainService;
   const { centrifugeId } = blockchain.read();
+
+  const vault = (await VaultService.get(context, {
+    id: vaultId,
+    centrifugeId,
+  })) as VaultService;
+
 
   vault.setStatus("Linked");
   await vault.save();
@@ -154,8 +156,15 @@ ponder.on("Spoke:UnlinkVault", async ({ event, context }) => {
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const { vault: vaultId } = event.args;
 
+  const chainId = _chainId.toString();
+  const blockchain = (await BlockchainService.get(context, {
+    id: chainId,
+  })) as BlockchainService;
+  const { centrifugeId } = blockchain.read();
+
   const vault = (await VaultService.get(context, {
     id: vaultId,
+    centrifugeId,
   })) as VaultService;
 
   vault.setStatus("Unlinked");
