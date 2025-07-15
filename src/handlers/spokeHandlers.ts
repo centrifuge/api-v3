@@ -12,7 +12,7 @@ import {
 } from "../services";
 
 ponder.on("Spoke:DeployVault", async ({ event, context }) => {
-  logEvent(event, "Spoke:DeployVault");
+  logEvent(event, context, "Spoke:DeployVault");
   const chainId = context.chain.id as number;
   const {
     poolId,
@@ -24,7 +24,6 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
     kind,
   } = event.args;
 
-  //const tokenId = _tokenId.toString(); TODO: update to track ERC tokens
   const vaultKind = VaultKinds[kind];
   if (!vaultKind) throw new Error("Invalid vault kind");
 
@@ -55,7 +54,7 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
 
 ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
   //Fires first to request registration to HUB
-  logEvent(event, "Spoke:RegisterAsset");
+  logEvent(event, context, "Spoke:RegisterAsset");
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const {
@@ -101,7 +100,7 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
 });
 
 ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
-  logEvent(event, "Spoke:AddShareClass");
+  logEvent(event, context, "Spoke:AddShareClass");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const { poolId, scId: tokenId, token: tokenAddress } = event.args;
@@ -120,7 +119,7 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
 });
 
 ponder.on("Spoke:LinkVault", async ({ event, context }) => {
-  logEvent(event, "Spoke:LinkVault");
+  logEvent(event, context, "Spoke:LinkVault");
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const {
@@ -160,7 +159,7 @@ ponder.on("Spoke:LinkVault", async ({ event, context }) => {
 });
 
 ponder.on("Spoke:UnlinkVault", async ({ event, context }) => {
-  logEvent(event, "Spoke:UnlinkVault");
+  logEvent(event, context, "Spoke:UnlinkVault");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const { vault: vaultId } = event.args;
@@ -181,7 +180,7 @@ ponder.on("Spoke:UnlinkVault", async ({ event, context }) => {
 });
 
 ponder.on("Spoke:UpdateSharePrice", async ({ event, context }) => {
-  logEvent(event, "Spoke:PriceUpdate");
+  logEvent(event, context, "Spoke:PriceUpdate");
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const {
@@ -214,7 +213,7 @@ ponder.on("Spoke:UpdateSharePrice", async ({ event, context }) => {
 });
 
 ponder.on("Spoke:UpdateAssetPrice", async ({ event, context }) => {
-  logEvent(event, "Spoke:UpdateAssetPrice");
+  logEvent(event, context, "Spoke:UpdateAssetPrice");
   const _chainId = context.chain.id
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const {

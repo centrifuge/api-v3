@@ -15,7 +15,7 @@ import { TokenSnapshot } from "ponder:schema";
 ponder.on(
   "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index)",
   async ({ event, context }) => {
-    logEvent(event, "ShareClassManager:AddShareClassShort");
+    logEvent(event, context, "ShareClassManager:AddShareClassShort");
     const chainId = context.chain.id;
     if (typeof chainId !== "number") throw new Error("Chain ID is required");
     const { poolId, scId: tokenId, index } = event.args;
@@ -39,7 +39,7 @@ ponder.on(
 ponder.on(
   "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index, string name, string symbol, bytes32 salt)",
   async ({ event, context }) => {
-    logEvent(event, "ShareClassManager:AddShareClassLong");
+    logEvent(event, context, "ShareClassManager:AddShareClassLong");
     const chainId = context.chain.id;
     if (typeof chainId !== "number") throw new Error("Chain ID is required");
     const {
@@ -70,7 +70,7 @@ ponder.on(
 
 // INVESTOR TRANSACTIONS
 ponder.on("ShareClassManager:UpdateMetadata", async ({ event, context }) => {
-  logEvent(event, "ShareClassManager:UpdatedMetadata");
+  logEvent(event, context, "ShareClassManager:UpdatedMetadata");
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const { poolId, scId: tokenId, name, symbol } = event.args;
@@ -92,7 +92,7 @@ ponder.on("ShareClassManager:UpdateMetadata", async ({ event, context }) => {
 ponder.on(
   "ShareClassManager:UpdateDepositRequest",
   async ({ event, context }) => {
-    logEvent(event, "ShareClassManager:UpdateDepositRequest");
+    logEvent(event, context, "ShareClassManager:UpdateDepositRequest");
     const updatedAt = new Date(Number(event.block.timestamp) * 1000);
     const updatedAtBlock = Number(event.block.number);
     const {
@@ -119,7 +119,7 @@ ponder.on(
 ponder.on(
   "ShareClassManager:UpdateRedeemRequest",
   async ({ event, context }) => {
-    logEvent(event, "ShareClassManager:UpdateRedeemRequest");
+    logEvent(event, context, "ShareClassManager:UpdateRedeemRequest");
     const updatedAt = new Date(Number(event.block.timestamp) * 1000);
     const updatedAtBlock = Number(event.block.number);
     const {
@@ -143,7 +143,7 @@ ponder.on(
 );
 
 ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
-  logEvent(event, "ShareClassManager:ApproveDeposits");
+  logEvent(event, context, "ShareClassManager:ApproveDeposits");
   const {
     poolId,
     scId: tokenId,
@@ -168,7 +168,7 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
 });
 
 ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
-  logEvent(event, "ShareClassManager:ApproveRedeems");
+  logEvent(event, context, "ShareClassManager:ApproveRedeems");
   const {
     poolId,
     scId: tokenId,
@@ -192,7 +192,7 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
 });
 
 ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
-  logEvent(event, "ShareClassManager:IssueShares");
+  logEvent(event, context, "ShareClassManager:IssueShares");
   const {
     poolId,
     scId: tokenId,
@@ -269,7 +269,7 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
 });
 
 ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
-  logEvent(event, "ShareClassManager:UpdateShareClass");
+  logEvent(event, context, "ShareClassManager:UpdateShareClass");
   const {
     poolId: _poolId,
     scId: _tokenId,
@@ -281,13 +281,13 @@ ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
     id: tokenId,
   }) as TokenService;
   if (!token) throw new Error(`Token not found for id ${tokenId}`);
-  await snapshotter(context, event, "ShareClassManager:UpdateShareClass", [token], TokenSnapshot)
   await token.setTokenPrice(tokenPrice);
   await token.save();
+  await snapshotter(context, event, "ShareClassManager:UpdateShareClass", [token], TokenSnapshot)
 });
 
 ponder.on("ShareClassManager:RemoteIssueShares", async ({ event, context }) => {
-  logEvent(event, "ShareClassManager:RemoteIssueShares");
+  logEvent(event, context, "ShareClassManager:RemoteIssueShares");
   const {
     poolId: _poolId,
     scId: _tokenId,
@@ -299,13 +299,13 @@ ponder.on("ShareClassManager:RemoteIssueShares", async ({ event, context }) => {
     id: tokenId,
   }) as TokenService;
   if (!token) throw new Error(`Token not found for id ${tokenId}`);
-  await snapshotter(context, event, "ShareClassManager:RemoteIssueShares", [token], TokenSnapshot)
   await token.increaseTotalSupply(issuedShareAmount);
   await token.save();
+  await snapshotter(context, event, "ShareClassManager:RemoteIssueShares", [token], TokenSnapshot)
 });
 
 ponder.on("ShareClassManager:RemoteRevokeShares", async ({ event, context }) => {
-  logEvent(event, "ShareClassManager:RemoteRevokeShares");
+  logEvent(event, context, "ShareClassManager:RemoteRevokeShares");
   const {
     poolId: _poolId,
     scId: _tokenId,
@@ -317,7 +317,7 @@ ponder.on("ShareClassManager:RemoteRevokeShares", async ({ event, context }) => 
     id: tokenId,
   }) as TokenService;
   if (!token) throw new Error(`Token not found for id ${tokenId}`);
-  await snapshotter(context, event, "ShareClassManager:RemoteRevokeShares", [token], TokenSnapshot)
   await token.decreaseTotalSupply(revokedShareAmount);
   await token.save();
+  await snapshotter(context, event, "ShareClassManager:RemoteRevokeShares", [token], TokenSnapshot)
 });
