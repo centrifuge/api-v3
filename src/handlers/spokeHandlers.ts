@@ -33,6 +33,14 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
   })) as BlockchainService;
   const { centrifugeId } = blockchain.read();
 
+  const {client, contracts} = context;
+  const manager = await client.readContract({
+    abi: contracts.Vault.abi,
+    address: vaultId,
+    functionName: "manager",
+    args: [],
+  });
+
   const vault = (await VaultService.init(context, {
     id: vaultId,
     centrifugeId,
@@ -41,6 +49,7 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
     assetAddress,
     factory: factory,
     kind: vaultKind,
+    manager
   })) as VaultService;
 });
 
