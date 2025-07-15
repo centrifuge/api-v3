@@ -87,7 +87,6 @@ const PoolColumns = (t: PgColumnsBuilders) => ({
   isActive: t.boolean().notNull().default(false),
   createdAtBlock: t.integer(),
   createdAt: t.timestamp(),
-  admin: t.text(),
   shareClassManager: t.text(),
   currency: t.bigint(),
   currentEpochIndex: t.integer().default(1),
@@ -561,6 +560,8 @@ function snapshotColumns<
       timestamp: t.timestamp().notNull(),
       blockNumber: t.integer().notNull(),
       trigger: t.text().notNull(),
+      triggerTxHash: t.hex(),
+      triggerChainId: t.text().notNull(),
       ...(selectedColumns as Pick<ReturnType<F>, O[number]>),
     };
     return snapshotColumns;
