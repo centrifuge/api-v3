@@ -26,9 +26,19 @@ export const Blockchain = onchainTable(
 
 export const BlockchainRelations = relations(Blockchain, ({ many }) => ({
   pools: many(Pool, { relationName: "pools" }),
+  tokens: many(Token, { relationName: "tokens" }),
+  tokenInstances: many(TokenInstance, { relationName: "tokenInstances" }),
   vaults: many(Vault, { relationName: "vaults" }),
   assets: many(Asset, { relationName: "assets" }),
-  tokenInstances: many(TokenInstance, { relationName: "tokenInstances" }),
+  assetRegistrations: many(AssetRegistration, {
+    relationName: "assetRegistrations",
+  }),
+  investorTransactions: many(InvestorTransaction, {
+    relationName: "investorTransactions",
+  }),
+  holdings: many(Holding, { relationName: "holdings" }),
+  holdingEscrows: many(HoldingEscrow, { relationName: "holdingEscrows" }),
+  escrows: many(Escrow, { relationName: "escrows" }),
 }));
 
 const DeploymentColumns = (t: PgColumnsBuilders) => ({
@@ -111,7 +121,7 @@ const TokenColumns = (t: PgColumnsBuilders) => ({
   id: t.text().notNull(),
   index: t.integer(),
   isActive: t.boolean().notNull().default(false),
-  centrifugeId: t.text().notNull(),
+  centrifugeId: t.text(),
   poolId: t.bigint().notNull(),
   // Metadata fields
   name: t.text(),
@@ -128,6 +138,10 @@ export const Token = onchainTable("token", TokenColumns, (t) => ({
 }));
 
 export const TokenRelations = relations(Token, ({ one, many }) => ({
+  blockchain: one(Blockchain, {
+    fields: [Token.centrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
   pool: one(Pool, { fields: [Token.poolId], references: [Pool.id] }),
   vaults: many(Vault, { relationName: "vaults" }),
   tokenInstances: many(TokenInstance, { relationName: "tokenInstances" }),
@@ -224,6 +238,7 @@ export const InvestorTransactionType = onchainEnum(
 
 const InvestorTransactionColumns = (t: PgColumnsBuilders) => ({
   txHash: t.text().notNull(),
+  centrifugeId: t.text().notNull(),
   poolId: t.bigint().notNull(),
   tokenId: t.text().notNull(),
   type: InvestorTransactionType("investor_transaction_type").notNull(),
@@ -249,6 +264,10 @@ export const InvestorTransaction = onchainTable(
 export const InvestorTransactionRelations = relations(
   InvestorTransaction,
   ({ one }) => ({
+    blockchain: one(Blockchain, {
+      fields: [InvestorTransaction.centrifugeId],
+      references: [Blockchain.centrifugeId],
+    }),
     pool: one(Pool, {
       fields: [InvestorTransaction.poolId],
       references: [Pool.id],
@@ -363,7 +382,6 @@ export const TokenInstanceColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   tokenId: t.text().notNull(),
   address: t.hex().notNull(),
-  vaultId: t.hex(),
   tokenPrice: t.bigint().default(0n),
   computedAt: t.timestamp(),
   totalIssuance: t.bigint().default(0n),
@@ -376,7 +394,7 @@ export const TokenInstance = onchainTable(
     addressIdx: index().on(t.address),
   })
 );
-export const TokenInstanceRelations = relations(TokenInstance, ({ one }) => ({
+export const TokenInstanceRelations = relations(TokenInstance, ({ one, many }) => ({
   blockchain: one(Blockchain, {
     fields: [TokenInstance.centrifugeId],
     references: [Blockchain.centrifugeId],
@@ -385,6 +403,7 @@ export const TokenInstanceRelations = relations(TokenInstance, ({ one }) => ({
     fields: [TokenInstance.tokenId],
     references: [Token.id],
   }),
+  vaults: many(Vault, { relationName: "vaults" }),
 }));
 
 const HoldingColumns = (t: PgColumnsBuilders) => ({
@@ -413,6 +432,10 @@ export const Holding = onchainTable("holding", HoldingColumns, (t) => ({
 }));
 
 export const HoldingsRelations = relations(Holding, ({ one }) => ({
+  blockchain: one(Blockchain, {
+    fields: [Holding.centrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
   token: one(Token, {
     fields: [Holding.tokenId],
     references: [Token.id],
@@ -467,6 +490,10 @@ export const Escrow = onchainTable("escrow", EscrowColumns, (t) => ({
 }));
 
 export const EscrowRelations = relations(Escrow, ({ one, many }) => ({
+  blockchain: one(Blockchain, {
+    fields: [Escrow.centrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
   holdingEscrows: many(HoldingEscrow, { relationName: "holdingEscrows" }),
 }));
 
@@ -493,6 +520,10 @@ export const HoldingEscrow = onchainTable(
 export const HoldingEscrowRelations = relations(
   HoldingEscrow,
   ({ one, many }) => ({
+    blockchain: one(Blockchain, {
+      fields: [HoldingEscrow.centrifugeId],
+      references: [Blockchain.centrifugeId],
+    }),
     holding: one(Holding, {
       fields: [HoldingEscrow.tokenId, HoldingEscrow.assetId],
       references: [Holding.tokenId, Holding.assetId],

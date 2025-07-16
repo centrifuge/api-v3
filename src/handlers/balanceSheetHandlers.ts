@@ -1,6 +1,6 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
-import { AssetRegistrationService, AssetService, BlockchainService, EscrowService, HoldingEscrowService, TokenInstanceService } from "../services";
+import { AssetService, BlockchainService, EscrowService, HoldingEscrowService, TokenInstanceService } from "../services";
 
 ponder.on("BalanceSheet:Issue", async ({ event, context }) => {
   logEvent(event, context, "BalanceSheet:Issue");

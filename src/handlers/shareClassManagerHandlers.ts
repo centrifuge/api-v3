@@ -202,7 +202,15 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
     // newTotalIssuance,
     issuedShareAmount,
   } = event.args;
-  const nextEpochIndex = epochIndex + 1;
+
+  const chainId = context.chain.id;
+  if (typeof chainId !== "number") throw new Error("Chain ID is required");
+
+
+  const blockchain = await BlockchainService.get(context, {
+    id: chainId.toString(),
+  });
+  const { centrifugeId } = blockchain.read();
 
   const pool = await PoolService.get(context, { id: poolId }) as PoolService;
   if (!pool) throw new Error(`Pool not found for id ${poolId}`);
@@ -219,6 +227,7 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
   await epoch.close(context, event.block);
   await epoch.save();
 
+  const nextEpochIndex = epochIndex + 1;
   const newEpoch = await EpochService.init(context, {
     poolId: poolId,
     index: nextEpochIndex,
@@ -236,6 +245,7 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
     txHash: event.transaction.hash,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
+    centrifugeId,
   };
 
   const oos = await OutstandingOrderService.query(context, {

@@ -49,6 +49,7 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
     epochIndex: currentEpochIndex!,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
+    centrifugeId,
   });
 });
 
@@ -90,6 +91,7 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
     epochIndex: currentEpochIndex,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
+    centrifugeId,
   });
 });
 
@@ -124,6 +126,7 @@ ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
     txHash: event.transaction.hash,
     createdAtBlock: Number(event.block.number),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
+    centrifugeId,
   });
 });
 
@@ -157,6 +160,7 @@ ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
     txHash: event.transaction.hash,
     createdAtBlock: Number(event.block.number),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
+    centrifugeId,
   });
 });
 
@@ -188,6 +192,7 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
     txHash: event.transaction.hash,
     createdAtBlock: Number(event.block.number),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
+    centrifugeId,
   };
 
   switch (kind) {
@@ -228,6 +233,7 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
     txHash: event.transaction.hash,
     createdAtBlock: Number(event.block.number),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
+    centrifugeId,
   };
 
   switch (kind) {
