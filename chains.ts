@@ -543,7 +543,7 @@ export const endpoints = {
   43114: `avalax-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
   8453: `base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
   1: `eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-  98866: `plume-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+  98866: `rpc.plume.org`,
 } as const;
 
 export const startBlocks = {
