@@ -6,7 +6,7 @@ import { BlockchainService } from "../services/BlockchainService";
 import { EscrowService } from "../services/EscrowService";
 
 ponder.on("PoolEscrowFactory:DeployPoolEscrow", async ({ event, context }) => {
-  logEvent(event, "PoolEscrowFactory:DeployPoolEscrow");
+  logEvent(event, context, "PoolEscrowFactory:DeployPoolEscrow");
   const chainId = context.chain.id
   if (typeof chainId !== 'number') throw new Error('Chain ID is required')
   const { poolId, escrow: escrowAddress } = event.args;

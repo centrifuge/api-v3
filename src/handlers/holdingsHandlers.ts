@@ -7,7 +7,7 @@ import { BlockchainService } from "../services/BlockchainService";
 import { snapshotter } from "../helpers/snapshotter";
 
 ponder.on("Holdings:Initialize", async ({ event, context }) => {
-  logEvent(event, "Holdings:Create");
+  logEvent(event, context, "Holdings:Create");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const [_poolId, shareClassId, assetId, _valuation, isLiability, accounts] =
@@ -49,7 +49,7 @@ ponder.on("Holdings:Initialize", async ({ event, context }) => {
 });
 
 ponder.on("Holdings:Increase", async ({ event, context }) => {
-  logEvent(event, "Holdings:Increase");
+  logEvent(event, context, "Holdings:Increase");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const [_poolId, _scId, assetId, pricePoolPerAsset, amount, increasedValue] =
@@ -71,14 +71,14 @@ ponder.on("Holdings:Increase", async ({ event, context }) => {
     assetId,
   })) as HoldingService;
 
-  await snapshotter(context, event, "Holdings:Increase", [holding], HoldingSnapshot);
-
   await holding.increase(amount, increasedValue, pricePoolPerAsset);
   await holding.save();
+
+  await snapshotter(context, event, "Holdings:Increase", [holding], HoldingSnapshot);
 });
 
 ponder.on("Holdings:Decrease", async ({ event, context }) => {
-  logEvent(event, "Holdings:Decrease");
+  logEvent(event, context, "Holdings:Decrease");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const [_poolId, _scId, assetId, pricePoolPerAsset, amount, decreasedValue] =
@@ -107,7 +107,7 @@ ponder.on("Holdings:Decrease", async ({ event, context }) => {
 });
 
 ponder.on("Holdings:Update", async ({ event, context }) => {
-  logEvent(event, "Holdings:Update");
+  logEvent(event, context, "Holdings:Update");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const {
@@ -134,14 +134,14 @@ ponder.on("Holdings:Update", async ({ event, context }) => {
     assetId,
   })) as HoldingService;
 
-  await snapshotter(context, event, "Holdings:Update", [holding], HoldingSnapshot);
-
   await holding.update(isPositive, diffValue);
   await holding.save();
+
+  await snapshotter(context, event, "Holdings:Update", [holding], HoldingSnapshot);
 });
 
 ponder.on("Holdings:UpdateValuation", async ({ event, context }) => {
-  logEvent(event, "Holdings:UpdateValuation");
+  logEvent(event, context, "Holdings:UpdateValuation");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const {
@@ -167,8 +167,8 @@ ponder.on("Holdings:UpdateValuation", async ({ event, context }) => {
     assetId,
   })) as HoldingService;
 
-  await snapshotter(context, event, "Holdings:UpdateValuation", [holding], HoldingSnapshot);
-
   await holding.setValuation(valuation);
   await holding.save();
+
+  await snapshotter(context, event, "Holdings:UpdateValuation", [holding], HoldingSnapshot);
 });

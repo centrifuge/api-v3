@@ -1,9 +1,9 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
-import { AssetRegistrationService, AssetService, BlockchainService, EscrowService, HoldingEscrowService, TokenInstanceService } from "../services";
+import { AssetService, BlockchainService, EscrowService, HoldingEscrowService, TokenInstanceService } from "../services";
 
 ponder.on("BalanceSheet:Issue", async ({ event, context }) => {
-  logEvent(event, "BalanceSheet:Issue");
+  logEvent(event, context, "BalanceSheet:Issue");
   const _chainId = context.chain.id as number
   const chainId = _chainId.toString();
   const {
@@ -33,7 +33,7 @@ ponder.on("BalanceSheet:Issue", async ({ event, context }) => {
 });
 
 ponder.on("BalanceSheet:Revoke", async ({ event, context }) => {
-  logEvent(event, "BalanceSheet:Revoke");
+  logEvent(event, context, "BalanceSheet:Revoke");
   const _chainId = context.chain.id as number
   const chainId = _chainId.toString();
   const {
@@ -62,7 +62,7 @@ ponder.on("BalanceSheet:Revoke", async ({ event, context }) => {
 });
 
 ponder.on("BalanceSheet:NoteDeposit", async ({ event, context }) => {
-  logEvent(event, "BalanceSheet:NoteDeposit");
+  logEvent(event, context, "BalanceSheet:NoteDeposit");
   const _chainId = context.chain.id
   if (typeof _chainId !== 'number') throw new Error('Chain ID is required')
   const {
@@ -105,7 +105,7 @@ ponder.on("BalanceSheet:NoteDeposit", async ({ event, context }) => {
 });
 
 ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
-  logEvent(event, "BalanceSheet:Withdraw");
+  logEvent(event, context, "BalanceSheet:Withdraw");
   const _chainId = context.chain.id
   if (typeof _chainId !== 'number') throw new Error('Chain ID is required')
   const {

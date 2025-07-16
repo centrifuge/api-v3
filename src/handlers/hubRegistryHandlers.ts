@@ -6,7 +6,7 @@ import { AssetRegistrationService, getAssetCentrifugeId } from "../services";
 import { BlockchainService } from "../services/BlockchainService";
 
 ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
-  logEvent(event, "HubRegistry:NewPool");
+  logEvent(event, context, "HubRegistry:NewPool");
   const chainId = context.chain.id
   if (typeof chainId !== 'number') throw new Error('Chain ID is required')
   const { poolId, currency, manager: _manager } = event.args;
@@ -33,7 +33,7 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
 });
 
 ponder.on("HubRegistry:NewAsset", async ({ event, context }) => { //Fires Second to complete
-  logEvent(event, "HubRegistry:NewAsset");
+  logEvent(event, context, "HubRegistry:NewAsset");
   const chainId = context.chain.id
   if (typeof chainId !== 'number') throw new Error('Chain ID is required')
 

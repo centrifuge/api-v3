@@ -4,7 +4,7 @@ import { BlockchainService, PoolService, TokenService } from "../services";
 import { InvestorTransactionService, VaultService } from "../services";
 
 ponder.on("Vault:DepositRequest", async ({ event, context }) => {
-  logEvent(event, "Vault:DepositRequest");
+  logEvent(event, context, "Vault:DepositRequest");
   const {
     controller,
     owner,
@@ -49,11 +49,12 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
     epochIndex: currentEpochIndex!,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
+    centrifugeId,
   });
 });
 
 ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
-  logEvent(event, "Vault:RedeemRequest");
+  logEvent(event, context, "Vault:RedeemRequest");
   const {
     controller,
     owner,
@@ -90,11 +91,12 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
     epochIndex: currentEpochIndex,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
+    centrifugeId,
   });
 });
 
 ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
-  logEvent(event, "Vault:DepositClaimable");
+  logEvent(event, context, "Vault:DepositClaimable");
   const { controller: accountAddress, assets, shares } = event.args;
   const vaultId = event.log.address;
   if (!vaultId) throw new Error(`Vault id not found in event`);
@@ -124,11 +126,12 @@ ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
     txHash: event.transaction.hash,
     createdAtBlock: Number(event.block.number),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
+    centrifugeId,
   });
 });
 
 ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
-  logEvent(event, "Vault:RedeemClaimable");
+  logEvent(event, context, "Vault:RedeemClaimable");
   const { controller: accountAddress, assets, shares } = event.args;
   const vaultId = event.log.address;
   if (!vaultId) throw new Error(`Vault id not found in event`);
@@ -157,11 +160,12 @@ ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
     txHash: event.transaction.hash,
     createdAtBlock: Number(event.block.number),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
+    centrifugeId,
   });
 });
 
 ponder.on("Vault:Deposit", async ({ event, context }) => {
-  logEvent(event, "Vault:Deposit");
+  logEvent(event, context, "Vault:Deposit");
   const { sender: senderAddress, owner, assets, shares } = event.args;
   const vaultId = event.log.address;
   if (!vaultId) throw new Error(`Vault id not found in event`);
@@ -188,6 +192,7 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
     txHash: event.transaction.hash,
     createdAtBlock: Number(event.block.number),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
+    centrifugeId,
   };
 
   switch (kind) {
@@ -201,7 +206,7 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
 });
 
 ponder.on("Vault:Withdraw", async ({ event, context }) => {
-  logEvent(event, "Vault:Withdraw");
+  logEvent(event, context, "Vault:Withdraw");
   const { sender: senderAddress, receiver: receiverAddress, assets, shares } = event.args;
   const vaultId = event.log.address;
   if (!vaultId) throw new Error(`Vault id not found in event`);
@@ -228,6 +233,7 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
     txHash: event.transaction.hash,
     createdAtBlock: Number(event.block.number),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
+    centrifugeId,
   };
 
   switch (kind) {

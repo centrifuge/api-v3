@@ -1,4 +1,4 @@
-import type { Event } from "ponder:registry";
+import type { Event, Context } from "ponder:registry";
 
 /**
  * Logs blockchain event details to the console with formatted output.
@@ -15,15 +15,16 @@ import type { Event } from "ponder:registry";
  * // Output: Received event Transfer on block 12345, timestamp 2023-01-01T00:00:00.000Z, args: from: 0x123..., to: 0x456..., amount: 100
  * ```
  */
-export function logEvent(event: Event, name?: string) {
+export function logEvent(event: Event, context: Context, name?: string) {
   // @ts-expect-error - args is not typed in the Event type
-  const { block, args } = event;
+  const { block, args, transaction } = event;
+  const { chain } = context;
   const date = new Date(Number(block.timestamp) * 1000);
   const eventDetails = args ? Object.entries(args).reduce<string[]>((details: string[], line: [string, any]) => {
     details.push(line.join(': '));
     return details;
   }, []) : ['undefined'];
   console.info(
-    `Received event ${name} on block ${block.number}, timestamp ${date.toISOString()}, args: ${eventDetails.join(', ')}`
+    `Received event ${name} on block ${block.number} with chainId ${chain.id}, timestamp ${date.toISOString()}, args: ${eventDetails.join(', ')}, txHash: ${transaction?.hash || 'unknown'}`
   );
 }
