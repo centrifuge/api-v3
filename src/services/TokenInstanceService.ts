@@ -11,18 +11,6 @@ import { Service, mixinCommonStatics } from "./Service";
  */
 export class TokenInstanceService extends mixinCommonStatics(Service<typeof TokenInstance>, TokenInstance, "TokenInstance") {
   /**
-   * Sets the vault ID for the current token instance.
-   * 
-   * @param vaultId - The vault identifier to assign to the token
-   * @returns The service instance for method chaining
-   */
-  public setVaultId(vaultId: `0x${string}`) {
-    console.log(`Setting vaultId for token ${this.data.centrifugeId}-${this.data.tokenId}`, vaultId);
-    this.data.vaultId = vaultId;
-    return this;
-  }
-
-  /**
    * Sets the token ID for the current token instance.
    * 
    * @param tokenId - The token identifier to assign

@@ -8,26 +8,30 @@
     "start": "ponder start",
     "db": "ponder db",
     "codegen": "ponder codegen",
-    "lint": "eslint src/",
+    "lint": "eslint **/*.ts",
     "typecheck": "tsc",
-    "schema": "tsx graphqlToPonderSchema.ts"
+    "schema": "tsx graphqlToPonderSchema.ts",
+    "prepare": "husky"
   },
   "dependencies": {
-    "bn.js": "^5",
+    "bn.js": "^5.2.2",
     "drizzle-orm": "0.41.0",
-    "hono": "^4",
+    "hono": "^4.8.5",
     "ponder": "^0.11.34",
-    "viem": "^2"
+    "viem": "^2.33.0"
   },
   "devDependencies": {
-    "@types/bn.js": "^5",
-    "@types/node": "^22",
-    "@typescript-eslint/eslint-plugin": "^6.3.0",
-    "@typescript-eslint/parser": "^6.3.0",
-    "eslint": "^8",
-    "eslint-config-ponder": "^0.11",
-    "tsx": "^4",
-    "typescript": "^5"
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@types/bn.js": "^5.2.0",
+    "@types/node": "^22.16.5",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.57.1",
+    "eslint-config-ponder": "^0.11.34",
+    "husky": "^9.1.7",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
   },
   "engines": {
     "node": ">=22"

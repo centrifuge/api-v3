@@ -143,19 +143,6 @@ ponder.on("Spoke:LinkVault", async ({ event, context }) => {
 
   vault.setStatus("Linked");
   await vault.save();
-
-  const tokenInstance = (
-    (await TokenInstanceService.query(context, {
-      tokenId,
-      centrifugeId,
-    })) as TokenInstanceService[]
-  ).pop();
-
-  if (!tokenInstance)
-    throw new Error("TokenInstance not found for share class");
-
-  tokenInstance.setVaultId(vaultId);
-  await tokenInstance.save();
 });
 
 ponder.on("Spoke:UnlinkVault", async ({ event, context }) => {
