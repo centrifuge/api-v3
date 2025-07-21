@@ -1,7 +1,6 @@
 import type { Context } from "ponder:registry";
 import { eq, and } from "drizzle-orm";
-
-import { getTableConfig, PgTableWithColumns } from "drizzle-orm/pg-core";
+import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
 
 /** Type alias for PostgreSQL table with columns */
 type OnchainTable = PgTableWithColumns<any>;

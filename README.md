@@ -36,13 +36,13 @@ The project uses several services to maintain data consistency:
 
 ```bash
 # Install dependencies
-yarn install --frozen-lockfile
+pnpm install --frozen-lockfile
 
 # Create .env file with your configuration
 cp .env.example .env.local
 # Edit .env with your settings (RPC endpoint and API key)
 
-yarn codegen
+pnpm run codegen
 ```
 
 ### Configuration
@@ -54,13 +54,13 @@ yarn codegen
 
 ```bash
 # Start the development server
-yarn dev
+pnpm dev
 
 # Build for production
-yarn build
+pnpm build
 
 # Start production server
-yarn start
+pnpm start
 ```
 
 ## Database Schema
