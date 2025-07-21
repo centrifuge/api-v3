@@ -484,7 +484,7 @@ export const EscrowColumns = (t: PgColumnsBuilders) => ({
 });
 
 export const Escrow = onchainTable("escrow", EscrowColumns, (t) => ({
-  id: primaryKey({ columns: [t.address] }),
+  id: primaryKey({ columns: [t.address, t.centrifugeId] }),
   poolIdx: index().on(t.poolId),
   centrifugeIdIdx: index().on(t.centrifugeId),
 }));
@@ -533,8 +533,8 @@ export const HoldingEscrowRelations = relations(
       references: [Asset.address],
     }),
     escrow: one(Escrow, {
-      fields: [HoldingEscrow.escrowAddress],
-      references: [Escrow.address],
+      fields: [HoldingEscrow.escrowAddress, HoldingEscrow.centrifugeId],
+      references: [Escrow.address, Escrow.centrifugeId],
     }),
   })
 );
