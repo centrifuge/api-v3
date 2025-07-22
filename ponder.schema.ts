@@ -366,7 +366,9 @@ const AssetColumns = (t: PgColumnsBuilders) => ({
 
 export const Asset = onchainTable("asset", AssetColumns, (t) => ({
   id: primaryKey({ columns: [t.id] }),
+  centrifugeIdIdx: index().on(t.centrifugeId),
   addressIdx: index().on(t.address),
+  assetTokenIdIdx: index().on(t.assetTokenId),
 }));
 export const AssetRelations = relations(Asset, ({ one, many }) => ({
   blockchain: one(Blockchain, {
@@ -484,8 +486,8 @@ export const EscrowColumns = (t: PgColumnsBuilders) => ({
 });
 
 export const Escrow = onchainTable("escrow", EscrowColumns, (t) => ({
-  id: primaryKey({ columns: [t.address, t.centrifugeId] }),
-  poolIdx: index().on(t.poolId),
+  id: primaryKey({ columns: [t.poolIdx, t.centrifugeId] }),
+  address: index().on(t.poolId),
   centrifugeIdIdx: index().on(t.centrifugeId),
 }));
 
@@ -503,6 +505,7 @@ export const HoldingEscrowColumns = (t: PgColumnsBuilders) => ({
   tokenId: t.text().notNull(),
   assetId: t.bigint().notNull(),
   assetAddress: t.hex().notNull(),
+  assetTokenId: t.bigint.notNull(),
   assetAmount: t.bigint().default(0n),
   assetPrice: t.bigint().default(0n),
   escrowAddress: t.hex().notNull(),
