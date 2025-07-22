@@ -1,3 +1,4 @@
+import { primaryKey } from "ponder";
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
 import { VaultKinds } from "ponder:schema";
@@ -8,7 +9,7 @@ import {
   getAssetCentrifugeId,
   VaultService,
   TokenInstanceService,
-  HoldingEscrowService,
+  HoldingEscrowService, EscrowService,
 } from "../services";
 
 ponder.on("Spoke:DeployVault", async ({ event, context }) => {
@@ -105,7 +106,7 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const { poolId, scId: tokenId, token: tokenAddress } = event.args;
   const chainId = _chainId.toString();
-  
+
   const blockchain = (await BlockchainService.get(context, {
     id: chainId,
   })) as BlockchainService;
@@ -207,6 +208,7 @@ ponder.on("Spoke:UpdateAssetPrice", async ({ event, context }) => {
     poolId: poolId,
     scId: tokenId,
     asset: assetAddress,
+    tokenId: assetTokenId,
     price: assetPrice,
     computedAt
   } = event.args;
@@ -217,12 +219,20 @@ ponder.on("Spoke:UpdateAssetPrice", async ({ event, context }) => {
   })) as BlockchainService;
   const { centrifugeId } = blockchain.read();
 
-  const holdingEscrows = (await HoldingEscrowService.query(context, {
-    assetAddress,
-  })) as HoldingEscrowService[];
+  const assets = (await AssetService.query(context, { centrifugeId: centrifugeId, assetAddress: assetAddress, assetTokenId: assetTokenId})) as AssetService[];
 
-  for (const holdingEscrow of holdingEscrows) {
-    await holdingEscrow.setAssetPrice(assetPrice);
-    await holdingEscrow.save();
-  }
+  if (assets.length > 1) throw new Error("Unreachable - No duplicate registered assets. qed.")
+  if (assets.length == 0) throw new Error("Price update for unregistered asset.")
+
+  const asset = assets[0] as AssetService;
+  const { id: assetId } = asset.read();
+
+  const escrow = (await EscrowService.get(context, { poolId, centrifugeId })) as EscrowService;
+  const { address: escrowAddress } = escrow.read();
+
+  const holdingEscrows = (await HoldingEscrowService.getOrInit(context, {
+    tokenId, assetId, centrifugeId, poolId, assetAddress, assetTokenId, escrowAddress
+  })) as HoldingEscrowService;
+
+  holdingEscrows.setAssetPrice(assetPrice);
 });
