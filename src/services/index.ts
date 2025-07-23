@@ -1,7 +1,10 @@
 export * from "./PoolService";
 export * from "./TokenService";
 export * from "./EpochService";
-export * from "./OutstandingOrderService";
+export * from "./OutstandingInvestService";
+export * from "./OutstandingRedeemService";
+export * from "./InvestOrderService";
+export * from "./RedeemOrderService";
 export * from "./InvestorTransactionService";
 export * from "./VaultService";
 export * from "./TokenInstanceService";
@@ -13,3 +16,4 @@ export * from "./HoldingEscrowService";
 export * from "./EscrowService";
 export * from "./HoldingAccountService";
 export * from "./DeploymentService";
+export * from "./EpochOutstandingInvestService";

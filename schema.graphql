@@ -193,9 +193,9 @@ type Tranche @entity {
   tokenPrice: BigInt
   sumDebt: BigInt
 
-  sumOutstandingInvestOrdersByPeriod: BigInt
-  sumOutstandingRedeemOrdersByPeriod: BigInt
-  sumOutstandingRedeemOrdersCurrencyByPeriod: BigInt
+  sumOutstandingInvestsByPeriod: BigInt
+  sumOutstandingRedeemsByPeriod: BigInt
+  sumOutstandingRedeemsCurrencyByPeriod: BigInt
 
   sumFulfilledInvestOrdersByPeriod: BigInt
   sumFulfilledRedeemOrdersByPeriod: BigInt
@@ -224,9 +224,9 @@ type TrancheSnapshot @entity {
   tokenPrice: BigInt
   sumDebt: BigInt
 
-  sumOutstandingInvestOrdersByPeriod: BigInt
-  sumOutstandingRedeemOrdersByPeriod: BigInt
-  sumOutstandingRedeemOrdersCurrencyByPeriod: BigInt
+  sumOutstandingInvestsByPeriod: BigInt
+  sumOutstandingRedeemsByPeriod: BigInt
+  sumOutstandingRedeemsCurrencyByPeriod: BigInt
 
   sumFulfilledInvestOrdersByPeriod: BigInt
   sumFulfilledRedeemOrdersByPeriod: BigInt
@@ -272,9 +272,9 @@ type EpochState @entity {
 
   tokenPrice: BigInt
 
-  sumOutstandingInvestOrders: BigInt
-  sumOutstandingRedeemOrders: BigInt
-  sumOutstandingRedeemOrdersCurrency: BigInt
+  sumOutstandingInvests: BigInt
+  sumOutstandingRedeems: BigInt
+  sumOutstandingRedeemsCurrency: BigInt
   sumFulfilledInvestOrders: BigInt
   sumFulfilledRedeemOrders: BigInt
   sumFulfilledRedeemOrdersCurrency: BigInt
