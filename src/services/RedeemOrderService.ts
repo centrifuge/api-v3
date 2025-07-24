@@ -1,8 +1,7 @@
-import type { Context, Event } from "ponder:registry";
+import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { RedeemOrder } from "ponder:schema";
-import { eq, and } from "drizzle-orm";
-import { BN } from "bn.js";
+
 
 /**
  * Service class for managing redeem orders in the system.

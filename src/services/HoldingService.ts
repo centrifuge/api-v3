@@ -48,7 +48,6 @@ export class HoldingService extends mixinCommonStatics(
   public increase(
     amount: bigint,
     increaseValue: bigint,
-    pricePoolPerAsset: bigint
   ) {
     const { assetQuantity, totalValue } = this.data;
     if (assetQuantity === null || totalValue === null) {
@@ -71,7 +70,6 @@ export class HoldingService extends mixinCommonStatics(
   public decrease(
     amount: bigint,
     decreaseValue: bigint,
-    pricePoolPerAsset: bigint
   ) {
     const { assetQuantity, totalValue } = this.data;
     if (assetQuantity === null || totalValue === null) {

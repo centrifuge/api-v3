@@ -8,14 +8,11 @@ ponder.on("BalanceSheet:Issue", async ({ event, context }) => {
   const chainId = _chainId.toString();
   const {
     poolId: _poolId,
-    scId: _tokenId,
+    scId: tokenId,
     to: _receiver,
     //pricePerShare,
     shares,
   } = event.args;
-  const poolId = _poolId;
-  const tokenId = _tokenId.toString();
-  const receiver = _receiver.toString();
 
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
@@ -38,13 +35,10 @@ ponder.on("BalanceSheet:Revoke", async ({ event, context }) => {
   const chainId = _chainId.toString();
   const {
     poolId: _poolId,
-    scId: _tokenId,
+    scId: tokenId,
     from: _sender,
     shares,
   } = event.args;
-  const poolId = _poolId;
-  const tokenId = _tokenId.toString();
-  const sender = _sender.toString();
 
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),

@@ -8,7 +8,7 @@
     "start": "ponder start",
     "db": "ponder db",
     "codegen": "ponder codegen",
-    "lint": "eslint **/*.ts",
+    "lint": "eslint src/**/*.ts",
     "typecheck": "tsc",
     "schema": "tsx graphqlToPonderSchema.ts",
     "prepare": "husky"

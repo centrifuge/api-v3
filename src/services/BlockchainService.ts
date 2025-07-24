@@ -1,4 +1,3 @@
-import type { Context } from "ponder:registry";
 import { Blockchain } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
 

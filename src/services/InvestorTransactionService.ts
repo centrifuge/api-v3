@@ -2,6 +2,19 @@ import { Service, mixinCommonStatics } from "./Service";
 import { InvestorTransaction } from "ponder:schema";
 import type { Context } from "ponder:registry";
 
+/**
+ * Service class for managing investor transaction records in the database.
+ * 
+ * Provides static methods for creating various types of investor transactions
+ * with appropriate type fields.
+ * 
+ * @example
+ * ```typescript
+ * // Create a new investor transaction
+ * const investorTransaction = await InvestorTransactionService.init(context, {
+ *   type: "DEPOSIT_REQUEST_UPDATED",
+ *   data: {
+ */
 export class InvestorTransactionService extends mixinCommonStatics(
   Service<typeof InvestorTransaction>,
   InvestorTransaction,

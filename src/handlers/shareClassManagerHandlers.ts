@@ -93,7 +93,7 @@ ponder.on(
     const {
       poolId,
       scId: tokenId,
-      epoch: epochIndex,
+      //epoch: _epochIndex,
       investor: investorAddress,
       depositAssetId,
       pendingUserAssetAmount,
@@ -139,7 +139,7 @@ ponder.on(
     const {
       poolId,
       scId: tokenId,
-      epoch: epochIndex,
+      //epoch: epochIndex,
       investor: investorAddress,
       payoutAssetId,
       pendingUserShareAmount,
@@ -180,13 +180,13 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
     epoch: epochIndex,
     depositAssetId,
     approvedAssetAmount,
-    approvedPoolAmount,
+    //approvedPoolAmount,
     pendingAssetAmount,
-
   } = event.args;
 
   const approvedPercentageOfTotalPending =
-    (approvedAssetAmount * 10n ** 18n) / (approvedAssetAmount + pendingAssetAmount);
+    (approvedAssetAmount * 10n ** 18n) /
+    (approvedAssetAmount + pendingAssetAmount);
 
   const saves: Promise<InvestOrderService>[] = [];
   const oos = (await OutstandingInvestService.query(context, {
@@ -225,7 +225,6 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
     payoutAssetId,
     approvedShareAmount,
     pendingShareAmount,
-  
   } = event.args;
   const saves: Promise<RedeemOrderService>[] = [];
   const oos = (await OutstandingRedeemService.query(context, {
@@ -233,7 +232,8 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
   })) as OutstandingRedeemService[];
   for (const oo of oos) {
     const approvedPercentageOfTotalPending =
-      (approvedShareAmount * 10n ** 18n) / (approvedShareAmount + pendingShareAmount);
+      (approvedShareAmount * 10n ** 18n) /
+      (approvedShareAmount + pendingShareAmount);
     const { account } = oo.read();
     const io = (await RedeemOrderService.init(context, {
       poolId,
@@ -259,13 +259,13 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
 ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
   logEvent(event, context, "ShareClassManager:IssueShares");
   const {
-    poolId,
+    //poolId,
     scId: tokenId,
     epoch: epochIndex,
     depositAssetId,
     navAssetPerShare,
     navPoolPerShare,
-    issuedShareAmount,
+    //issuedShareAmount,
   } = event.args;
 
   const investOrders = (await InvestOrderService.query(context, {
@@ -277,7 +277,9 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
   const investSaves: Promise<InvestOrderService>[] = [];
   for (const investOrder of investOrders) {
     investSaves.push(
-      investOrder.issueShares(navAssetPerShare, navPoolPerShare, event.block).save()
+      investOrder
+        .issueShares(navAssetPerShare, navPoolPerShare, event.block)
+        .save()
     );
   }
 
@@ -287,15 +289,15 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
 ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
   logEvent(event, context, "ShareClassManager:RevokeShares");
   const {
-    poolId,
+    //poolId,
     scId: tokenId,
     epoch: epochIndex,
     payoutAssetId,
     navAssetPerShare,
     navPoolPerShare,
-    revokedShareAmount,
-    revokedAssetAmount,
-    revokedPoolAmount,
+    //revokedShareAmount,
+    //revokedAssetAmount,
+    //revokedPoolAmount,
   } = event.args;
 
   const redeemOrders = (await RedeemOrderService.query(context, {
@@ -307,7 +309,9 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
   const redeemSaves: Promise<RedeemOrderService>[] = [];
   for (const redeemOrder of redeemOrders) {
     redeemSaves.push(
-      redeemOrder.revokeShares(navAssetPerShare, navPoolPerShare, event.block).save()
+      redeemOrder
+        .revokeShares(navAssetPerShare, navPoolPerShare, event.block)
+        .save()
     );
   }
   await Promise.all(redeemSaves);
@@ -316,12 +320,10 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
 ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
   logEvent(event, context, "ShareClassManager:UpdateShareClass");
   const {
-    poolId: _poolId,
-    scId: _tokenId,
+    //poolId: poolId,
+    scId: tokenId,
     navPoolPerShare: tokenPrice,
   } = event.args;
-  const poolId = _poolId;
-  const tokenId = _tokenId.toString();
   const token = (await TokenService.get(context, {
     id: tokenId,
   })) as TokenService;
@@ -363,18 +365,69 @@ ponder.on("ShareClassManager:RemoteIssueShares", async ({ event, context }) => {
   await snapshotter(context, event, "ShareClassManager:RemoteIssueShares", [token], TokenSnapshot)
 });
 
-ponder.on("ShareClassManager:RemoteRevokeShares", async ({ event, context }) => {
-  logEvent(event, "ShareClassManager:RemoteRevokeShares");
+ponder.on(
+  "ShareClassManager:RemoteRevokeShares",
+  async ({ event, context }) => {
+    logEvent(event, context, "ShareClassManager:RemoteRevokeShares");
+    const {
+      //centrifugeId,
+      //poolId,
+      scId: tokenId,
+      revokedShareAmount,
+    } = event.args;
+    const token = (await TokenService.get(context, {
+      id: tokenId,
+    })) as TokenService;
+    if (!token) throw new Error(`Token not found for id ${tokenId}`);
+    await snapshotter(
+      context,
+      event,
+      "ShareClassManager:RemoteRevokeShares",
+      [token],
+      TokenSnapshot
+    );
+    await token.decreaseTotalSupply(revokedShareAmount);
+    await token.save();
+  }
+);
+
+ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
+  logEvent(event, "ShareClassManager:ClaimDeposit");
+  const {
+    poolId,
+    scId: tokenId,
+    epoch: epochIndex,
+    investor: investorAccount,
+    depositAssetId: assetId,
+    //paymentAssetAmount,
+    //pendingAssetAmount,
+    //claimedShareAmount,
+    //issuedAt,
+  } = event.args;
+
+  const investOrder = (await InvestOrderService.get(context, {
+    poolId,
+    tokenId,
+    assetId,
+    account: investorAccount,
+    index: epochIndex,
+  })) as InvestOrderService;
+
+  await investOrder.claimDeposit(event.block).save();
+});
+
+ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
+  logEvent(event, "ShareClassManager:ClaimRedeem");
   const {
     poolId,
     scId: tokenId,
     epoch: epochIndex,
     investor: investorAccount,
     payoutAssetId: assetId,
-    paymentShareAmount,
-    pendingShareAmount,
-    claimedAssetAmount,
-    revokedAt,
+    //paymentShareAmount,
+    //pendingShareAmount,
+    //claimedAssetAmount,
+    //revokedAt,
   } = event.args;
 
   const redeemOrder = (await RedeemOrderService.get(context, {
@@ -385,5 +438,5 @@ ponder.on("ShareClassManager:RemoteRevokeShares", async ({ event, context }) => 
     index: epochIndex,
   })) as RedeemOrderService;
 
-  await redeemOrder.claimRedeem(event.block).save()
-})
+  await redeemOrder.claimRedeem(event.block).save();
+});
