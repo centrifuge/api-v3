@@ -8,6 +8,8 @@ import {
   InvestOrderService,
   RedeemOrderService,
   EpochOutstandingInvestService,
+  AssetService,
+  PoolService,
 } from "../services";
 import { snapshotter } from "../helpers/snapshotter";
 import { TokenSnapshot } from "ponder:schema";
@@ -88,8 +90,6 @@ ponder.on(
   "ShareClassManager:UpdateDepositRequest",
   async ({ event, context }) => {
     logEvent(event, context, "ShareClassManager:UpdateDepositRequest");
-    const updatedAt = new Date(Number(event.block.timestamp) * 1000);
-    const updatedAtBlock = Number(event.block.number);
     const {
       poolId,
       scId: tokenId,
@@ -107,7 +107,7 @@ ponder.on(
         poolId,
         tokenId,
         assetId: depositAssetId,
-        account: investorAddress,
+        account: investorAddress.substring(0, 42) as `0x${string}`,
       }
     )) as OutstandingInvestService;
     await outstandingInvest
@@ -134,8 +134,6 @@ ponder.on(
   "ShareClassManager:UpdateRedeemRequest",
   async ({ event, context }) => {
     logEvent(event, context, "ShareClassManager:UpdateRedeemRequest");
-    const updatedAt = new Date(Number(event.block.timestamp) * 1000);
-    const updatedAtBlock = Number(event.block.number);
     const {
       poolId,
       scId: tokenId,
@@ -150,7 +148,7 @@ ponder.on(
       poolId,
       tokenId,
       assetId: payoutAssetId,
-      account: investorAddress,
+      account: investorAddress.substring(0, 42) as `0x${string}`,
     })) as OutstandingRedeemService;
     await oo
       .decorateOutstandingOrder(event)
@@ -174,6 +172,7 @@ ponder.on(
 
 ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
   logEvent(event, context, "ShareClassManager:ApproveDeposits");
+
   const {
     poolId,
     scId: tokenId,
@@ -184,8 +183,32 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
     pendingAssetAmount,
   } = event.args;
 
+  const chainId = context.chain.id;
+  if (typeof chainId !== "number") throw new Error("Chain ID is required");
+
+  const blockchain = await BlockchainService.get(context, {
+    id: chainId.toString(),
+  });
+  const { centrifugeId } = blockchain.read();
+
+  const asset = (await AssetService.get(context, {
+    id: depositAssetId,
+    centrifugeId,
+  })) as AssetService;
+  if (!asset) throw new Error(`Asset not found for id ${depositAssetId}`);
+
+  const { decimals: assetDecimals } = asset.read();
+  if (typeof assetDecimals !== "number") throw new Error("Decimals is required");
+
+  const pool = (await PoolService.get(context, {
+    id: poolId,
+  })) as PoolService;
+  if (!pool) throw new Error(`Pool not found for id ${poolId}`);
+  const { currency } = pool.read();
+  if (!currency) throw new Error("Currency is required");
+
   const approvedPercentageOfTotalPending =
-    (approvedAssetAmount * 10n ** 18n) /
+    (approvedAssetAmount * 10n ** BigInt(assetDecimals)) /
     (approvedAssetAmount + pendingAssetAmount);
 
   const saves: Promise<InvestOrderService>[] = [];
@@ -195,6 +218,8 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
   })) as OutstandingInvestService[];
   for (const oo of oos) {
     const { account } = oo.read();
+    const approvedUserAssetAmount = approvedAssetAmount * approvedPercentageOfTotalPending / 10n ** BigInt(assetDecimals);
+    if (approvedUserAssetAmount === 0n) continue;
     const io = (await InvestOrderService.init(context, {
       poolId,
       tokenId,
@@ -205,9 +230,8 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
     saves.push(
       io
         .approveDeposit(
-          approvedAssetAmount,
-          approvedPercentageOfTotalPending,
-          event.block
+          approvedUserAssetAmount,
+          event.block,
         )
         .save()
     );
@@ -226,15 +250,40 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
     approvedShareAmount,
     pendingShareAmount,
   } = event.args;
+
+  const pool = (await PoolService.get(context, {
+    id: poolId,
+  })) as PoolService;
+  if (!pool) throw new Error(`Pool not found for id ${poolId}`);
+
+  const { currency } = pool.read();
+  if (!currency) throw new Error("Currency is required");
+
+  let decimals: number;
+  if (currency < 1000n) decimals = 18;
+  else {
+    const currencyAsset = (await AssetService.get(context, {
+      id: currency,
+    })) as AssetService;
+    if (!currencyAsset)
+      throw new Error(`Currency asset not found for id ${currency}`);
+    const { decimals: _decimals } = currencyAsset.read();
+    if (!_decimals) throw new Error("Decimals is required");
+    decimals = _decimals;
+  }
+
   const saves: Promise<RedeemOrderService>[] = [];
   const oos = (await OutstandingRedeemService.query(context, {
     tokenId,
   })) as OutstandingRedeemService[];
   for (const oo of oos) {
+    if (approvedShareAmount === 0n) continue;
     const approvedPercentageOfTotalPending =
-      (approvedShareAmount * 10n ** 18n) /
+      (approvedShareAmount * 10n ** BigInt(decimals)) /
       (approvedShareAmount + pendingShareAmount);
     const { account } = oo.read();
+    const approvedUserShareAmount = approvedShareAmount * approvedPercentageOfTotalPending / 10n ** BigInt(decimals);
+    if (approvedUserShareAmount === 0n) continue;
     const io = (await RedeemOrderService.init(context, {
       poolId,
       tokenId,
@@ -245,8 +294,7 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
     saves.push(
       io
         .approveRedeem(
-          approvedShareAmount,
-          approvedPercentageOfTotalPending,
+          approvedUserShareAmount,
           event.block
         )
         .save()
@@ -259,7 +307,7 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
 ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
   logEvent(event, context, "ShareClassManager:IssueShares");
   const {
-    //poolId,
+    poolId,
     scId: tokenId,
     epoch: epochIndex,
     depositAssetId,
@@ -267,6 +315,40 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
     navPoolPerShare,
     //issuedShareAmount,
   } = event.args;
+
+  const chainId = context.chain.id;
+  if (typeof chainId !== "number") throw new Error("Chain ID is required");
+  const blockchain = await BlockchainService.get(context, {
+    id: chainId.toString(),
+  });
+  const { centrifugeId } = blockchain.read();
+
+  const asset = (await AssetService.get(context, {
+    id: depositAssetId,
+    centrifugeId,
+  })) as AssetService;
+  if (!asset) throw new Error(`Asset not found for id ${depositAssetId}`);
+  const { decimals: assetDecimals } = asset.read();
+  if (typeof assetDecimals !== "number") throw new Error("Decimals is required");
+
+  const pool = (await PoolService.get(context, {
+    id: poolId,
+  })) as PoolService;
+  if (!pool) throw new Error(`Pool not found for id ${poolId}`);
+  const { currency } = pool.read();
+  if (!currency) throw new Error("Currency is required");
+  let shareDecimals: number;
+  if (currency < 1000n) shareDecimals = 18;
+  else {
+    const currencyAsset = (await AssetService.get(context, {
+      id: currency,
+    })) as AssetService;
+    if (!currencyAsset)
+      throw new Error(`Currency asset not found for id ${currency}`);
+    const { decimals: _shareDecimals } = currencyAsset.read();
+    if (!_shareDecimals) throw new Error("Decimals is required");
+    shareDecimals = _shareDecimals;
+  }
 
   const investOrders = (await InvestOrderService.query(context, {
     tokenId,
@@ -278,7 +360,7 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
   for (const investOrder of investOrders) {
     investSaves.push(
       investOrder
-        .issueShares(navAssetPerShare, navPoolPerShare, event.block)
+        .issueShares(navAssetPerShare, navPoolPerShare, assetDecimals, shareDecimals, event.block)
         .save()
     );
   }
@@ -289,7 +371,7 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
 ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
   logEvent(event, context, "ShareClassManager:RevokeShares");
   const {
-    //poolId,
+    poolId,
     scId: tokenId,
     epoch: epochIndex,
     payoutAssetId,
@@ -299,6 +381,26 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
     //revokedAssetAmount,
     //revokedPoolAmount,
   } = event.args;
+
+  const pool = (await PoolService.get(context, {
+    id: poolId,
+  })) as PoolService;
+  if (!pool) throw new Error(`Pool not found for id ${poolId}`);
+  const { currency } = pool.read();
+  if (!currency) throw new Error("Currency is required");
+
+  let decimals: number;
+  if (currency < 1000n) decimals = 18;
+  else {
+    const currencyAsset = (await AssetService.get(context, {
+      id: currency,
+    })) as AssetService;
+    if (!currencyAsset)
+      throw new Error(`Currency asset not found for id ${currency}`);
+    const { decimals: _decimals } = currencyAsset.read();
+    if (!_decimals) throw new Error("Decimals is required");
+    decimals = _decimals;
+  }
 
   const redeemOrders = (await RedeemOrderService.query(context, {
     tokenId,
@@ -310,7 +412,7 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
   for (const redeemOrder of redeemOrders) {
     redeemSaves.push(
       redeemOrder
-        .revokeShares(navAssetPerShare, navPoolPerShare, event.block)
+        .revokeShares(navAssetPerShare, navPoolPerShare, decimals, event.block)
         .save()
     );
   }
@@ -328,6 +430,8 @@ ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
     id: tokenId,
   })) as TokenService;
   if (!token) throw new Error(`Token not found for id ${tokenId}`);
+  await token.setTokenPrice(tokenPrice);
+  await token.save();
   await snapshotter(
     context,
     event,
@@ -335,24 +439,21 @@ ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
     [token],
     TokenSnapshot
   );
-  await token.setTokenPrice(tokenPrice);
-  await token.save();
-  await snapshotter(context, event, "ShareClassManager:UpdateShareClass", [token], TokenSnapshot)
 });
 
 ponder.on("ShareClassManager:RemoteIssueShares", async ({ event, context }) => {
   logEvent(event, context, "ShareClassManager:RemoteIssueShares");
   const {
-    poolId: _poolId,
-    scId: _tokenId,
+    //poolId,
+    scId: tokenId,
     issuedShareAmount,
   } = event.args;
-  const poolId = _poolId;
-  const tokenId = _tokenId.toString();
-  const token = await TokenService.get(context, {
+  const token = (await TokenService.get(context, {
     id: tokenId,
   })) as TokenService;
   if (!token) throw new Error(`Token not found for id ${tokenId}`);
+  await token.increaseTotalSupply(issuedShareAmount);
+  await token.save();
   await snapshotter(
     context,
     event,
@@ -360,9 +461,6 @@ ponder.on("ShareClassManager:RemoteIssueShares", async ({ event, context }) => {
     [token],
     TokenSnapshot
   );
-  await token.increaseTotalSupply(issuedShareAmount);
-  await token.save();
-  await snapshotter(context, event, "ShareClassManager:RemoteIssueShares", [token], TokenSnapshot)
 });
 
 ponder.on(
@@ -379,6 +477,8 @@ ponder.on(
       id: tokenId,
     })) as TokenService;
     if (!token) throw new Error(`Token not found for id ${tokenId}`);
+    await token.decreaseTotalSupply(revokedShareAmount);
+    await token.save();
     await snapshotter(
       context,
       event,
@@ -386,13 +486,11 @@ ponder.on(
       [token],
       TokenSnapshot
     );
-    await token.decreaseTotalSupply(revokedShareAmount);
-    await token.save();
   }
 );
 
 ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
-  logEvent(event, "ShareClassManager:ClaimDeposit");
+  logEvent(event, context, "ShareClassManager:ClaimDeposit");
   const {
     poolId,
     scId: tokenId,
@@ -409,7 +507,7 @@ ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
     poolId,
     tokenId,
     assetId,
-    account: investorAccount,
+    account: investorAccount.substring(0, 42) as `0x${string}`,
     index: epochIndex,
   })) as InvestOrderService;
 
@@ -417,7 +515,7 @@ ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
 });
 
 ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
-  logEvent(event, "ShareClassManager:ClaimRedeem");
+  logEvent(event, context, "ShareClassManager:ClaimRedeem");
   const {
     poolId,
     scId: tokenId,
@@ -434,7 +532,7 @@ ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
     poolId,
     tokenId,
     assetId,
-    account: investorAccount,
+    account: investorAccount.substring(0, 42) as `0x${string}`,
     index: epochIndex,
   })) as RedeemOrderService;
 

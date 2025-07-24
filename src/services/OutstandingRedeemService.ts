@@ -1,8 +1,6 @@
-import type { Context, Event } from "ponder:registry";
+import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { OutstandingRedeem } from "ponder:schema";
-import { eq, and } from "drizzle-orm";
-import { BN } from "bn.js";
 
 /**
  * Service class for managing outstanding redeem orders in the system.
@@ -24,7 +22,7 @@ export class OutstandingRedeemService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public decorateOutstandingOrder(event: Event) {
-    console.log(`Decorating OutstandingRedeem`)
+    console.log(`Decorating OutstandingRedeem pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account}`)
     this.data.updatedAt = new Date(Number(event.block.timestamp) * 1000);
     this.data.updatedAtBlock = Number(event.block.number);
     return this;
@@ -54,7 +52,7 @@ export class OutstandingRedeemService extends mixinCommonStatics(
    * @throws Error if any of the required fields (depositAmount, queuedAmount, pendingAmount) are missing
    */
   public computeTotalOutstandingAmount() {
-    console.log(`Computing total outstanding amount`)
+    console.log(`Computing total outstanding amount for pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account}`)
     const { depositAmount, queuedAmount, pendingAmount } = this.data;
     if (
       depositAmount === null ||
@@ -67,11 +65,21 @@ export class OutstandingRedeemService extends mixinCommonStatics(
     return this;
   }
 
+  /**
+   * Processes a hub redeem request for the outstanding order.
+   *
+   * This method updates the pending amount based on the difference between queued and deposit amounts.
+   * It also updates the queued and deposit amounts from the event.
+   *
+   * @param queuedUserShareAmount - The amount of queued user share
+   * @param pendingUserShareAmount - The amount of pending user share
+   * @returns The service instance for method chaining
+   */
   public processHubRedeemRequest(
     queuedUserShareAmount: bigint,
     pendingUserShareAmount: bigint
   ) {
-    console.log(`Processing hub redeem request`)
+    console.log(`Processing hub redeem request for pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account}`)
     const { depositAmount, queuedAmount, pendingAmount } = this.data;
     if (
       depositAmount === null ||

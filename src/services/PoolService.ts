@@ -1,4 +1,3 @@
-import type { Context } from "ponder:registry";
 import { Pool } from "ponder:schema";
 import { ShareClassManagerAbi } from "../../abis/ShareClassManagerAbi";
 import { Service, mixinCommonStatics } from "./Service";

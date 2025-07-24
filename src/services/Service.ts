@@ -93,7 +93,8 @@ export class Service<T extends OnchainTable> {
 }
 
 /** Type alias for constructor functions */
-type Constructor<I> = new (...args: any[]) => I;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Constructor<I> = new (..._args: any[]) => I;
 
 /**
  * Mixin function that adds common static methods to a service class.
@@ -146,7 +147,7 @@ export function mixinCommonStatics<
       const entity = await context.db.find(table as any, query);
       console.log(`Found ${name}: `, entity);
       if (!entity) {
-        throw new Error(`${name} with ${JSON.stringify(query)} not found`);
+        throw new Error(`${name} not found`);
       }
       return new this(table, name, context, entity);
     }

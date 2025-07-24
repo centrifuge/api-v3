@@ -113,7 +113,6 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
     references: [Blockchain.centrifugeId],
   }),
   tokens: many(Token, { relationName: "tokens" }),
-  epochs: many(Epoch, { relationName: "epochs" }),
   snapshots: many(PoolSnapshot, { relationName: "snapshots" }),
 }));
 
@@ -150,25 +149,6 @@ export const TokenRelations = relations(Token, ({ one, many }) => ({
   }),
   OutstandingInvests: many(OutstandingInvest, {
     relationName: "OutstandingInvests",
-  }),
-}));
-
-const EpochColumns = (t: PgColumnsBuilders) => ({
-  poolId: t.bigint().notNull(),
-  index: t.integer().notNull(),
-  createdAtBlock: t.integer(),
-  createdAt: t.timestamp(),
-  closedAtBlock: t.integer(),
-  closedAt: t.timestamp(),
-});
-export const Epoch = onchainTable("epoch", EpochColumns, (t) => ({
-  id: primaryKey({ columns: [t.poolId, t.index] }),
-}));
-
-export const EpochRelations = relations(Epoch, ({ one, many }) => ({
-  pool: one(Pool, { fields: [Epoch.poolId], references: [Pool.id] }),
-  investorTransactions: many(InvestorTransaction, {
-    relationName: "investorTransactions",
   }),
 }));
 
@@ -271,10 +251,6 @@ export const InvestorTransactionRelations = relations(
     pool: one(Pool, {
       fields: [InvestorTransaction.poolId],
       references: [Pool.id],
-    }),
-    epoch: one(Epoch, {
-      fields: [InvestorTransaction.poolId, InvestorTransaction.epochIndex],
-      references: [Epoch.poolId, Epoch.index],
     }),
     token: one(Token, {
       fields: [InvestorTransaction.tokenId],
@@ -543,7 +519,7 @@ export const AssetRegistration = onchainTable(
 );
 export const AssetRegistrationRelations = relations(
   AssetRegistration,
-  ({ one, many }) => ({
+  ({ one }) => ({
     blockchain: one(Blockchain, {
       fields: [AssetRegistration.centrifugeId],
       references: [Blockchain.centrifugeId],
@@ -567,6 +543,7 @@ const AssetColumns = (t: PgColumnsBuilders) => ({
 
 export const Asset = onchainTable("asset", AssetColumns, (t) => ({
   id: primaryKey({ columns: [t.id] }),
+  centrifugeIdIdx: index().on(t.centrifugeId),
   addressIdx: index().on(t.address),
 }));
 export const AssetRelations = relations(Asset, ({ one, many }) => ({
@@ -660,7 +637,7 @@ export const HoldingAccountType = onchainEnum(
   HoldingAccountTypes
 );
 export const HoldingAccountColumns = (t: PgColumnsBuilders) => ({
-  id: t.text().primaryKey(),
+  id: t.text().notNull(),
   tokenId: t.text().notNull(),
   kind: HoldingAccountType("holding_account_type").notNull(),
 });
@@ -668,7 +645,9 @@ export const HoldingAccountColumns = (t: PgColumnsBuilders) => ({
 export const HoldingAccount = onchainTable(
   "holding_account",
   HoldingAccountColumns,
-  (t) => ({})
+  (t) => ({
+    id: primaryKey({ columns: [t.id] }),
+  })
 );
 
 export const HoldingAccountRelations = relations(HoldingAccount, ({ one }) => ({
@@ -720,7 +699,7 @@ export const HoldingEscrow = onchainTable(
 );
 export const HoldingEscrowRelations = relations(
   HoldingEscrow,
-  ({ one, many }) => ({
+  ({ one }) => ({
     blockchain: one(Blockchain, {
       fields: [HoldingEscrow.centrifugeId],
       references: [Blockchain.centrifugeId],
@@ -778,6 +757,14 @@ export const HoldingSnapshot = onchainTable(
   })
 );
 
+/**
+ * Creates a snapshot schema by selecting specific columns from a base table schema
+ * @param columns - The base table column definition function
+ * @param selectKeys - Array of column keys to include in the snapshot
+ * @returns A new column definition function with snapshot-specific columns added
+ * @template F - Type of the base column definition function
+ * @template O - Array of keys from the base column definition return type
+ */
 function snapshotColumns<
   F extends PgColumnsFunction,
   O extends Array<keyof ReturnType<F>>

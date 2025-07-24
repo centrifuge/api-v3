@@ -1,6 +1,5 @@
 export * from "./PoolService";
 export * from "./TokenService";
-export * from "./EpochService";
 export * from "./OutstandingInvestService";
 export * from "./OutstandingRedeemService";
 export * from "./InvestOrderService";

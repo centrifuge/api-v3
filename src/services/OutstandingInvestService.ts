@@ -1,8 +1,6 @@
-import type { Context, Event } from "ponder:registry";
+import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { OutstandingInvest } from "ponder:schema";
-import { eq, and } from "drizzle-orm";
-import { BN } from "bn.js";
 
 /**
  * Service class for managing outstanding invest orders in the system.
@@ -38,7 +36,7 @@ export class OutstandingInvestService extends mixinCommonStatics(
    */
   public updatePendingAmount(amount: bigint) {
     console.info(
-      `Updating pending amount for OutstandingInvest ${this.data.poolId}-${this.data.tokenId}-${this.data.account} to ${amount}`
+      `Updating pending amount for OutstandingInvest pool ${this.data.poolId} token ${this.data.tokenId} account ${this.data.account} to ${amount}`
     );
     this.data.pendingAmount = amount;
     return this;
@@ -54,7 +52,7 @@ export class OutstandingInvestService extends mixinCommonStatics(
    * @throws Error if any of the required fields (depositAmount, queuedAmount, pendingAmount) are missing
    */
   public computeTotalOutstandingAmount() {
-    console.log(`Computing total outstanding amount`)
+    console.log(`Computing total outstanding amount for pool ${this.data.poolId} token ${this.data.tokenId} account ${this.data.account}`)
     const { depositAmount, queuedAmount, pendingAmount } = this.data;
     if (depositAmount === null || queuedAmount === null || pendingAmount === null)
       throw new Error("Uninitialized required fields");
@@ -63,11 +61,21 @@ export class OutstandingInvestService extends mixinCommonStatics(
     return this;
   }
 
+  /**
+   * Processes a hub deposit request for the outstanding order.
+   *
+   * This method updates the pending amount based on the difference between queued and deposit amounts.
+   * It also updates the queued and deposit amounts from the event.
+   *
+   * @param queuedUserAssetAmount - The amount of queued user asset 
+   * @param pendingUserAssetAmount - The amount of pending user asset
+   * @returns The service instance for method chaining
+   */
   public processHubDepositRequest(
     queuedUserAssetAmount: bigint,
     pendingUserAssetAmount: bigint
   ) {
-    console.log(`Processing hub deposit request`)
+    console.log(`Processing hub deposit request for pool ${this.data.poolId} token ${this.data.tokenId} account ${this.data.account}`)
     const { queuedAmount, depositAmount, pendingAmount } = this.data;
     if (queuedAmount === null || depositAmount === null || pendingAmount === null) {
       throw new Error("Uninitialized required fields");

@@ -40,7 +40,7 @@ ponder.on("Holdings:Initialize", async ({ event, context }) => {
       ? HoldingAccountTypes[_kind + 4]
       : HoldingAccountTypes[_kind];
     if (!kind) throw new Error(`Invalid holding account type: ${_kind}`);
-    const holdingAccount = await HoldingAccountService.getOrInit(context, {
+    const _holdingAccount = await HoldingAccountService.getOrInit(context, {
       id: accountId,
       kind,
       tokenId,
@@ -52,7 +52,7 @@ ponder.on("Holdings:Increase", async ({ event, context }) => {
   logEvent(event, context, "Holdings:Increase");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
-  const [_poolId, _scId, assetId, pricePoolPerAsset, amount, increasedValue] =
+  const [_poolId, _scId, assetId, _pricePoolPerAsset, amount, increasedValue] =
     event.args;
 
   const chainId = _chainId.toString();
@@ -71,7 +71,7 @@ ponder.on("Holdings:Increase", async ({ event, context }) => {
     assetId,
   })) as HoldingService;
 
-  await holding.increase(amount, increasedValue, pricePoolPerAsset);
+  await holding.increase(amount, increasedValue);
   await holding.save();
 
   await snapshotter(context, event, "Holdings:Increase", [holding], HoldingSnapshot);
@@ -81,7 +81,7 @@ ponder.on("Holdings:Decrease", async ({ event, context }) => {
   logEvent(event, context, "Holdings:Decrease");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
-  const [_poolId, _scId, assetId, pricePoolPerAsset, amount, decreasedValue] =
+  const [_poolId, _scId, assetId, _pricePoolPerAsset, amount, decreasedValue] =
     event.args;
 
   const chainId = _chainId.toString();
@@ -102,7 +102,7 @@ ponder.on("Holdings:Decrease", async ({ event, context }) => {
 
 
 
-  await holding.decrease(amount, decreasedValue, pricePoolPerAsset);
+  await holding.decrease(amount, decreasedValue);
   await holding.save();
 });
 
