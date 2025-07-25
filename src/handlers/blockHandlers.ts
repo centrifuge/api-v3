@@ -25,6 +25,7 @@ async function processBlock(args: Parameters<Parameters<typeof ponder.on>[1]>[0]
   const chainId = args.context.chain.id
   if(typeof chainId !== "number") throw new Error("Chain ID is required")
   const blockchain = await BlockchainService.get(context, { id: chainId.toString() })
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read()
   
   const pools = await PoolService.query(context, {

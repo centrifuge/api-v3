@@ -81,15 +81,37 @@ export class OutstandingInvestService extends mixinCommonStatics(
       throw new Error("Uninitialized required fields");
     }
 
-    const deltaPendingAmount = queuedAmount - queuedUserAssetAmount + depositAmount - pendingUserAssetAmount;
+    const deltaPendingAmount =  queuedAmount - queuedUserAssetAmount + depositAmount - pendingUserAssetAmount;
+    console.log(`Delta pending amount: ${deltaPendingAmount}`)
 
     // Reduce pendingAmount by the difference in queued and deposit amounts
     this.data.pendingAmount! -= deltaPendingAmount;
+    console.log(`NEW Pending amount: ${this.data.pendingAmount}`)
 
     // Update queued and deposit amounts from event
     this.data.queuedAmount = queuedUserAssetAmount;
+    console.log(`NEW Queued amount: ${this.data.queuedAmount}`)
     this.data.depositAmount = pendingUserAssetAmount;
+    console.log(`NEW Deposit amount: ${this.data.depositAmount}`)
 
+    return this;
+  }
+
+  /**
+   * Processes an approved deposit for the outstanding order.
+   *
+   * This method updates the deposit amount based on the approved user asset amount.
+   *
+   * @param approvedUserAssetAmount - The amount of approved user asset
+   * @returns The service instance for method chaining  
+   **/
+  public processApprovedDeposit(approvedUserAssetAmount: bigint) {
+    console.log(`Processing approved deposit for pool ${this.data.poolId} token ${this.data.tokenId} account ${this.data.account}`)
+    const { queuedAmount, depositAmount, pendingAmount } = this.data;
+    if (queuedAmount === null || depositAmount === null || pendingAmount === null) {
+      throw new Error("Uninitialized required fields");
+    }
+    this.data.depositAmount! -= approvedUserAssetAmount;
     return this;
   }
 }

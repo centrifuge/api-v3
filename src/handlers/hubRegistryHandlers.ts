@@ -11,6 +11,7 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
   const { poolId, currency, manager: _manager } = event.args;
   const manager = _manager.toString();
   const blockchain = await BlockchainService.get(context, { id: chainId.toString() }) as BlockchainService
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read()
 
   const _pool = (await PoolService.init(context, {
@@ -33,6 +34,7 @@ ponder.on("HubRegistry:NewAsset", async ({ event, context }) => { //Fires Second
   const assetCentrifugeId = getAssetCentrifugeId(assetId);
 
   const blockchain = await BlockchainService.get(context, { id: chainId.toString() }) as BlockchainService
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read()
 
   const assetRegistration = (await AssetRegistrationService.getOrInit(context, {

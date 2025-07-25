@@ -1,4 +1,4 @@
-import { ponder } from "ponder:registry";
+import { Context, ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
 import {
   TokenService,
@@ -27,6 +27,7 @@ ponder.on(
     const blockchain = await BlockchainService.get(context, {
       id: chainId.toString(),
     });
+    if (!blockchain) throw new Error("Blockchain not found");
     const { centrifugeId } = blockchain.read();
 
     const token = (await TokenService.getOrInit(context, {
@@ -51,6 +52,7 @@ ponder.on(
     const blockchain = await BlockchainService.get(context, {
       id: chainId.toString(),
     });
+    if (!blockchain) throw new Error("Blockchain not found");
     const { centrifugeId } = blockchain.read();
 
     const token = (await TokenService.getOrInit(context, {
@@ -75,6 +77,7 @@ ponder.on("ShareClassManager:UpdateMetadata", async ({ event, context }) => {
   const blockchain = await BlockchainService.get(context, {
     id: chainId.toString(),
   });
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const token = (await TokenService.getOrInit(context, {
@@ -89,6 +92,7 @@ ponder.on("ShareClassManager:UpdateMetadata", async ({ event, context }) => {
 ponder.on(
   "ShareClassManager:UpdateDepositRequest",
   async ({ event, context }) => {
+    console.log("OODEBUG-");
     logEvent(event, context, "ShareClassManager:UpdateDepositRequest");
     const {
       poolId,
@@ -127,12 +131,14 @@ ponder.on(
       .decorateEpochOutstandingInvest(event)
       .updatePendingAmount(pendingTotalAssetAmount)
       .save();
+    console.log("-OODEBUG");
   }
 );
 
 ponder.on(
   "ShareClassManager:UpdateRedeemRequest",
   async ({ event, context }) => {
+    console.log("OODEBUG-");
     logEvent(event, context, "ShareClassManager:UpdateRedeemRequest");
     const {
       poolId,
@@ -167,12 +173,13 @@ ponder.on(
       .decorateEpochOutstandingRedeem(event)
       .updatePendingAmount(pendingTotalShareAmount)
       .save();
+    console.log("-OODEBUG");
   }
 );
 
 ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
   logEvent(event, context, "ShareClassManager:ApproveDeposits");
-
+  console.log("OODEBUG-");
   const {
     poolId,
     scId: tokenId,
@@ -183,43 +190,32 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
     pendingAssetAmount,
   } = event.args;
 
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
+  const assetDecimals = await getAssetDecimals(context, depositAssetId);
+  const approvedPercentage = computeApprovedPercentage(
+    approvedAssetAmount,
+    pendingAssetAmount,
+    assetDecimals
+  );
 
-  const blockchain = await BlockchainService.get(context, {
-    id: chainId.toString(),
-  });
-  const { centrifugeId } = blockchain.read();
-
-  const asset = (await AssetService.get(context, {
-    id: depositAssetId,
-    centrifugeId,
-  })) as AssetService;
-  if (!asset) throw new Error(`Asset not found for id ${depositAssetId}`);
-
-  const { decimals: assetDecimals } = asset.read();
-  if (typeof assetDecimals !== "number") throw new Error("Decimals is required");
-
-  const pool = (await PoolService.get(context, {
-    id: poolId,
-  })) as PoolService;
-  if (!pool) throw new Error(`Pool not found for id ${poolId}`);
-  const { currency } = pool.read();
-  if (!currency) throw new Error("Currency is required");
-
-  const approvedPercentageOfTotalPending =
-    (approvedAssetAmount * 10n ** BigInt(assetDecimals)) /
-    (approvedAssetAmount + pendingAssetAmount);
-
-  const saves: Promise<InvestOrderService>[] = [];
+  const saves: Promise<InvestOrderService | OutstandingInvestService>[] = [];
   const oos = (await OutstandingInvestService.query(context, {
     tokenId,
     assetId: depositAssetId,
   })) as OutstandingInvestService[];
+
   for (const oo of oos) {
     const { account } = oo.read();
-    const approvedUserAssetAmount = approvedAssetAmount * approvedPercentageOfTotalPending / 10n ** BigInt(assetDecimals);
-    if (approvedUserAssetAmount === 0n) continue;
+    const approvedUserAssetAmount = computeApprovedUserAmount(
+      approvedAssetAmount,
+      approvedPercentage,
+      assetDecimals
+    );
+    if (approvedUserAssetAmount === 0n) {
+      console.error(
+        `Approved user asset amount is 0 for pool ${poolId} token ${tokenId} asset ${depositAssetId} account ${account} epoch ${epochIndex}`
+      );
+      continue;
+    }
     const io = (await InvestOrderService.init(context, {
       poolId,
       tokenId,
@@ -227,20 +223,25 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
       index: epochIndex,
       account,
     })) as InvestOrderService;
-    saves.push(
-      io
-        .approveDeposit(
-          approvedUserAssetAmount,
-          event.block,
-        )
-        .save()
-    );
-    // TODO: handle unfulfilled portion
+
+    const ioOperation = io
+      .approveDeposit(approvedUserAssetAmount, event.block)
+      .save();
+    saves.push(ioOperation);
+
+    oo.processApprovedDeposit(
+      approvedUserAssetAmount
+    ).computeTotalOutstandingAmount();
+    const { totalOutstandingAmount } = oo.read();
+    if (totalOutstandingAmount === 0n) saves.push(oo.delete());
+    else saves.push(oo.save());
   }
   await Promise.all(saves);
+  console.log("-OODEBUG");
 });
 
 ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
+  console.log("OODEBUG-");
   logEvent(event, context, "ShareClassManager:ApproveRedeems");
   const {
     poolId,
@@ -259,31 +260,30 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
   const { currency } = pool.read();
   if (!currency) throw new Error("Currency is required");
 
-  let decimals: number;
-  if (currency < 1000n) decimals = 18;
-  else {
-    const currencyAsset = (await AssetService.get(context, {
-      id: currency,
-    })) as AssetService;
-    if (!currencyAsset)
-      throw new Error(`Currency asset not found for id ${currency}`);
-    const { decimals: _decimals } = currencyAsset.read();
-    if (!_decimals) throw new Error("Decimals is required");
-    decimals = _decimals;
-  }
+  const shareDecimals = await getAssetDecimals(context, currency);
+  const approvedPercentage = computeApprovedPercentage(
+    approvedShareAmount,
+    pendingShareAmount,
+    shareDecimals
+  );
 
-  const saves: Promise<RedeemOrderService>[] = [];
+  const saves: Promise<RedeemOrderService | OutstandingRedeemService>[] = [];
   const oos = (await OutstandingRedeemService.query(context, {
     tokenId,
   })) as OutstandingRedeemService[];
   for (const oo of oos) {
-    if (approvedShareAmount === 0n) continue;
-    const approvedPercentageOfTotalPending =
-      (approvedShareAmount * 10n ** BigInt(decimals)) /
-      (approvedShareAmount + pendingShareAmount);
     const { account } = oo.read();
-    const approvedUserShareAmount = approvedShareAmount * approvedPercentageOfTotalPending / 10n ** BigInt(decimals);
-    if (approvedUserShareAmount === 0n) continue;
+    const approvedUserShareAmount = computeApprovedUserAmount(
+      approvedShareAmount,
+      approvedPercentage,
+      shareDecimals
+    );
+    if (approvedUserShareAmount === 0n) {
+      console.error(
+        `Approved user share amount is 0 for pool ${poolId} token ${tokenId} asset ${payoutAssetId} account ${account} epoch ${epochIndex}`
+      );
+      continue;
+    }
     const io = (await RedeemOrderService.init(context, {
       poolId,
       tokenId,
@@ -291,23 +291,28 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
       index: epochIndex,
       account,
     })) as RedeemOrderService;
-    saves.push(
-      io
-        .approveRedeem(
-          approvedUserShareAmount,
-          event.block
-        )
-        .save()
-    );
-    // TODO: handle unfulfilled portion
+
+    const ioOperation = io
+      .approveRedeem(approvedUserShareAmount, event.block)
+      .save();
+    saves.push(ioOperation);
+
+    oo.processApprovedRedeem(
+      approvedUserShareAmount
+    ).computeTotalOutstandingAmount();
+    const { totalOutstandingAmount } = oo.read();
+    if (totalOutstandingAmount === 0n) saves.push(oo.delete());
+    else saves.push(oo.save());
   }
   await Promise.all(saves);
+  console.log("-OODEBUG");
 });
 
 ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
+  console.log("OODEBUG-");
   logEvent(event, context, "ShareClassManager:IssueShares");
   const {
-    poolId,
+    //poolId,
     scId: tokenId,
     epoch: epochIndex,
     depositAssetId,
@@ -316,39 +321,7 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
     //issuedShareAmount,
   } = event.args;
 
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
-  const blockchain = await BlockchainService.get(context, {
-    id: chainId.toString(),
-  });
-  const { centrifugeId } = blockchain.read();
-
-  const asset = (await AssetService.get(context, {
-    id: depositAssetId,
-    centrifugeId,
-  })) as AssetService;
-  if (!asset) throw new Error(`Asset not found for id ${depositAssetId}`);
-  const { decimals: assetDecimals } = asset.read();
-  if (typeof assetDecimals !== "number") throw new Error("Decimals is required");
-
-  const pool = (await PoolService.get(context, {
-    id: poolId,
-  })) as PoolService;
-  if (!pool) throw new Error(`Pool not found for id ${poolId}`);
-  const { currency } = pool.read();
-  if (!currency) throw new Error("Currency is required");
-  let shareDecimals: number;
-  if (currency < 1000n) shareDecimals = 18;
-  else {
-    const currencyAsset = (await AssetService.get(context, {
-      id: currency,
-    })) as AssetService;
-    if (!currencyAsset)
-      throw new Error(`Currency asset not found for id ${currency}`);
-    const { decimals: _shareDecimals } = currencyAsset.read();
-    if (!_shareDecimals) throw new Error("Decimals is required");
-    shareDecimals = _shareDecimals;
-  }
+  const assetDecimals = await getAssetDecimals(context, depositAssetId);
 
   const investOrders = (await InvestOrderService.query(context, {
     tokenId,
@@ -358,17 +331,22 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
 
   const investSaves: Promise<InvestOrderService>[] = [];
   for (const investOrder of investOrders) {
-    investSaves.push(
-      investOrder
-        .issueShares(navAssetPerShare, navPoolPerShare, assetDecimals, shareDecimals, event.block)
-        .save()
-    );
+    const investOperation = investOrder
+      .issueShares(
+        navAssetPerShare,
+        navPoolPerShare,
+        assetDecimals,
+        event.block
+      )
+      .save();
+    investSaves.push(investOperation);
   }
-
   await Promise.all(investSaves);
+  console.log("-OODEBUG");
 });
 
 ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
+  console.log("OODEBUG-");
   logEvent(event, context, "ShareClassManager:RevokeShares");
   const {
     poolId,
@@ -389,18 +367,7 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
   const { currency } = pool.read();
   if (!currency) throw new Error("Currency is required");
 
-  let decimals: number;
-  if (currency < 1000n) decimals = 18;
-  else {
-    const currencyAsset = (await AssetService.get(context, {
-      id: currency,
-    })) as AssetService;
-    if (!currencyAsset)
-      throw new Error(`Currency asset not found for id ${currency}`);
-    const { decimals: _decimals } = currencyAsset.read();
-    if (!_decimals) throw new Error("Decimals is required");
-    decimals = _decimals;
-  }
+  const shareDecimals = await getAssetDecimals(context, currency);
 
   const redeemOrders = (await RedeemOrderService.query(context, {
     tokenId,
@@ -410,13 +377,18 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
 
   const redeemSaves: Promise<RedeemOrderService>[] = [];
   for (const redeemOrder of redeemOrders) {
-    redeemSaves.push(
-      redeemOrder
-        .revokeShares(navAssetPerShare, navPoolPerShare, decimals, event.block)
-        .save()
-    );
+    const redeemOperation = redeemOrder
+      .revokeShares(
+        navAssetPerShare,
+        navPoolPerShare,
+        shareDecimals,
+        event.block
+      )
+      .save();
+    redeemSaves.push(redeemOperation);
   }
   await Promise.all(redeemSaves);
+  console.log("-OODEBUG");
 });
 
 ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
@@ -490,9 +462,10 @@ ponder.on(
 );
 
 ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
+  console.log("OODEBUG-");
   logEvent(event, context, "ShareClassManager:ClaimDeposit");
   const {
-    poolId,
+    //poolId,
     scId: tokenId,
     epoch: epochIndex,
     investor: investorAccount,
@@ -504,20 +477,29 @@ ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
   } = event.args;
 
   const investOrder = (await InvestOrderService.get(context, {
-    poolId,
     tokenId,
     assetId,
     account: investorAccount.substring(0, 42) as `0x${string}`,
     index: epochIndex,
   })) as InvestOrderService;
-
+  if (!investOrder) {
+    console.error(
+      `Invest order not found for token ${tokenId} asset ${assetId} account ${investorAccount.substring(
+        0,
+        42
+      )} index ${epochIndex}`
+    );
+    return;
+  }
   await investOrder.claimDeposit(event.block).save();
+  console.log("-OODEBUG");
 });
 
 ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
+  console.log("OODEBUG-");
   logEvent(event, context, "ShareClassManager:ClaimRedeem");
   const {
-    poolId,
+    //poolId,
     scId: tokenId,
     epoch: epochIndex,
     investor: investorAccount,
@@ -529,12 +511,69 @@ ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
   } = event.args;
 
   const redeemOrder = (await RedeemOrderService.get(context, {
-    poolId,
     tokenId,
     assetId,
     account: investorAccount.substring(0, 42) as `0x${string}`,
     index: epochIndex,
   })) as RedeemOrderService;
-
+  if (!redeemOrder) {
+    console.error(
+      `Redeem order not found for token ${tokenId} asset ${assetId} account ${investorAccount.substring(
+        0,
+        42
+      )} index ${epochIndex}`
+    );
+    return;
+  }
   await redeemOrder.claimRedeem(event.block).save();
+  console.log("-OODEBUG");
 });
+
+/**
+ * Compute the percentage of the approved amount that is approved.
+ * @param approveAmount - The amount of the approved amount.
+ * @param pendingAmount - The amount of the pending amount.
+ * @param decimals - The decimals of the asset.
+ * @returns The percentage of the approved amount that is approved.
+ */
+function computeApprovedPercentage(
+  approveAmount: bigint,
+  pendingAmount: bigint,
+  decimals: number
+) {
+  return (
+    (approveAmount * 10n ** BigInt(decimals)) / (approveAmount + pendingAmount)
+  );
+}
+
+/**
+ * Compute the approved user amount.
+ * @param totalApprovedAmount - The total approved amount.
+ * @param approvedPercentage - The percentage of the approved amount that is approved.
+ * @param decimals - The decimals of the asset.
+ * @returns The approved user amount.
+ */
+function computeApprovedUserAmount(
+  totalApprovedAmount: bigint,
+  approvedPercentage: bigint,
+  decimals: number
+) {
+  return (totalApprovedAmount * approvedPercentage) / 10n ** BigInt(decimals);
+}
+
+/**
+ * Get the decimals of an asset.
+ * @param context - The context.
+ * @param assetId - The id of the asset.
+ * @returns The decimals of the asset.
+ */
+async function getAssetDecimals(context: Context, assetId: bigint) {
+  if (assetId < 1000n) return 18;
+  const asset = (await AssetService.get(context, {
+    id: assetId,
+  })) as AssetService;
+  if (!asset) throw new Error(`Asset not found for id ${assetId}`);
+  const { decimals } = asset.read();
+  if (typeof decimals !== "number") throw new Error("Decimals is required");
+  return decimals;
+}

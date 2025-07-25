@@ -20,6 +20,7 @@ ponder.on("Holdings:Initialize", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId,
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const holding = (await HoldingService.getOrInit(context, {
@@ -62,6 +63,7 @@ ponder.on("Holdings:Increase", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId,
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const holding = (await HoldingService.getOrInit(context, {
@@ -91,6 +93,7 @@ ponder.on("Holdings:Decrease", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId,
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const holding = (await HoldingService.getOrInit(context, {
@@ -125,6 +128,7 @@ ponder.on("Holdings:Update", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId,
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const holding = (await HoldingService.getOrInit(context, {
@@ -158,6 +162,7 @@ ponder.on("Holdings:UpdateValuation", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId,
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const holding = (await HoldingService.getOrInit(context, {

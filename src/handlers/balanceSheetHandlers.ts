@@ -17,6 +17,7 @@ ponder.on("BalanceSheet:Issue", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const tokenInstance = (await TokenInstanceService.get(context, {
@@ -43,6 +44,7 @@ ponder.on("BalanceSheet:Revoke", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read(); 
 
   const tokenInstance = (await TokenInstanceService.get(context, {
@@ -71,6 +73,7 @@ ponder.on("BalanceSheet:NoteDeposit", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const assetQuery = await AssetService.query(context, {address: assetAddress}) as AssetService[];
@@ -114,6 +117,7 @@ ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const assetQuery = await AssetService.query(context, {

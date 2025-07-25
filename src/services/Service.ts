@@ -147,7 +147,7 @@ export function mixinCommonStatics<
       const entity = await context.db.find(table as any, query);
       console.log(`Found ${name}: `, entity);
       if (!entity) {
-        throw new Error(`${name} not found`);
+        return null;
       }
       return new this(table, name, context, entity);
     }

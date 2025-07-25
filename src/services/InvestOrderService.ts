@@ -54,7 +54,6 @@ export class InvestOrderService extends mixinCommonStatics(
     navAssetPerShare: bigint,
     navPoolPerShare: bigint,
     assetDecimals: number,
-    shareDecimals: number,
     block: Event["block"]
   ) {
     console.log(`Issuing shares ${navAssetPerShare} ${navPoolPerShare}`);

@@ -97,4 +97,24 @@ export class OutstandingRedeemService extends mixinCommonStatics(
     this.data.depositAmount = pendingUserShareAmount;
     return this;
   }
+
+  /**
+   * Processes an approved redeem for the outstanding order.
+   *
+   * This method updates the deposit amount based on the approved user share amount.
+   *
+   * @param approvedUserShareAmount - The amount of approved user share
+   * @returns The service instance for method chaining
+   */
+  public processApprovedRedeem(approvedUserShareAmount: bigint) {
+    console.log(`Processing approved redeem for pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account}`)
+    const { depositAmount, queuedAmount, pendingAmount } = this.data;
+    if (
+      depositAmount === null ||
+      queuedAmount === null ||
+      pendingAmount === null
+    ) throw new Error("Uninitialized required fields");
+    this.data.depositAmount! -= approvedUserShareAmount;
+    return this;
+  }
 }

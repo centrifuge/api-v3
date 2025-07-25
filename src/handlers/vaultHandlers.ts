@@ -11,6 +11,7 @@ import { OutstandingInvestService } from "../services";
 import { OutstandingRedeemService } from "../services";
 
 ponder.on("Vault:DepositRequest", async ({ event, context }) => {
+  console.log("OODEBUG-");
   logEvent(event, context, "Vault:DepositRequest");
   const {
     // controller,
@@ -21,20 +22,20 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   } = event.args;
 
   const vaultId = event.log.address;
-  if (!vaultId) throw new Error(`Vault id not found in event`);
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is required");
 
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
-  if (!vaultId) throw new Error(`Vault id not found in event`);
   const vault = (await VaultService.get(context, {
     id: vaultId,
     centrifugeId,
   })) as VaultService;
+  if (!vault) throw new Error("Vault not found");
 
   const { poolId, tokenId, assetAddress } = vault.read();
   const token = await TokenService.get(context, {
@@ -77,9 +78,11 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
     .updatePendingAmount(assets)
     .computeTotalOutstandingAmount()
     .save();
+  console.log("-OODEBUG");
 });
 
 ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
+  console.log("OODEBUG-");
   logEvent(event, context, "Vault:RedeemRequest");
   const {
     // controller,
@@ -99,6 +102,7 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
   const { centrifugeId } = blockchain.read();
 
   const vault = await VaultService.get(context, { id: vaultId, centrifugeId });
+  if (!vault) throw new Error("Vault not found");
   const { poolId, tokenId, assetAddress } = vault.read();
 
   const token = await TokenService.get(context, { poolId, id: tokenId });
@@ -139,6 +143,7 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
     .updatePendingAmount(assets)
     .computeTotalOutstandingAmount()
     .save();
+  console.log("-OODEBUG");
 });
 
 ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
@@ -155,6 +160,7 @@ ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
   const { centrifugeId } = blockchain.read();
 
   const vault = await VaultService.get(context, { id: vaultId, centrifugeId });
+  if (!vault) throw new Error("Vault not found");
   const { poolId, tokenId, kind, assetAddress } = vault.read();
 
   if (kind !== "Async") return;
@@ -198,6 +204,7 @@ ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
   })) as BlockchainService;
   const { centrifugeId } = blockchain.read();
   const vault = await VaultService.get(context, { id: vaultId, centrifugeId });
+  if (!vault) throw new Error("Vault not found");
   const { poolId, tokenId, kind, assetAddress } = vault.read();
 
   if (kind === "Sync") return;
@@ -246,6 +253,7 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
   })) as BlockchainService;
   const { centrifugeId } = blockchain.read();
   const vault = await VaultService.get(context, { id: vaultId, centrifugeId });
+  if (!vault) throw new Error("Vault not found");
   const { poolId, tokenId, kind, assetAddress } = vault.read();
 
   const token = await TokenService.get(context, { poolId, id: tokenId });
@@ -301,6 +309,7 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
   })) as BlockchainService;
   const { centrifugeId } = blockchain.read();
   const vault = await VaultService.get(context, { id: vaultId, centrifugeId });
+  if (!vault) throw new Error("Vault not found");
   const { poolId, tokenId, kind, assetAddress } = vault.read();
 
   const assetQuery = (await AssetService.query(context, {

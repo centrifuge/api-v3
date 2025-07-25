@@ -31,6 +31,7 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const { client, contracts } = context;
@@ -69,6 +70,7 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
   const assetCentrifugeId = getAssetCentrifugeId(assetId);
 
@@ -115,6 +117,7 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId,
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const _tokenInstance = (await TokenInstanceService.getOrInit(context, {
@@ -139,13 +142,14 @@ ponder.on("Spoke:LinkVault", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const vault = (await VaultService.get(context, {
     id: vaultId,
     centrifugeId,
   })) as VaultService;
-
+  if (!vault) throw new Error("Vault not found");
   vault.setStatus("Linked");
   await vault.save();
 });
@@ -160,13 +164,14 @@ ponder.on("Spoke:UnlinkVault", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId,
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const vault = (await VaultService.get(context, {
     id: vaultId,
     centrifugeId,
   })) as VaultService;
-
+  if (!vault) throw new Error("Vault not found");
   vault.setStatus("Unlinked");
   await vault.save();
 });
@@ -187,13 +192,13 @@ ponder.on("Spoke:UpdateSharePrice", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const tokenInstance = (await TokenInstanceService.get(context, {
     tokenId,
     centrifugeId,
   })) as TokenInstanceService;
-
   if (!tokenInstance)
     throw new Error("TokenInstance not found for share class");
 
@@ -218,6 +223,7 @@ ponder.on("Spoke:UpdateAssetPrice", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId,
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const holdingEscrows = (await HoldingEscrowService.query(context, {
