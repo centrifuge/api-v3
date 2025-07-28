@@ -99,7 +99,6 @@ const PoolColumns = (t: PgColumnsBuilders) => ({
   createdAt: t.timestamp(),
   shareClassManager: t.text(),
   currency: t.bigint(),
-  currentEpochIndex: t.integer().default(1),
 });
 export const Pool = onchainTable("pool", PoolColumns, (t) => ({
   id: primaryKey({ columns: [t.id] }),
