@@ -99,7 +99,6 @@ const PoolColumns = (t: PgColumnsBuilders) => ({
   createdAt: t.timestamp(),
   shareClassManager: t.text(),
   currency: t.bigint(),
-  currentEpochIndex: t.integer().default(1),
 });
 export const Pool = onchainTable("pool", PoolColumns, (t) => ({
   id: primaryKey({ columns: [t.id] }),
@@ -113,7 +112,6 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
     references: [Blockchain.centrifugeId],
   }),
   tokens: many(Token, { relationName: "tokens" }),
-  epochs: many(Epoch, { relationName: "epochs" }),
   snapshots: many(PoolSnapshot, { relationName: "snapshots" }),
 }));
 
@@ -148,27 +146,8 @@ export const TokenRelations = relations(Token, ({ one, many }) => ({
   investorTransactions: many(InvestorTransaction, {
     relationName: "investorTransactions",
   }),
-  outstandingOrders: many(OutstandingOrder, {
-    relationName: "outstandingOrders",
-  }),
-}));
-
-const EpochColumns = (t: PgColumnsBuilders) => ({
-  poolId: t.bigint().notNull(),
-  index: t.integer().notNull(),
-  createdAtBlock: t.integer(),
-  createdAt: t.timestamp(),
-  closedAtBlock: t.integer(),
-  closedAt: t.timestamp(),
-});
-export const Epoch = onchainTable("epoch", EpochColumns, (t) => ({
-  id: primaryKey({ columns: [t.poolId, t.index] }),
-}));
-
-export const EpochRelations = relations(Epoch, ({ one, many }) => ({
-  pool: one(Pool, { fields: [Epoch.poolId], references: [Pool.id] }),
-  investorTransactions: many(InvestorTransaction, {
-    relationName: "investorTransactions",
+  OutstandingInvests: many(OutstandingInvest, {
+    relationName: "OutstandingInvests",
   }),
 }));
 
@@ -242,14 +221,14 @@ const InvestorTransactionColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   tokenId: t.text().notNull(),
   type: InvestorTransactionType("investor_transaction_type").notNull(),
-  account: t.text().notNull(),
+  account: t.hex().notNull(),
   createdAt: t.timestamp().notNull(),
   createdAtBlock: t.integer().notNull(),
   epochIndex: t.integer(),
-  tokenAmount: t.bigint(),
-  currencyAmount: t.bigint(),
-  tokenPrice: t.bigint(),
-  transactionFee: t.bigint(),
+  tokenAmount: t.bigint().default(0n),
+  currencyAmount: t.bigint().default(0n),
+  tokenPrice: t.bigint().default(0n),
+  transactionFee: t.bigint().default(0n),
 });
 export const InvestorTransaction = onchainTable(
   "investor_transaction",
@@ -272,10 +251,6 @@ export const InvestorTransactionRelations = relations(
       fields: [InvestorTransaction.poolId],
       references: [Pool.id],
     }),
-    epoch: one(Epoch, {
-      fields: [InvestorTransaction.poolId, InvestorTransaction.epochIndex],
-      references: [Epoch.poolId, Epoch.index],
-    }),
     token: one(Token, {
       fields: [InvestorTransaction.tokenId],
       references: [Token.id],
@@ -283,37 +258,238 @@ export const InvestorTransactionRelations = relations(
   })
 );
 
-const OutstandingOrderColumns = (t: PgColumnsBuilders) => ({
+const OutstandingInvestColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   tokenId: t.text().notNull(),
-  account: t.text().notNull(),
+  assetId: t.bigint().notNull(),
+  account: t.hex().notNull(),
+
+  pendingAmount: t.bigint().default(0n), // Amount that is MAYBE in transit from Spoke to Hub, asset denomination
+  depositAmount: t.bigint().default(0n), // Amount that is deposited on Hub, asset denomination
+  queuedAmount: t.bigint().default(0n), // Amount that is queued onchain for AFTER claim, technically needed, asset denomination
+  totalOutstandingAmount: t.bigint().default(0n), // See formula above, that is the POTENTIALLY Cancellable amount available, asset denomination
+
   updatedAt: t.timestamp(),
   updatedAtBlock: t.integer(),
-
-  requestedDepositAmount: t.bigint().default(0n),
-  approvedDepositAmount: t.bigint().default(0n),
-
-  requestedRedeemAmount: t.bigint().default(0n),
-  approvedRedeemAmount: t.bigint().default(0n),
 });
 
-export const OutstandingOrder = onchainTable(
-  "outstanding_order",
-  OutstandingOrderColumns,
+export const OutstandingInvest = onchainTable(
+  "outstanding_invest_order",
+  OutstandingInvestColumns,
   (t) => ({
-    id: primaryKey({ columns: [t.tokenId, t.account] }),
+    id: primaryKey({ columns: [t.tokenId, t.assetId, t.account] }),
     poolIdx: index().on(t.poolId),
     tokenIdx: index().on(t.tokenId),
+    assetIdx: index().on(t.assetId),
   })
 );
 
-export const OutstandingOrderRelations = relations(
-  OutstandingOrder,
+export const OutstandingInvestRelations = relations(
+  OutstandingInvest,
   ({ one }) => ({
     token: one(Token, {
-      fields: [OutstandingOrder.tokenId],
+      fields: [OutstandingInvest.tokenId],
       references: [Token.id],
     }),
+  })
+);
+
+const OutstandingRedeemColumns = (t: PgColumnsBuilders) => ({
+  poolId: t.bigint().notNull(),
+  tokenId: t.text().notNull(),
+  assetId: t.bigint().notNull(),
+  account: t.hex().notNull(),
+
+  pendingAmount: t.bigint().default(0n), // Amount that is MAYBE in transit from Spoke to Hub, share denomination
+  depositAmount: t.bigint().default(0n), // Amount that is deposited on Hub, share denomination
+  queuedAmount: t.bigint().default(0n), // Amount that is queued onchain for AFTER claim, technically needed, share denomination
+  totalOutstandingAmount: t.bigint().default(0n), // See formula above, that is the POTENTIALLY Cancellable amount available, share denomination
+
+  updatedAt: t.timestamp(),
+  updatedAtBlock: t.integer(),
+});
+
+export const OutstandingRedeem = onchainTable(
+  "redeem_outstanding_order",
+  OutstandingRedeemColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.tokenId, t.assetId, t.account] }),
+  })
+);
+
+export const OutstandingRedeemRelations = relations(
+  OutstandingRedeem,
+  ({ one }) => ({
+    token: one(Token, {
+      fields: [OutstandingRedeem.tokenId],
+      references: [Token.id],
+    }),
+  })
+);
+
+const InvestOrderColumns = (t: PgColumnsBuilders) => ({
+  poolId: t.bigint().notNull(),
+  tokenId: t.text().notNull(),
+  assetId: t.bigint().notNull(),
+  account: t.hex().notNull(),
+  index: t.integer().notNull(),
+
+  // Approved fields
+  approvedAt: t.timestamp(),
+  approvedAtBlock: t.integer(),
+  approvedAssetsAmount: t.bigint().default(0n), // Asset denomination
+
+  // Issued fields
+  issuedSharesAmount: t.bigint().default(0n), // PER USER
+  issuedWithNavPoolPerShare: t.bigint().default(0n),
+  issuedWithNavAssetPerShare: t.bigint().default(0n),
+  issuedAt: t.timestamp(),
+  issuedAtBlock: t.integer(),
+
+  // Claimed fields
+  claimedAt: t.timestamp(), // Claim action on the Hub, NOT the Spoke side
+  claimedAtBlock: t.integer(),
+
+
+
+});
+
+export const InvestOrder = onchainTable(
+  "invest_order",
+  InvestOrderColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.tokenId, t.assetId, t.account, t.index] }),
+  })
+);
+
+const RedeemOrderColumns = (t: PgColumnsBuilders) => ({
+  poolId: t.bigint().notNull(),
+  tokenId: t.text().notNull(),
+  assetId: t.bigint().notNull(),
+  account: t.hex().notNull(),
+  index: t.integer().notNull(),
+
+  // Approved fields
+  approvedAt: t.timestamp(),
+  approvedAtBlock: t.integer(),
+  approvedSharesAmount: t.bigint().default(0n), // Share denomination
+
+  // Revoked fields
+  revokedAt: t.timestamp(),
+  revokedAtBlock: t.integer(),
+  revokedAssetsAmount: t.bigint().default(0n), // payout of assets for shares, in asset denomination, PER USER
+  revokedPoolAmount: t.bigint().default(0n), // payout of assets for shares, in pool denomination, , PER USER
+  revokedWithNavPoolPerShare: t.bigint().default(0n),
+  revokedWithNavAssetPerShare: t.bigint().default(0n),
+
+  // Claimed fields
+  claimedAt: t.timestamp(), // Claim action on the Hub, NOT the Spoke side
+  claimedAtBlock: t.integer(),
+});
+
+export const RedeemOrder = onchainTable(
+  "redeem_order",
+  RedeemOrderColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.tokenId, t.assetId, t.account, t.index] }),
+  })
+);
+
+const EpochOutstandingInvestColumns = (t: PgColumnsBuilders) => ({
+  poolId: t.bigint().notNull(),
+  tokenId: t.text().notNull(),
+  assetId: t.bigint().notNull(),
+
+  pendingAssetsAmount: t.bigint().default(0n),
+
+  updatedAt: t.timestamp(),
+  updatedAtBlock: t.integer(),
+});
+
+export const EpochOutstandingInvest = onchainTable(
+  "epoch_outstanding_invest",
+  EpochOutstandingInvestColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.tokenId, t.assetId] }),
+  })
+);
+
+const EpochOutstandingRedeemColumns = (t: PgColumnsBuilders) => ({
+  poolId: t.bigint().notNull(),
+  tokenId: t.text().notNull(),
+  assetId: t.bigint().notNull(),
+
+  pendingSharesAmount: t.bigint().default(0n),
+
+  updatedAt: t.timestamp(),
+  updatedAtBlock: t.integer(),
+});
+
+export const EpochOutstandingRedeem = onchainTable(
+  "epoch_outstanding_redeem",
+  EpochOutstandingRedeemColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.tokenId, t.assetId] }),
+  })
+);
+
+const EpochInvestOrderColumns = (t: PgColumnsBuilders) => ({
+  poolId: t.bigint().notNull(),
+  tokenId: t.text().notNull(),
+  assetId: t.bigint().notNull(),
+  index: t.integer().notNull(), // required since multiple entries per combination
+
+  // Approved fields
+  approvedAt: t.timestamp(),
+  approvedAtBlock: t.integer(),
+  approvedAssetsAmount: t.bigint().default(0n), // asset denomination
+  approvedPoolAmount: t.bigint().default(0n), // pool denomination
+  approvedPercentageOfTotalPending: t.bigint().default(0n),
+
+  // Closed fields
+  issuedAt: t.timestamp(),
+  issuedAtBlock: t.integer(),
+  issuedSharesAmount: t.bigint().default(0n),
+  issuedWithNavPoolPerShare: t.bigint().default(0n),
+  issuedWithNavAssetPerShare: t.bigint().default(0n),
+});
+
+export const EpochInvestOrder = onchainTable(
+  "epoch_invest_order",
+  EpochInvestOrderColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.tokenId, t.assetId, t.index] }),
+  })
+);
+
+const EpochRedeemOrderColumns = (t: PgColumnsBuilders) => ({
+  poolId: t.bigint().notNull(),
+  tokenId: t.text().notNull(),
+  assetId: t.bigint().notNull(),
+  index: t.integer().notNull(), // required
+
+  // Approved fields
+  approvedAt: t.timestamp(),
+  approvedAtBlock: t.integer(),
+  approvedAssetsAmount: t.bigint().default(0n), // asset denomination
+  approvedPoolAmount: t.bigint().default(0n), // pool denomination
+  approvedPercentageOfTotalPending: t.bigint().default(0n), // percentage value as fixed point would be best
+
+  // Closed fields
+  revokedAt: t.timestamp(),
+  revokedAtBlock: t.integer(),
+  revokedSharesAmount: t.bigint().default(0n),
+  revokedAssetsAmount: t.bigint().default(0n), // payout of assets for shares, in asset denomination
+  revokedPoolAmount: t.bigint().default(0n), // payout of assets for shares, in pool denomination
+  revokedWithNavPoolPerShare: t.bigint().default(0n),
+  revokedWithNavAssetPerShare: t.bigint().default(0n),
+});
+
+export const EpochRedeemOrder = onchainTable(
+  "epoch_redeem_order",
+  EpochRedeemOrderColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.tokenId, t.assetId, t.index] }),
   })
 );
 
@@ -342,7 +518,7 @@ export const AssetRegistration = onchainTable(
 );
 export const AssetRegistrationRelations = relations(
   AssetRegistration,
-  ({ one, many }) => ({
+  ({ one }) => ({
     blockchain: one(Blockchain, {
       fields: [AssetRegistration.centrifugeId],
       references: [Blockchain.centrifugeId],
@@ -366,6 +542,7 @@ const AssetColumns = (t: PgColumnsBuilders) => ({
 
 export const Asset = onchainTable("asset", AssetColumns, (t) => ({
   id: primaryKey({ columns: [t.id] }),
+  centrifugeIdIdx: index().on(t.centrifugeId),
   addressIdx: index().on(t.address),
 }));
 export const AssetRelations = relations(Asset, ({ one, many }) => ({
@@ -459,7 +636,7 @@ export const HoldingAccountType = onchainEnum(
   HoldingAccountTypes
 );
 export const HoldingAccountColumns = (t: PgColumnsBuilders) => ({
-  id: t.text().primaryKey(),
+  id: t.text().notNull(),
   tokenId: t.text().notNull(),
   kind: HoldingAccountType("holding_account_type").notNull(),
 });
@@ -467,7 +644,9 @@ export const HoldingAccountColumns = (t: PgColumnsBuilders) => ({
 export const HoldingAccount = onchainTable(
   "holding_account",
   HoldingAccountColumns,
-  (t) => ({})
+  (t) => ({
+    id: primaryKey({ columns: [t.id] }),
+  })
 );
 
 export const HoldingAccountRelations = relations(HoldingAccount, ({ one }) => ({
@@ -519,7 +698,7 @@ export const HoldingEscrow = onchainTable(
 );
 export const HoldingEscrowRelations = relations(
   HoldingEscrow,
-  ({ one, many }) => ({
+  ({ one }) => ({
     blockchain: one(Blockchain, {
       fields: [HoldingEscrow.centrifugeId],
       references: [Blockchain.centrifugeId],
@@ -577,6 +756,14 @@ export const HoldingSnapshot = onchainTable(
   })
 );
 
+/**
+ * Creates a snapshot schema by selecting specific columns from a base table schema
+ * @param columns - The base table column definition function
+ * @param selectKeys - Array of column keys to include in the snapshot
+ * @returns A new column definition function with snapshot-specific columns added
+ * @template F - Type of the base column definition function
+ * @template O - Array of keys from the base column definition return type
+ */
 function snapshotColumns<
   F extends PgColumnsFunction,
   O extends Array<keyof ReturnType<F>>

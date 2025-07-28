@@ -12,9 +12,10 @@ ponder.on("PoolEscrowFactory:DeployPoolEscrow", async ({ event, context }) => {
   const { poolId, escrow: escrowAddress } = event.args;
 
   const blockchain = await BlockchainService.get(context, { id: chainId.toString() }) as BlockchainService
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read()
 
-  const escrow = (await EscrowService.init(context, {
+  const _escrow = (await EscrowService.init(context, {
     address: escrowAddress,
     poolId,
     centrifugeId,

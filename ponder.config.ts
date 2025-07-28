@@ -1,5 +1,5 @@
 import { BlockConfig, createConfig, factory, mergeAbis, ChainConfig, ContractConfig } from "ponder";
-import { getAbiItem, http, Transport } from "viem";
+import { getAbiItem } from "viem";
 
 import { HubRegistryAbi } from "./abis/HubRegistryAbi";
 import { SpokeAbi } from "./abis/SpokeAbi";
@@ -91,6 +91,14 @@ console.log(JSON.stringify(config, null, 2))
 export default createConfig(config);
 
 type MultichainContractChain = Exclude<ContractConfig['chain'], string>
+
+/**
+ * Gets the contract chain configuration for a given contract across all networks.
+ * 
+ * @param contractName - The name of the contract to get the chain config for
+ * @param factoryConfig - Optional factory configuration for contracts deployed by factories
+ * @returns Chain configuration object with network-specific address and start block info
+ */
 function getContractChain(contractName: keyof typeof currentChains[number]['contracts'], factoryConfig?: Omit<Parameters<typeof factory>[0], 'address'>): MultichainContractChain {
   return currentChains.reduce<MultichainContractChain>((acc, network) => {
     acc[network.network.network] = {

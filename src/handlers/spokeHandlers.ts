@@ -13,12 +13,13 @@ import {
 
 ponder.on("Spoke:DeployVault", async ({ event, context }) => {
   logEvent(event, context, "Spoke:DeployVault");
-  const chainId = context.chain.id as number;
+  const chainId = context.chain.id;
+  if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const {
     poolId,
     scId: tokenId,
     asset: assetAddress,
-    tokenId: assetTokenId,
+    //tokenId: assetTokenId,
     factory,
     vault: vaultId,
     kind,
@@ -30,9 +31,10 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
-  const {client, contracts} = context;
+  const { client, contracts } = context;
   const manager = await client.readContract({
     abi: contracts.Vault.abi,
     address: vaultId,
@@ -40,7 +42,7 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
     args: [],
   });
 
-  const vault = (await VaultService.init(context, {
+  const _vault = (await VaultService.init(context, {
     id: vaultId,
     centrifugeId,
     poolId,
@@ -48,7 +50,7 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
     assetAddress,
     factory: factory,
     kind: vaultKind,
-    manager
+    manager,
   })) as VaultService;
 });
 
@@ -68,6 +70,7 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
   const assetCentrifugeId = getAssetCentrifugeId(assetId);
 
@@ -85,10 +88,11 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
   const hasNoStatus = !status;
   const hasNoAssetCentrifugeId = !assetRegistrationAssetCentrifugeId;
   if (hasNoStatus) assetRegistration.setStatus("IN_PROGRESS");
-  if (hasNoAssetCentrifugeId) assetRegistration.setAssetCentrifugeId(assetCentrifugeId);
+  if (hasNoAssetCentrifugeId)
+    assetRegistration.setAssetCentrifugeId(assetCentrifugeId);
   if (hasNoStatus || hasNoAssetCentrifugeId) await assetRegistration.save();
 
-  const asset = (await AssetService.getOrInit(context, {
+  const _asset = (await AssetService.getOrInit(context, {
     id: assetId,
     centrifugeId,
     address: assetAddress,
@@ -103,15 +107,20 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
   logEvent(event, context, "Spoke:AddShareClass");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
-  const { poolId, scId: tokenId, token: tokenAddress } = event.args;
+  const {
+    //poolId,
+    scId: tokenId,
+    token: tokenAddress,
+  } = event.args;
   const chainId = _chainId.toString();
-  
+
   const blockchain = (await BlockchainService.get(context, {
     id: chainId,
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
-  const tokenInstance = (await TokenInstanceService.getOrInit(context, {
+  const _tokenInstance = (await TokenInstanceService.getOrInit(context, {
     address: tokenAddress,
     tokenId,
     centrifugeId,
@@ -123,24 +132,24 @@ ponder.on("Spoke:LinkVault", async ({ event, context }) => {
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const {
-    poolId: poolId,
-    scId: tokenId,
-    asset: assetAddress,
-    tokenId: assetTokenId,
+    //poolId: poolId,
+    //scId: tokenId,
+    //asset: assetAddress,
+    //tokenId: assetTokenId,
     vault: vaultId,
   } = event.args;
 
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const vault = (await VaultService.get(context, {
     id: vaultId,
     centrifugeId,
   })) as VaultService;
-
-
+  if (!vault) throw new Error("Vault not found");
   vault.setStatus("Linked");
   await vault.save();
 });
@@ -155,13 +164,14 @@ ponder.on("Spoke:UnlinkVault", async ({ event, context }) => {
   const blockchain = (await BlockchainService.get(context, {
     id: chainId,
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const vault = (await VaultService.get(context, {
     id: vaultId,
     centrifugeId,
   })) as VaultService;
-
+  if (!vault) throw new Error("Vault not found");
   vault.setStatus("Unlinked");
   await vault.save();
 });
@@ -171,26 +181,24 @@ ponder.on("Spoke:UpdateSharePrice", async ({ event, context }) => {
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const {
-    poolId: _poolId,
-    scId: _tokenId,
+    //poolId,
+    scId: tokenId,
     // tokenId: _tokenId,
     price: tokenPrice,
     computedAt: _computedAt,
   } = event.args;
-  const poolId = _poolId;
-  const tokenId = _tokenId.toString();
   const computedAt = new Date(Number(_computedAt.toString()) * 1000);
 
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const tokenInstance = (await TokenInstanceService.get(context, {
     tokenId,
     centrifugeId,
   })) as TokenInstanceService;
-
   if (!tokenInstance)
     throw new Error("TokenInstance not found for share class");
 
@@ -201,23 +209,25 @@ ponder.on("Spoke:UpdateSharePrice", async ({ event, context }) => {
 
 ponder.on("Spoke:UpdateAssetPrice", async ({ event, context }) => {
   logEvent(event, context, "Spoke:UpdateAssetPrice");
-  const _chainId = context.chain.id
+  const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const {
-    poolId: poolId,
-    scId: tokenId,
+    //poolId: poolId,
+    //scId: tokenId,
     asset: assetAddress,
     price: assetPrice,
-    computedAt
+    //computedAt,
   } = event.args;
 
   const chainId = _chainId.toString();
   const blockchain = (await BlockchainService.get(context, {
     id: chainId,
   })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
   const holdingEscrows = (await HoldingEscrowService.query(context, {
+    centrifugeId,
     assetAddress,
   })) as HoldingEscrowService[];
 

@@ -1,5 +1,4 @@
 import { ponder } from "ponder:registry";
-import { logEvent } from "../helpers/logger";
 import { currentChains } from "../../ponder.config";
 import { DeploymentService } from "../services";
 
@@ -12,7 +11,7 @@ ponder.on("HubRegistry:setup", async ({ context }) => {
     }
     const network = currentChain.network;
     const contracts = currentChain.contracts;
-    const deployment = await DeploymentService.init(context, {
+    const _deployment = await DeploymentService.init(context, {
       chainId: network.chainId.toString(),
       centrifugeId: network.centrifugeId.toString(),
       ...contracts,

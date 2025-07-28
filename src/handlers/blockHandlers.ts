@@ -9,6 +9,13 @@ import { TokenSnapshot } from "ponder:schema";
 
 const timekeeper = Timekeeper.start()
 
+/**
+ * Processes a new block and creates snapshots if a new period has started
+ * @param args - Event arguments containing context and event details
+ * @param args.context - Ponder context object containing chain information
+ * @param args.event - Block event containing block details
+ * @returns Promise that resolves when processing is complete
+ */
 async function processBlock(args: Parameters<Parameters<typeof ponder.on>[1]>[0]) {
   const chainName  = args.context.chain.name
   const { event, context } = args
@@ -18,6 +25,7 @@ async function processBlock(args: Parameters<Parameters<typeof ponder.on>[1]>[0]
   const chainId = args.context.chain.id
   if(typeof chainId !== "number") throw new Error("Chain ID is required")
   const blockchain = await BlockchainService.get(context, { id: chainId.toString() })
+  if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read()
   
   const pools = await PoolService.query(context, {
