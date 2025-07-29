@@ -1,6 +1,6 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
-import { AssetService, BlockchainService, EscrowService, HoldingEscrowService, TokenInstanceService } from "../services";
+import { AssetService, BlockchainService, EscrowService, HoldingEscrowService, PoolManagerService, TokenInstanceService } from "../services";
 
 ponder.on("BalanceSheet:Issue", async ({ event, context }) => {
   logEvent(event, context, "BalanceSheet:Issue");
@@ -145,4 +145,23 @@ ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
   await holdingEscrow.decreaseAssetAmount(amount);
   await holdingEscrow.setAssetPrice(pricePoolPerAsset);
   await holdingEscrow.save();
+})
+
+ponder.on("BalanceSheet:UpdateManager", async ({ event, context }) => {
+  logEvent(event, context, "BalanceSheet:UpdateManager");
+  const chainId = context.chain.id
+  if (typeof chainId !== 'number') throw new Error('Chain ID is required')
+
+  const blockchain = await BlockchainService.get(context, { id: chainId.toString() }) as BlockchainService
+  if (!blockchain) throw new Error("Blockchain not found");
+  const { centrifugeId } = blockchain.read();
+
+  const { who: manager, poolId, canManage } = event.args;
+  const poolManager = await PoolManagerService.getOrInit(context, {
+    address: manager.substring(0, 42) as `0x${string}`,
+    centrifugeId,
+    poolId,
+  }) as PoolManagerService;
+  poolManager.setIsBalancesheetManager(canManage);
+  await poolManager.save();
 })

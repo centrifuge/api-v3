@@ -1,4 +1,11 @@
-import { BlockConfig, createConfig, factory, mergeAbis, ChainConfig, ContractConfig } from "ponder";
+import {
+  BlockConfig,
+  createConfig,
+  factory,
+  mergeAbis,
+  ChainConfig,
+  ContractConfig,
+} from "ponder";
 import { getAbiItem } from "viem";
 
 import { HubRegistryAbi } from "./abis/HubRegistryAbi";
@@ -13,98 +20,139 @@ import { SyncDepositVaultAbi } from "./abis/SyncDepositVaultAbi";
 import { chains as _chains, endpoints, startBlocks } from "./chains";
 import { PoolEscrowFactoryAbi } from "./abis/PoolEscrowFactoryAbi";
 import { PoolEscrowAbi } from "./abis/PoolEscrowAbi";
+import { OnOffRampManagerFactoryAbi } from "./abis/OnOffRampManagerFactoryAbi";
+import { OnOffRampManagerAbi } from "./abis/OnOffRampManagerAbi";
+import { MerkleProofManagerFactoryAbi } from "./abis/MerkleProofManagerFactoryAbi";
+import { MerkleProofManagerAbi } from "./abis/MerkleProofManagerAbi";
 
-export const selectedNetworks = process.env.SELECTED_NETWORKS!.split(',')
-export const currentChains = _chains.filter(chain => selectedNetworks.includes(chain.network.chainId.toString()))
-type Networks = typeof currentChains[number]['network']['network']
+export const selectedNetworks = process.env.SELECTED_NETWORKS!.split(",");
+export const currentChains = _chains.filter((chain) =>
+  selectedNetworks.includes(chain.network.chainId.toString())
+);
+type Networks = (typeof currentChains)[number]["network"]["network"];
 
-const chains = currentChains.reduce<Record<Networks, ChainConfig>>((acc, network) => {
-  acc[network.network.network] = {
-    id: network.network.chainId,
-    rpc: `https://${endpoints[network.network.chainId]}`,
-    ws: `wss://${endpoints[network.network.chainId]}`,
-  }
-  return acc
-}, {} as Record<Networks, ChainConfig>)
+const chains = currentChains.reduce<Record<Networks, ChainConfig>>(
+  (acc, network) => {
+    acc[network.network.network] = {
+      id: network.network.chainId,
+      rpc: `https://${endpoints[network.network.chainId]}`,
+      ws: `wss://${endpoints[network.network.chainId]}`,
+    };
+    return acc;
+  },
+  {} as Record<Networks, ChainConfig>
+);
 
-const blocks = currentChains.reduce<Record<string, BlockConfig>>((acc, network) => {
-  acc[network.network.network] = {
-    chain: network.network.network,
-    startBlock: startBlocks[network.network.chainId],
-    interval: 300,
-  }
-  return acc
-}, {} as Record<string, BlockConfig>)
+const blocks = currentChains.reduce<Record<string, BlockConfig>>(
+  (acc, network) => {
+    acc[network.network.network] = {
+      chain: network.network.network,
+      startBlock: startBlocks[network.network.chainId],
+      interval: 300,
+    };
+    return acc;
+  },
+  {} as Record<string, BlockConfig>
+);
 
 const config = {
-  ordering: 'omnichain',
+  ordering: "omnichain",
   chains,
   blocks,
   contracts: {
     HubRegistry: {
       abi: HubRegistryAbi,
-      chain: getContractChain('hubRegistry')
+      chain: getContractChain("hubRegistry"),
     },
     ShareClassManager: {
       abi: ShareClassManagerAbi,
-      chain: getContractChain('shareClassManager')
+      chain: getContractChain("shareClassManager"),
     },
     Spoke: {
       abi: SpokeAbi,
-      chain: getContractChain('spoke')
+      chain: getContractChain("spoke"),
     },
     Vault: {
       abi: mergeAbis([SyncDepositVaultAbi, AsyncVaultAbi]),
-      chain: getContractChain('spoke',{
+      chain: getContractChain("spoke", {
         event: getAbiItem({ abi: SpokeAbi, name: "DeployVault" }),
         parameter: "vault",
       }),
     },
     MessageDispatcher: {
       abi: MessageDispatcherAbi,
-      chain: getContractChain('messageDispatcher')
+      chain: getContractChain("messageDispatcher"),
     },
     Holdings: {
       abi: HoldingsAbi,
-      chain: getContractChain('holdings')
+      chain: getContractChain("holdings"),
     },
     BalanceSheet: {
       abi: BalanceSheetAbi,
-      chain: getContractChain('balanceSheet')
+      chain: getContractChain("balanceSheet"),
     },
     PoolEscrow: {
       abi: PoolEscrowAbi,
-      chain: getContractChain('poolEscrowFactory', {
-        event: getAbiItem({ abi: PoolEscrowFactoryAbi, name: "DeployPoolEscrow" }),
+      chain: getContractChain("poolEscrowFactory", {
+        event: getAbiItem({
+          abi: PoolEscrowFactoryAbi,
+          name: "DeployPoolEscrow",
+        }),
         parameter: "escrow",
-      })
+      }),
     },
     PoolEscrowFactory: {
       abi: PoolEscrowFactoryAbi,
-      chain: getContractChain('poolEscrowFactory')
+      chain: getContractChain("poolEscrowFactory"),
+    },
+    OnOffRampManager: {
+      abi: OnOffRampManagerAbi,
+      chain: getContractChain("onOfframpManagerFactory", {
+        event: getAbiItem({
+          abi: OnOffRampManagerFactoryAbi,
+          name: "DeployOnOfframpManager",
+        }),
+        parameter: "manager",
+      }),
+    },
+    MerkleProofManager: {
+      abi: MerkleProofManagerAbi,
+      chain: getContractChain("merkleProofManagerFactory", {
+        event: getAbiItem({
+          abi: MerkleProofManagerFactoryAbi,
+          name: "DeployMerkleProofManager",
+        }),
+        parameter: "manager",
+      }),
     },
   },
-} as const
-
-console.log(JSON.stringify(config, null, 2))
+} as const;
 
 export default createConfig(config);
 
-type MultichainContractChain = Exclude<ContractConfig['chain'], string>
+type MultichainContractChain = Exclude<ContractConfig["chain"], string>;
 
 /**
  * Gets the contract chain configuration for a given contract across all networks.
- * 
+ *
  * @param contractName - The name of the contract to get the chain config for
  * @param factoryConfig - Optional factory configuration for contracts deployed by factories
  * @returns Chain configuration object with network-specific address and start block info
  */
-function getContractChain(contractName: keyof typeof currentChains[number]['contracts'], factoryConfig?: Omit<Parameters<typeof factory>[0], 'address'>): MultichainContractChain {
+function getContractChain(
+  contractName: keyof (typeof currentChains)[number]["contracts"],
+  factoryConfig?: Omit<Parameters<typeof factory>[0], "address">
+): MultichainContractChain {
   return currentChains.reduce<MultichainContractChain>((acc, network) => {
     acc[network.network.network] = {
-      address: factoryConfig ? factory({...factoryConfig, address: network.contracts[contractName]}) : network.contracts[contractName],
+      address: factoryConfig
+        ? factory({
+            ...factoryConfig,
+            address: network.contracts[contractName],
+          })
+        : network.contracts[contractName],
       startBlock: startBlocks[network.network.chainId],
-    }
-    return acc
-  }, {} as MultichainContractChain)
+    };
+    return acc;
+  }, {} as MultichainContractChain);
 }

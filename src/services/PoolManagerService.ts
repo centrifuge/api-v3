@@ -1,21 +1,21 @@
-import { Manager } from "ponder:schema";
+import { PoolManager } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
 
 /**
- * Service class for managing Manager entities.
+ * Service class for managing PoolManager entities.
  * 
- * Extends the base Service class with Manager-specific functionality
+ * Extends the base Service class with PoolManager-specific functionality
  * and inherits common static methods through mixinCommonStatics.
  * 
  * @example
  * ```typescript
- * // Create a new manager
- * const manager = await ManagerService.init(context, {
+* // Create a new pool manager
+ * const poolManager = await PoolManagerService.init(context, {
  *   address: "0x1234567890123456789012345678901234567890",
  *   centrifugeId: "centrifuge:123",
  *   poolId: 123n,
  */
-export class ManagerService extends mixinCommonStatics(Service<typeof Manager>, Manager, "Manager") {
+export class PoolManagerService extends mixinCommonStatics(Service<typeof PoolManager>, PoolManager, "PoolManager") {
   /**
    * Sets the isHubManager property for the manager.
    * 
