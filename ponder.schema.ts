@@ -113,6 +113,8 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
   }),
   tokens: many(Token, { relationName: "tokens" }),
   snapshots: many(PoolSnapshot, { relationName: "snapshots" }),
+  managers: many(PoolManager, { relationName: "managers" }),
+  policies: many(Policy, { relationName: "policies" }),
 }));
 
 const TokenColumns = (t: PgColumnsBuilders) => ({
@@ -149,6 +151,8 @@ export const TokenRelations = relations(Token, ({ one, many }) => ({
   OutstandingInvests: many(OutstandingInvest, {
     relationName: "OutstandingInvests",
   }),
+  onRampAssets: many(OnRampAsset, { relationName: "onRampAssets" }),
+  offRampAddresses: many(OffRampAddress, { relationName: "offRampAddresses" }),
 }));
 
 export const VaultKinds = ["Async", "Sync", "SyncDepositAsyncRedeem"] as const;
@@ -755,6 +759,107 @@ export const HoldingSnapshot = onchainTable(
     }),
   })
 );
+
+const PoolManagerColumns = (t: PgColumnsBuilders) => ({
+  address: t.hex().notNull(),
+  centrifugeId: t.text().notNull(),
+  poolId: t.bigint().notNull(),
+  isHubManager: t.boolean().notNull().default(false),
+  isBalancesheetManager: t.boolean().notNull().default(false),
+});
+
+export const PoolManager = onchainTable("pool_manager", PoolManagerColumns, (t) => ({
+  id: primaryKey({ columns: [t.address, t.centrifugeId, t.poolId] }),
+  poolIdx: index().on(t.poolId),
+}));
+
+export const PoolManagerRelations = relations(PoolManager, ({ one }) => ({
+  pool: one(Pool, {
+    fields: [PoolManager.poolId],
+    references: [Pool.id],
+  }),
+}));
+
+const OfframpRelayerColumns = (t: PgColumnsBuilders) => ({
+  address: t.hex().notNull(),
+  isEnabled: t.boolean().notNull().default(false),
+});
+
+export const OfframpRelayer = onchainTable("offramp_relayer", OfframpRelayerColumns, (t) => ({
+  id: primaryKey({ columns: [t.address] }),
+}));
+
+const OnRampAssetColumns = (t: PgColumnsBuilders) => ({
+  poolId: t.bigint().notNull(),
+  tokenId: t.text().notNull(),
+  centrifugeId: t.text().notNull(),
+  assetAddress: t.hex().notNull(),
+});
+
+export const OnRampAsset = onchainTable("on_ramp_asset", OnRampAssetColumns, (t) => ({
+  id: primaryKey({ columns: [t.tokenId, t.assetAddress] }),
+  poolIdx: index().on(t.poolId),
+  tokenIdx: index().on(t.tokenId),
+  assetIdx: index().on(t.assetAddress),
+}));
+
+export const OnRampAssetRelations = relations(OnRampAsset, ({ one }) => ({
+  token: one(Token, {
+    fields: [OnRampAsset.tokenId],
+    references: [Token.id],
+  }),
+  asset: one(Asset, {
+    fields: [OnRampAsset.assetAddress, OnRampAsset.centrifugeId],
+    references: [Asset.address, Asset.centrifugeId],
+  }),
+}));
+
+const OffRampAddressColumns = (t: PgColumnsBuilders) => ({
+  poolId: t.bigint().notNull(),
+  tokenId: t.text().notNull(),
+  centrifugeId: t.text().notNull(),
+  assetAddress: t.hex().notNull(),
+  receiverAddress: t.hex().notNull(),
+});
+export const OffRampAddress = onchainTable("off_ramp_address", OffRampAddressColumns, (t) => ({
+  id: primaryKey({ columns: [t.tokenId, t.assetAddress, t.receiverAddress] }),
+  poolIdx: index().on(t.poolId),
+  tokenIdx: index().on(t.tokenId),
+  assetIdx: index().on(t.assetAddress),
+  receiverIdx: index().on(t.receiverAddress),
+}));
+
+export const OffRampAddressRelations = relations(OffRampAddress, ({ one }) => ({
+  token: one(Token, {
+    fields: [OffRampAddress.tokenId],
+    references: [Token.id],
+  }),
+  asset: one(Asset, {
+    fields: [OffRampAddress.assetAddress, OffRampAddress.centrifugeId],
+    references: [Asset.address, Asset.centrifugeId],
+  }),
+}));
+
+const PolicyColumns = (t: PgColumnsBuilders) => ({
+  poolId: t.bigint().notNull(),
+  centrifugeId: t.text().notNull(),
+  strategistAddress: t.hex().notNull(),
+  root: t.hex().notNull(),
+});
+
+export const Policy = onchainTable("policy", PolicyColumns, (t) => ({
+  id: primaryKey({ columns: [t.poolId, t.centrifugeId] }),
+  poolIdx: index().on(t.poolId),
+  centrifugeIdIdx: index().on(t.centrifugeId),
+}));
+
+export const PolicyRelations = relations(Policy, ({ one }) => ({
+  pool: one(Pool, {
+    fields: [Policy.poolId],
+    references: [Pool.id],
+  }),
+}));
+
 
 /**
  * Creates a snapshot schema by selecting specific columns from a base table schema
