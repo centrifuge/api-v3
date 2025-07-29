@@ -780,6 +780,15 @@ export const PoolManagerRelations = relations(PoolManager, ({ one }) => ({
   }),
 }));
 
+const OfframpRelayerColumns = (t: PgColumnsBuilders) => ({
+  address: t.hex().notNull(),
+  isEnabled: t.boolean().notNull().default(false),
+});
+
+export const OfframpRelayer = onchainTable("offramp_relayer", OfframpRelayerColumns, (t) => ({
+  id: primaryKey({ columns: [t.address] }),
+}));
+
 const OnRampAssetColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   tokenId: t.text().notNull(),
@@ -835,7 +844,7 @@ const PolicyColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   centrifugeId: t.text().notNull(),
   strategistAddress: t.hex().notNull(),
-  root: t.bytes().notNull(),
+  root: t.hex().notNull(),
 });
 
 export const Policy = onchainTable("policy", PolicyColumns, (t) => ({

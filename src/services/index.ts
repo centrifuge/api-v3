@@ -1,3 +1,4 @@
+export * from "./OffRampRelayerService";
 export * from "./PoolService";
 export * from "./TokenService";
 export * from "./OutstandingInvestService";
@@ -16,4 +17,7 @@ export * from "./EscrowService";
 export * from "./HoldingAccountService";
 export * from "./DeploymentService";
 export * from "./EpochOutstandingInvestService";
-export * from "./ManagerService";
+export * from "./PoolManagerService";
+export * from "./OnRampAssetService";
+export * from "./OffRampAddressService";
+export * from "./PolicyService";
