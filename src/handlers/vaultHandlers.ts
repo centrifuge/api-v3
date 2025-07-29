@@ -3,7 +3,6 @@ import { logEvent } from "../helpers/logger";
 import {
   AssetService,
   BlockchainService,
-  PoolService,
   TokenService,
 } from "../services";
 import { InvestorTransactionService, VaultService } from "../services";
@@ -44,17 +43,12 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   });
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
 
-  const pool = await PoolService.get(context, { id: poolId });
-  if (!pool) throw new Error(`Pool with id ${poolId} not found`);
-  const { currentEpochIndex } = pool.read();
-
   const _it = await InvestorTransactionService.updateDepositRequest(context, {
     poolId,
     tokenId,
     account: senderAddress.substring(0, 42) as `0x${string}`,
     currencyAmount: assets,
     txHash: event.transaction.hash,
-    epochIndex: currentEpochIndex!,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
     centrifugeId,
@@ -108,17 +102,12 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
   const token = await TokenService.get(context, { poolId, id: tokenId });
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
 
-  const pool = await PoolService.get(context, { id: poolId });
-  if (!pool) throw new Error(`Pool with id ${poolId} not found`);
-  const { currentEpochIndex } = pool.read();
-
   const _it = await InvestorTransactionService.updateRedeemRequest(context, {
     poolId,
     tokenId,
     account: senderAddress.substring(0, 42) as `0x${string}`,
     tokenAmount: assets,
     txHash: event.transaction.hash,
-    epochIndex: currentEpochIndex,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
     centrifugeId,
