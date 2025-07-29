@@ -16,3 +16,4 @@ export * from "./EscrowService";
 export * from "./HoldingAccountService";
 export * from "./DeploymentService";
 export * from "./EpochOutstandingInvestService";
+export * from "./ManagerService";

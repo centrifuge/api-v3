@@ -113,6 +113,7 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
   }),
   tokens: many(Token, { relationName: "tokens" }),
   snapshots: many(PoolSnapshot, { relationName: "snapshots" }),
+  managers: many(Manager, { relationName: "managers" }),
 }));
 
 const TokenColumns = (t: PgColumnsBuilders) => ({
@@ -755,6 +756,27 @@ export const HoldingSnapshot = onchainTable(
     }),
   })
 );
+
+const ManagerColumns = (t: PgColumnsBuilders) => ({
+  address: t.hex().notNull(),
+  centrifugeId: t.hex().notNull(),
+  poolId: t.bigint().notNull(),
+  isHubManager: t.boolean().notNull().default(false),
+  isBalancesheetManager: t.boolean().notNull().default(false),
+});
+
+export const Manager = onchainTable("manager", ManagerColumns, (t) => ({
+  id: primaryKey({ columns: [t.address, t.centrifugeId] }),
+  poolIdx: index().on(t.poolId),
+}));
+
+export const ManagerRelations = relations(Manager, ({ one }) => ({
+  pool: one(Pool, {
+    fields: [Manager.poolId],
+    references: [Pool.id],
+  }),
+}));
+
 
 /**
  * Creates a snapshot schema by selecting specific columns from a base table schema
