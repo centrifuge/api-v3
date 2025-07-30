@@ -860,6 +860,43 @@ export const PolicyRelations = relations(Policy, ({ one }) => ({
   }),
 }));
 
+export const XChainPayloadStatuses = ["Underpaid", "InProgress", "Delivered"] as const;
+export const XChainPayloadStatus = onchainEnum("x_chain_payload_status", XChainPayloadStatuses);
+
+const XChainPayloadColumns = (t: PgColumnsBuilders) => ({
+  id: t.hex().notNull(),
+  counter: t.integer().notNull(),
+  transactionHash: t.hex().notNull(),
+  fromCentrifugeId: t.text().notNull(),
+  toCentrifugeId: t.text().notNull(),
+  votes: t.integer().notNull(),
+  status: XChainPayloadStatus("x_chain_payload_status").notNull(),
+});
+
+export const XChainPayload = onchainTable("x_chain_payload", XChainPayloadColumns, (t) => ({
+  id: primaryKey({ columns: [t.id, t.counter] }),
+}));
+
+export const XChainPayloadRelations = relations(XChainPayload, ({}) => ({}));
+
+export const XChainMessageStatuses = ["AwaitingBatchDelivery", "Failed", "Executed"] as const;
+export const XChainMessageStatus = onchainEnum("x_chain_message_status", XChainMessageStatuses);
+
+const XChainMessageColumns = (t: PgColumnsBuilders) => ({
+  payloadId: t.hex().notNull(),
+  counter: t.integer().notNull(),
+  index: t.integer().notNull(),
+  messageType: t.text().notNull(),
+  status: XChainMessageStatus("x_chain_message_status").notNull(),
+  payload: t.hex().notNull(),
+});
+
+export const XChainMessage = onchainTable("x_chain_message", XChainMessageColumns, (t) => ({
+  id: primaryKey({ columns: [t.payloadId, t.counter, t.index] }),
+}));
+
+export const XChainMessageRelations = relations(XChainMessage, ({}) => ({}));
+
 
 /**
  * Creates a snapshot schema by selecting specific columns from a base table schema
