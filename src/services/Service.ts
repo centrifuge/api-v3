@@ -1,5 +1,5 @@
 import type { Context } from "ponder:registry";
-import { eq, and } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
 
 /** Type alias for PostgreSQL table with columns */
@@ -192,8 +192,25 @@ export function mixinCommonStatics<
       console.info(`Found ${results.length} ${name}`);
       return results.map((result) => new this(table, name, context, result));
     }
+    
+    /**
+     * Counts the number of records matching the query criteria.
+     * 
+     * @param context - Database and client context
+     * @param query - Query criteria to filter records
+     * @returns Promise that resolves to the count of matching records
+     */
+    static async count(context: Context, query: Partial<T["$inferSelect"]>) {
+      const filter = queryToFilter(table, query);
+      const result = await context.db.sql
+        .select({ count: count() })
+        .from(table as OnchainTable)
+        .where(filter);
+      return result.pop()?.count ?? 0;
+    }
   };
 }
+
 
 /**
  * Extracts the names of primary key fields from a table configuration.

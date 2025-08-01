@@ -865,37 +865,53 @@ export const XChainPayloadStatus = onchainEnum("x_chain_payload_status", XChainP
 
 const XChainPayloadColumns = (t: PgColumnsBuilders) => ({
   id: t.hex().notNull(),
-  counter: t.integer().notNull(),
-  transactionHash: t.hex().notNull(),
   fromCentrifugeId: t.text().notNull(),
   toCentrifugeId: t.text().notNull(),
-  votes: t.integer().notNull(),
-  status: XChainPayloadStatus("x_chain_payload_status").notNull(),
+  votes: t.integer().notNull().default(0),
+  status: XChainPayloadStatus("x_chain_payload_status").notNull().default("InProgress"),
 });
 
 export const XChainPayload = onchainTable("x_chain_payload", XChainPayloadColumns, (t) => ({
-  id: primaryKey({ columns: [t.id, t.counter] }),
+  id: primaryKey({ columns: [t.id, t.fromCentrifugeId, t.toCentrifugeId] }),
+  poolIdx: index().on(t.id),
+  fromCentrifugeIdIdx: index().on(t.fromCentrifugeId),
+  toCentrifugeIdIdx: index().on(t.toCentrifugeId),
 }));
 
-export const XChainPayloadRelations = relations(XChainPayload, ({}) => ({}));
+export const XChainPayloadRelations = relations(XChainPayload, ({many}) => ({
+  xChainMessages: many(XChainMessage, {
+    relationName: "xChainMessages",
+  }),
+}));
 
 export const XChainMessageStatuses = ["AwaitingBatchDelivery", "Failed", "Executed"] as const;
 export const XChainMessageStatus = onchainEnum("x_chain_message_status", XChainMessageStatuses);
 
 const XChainMessageColumns = (t: PgColumnsBuilders) => ({
-  payloadId: t.hex().notNull(),
-  counter: t.integer().notNull(),
-  index: t.integer().notNull(),
+  id: t.hex().notNull(),
+  index: t.integer().notNull().default(0),
+  poolId: t.bigint(),
+  payloadId: t.hex(),
   messageType: t.text().notNull(),
-  status: XChainMessageStatus("x_chain_message_status").notNull(),
-  payload: t.hex().notNull(),
+  status: XChainMessageStatus("x_chain_message_status").notNull().default("AwaitingBatchDelivery"),
+  data: t.hex().notNull(),
+  fromCentrifugeId: t.text().notNull(),
+  toCentrifugeId: t.text().notNull(),
 });
 
 export const XChainMessage = onchainTable("x_chain_message", XChainMessageColumns, (t) => ({
-  id: primaryKey({ columns: [t.payloadId, t.counter, t.index] }),
+  id: primaryKey({ columns: [t.id, t.index] }),
+  payloadIdx: index().on(t.payloadId),
+  poolIdx: index().on(t.poolId),
+  idIdx: index().on(t.id)
 }));
 
-export const XChainMessageRelations = relations(XChainMessage, ({}) => ({}));
+export const XChainMessageRelations = relations(XChainMessage, ({one}) => ({
+  xChainPayload: one(XChainPayload, {
+    fields: [XChainMessage.payloadId, XChainMessage.fromCentrifugeId, XChainMessage.toCentrifugeId],
+    references: [XChainPayload.id, XChainPayload.fromCentrifugeId, XChainPayload.toCentrifugeId],
+  }),
+}));
 
 
 /**

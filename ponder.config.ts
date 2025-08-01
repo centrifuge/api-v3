@@ -24,6 +24,8 @@ import { OnOffRampManagerFactoryAbi } from "./abis/OnOffRampManagerFactoryAbi";
 import { OnOffRampManagerAbi } from "./abis/OnOffRampManagerAbi";
 import { MerkleProofManagerFactoryAbi } from "./abis/MerkleProofManagerFactoryAbi";
 import { MerkleProofManagerAbi } from "./abis/MerkleProofManagerAbi";
+import { GatewayAbi } from "./abis/GatewayAbi";
+import { MultiAdapterAbi } from "./abis/MultiAdapterAbi";
 
 export const selectedNetworks = process.env.SELECTED_NETWORKS!.split(",");
 export const currentChains = _chains.filter((chain) =>
@@ -124,6 +126,14 @@ const config = {
         }),
         parameter: "manager",
       }),
+    },
+    Gateway: {
+      abi: GatewayAbi,
+      chain: getContractChain("gateway"),
+    },
+    MultiAdapter: {
+      abi: MultiAdapterAbi,
+      chain: getContractChain("multiAdapter"),
     },
   },
 } as const;
