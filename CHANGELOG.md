@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/centrifuge/api-v3/compare/v1.0.0...v1.0.1) (2025-08-01)
+
+
+### Bug Fixes
+
+* tidy up current epoch ([e184c9c](https://github.com/centrifuge/api-v3/commit/e184c9c5a9270e63493a8c3178aa6932900e81c4))
+
 ## 1.0.0 (2025-07-21)
 
 
