@@ -540,7 +540,7 @@ export const endpoints = {
   421614: `arb-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
   11155111: `eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
   42161: `arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-  43114: `avalax-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+  43114: `avax-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
   8453: `base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
   1: `eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
   98866: `rpc.plume.org`,

@@ -860,6 +860,69 @@ export const PolicyRelations = relations(Policy, ({ one }) => ({
   }),
 }));
 
+export const XChainPayloadStatuses = ["Underpaid", "InProgress", "Delivered"] as const;
+export const XChainPayloadStatus = onchainEnum("x_chain_payload_status", XChainPayloadStatuses);
+
+const XChainPayloadColumns = (t: PgColumnsBuilders) => ({
+  id: t.hex().notNull(),
+  fromCentrifugeId: t.text().notNull(),
+  toCentrifugeId: t.text().notNull(),
+  votes: t.integer().notNull().default(0),
+  status: XChainPayloadStatus("x_chain_payload_status").notNull().default("InProgress"),
+  createdAt: t.timestamp().notNull(),
+  createdAtBlock: t.integer().notNull(),
+  deliveredAt: t.timestamp(),
+  deliveredAtBlock: t.integer(),
+  adapterSending: t.hex(),
+  adapterReceiving: t.hex(),
+});
+
+export const XChainPayload = onchainTable("x_chain_payload", XChainPayloadColumns, (t) => ({
+  id: primaryKey({ columns: [t.id, t.fromCentrifugeId, t.toCentrifugeId] }),
+  poolIdx: index().on(t.id),
+  fromCentrifugeIdIdx: index().on(t.fromCentrifugeId),
+  toCentrifugeIdIdx: index().on(t.toCentrifugeId),
+}));
+
+export const XChainPayloadRelations = relations(XChainPayload, ({many}) => ({
+  xChainMessages: many(XChainMessage, {
+    relationName: "xChainMessages",
+  }),
+}));
+
+export const XChainMessageStatuses = ["AwaitingBatchDelivery", "Failed", "Executed"] as const;
+export const XChainMessageStatus = onchainEnum("x_chain_message_status", XChainMessageStatuses);
+
+const XChainMessageColumns = (t: PgColumnsBuilders) => ({
+  id: t.hex().notNull(),
+  index: t.integer().notNull().default(0),
+  poolId: t.bigint(),
+  payloadId: t.hex(),
+  messageType: t.text().notNull(),
+  status: XChainMessageStatus("x_chain_message_status").notNull().default("AwaitingBatchDelivery"),
+  data: t.hex().notNull(),
+  fromCentrifugeId: t.text().notNull(),
+  toCentrifugeId: t.text().notNull(),
+  createdAt: t.timestamp().notNull(),
+  createdAtBlock: t.integer().notNull(),
+  executedAt: t.timestamp(),
+  executedAtBlock: t.integer(),
+});
+
+export const XChainMessage = onchainTable("x_chain_message", XChainMessageColumns, (t) => ({
+  id: primaryKey({ columns: [t.id, t.index] }),
+  payloadIdx: index().on(t.payloadId),
+  poolIdx: index().on(t.poolId),
+  idIdx: index().on(t.id)
+}));
+
+export const XChainMessageRelations = relations(XChainMessage, ({one}) => ({
+  xChainPayload: one(XChainPayload, {
+    fields: [XChainMessage.payloadId, XChainMessage.fromCentrifugeId, XChainMessage.toCentrifugeId],
+    references: [XChainPayload.id, XChainPayload.fromCentrifugeId, XChainPayload.toCentrifugeId],
+  }),
+}));
+
 
 /**
  * Creates a snapshot schema by selecting specific columns from a base table schema
