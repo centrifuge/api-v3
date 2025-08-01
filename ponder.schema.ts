@@ -869,6 +869,12 @@ const XChainPayloadColumns = (t: PgColumnsBuilders) => ({
   toCentrifugeId: t.text().notNull(),
   votes: t.integer().notNull().default(0),
   status: XChainPayloadStatus("x_chain_payload_status").notNull().default("InProgress"),
+  createdAt: t.timestamp().notNull(),
+  createdAtBlock: t.integer().notNull(),
+  deliveredAt: t.timestamp(),
+  deliveredAtBlock: t.integer(),
+  adapterSending: t.hex(),
+  adapterReceiving: t.hex(),
 });
 
 export const XChainPayload = onchainTable("x_chain_payload", XChainPayloadColumns, (t) => ({
@@ -897,6 +903,10 @@ const XChainMessageColumns = (t: PgColumnsBuilders) => ({
   data: t.hex().notNull(),
   fromCentrifugeId: t.text().notNull(),
   toCentrifugeId: t.text().notNull(),
+  createdAt: t.timestamp().notNull(),
+  createdAtBlock: t.integer().notNull(),
+  executedAt: t.timestamp(),
+  executedAtBlock: t.integer(),
 });
 
 export const XChainMessage = onchainTable("x_chain_message", XChainMessageColumns, (t) => ({

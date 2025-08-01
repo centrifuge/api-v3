@@ -40,6 +40,8 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
     toCentrifugeId: toCentrifugeId.toString(),
     messageType: getXChainMessageType(messageType),
     data: `0x${Buffer.from(payload).toString("hex")}`,
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
   })) as XChainMessageService;
 });
 
@@ -59,6 +61,8 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
     toCentrifugeId: toCentrifugeId.toString(),
     fromCentrifugeId: fromCentrifugeId,
     status: "Underpaid",
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
   })) as XChainPayloadService;
 });
 
@@ -111,8 +115,9 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
     );
     return;
   }
-  const xChainMessage = xChainMessages.pop()!;
-  xChainMessage.setStatus("Executed");
+  xChainMessages.sort((a, b) => a.read().index - b.read().index);
+  const xChainMessage = xChainMessages.shift()!;
+  xChainMessage.executed(event);
   await xChainMessage.save();
 });
 
@@ -141,7 +146,8 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
     );
     return;
   }
-  const xChainMessage = xChainMessages.pop()!;
+  xChainMessages.sort((a, b) => a.read().index - b.read().index);
+  const xChainMessage = xChainMessages.shift()!;
   xChainMessage.setStatus("Failed");
   await xChainMessage.save();
 });

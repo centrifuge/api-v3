@@ -14,7 +14,7 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
     centrifugeId: toCentrifugeId,
     payload,
     payloadId,
-    // adapter,
+    adapter,
     // adapterData,
     // refund,
   } = event.args;
@@ -27,11 +27,14 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: fromCentrifugeId } = blockchain.read();
 
-  const _xChainPayload = (await XChainPayloadService.getOrInit(context, {
+  const _xChainPayload = (await XChainPayloadService.init(context, {
     id: payloadId,
     toCentrifugeId: toCentrifugeId.toString(),
     fromCentrifugeId: fromCentrifugeId,
     status: "InProgress",
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
+    adapterSending: adapter,
   })) as XChainPayloadService;
 
   const messages = excractMessagesFromPayload(payload);
@@ -42,11 +45,12 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
   for (const messageId of messageIds) {
     const xChainMessages = (await XChainMessageService.query(context, {
       id: messageId,
-      status: "AwaitingBatchDelivery",
+      payloadId: null,
     })) as XChainMessageService[];
     if (xChainMessages.length === 0)
       throw new Error(`XChainMessage with id ${messageId} not found`);
-    const xChainMessage = xChainMessages.pop()!;
+    xChainMessages.sort((a, b) => a.read().index - b.read().index);
+    const xChainMessage = xChainMessages.shift()!;
     xChainMessage.setPayloadId(payloadId);
     await xChainMessage.save();
   }
@@ -62,10 +66,10 @@ ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
   logEvent(event, context, "MultiAdapter:HandlePayload");
   const {
     payloadId,
-    // adapter,
+    adapter,
     // adapterData,
     // refund,
-    centrifugeId: toCentrifugeId,
+    centrifugeId: fromCentrifugeId,
   } = event.args;
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is required");
@@ -73,14 +77,17 @@ ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
     id: chainId.toString(),
   })) as BlockchainService;
   if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId: fromCentrifugeId } = blockchain.read();
+  const { centrifugeId: toCentrifugeId } = blockchain.read();
   const xChainPayload = (await XChainPayloadService.getOrInit(context, {
     id: payloadId,
-    toCentrifugeId: toCentrifugeId.toString(),
-    fromCentrifugeId: fromCentrifugeId,
+    toCentrifugeId: toCentrifugeId,
+    fromCentrifugeId: fromCentrifugeId.toString(),
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
   })) as XChainPayloadService;
   if (!xChainPayload) throw new Error("XChainPayload not found");
-  xChainPayload.setStatus("Delivered");
+  xChainPayload.delivered(event);
+  xChainPayload.setAdapterReceiving(adapter);
   await xChainPayload.save();
   //TODO: Increase Votes by 1 and mark this adapter as processed successfully
 });

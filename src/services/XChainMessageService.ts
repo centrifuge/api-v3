@@ -2,6 +2,7 @@ import { XChainMessage } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
 import { XChainMessageStatuses } from "ponder:schema";
 import { encodePacked, keccak256 } from "viem";
+import { Event } from "ponder:registry";
 
 /**
  * Service class for managing XChainMessage entities.
@@ -34,6 +35,19 @@ export class XChainMessageService extends mixinCommonStatics(
    */
   public setPayloadId(payloadId: `0x${string}`) {   
     this.data.payloadId = payloadId;
+    return this
+  }
+
+  /**
+   * Marks the XChainMessage as executed.
+   * 
+   * @param {Event} event - The event that marks the XChainMessage as executed
+   * @returns {XChainMessageService} Returns the current instance for method chaining
+   */
+  public executed(event: Event) {
+    this.data.status = "Executed";
+    this.data.executedAt = new Date(Number(event.block.timestamp) * 1000);
+    this.data.executedAtBlock = Number(event.block.number);
     return this
   }
 }
@@ -115,10 +129,6 @@ export function getMessageId(sourceCentrifugeId: string, destCentrifugeId: strin
   
   const messageId = keccak256(encodePacked(['uint16', 'uint16', 'bytes'],
     [Number(sourceCentrifugeId), Number(destCentrifugeId), messageBytes]));
-  console.log("sourceCentrifugeId", sourceCentrifugeId);
-  console.log("destCentrifugeId", destCentrifugeId);
-  console.log("messageBytes", messageBytes);
-  console.log("Computed messageId:", messageId);
   return messageId;
 }
 

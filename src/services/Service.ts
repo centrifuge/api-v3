@@ -1,5 +1,5 @@
 import type { Context } from "ponder:registry";
-import { eq, and, count } from "drizzle-orm";
+import { eq, and, count, isNull } from "drizzle-orm";
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
 
 /** Type alias for PostgreSQL table with columns */
@@ -307,6 +307,7 @@ function queryToFilter<T extends OnchainTable>(
 ) {
   const queryEntries = Object.entries(query);
   const queries = queryEntries.map(([column, value]) => {
+    if (value === null) return isNull(table[column as keyof T]);
     return eq(table[column as keyof T], value);
   });
   if (queries.length >= 1) {
