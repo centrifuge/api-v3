@@ -1,37 +1,37 @@
-import { XChainMessage } from "ponder:schema";
+import { CrosschainMessage } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
-import { XChainMessageStatuses } from "ponder:schema";
+import { CrosschainMessageStatuses } from "ponder:schema";
 import { encodePacked, keccak256 } from "viem";
 import { Event } from "ponder:registry";
 
 /**
- * Service class for managing XChainMessage entities.
+ * Service class for managing CrosschainMessage entities.
  *
- * This service handles operations related to XChainMessage entities,
+ * This service handles operations related to CrosschainMessage entities,
  * including creation, updating, and querying.
  *
- * @extends {Service<typeof XChainMessage>}
+ * @extends {Service<typeof CrosschainMessage>}
  */
-export class XChainMessageService extends mixinCommonStatics(
-  Service<typeof XChainMessage>,
-  XChainMessage,
-  "XChainMessage"
+export class CrosschainMessageService extends mixinCommonStatics(
+  Service<typeof CrosschainMessage>,
+  CrosschainMessage,
+  "CrosschainMessage"
 ) {
 
   /**
-   * Sets the status of the XChainMessage
-   * @param status - The new status to set. Must be one of the valid XChainMessageStatuses
-   * @returns The XChainMessageService instance for chaining
+   * Sets the status of the CrosschainMessage
+   * @param status - The new status to set. Must be one of the valid CrosschainMessageStatuses
+   * @returns The CrosschainMessageService instance for chaining
    */
-  public setStatus(status: (typeof XChainMessageStatuses)[number]) {
+  public setStatus(status: (typeof CrosschainMessageStatuses)[number]) {
     this.data.status = status;
     return this
   }
 
   /**
-   * Sets the payload ID for the XChainMessage
+   * Sets the payload ID for the CrosschainMessage
    * @param payloadId - The hex string payload ID to set
-   * @returns The XChainMessageService instance for chaining
+   * @returns The CrosschainMessageService instance for chaining
    */
   public setPayloadId(payloadId: `0x${string}`) {   
     this.data.payloadId = payloadId;
@@ -39,10 +39,10 @@ export class XChainMessageService extends mixinCommonStatics(
   }
 
   /**
-   * Marks the XChainMessage as executed.
+   * Marks the CrosschainMessage as executed.
    * 
-   * @param {Event} event - The event that marks the XChainMessage as executed
-   * @returns {XChainMessageService} Returns the current instance for method chaining
+   * @param {Event} event - The event that marks the CrosschainMessage as executed
+   * @returns {CrosschainMessageService} Returns the current instance for method chaining
    */
   public executed(event: Event) {
     this.data.status = "Executed";
@@ -52,7 +52,7 @@ export class XChainMessageService extends mixinCommonStatics(
   }
 }
 
-export const XChainMessageType = {
+export const CrosschainMessageType = {
   /// @dev Placeholder for null message type
   _Invalid: undefined,
   // -- Pool independent messages
@@ -96,7 +96,7 @@ export const XChainMessageType = {
 /**
  * Gets the string name of a cross-chain message type from its numeric ID
  * @param messageType - The numeric ID of the message type
- * @returns The string name of the message type from XChainMessageType
+ * @returns The string name of the message type from CrosschainMessageType
  */
 
 /**
@@ -104,17 +104,17 @@ export const XChainMessageType = {
  * @param messageType - The numeric ID of the message type
  * @returns The expected payload length in bytes for that message type
  */
-export function getXChainMessageType(messageType: number) {
-  return Object.keys(XChainMessageType)[messageType] ?? "_Invalid";
+export function getCrosschainMessageType(messageType: number) {
+  return Object.keys(CrosschainMessageType)[messageType] ?? "_Invalid";
 }
 
 /**
  * Gets the string name of a cross-chain message type from its numeric ID
  * @param messageType - The numeric ID of the message type 
- * @returns The string name of the message type from XChainMessageType
+ * @returns The string name of the message type from CrosschainMessageType
  */
-export function getXChainMessageLength(messageType: number) {
-  return Object.values(XChainMessageType)[messageType];
+export function getCrosschainMessageLength(messageType: number) {
+  return Object.values(CrosschainMessageType)[messageType];
 }
 
 /**

@@ -2,11 +2,11 @@ import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
 import { BlockchainService } from "../services/BlockchainService";
 import {
-  XChainMessageService,
-  getXChainMessageLength,
+  CrosschainMessageService,
+  getCrosschainMessageLength,
   getMessageId,
-} from "../services/XChainMessageService";
-import { XChainPayloadService } from "../services/XChainPayloadService";
+} from "../services/CrosschainMessageService";
+import { CrosschainPayloadService } from "../services/CrosschainPayloadService";
 
 ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
   logEvent(event, context, "MultiAdapter:SendPayload");
@@ -27,7 +27,7 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: fromCentrifugeId } = blockchain.read();
 
-  const _xChainPayload = (await XChainPayloadService.init(context, {
+  const _crosschainPayload = (await CrosschainPayloadService.init(context, {
     id: payloadId,
     toCentrifugeId: toCentrifugeId.toString(),
     fromCentrifugeId: fromCentrifugeId,
@@ -35,7 +35,7 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
     adapterSending: adapter,
-  })) as XChainPayloadService;
+  })) as CrosschainPayloadService;
 
   const messages = excractMessagesFromPayload(payload);
   const messageIds = messages.map((message) =>
@@ -43,16 +43,16 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
   );
 
   for (const messageId of messageIds) {
-    const xChainMessages = (await XChainMessageService.query(context, {
+    const crosschainMessages = (await CrosschainMessageService.query(context, {
       id: messageId,
       payloadId: null,
-    })) as XChainMessageService[];
-    if (xChainMessages.length === 0)
-      throw new Error(`XChainMessage with id ${messageId} not found`);
-    xChainMessages.sort((a, b) => a.read().index - b.read().index);
-    const xChainMessage = xChainMessages.shift()!;
-    xChainMessage.setPayloadId(payloadId);
-    await xChainMessage.save();
+    })) as CrosschainMessageService[];
+    if (crosschainMessages.length === 0)
+      throw new Error(`CrosschainMessage with id ${messageId} not found`);
+    crosschainMessages.sort((a, b) => a.read().index - b.read().index);
+    const crosschainMessage = crosschainMessages.shift()!;
+    crosschainMessage.setPayloadId(payloadId);
+    await crosschainMessage.save();
   }
 });
 
@@ -78,17 +78,17 @@ ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
   })) as BlockchainService;
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: toCentrifugeId } = blockchain.read();
-  const xChainPayload = (await XChainPayloadService.getOrInit(context, {
+  const crosschainPayload = (await CrosschainPayloadService.getOrInit(context, {
     id: payloadId,
     toCentrifugeId: toCentrifugeId,
     fromCentrifugeId: fromCentrifugeId.toString(),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
-  })) as XChainPayloadService;
-  if (!xChainPayload) throw new Error("XChainPayload not found");
-  xChainPayload.delivered(event);
-  xChainPayload.setAdapterReceiving(adapter);
-  await xChainPayload.save();
+  })) as CrosschainPayloadService;
+  if (!crosschainPayload) throw new Error("CrosschainPayload not found");
+  crosschainPayload.delivered(event);
+  crosschainPayload.setAdapterReceiving(adapter);
+  await crosschainPayload.save();
   //TODO: Increase Votes by 1 and mark this adapter as processed successfully
 });
 
@@ -121,7 +121,7 @@ export function excractMessagesFromPayload(payload: `0x${string}`) {
   // Keep extracting messages while we have enough bytes remaining
   while (offset < payloadBuffer.length) {
     const messageType = payloadBuffer.readUInt8(offset);
-    const messageLength = getXChainMessageLength(messageType);
+    const messageLength = getCrosschainMessageLength(messageType);
     if (!messageLength) throw new Error(`Invalid message type: ${messageType}`);
 
     // Extract message bytes including the type byte

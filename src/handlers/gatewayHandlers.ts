@@ -2,11 +2,11 @@ import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
 import { BlockchainService } from "../services/BlockchainService";
 import {
-  getXChainMessageType,
-  XChainMessageService,
+  getCrosschainMessageType,
+  CrosschainMessageService,
   getMessageId,
-} from "../services/XChainMessageService";
-import { XChainPayloadService } from "../services/XChainPayloadService";
+} from "../services/CrosschainMessageService";
+import { CrosschainPayloadService } from "../services/CrosschainPayloadService";
 
 ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
   logEvent(event, context, "Gateway:PrepareMessage");
@@ -28,21 +28,21 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
     toCentrifugeId.toString(),
     message
   );
-  const messageCount = await XChainMessageService.count(context, {
+  const messageCount = await CrosschainMessageService.count(context, {
     id: messageId,
   });
 
-  const _xChainMessage = (await XChainMessageService.init(context, {
+  const _crosschainMessage = (await CrosschainMessageService.init(context, {
     id: messageId,
     index: messageCount,
     poolId: poolId || null,
     fromCentrifugeId,
     toCentrifugeId: toCentrifugeId.toString(),
-    messageType: getXChainMessageType(messageType),
+    messageType: getCrosschainMessageType(messageType),
     data: `0x${Buffer.from(payload).toString("hex")}`,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
-  })) as XChainMessageService;
+  })) as CrosschainMessageService;
 });
 
 ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
@@ -56,14 +56,14 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: fromCentrifugeId } = blockchain.read();
 
-  const _xChainPayload = (await XChainPayloadService.getOrInit(context, {
+  const _crosschainPayload = (await CrosschainPayloadService.getOrInit(context, {
     id: batch,
     toCentrifugeId: toCentrifugeId.toString(),
     fromCentrifugeId: fromCentrifugeId,
     status: "Underpaid",
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
-  })) as XChainPayloadService;
+  })) as CrosschainPayloadService;
 });
 
 ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
@@ -77,14 +77,14 @@ ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: fromCentrifugeId } = blockchain.read();
 
-  const xChainPayload = (await XChainPayloadService.get(context, {
+  const crosschainPayload = (await CrosschainPayloadService.get(context, {
     id: batch,
     toCentrifugeId: toCentrifugeId.toString(),
     fromCentrifugeId: fromCentrifugeId,
-  })) as XChainPayloadService;
-  if (!xChainPayload) throw new Error("XChainPayload not found");
-  xChainPayload.setStatus("InProgress");
-  await xChainPayload.save();
+  })) as CrosschainPayloadService;
+  if (!crosschainPayload) throw new Error("CrosschainPayload not found");
+  crosschainPayload.setStatus("InProgress");
+  await crosschainPayload.save();
 });
 
 ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
@@ -104,21 +104,21 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
     toCentrifugeId,
     message
   );
-  const xChainMessages = (await XChainMessageService.query(context, {
+  const crosschainMessages = (await CrosschainMessageService.query(context, {
     id: messageId,
     status: "AwaitingBatchDelivery",
-  })) as XChainMessageService[];
-  if (xChainMessages.length === 0) {
+  })) as CrosschainMessageService[];
+  if (crosschainMessages.length === 0) {
     console.log(
-      "XChainMessage not found maybe source chain is not connected to this centrifuge? from centrifugeId",
+      "CrosschainMessage not found maybe source chain is not connected to this centrifuge? from centrifugeId",
       fromCentrifugeId
     );
     return;
   }
-  xChainMessages.sort((a, b) => a.read().index - b.read().index);
-  const xChainMessage = xChainMessages.shift()!;
-  xChainMessage.executed(event);
-  await xChainMessage.save();
+  crosschainMessages.sort((a, b) => a.read().index - b.read().index);
+  const crosschainMessage = crosschainMessages.shift()!;
+  crosschainMessage.executed(event);
+  await crosschainMessage.save();
 });
 
 ponder.on("Gateway:FailMessage", async ({ event, context }) => {
@@ -138,16 +138,16 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
     toCentrifugeId,
     message
   );
-  const xChainMessages = (await XChainMessageService.query(context, { id: messageId, status: "AwaitingBatchDelivery" })) as XChainMessageService[];
-  if (xChainMessages.length === 0) {
+  const crosschainMessages = (await CrosschainMessageService.query(context, { id: messageId, status: "AwaitingBatchDelivery" })) as CrosschainMessageService[];
+  if (crosschainMessages.length === 0) {
     console.log(
-      "XChainMessage not found maybe source chain is not connected to this centrifuge? from centrifugeId",
+      "CrosschainMessage not found maybe source chain is not connected to this centrifuge? from centrifugeId",
       fromCentrifugeId
     );
     return;
   }
-  xChainMessages.sort((a, b) => a.read().index - b.read().index);
-  const xChainMessage = xChainMessages.shift()!;
-  xChainMessage.setStatus("Failed");
-  await xChainMessage.save();
+  crosschainMessages.sort((a, b) => a.read().index - b.read().index);
+  const crosschainMessage = crosschainMessages.shift()!;
+  crosschainMessage.setStatus("Failed");
+  await crosschainMessage.save();
 });

@@ -21,5 +21,5 @@ export * from "./PoolManagerService";
 export * from "./OnRampAssetService";
 export * from "./OffRampAddressService";
 export * from "./PolicyService";
-export * from "./XChainPayloadService";
-export * from "./XChainMessageService";
+export * from "./CrosschainPayloadService";
+export * from "./CrosschainMessageService";
