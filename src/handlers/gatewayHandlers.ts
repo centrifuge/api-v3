@@ -56,14 +56,17 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: fromCentrifugeId } = blockchain.read();
 
-  const _crosschainPayload = (await CrosschainPayloadService.getOrInit(context, {
-    id: batch,
-    toCentrifugeId: toCentrifugeId.toString(),
-    fromCentrifugeId: fromCentrifugeId,
-    status: "Underpaid",
-    createdAt: new Date(Number(event.block.timestamp) * 1000),
-    createdAtBlock: Number(event.block.number),
-  })) as CrosschainPayloadService;
+  const _crosschainPayload = (await CrosschainPayloadService.getOrInit(
+    context,
+    {
+      id: batch,
+      toCentrifugeId: toCentrifugeId.toString(),
+      fromCentrifugeId: fromCentrifugeId,
+      status: "Underpaid",
+      createdAt: new Date(Number(event.block.timestamp) * 1000),
+      createdAtBlock: Number(event.block.number),
+    }
+  )) as CrosschainPayloadService;
 });
 
 ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
@@ -138,7 +141,10 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
     toCentrifugeId,
     message
   );
-  const crosschainMessages = (await CrosschainMessageService.query(context, { id: messageId, status: "AwaitingBatchDelivery" })) as CrosschainMessageService[];
+  const crosschainMessages = (await CrosschainMessageService.query(context, {
+    id: messageId,
+    status: "AwaitingBatchDelivery",
+  })) as CrosschainMessageService[];
   if (crosschainMessages.length === 0) {
     console.log(
       "CrosschainMessage not found maybe source chain is not connected to this centrifuge? from centrifugeId",
@@ -150,4 +156,18 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
   const crosschainMessage = crosschainMessages.shift()!;
   crosschainMessage.setStatus("Failed");
   await crosschainMessage.save();
+
+  const { payloadId, status } = crosschainMessage.read();
+  if (!payloadId) throw new Error("Payload ID is required");
+
+  const crosschainPayload = (await CrosschainPayloadService.get(context, {
+    id: payloadId,
+    fromCentrifugeId: fromCentrifugeId.toString(),
+    toCentrifugeId,
+  })) as CrosschainPayloadService;
+  if (!crosschainPayload) throw new Error("CrosschainPayload not found");
+  // @ts-ignore
+  if (status === "PartiallyFailed") return;
+  crosschainPayload.setStatus("PartiallyFailed");
+  await crosschainPayload.save();
 });

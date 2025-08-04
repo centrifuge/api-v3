@@ -863,7 +863,7 @@ export const PolicyRelations = relations(Policy, ({ one }) => ({
   }),
 }));
 
-export const CrosschainPayloadStatuses = ["Underpaid", "InProgress", "Delivered"] as const;
+export const CrosschainPayloadStatuses = ["Underpaid", "InProgress", "Delivered", "PartiallyFailed"] as const;
 export const CrosschainPayloadStatus = onchainEnum("x_chain_payload_status", CrosschainPayloadStatuses);
 
 const CrosschainPayloadColumns = (t: PgColumnsBuilders) => ({
