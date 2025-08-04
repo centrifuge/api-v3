@@ -12,6 +12,7 @@ type PgColumnsBuilders = Parameters<PgColumnsFunction>[0];
 const BlockchainColumns = (t: PgColumnsBuilders) => ({
   id: t.text().notNull(),
   centrifugeId: t.text().notNull(),
+  network: t.text().notNull(),
   lastPeriodStart: t.timestamp(),
 });
 
@@ -884,7 +885,15 @@ export const CrosschainPayload = onchainTable("x_chain_payload", CrosschainPaylo
   toCentrifugeIdIdx: index().on(t.toCentrifugeId),
 }));
 
-export const CrosschainPayloadRelations = relations(CrosschainPayload, ({many}) => ({
+export const CrosschainPayloadRelations = relations(CrosschainPayload, ({one, many}) => ({
+  fromBlockchain: one(Blockchain, {
+    fields: [CrosschainPayload.fromCentrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
+  toBlockchain: one(Blockchain, {
+    fields: [CrosschainPayload.toCentrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
   crosschainMessages: many(CrosschainMessage, {
     relationName: "crosschainMessages",
   }),
@@ -920,6 +929,14 @@ export const CrosschainMessageRelations = relations(CrosschainMessage, ({one}) =
   crosschainPayload: one(CrosschainPayload, {
     fields: [CrosschainMessage.payloadId, CrosschainMessage.fromCentrifugeId, CrosschainMessage.toCentrifugeId],
     references: [CrosschainPayload.id, CrosschainPayload.fromCentrifugeId, CrosschainPayload.toCentrifugeId],
+  }),
+  fromBlockchain: one(Blockchain, {
+    fields: [CrosschainMessage.fromCentrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
+  toBlockchain: one(Blockchain, {
+    fields: [CrosschainMessage.toCentrifugeId],
+    references: [Blockchain.centrifugeId],
   }),
 }));
 
