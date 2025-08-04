@@ -15,31 +15,6 @@ export class InvestOrderService extends mixinCommonStatics(
   "InvestOrder"
 ) {
   /**
-   * Approves a deposit for an invest order and updates the approval details.
-   *
-   * This method calculates the approved asset amount based on the total approved amount
-   * and the percentage of total pending, then updates the approval timestamp and block number.
-   *
-   * @param approvedAssetAmount - The total approved asset amount for the epoch
-   * @param approvedPercentageOfTotalPending - The percentage of total pending amount
-   * @param decimals - The number of decimals for the asset
-   * @param block - The event block containing timestamp and block number
-   * @returns The service instance for method chaining
-   */
-  public approveDeposit(
-    approvedAssetAmount: bigint,
-    block: Event["block"]
-  ) {
-    console.log(
-      `Approving deposit ${approvedAssetAmount} for pool ${this.data.poolId} token ${this.data.tokenId} account ${this.data.account}`
-    );
-    this.data.approvedAt = new Date(Number(block.timestamp) * 1000);
-    this.data.approvedAtBlock = Number(block.number);
-    this.data.approvedAssetsAmount = approvedAssetAmount;
-    return this;
-  }
-
-  /**
    * Issues shares for an invest order and updates the issuance details.
    *
    * This method calculates the issued shares amount based on the approved assets amount
@@ -58,12 +33,10 @@ export class InvestOrderService extends mixinCommonStatics(
   ) {
     console.log(`Issuing shares ${navAssetPerShare} ${navPoolPerShare}`);
     if (this.data.issuedAt) throw new Error("Shares already issued");
-    if (this.data.approvedAssetsAmount === null)
-      throw new Error("Approved assets amount not set");
     this.data.issuedAt = new Date(Number(block.timestamp) * 1000);
     this.data.issuedAtBlock = Number(block.number);
     this.data.issuedSharesAmount =
-      this.data.approvedAssetsAmount *
+      this.data.approvedAssetsAmount! *
       navAssetPerShare /
       10n ** BigInt(assetDecimals);
     this.data.issuedWithNavAssetPerShare = navAssetPerShare;

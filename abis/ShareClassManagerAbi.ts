@@ -7,7 +7,11 @@ export const ShareClassManagerAbi = [
         type: "address",
         internalType: "contract IHubRegistry",
       },
-      { name: "deployer", type: "address", internalType: "address" },
+      {
+        name: "deployer",
+        type: "address",
+        internalType: "address",
+      },
     ],
     stateMutability: "nonpayable",
   },
@@ -15,50 +19,108 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "addShareClass",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "name", type: "string", internalType: "string" },
-      { name: "symbol", type: "string", internalType: "string" },
-      { name: "salt", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "name",
+        type: "string",
+        internalType: "string",
+      },
+      {
+        name: "symbol",
+        type: "string",
+        internalType: "string",
+      },
+      {
+        name: "salt",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    outputs: [{ name: "scId_", type: "bytes16", internalType: "ShareClassId" }],
+    outputs: [
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+    ],
     stateMutability: "nonpayable",
   },
   {
     type: "function",
     name: "allowForceDepositCancel",
     inputs: [
-      { name: "scId", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "scId",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
       {
         name: "depositAssetId",
         type: "uint128",
         internalType: "AssetId",
       },
-      { name: "investor", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "investor",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    outputs: [{ name: "cancelled", type: "bool", internalType: "bool" }],
+    outputs: [
+      {
+        name: "cancelled",
+        type: "bool",
+        internalType: "bool",
+      },
+    ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "allowForceRedeemCancel",
     inputs: [
-      { name: "scId", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "scId",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
       {
         name: "payoutAssetId",
         type: "uint128",
         internalType: "AssetId",
       },
-      { name: "investor", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "investor",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
-    outputs: [{ name: "cancelled", type: "bool", internalType: "bool" }],
+    outputs: [
+      {
+        name: "cancelled",
+        type: "bool",
+        internalType: "bool",
+      },
+    ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "approveDeposits",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
       {
         name: "depositAssetId",
         type: "uint128",
@@ -98,8 +160,16 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "approveRedeems",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
       {
         name: "payoutAssetId",
         type: "uint128",
@@ -134,9 +204,21 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "cancelDepositRequest",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
-      { name: "investor", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+      {
+        name: "investor",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
       {
         name: "depositAssetId",
         type: "uint128",
@@ -156,9 +238,21 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "cancelRedeemRequest",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
-      { name: "investor", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+      {
+        name: "investor",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
       {
         name: "payoutAssetId",
         type: "uint128",
@@ -178,9 +272,21 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "claimDeposit",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
-      { name: "investor", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+      {
+        name: "investor",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
       {
         name: "depositAssetId",
         type: "uint128",
@@ -203,7 +309,11 @@ export const ShareClassManagerAbi = [
         type: "uint128",
         internalType: "uint128",
       },
-      { name: "canClaimAgain", type: "bool", internalType: "bool" },
+      {
+        name: "canClaimAgain",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
     stateMutability: "nonpayable",
   },
@@ -211,9 +321,21 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "claimRedeem",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
-      { name: "investor", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+      {
+        name: "investor",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
       {
         name: "payoutAssetId",
         type: "uint128",
@@ -236,14 +358,24 @@ export const ShareClassManagerAbi = [
         type: "uint128",
         internalType: "uint128",
       },
-      { name: "canClaimAgain", type: "bool", internalType: "bool" },
+      {
+        name: "canClaimAgain",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
     stateMutability: "nonpayable",
   },
   {
     type: "function",
     name: "deny",
-    inputs: [{ name: "user", type: "address", internalType: "address" }],
+    inputs: [
+      {
+        name: "user",
+        type: "address",
+        internalType: "address",
+      },
+    ],
     outputs: [],
     stateMutability: "nonpayable",
   },
@@ -251,17 +383,33 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "depositRequest",
     inputs: [
-      { name: "scId", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "scId",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
       {
         name: "depositAssetId",
         type: "uint128",
         internalType: "AssetId",
       },
-      { name: "investor", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "investor",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
     outputs: [
-      { name: "pending", type: "uint128", internalType: "uint128" },
-      { name: "lastUpdate", type: "uint32", internalType: "uint32" },
+      {
+        name: "pending",
+        type: "uint128",
+        internalType: "uint128",
+      },
+      {
+        name: "lastUpdate",
+        type: "uint32",
+        internalType: "uint32",
+      },
     ],
     stateMutability: "view",
   },
@@ -269,14 +417,38 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "epochId",
     inputs: [
-      { name: "scId", type: "bytes16", internalType: "ShareClassId" },
-      { name: "assetId", type: "uint128", internalType: "AssetId" },
+      {
+        name: "scId",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+      {
+        name: "assetId",
+        type: "uint128",
+        internalType: "AssetId",
+      },
     ],
     outputs: [
-      { name: "deposit", type: "uint32", internalType: "uint32" },
-      { name: "redeem", type: "uint32", internalType: "uint32" },
-      { name: "issue", type: "uint32", internalType: "uint32" },
-      { name: "revoke", type: "uint32", internalType: "uint32" },
+      {
+        name: "deposit",
+        type: "uint32",
+        internalType: "uint32",
+      },
+      {
+        name: "redeem",
+        type: "uint32",
+        internalType: "uint32",
+      },
+      {
+        name: "issue",
+        type: "uint32",
+        internalType: "uint32",
+      },
+      {
+        name: "revoke",
+        type: "uint32",
+        internalType: "uint32",
+      },
     ],
     stateMutability: "view",
   },
@@ -284,9 +456,21 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "epochInvestAmounts",
     inputs: [
-      { name: "scId", type: "bytes16", internalType: "ShareClassId" },
-      { name: "assetId", type: "uint128", internalType: "AssetId" },
-      { name: "epochId_", type: "uint32", internalType: "uint32" },
+      {
+        name: "scId",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+      {
+        name: "assetId",
+        type: "uint128",
+        internalType: "AssetId",
+      },
+      {
+        name: "epochId_",
+        type: "uint32",
+        internalType: "uint32",
+      },
     ],
     outputs: [
       {
@@ -309,8 +493,16 @@ export const ShareClassManagerAbi = [
         type: "uint128",
         internalType: "D18",
       },
-      { name: "navPoolPerShare", type: "uint128", internalType: "D18" },
-      { name: "issuedAt", type: "uint64", internalType: "uint64" },
+      {
+        name: "navPoolPerShare",
+        type: "uint128",
+        internalType: "D18",
+      },
+      {
+        name: "issuedAt",
+        type: "uint64",
+        internalType: "uint64",
+      },
     ],
     stateMutability: "view",
   },
@@ -318,9 +510,21 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "epochRedeemAmounts",
     inputs: [
-      { name: "scId", type: "bytes16", internalType: "ShareClassId" },
-      { name: "assetId", type: "uint128", internalType: "AssetId" },
-      { name: "epochId_", type: "uint32", internalType: "uint32" },
+      {
+        name: "scId",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+      {
+        name: "assetId",
+        type: "uint128",
+        internalType: "AssetId",
+      },
+      {
+        name: "epochId_",
+        type: "uint32",
+        internalType: "uint32",
+      },
     ],
     outputs: [
       {
@@ -343,8 +547,16 @@ export const ShareClassManagerAbi = [
         type: "uint128",
         internalType: "D18",
       },
-      { name: "navPoolPerShare", type: "uint128", internalType: "D18" },
-      { name: "revokedAt", type: "uint64", internalType: "uint64" },
+      {
+        name: "navPoolPerShare",
+        type: "uint128",
+        internalType: "D18",
+      },
+      {
+        name: "revokedAt",
+        type: "uint64",
+        internalType: "uint64",
+      },
     ],
     stateMutability: "view",
   },
@@ -352,19 +564,45 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "exists",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
     ],
-    outputs: [{ name: "", type: "bool", internalType: "bool" }],
+    outputs: [
+      {
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
+    ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "forceCancelDepositRequest",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
-      { name: "investor", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+      {
+        name: "investor",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
       {
         name: "depositAssetId",
         type: "uint128",
@@ -384,9 +622,21 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "forceCancelRedeemRequest",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
-      { name: "investor", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+      {
+        name: "investor",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
       {
         name: "payoutAssetId",
         type: "uint128",
@@ -419,18 +669,40 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "issuance",
     inputs: [
-      { name: "scId", type: "bytes16", internalType: "ShareClassId" },
-      { name: "centrifugeId", type: "uint16", internalType: "uint16" },
+      {
+        name: "scId",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+      {
+        name: "centrifugeId",
+        type: "uint16",
+        internalType: "uint16",
+      },
     ],
-    outputs: [{ name: "", type: "uint128", internalType: "uint128" }],
+    outputs: [
+      {
+        name: "",
+        type: "uint128",
+        internalType: "uint128",
+      },
+    ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "issueShares",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
       {
         name: "depositAssetId",
         type: "uint128",
@@ -441,7 +713,11 @@ export const ShareClassManagerAbi = [
         type: "uint32",
         internalType: "uint32",
       },
-      { name: "navPoolPerShare", type: "uint128", internalType: "D18" },
+      {
+        name: "navPoolPerShare",
+        type: "uint128",
+        internalType: "D18",
+      },
     ],
     outputs: [
       {
@@ -466,54 +742,110 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "maxDepositClaims",
     inputs: [
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
-      { name: "investor", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+      {
+        name: "investor",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
       {
         name: "depositAssetId",
         type: "uint128",
         internalType: "AssetId",
       },
     ],
-    outputs: [{ name: "", type: "uint32", internalType: "uint32" }],
+    outputs: [
+      {
+        name: "",
+        type: "uint32",
+        internalType: "uint32",
+      },
+    ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "maxRedeemClaims",
     inputs: [
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
-      { name: "investor", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+      {
+        name: "investor",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
       {
         name: "payoutAssetId",
         type: "uint128",
         internalType: "AssetId",
       },
     ],
-    outputs: [{ name: "", type: "uint32", internalType: "uint32" }],
+    outputs: [
+      {
+        name: "",
+        type: "uint32",
+        internalType: "uint32",
+      },
+    ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "metadata",
-    inputs: [{ name: "scId", type: "bytes16", internalType: "ShareClassId" }],
+    inputs: [
+      {
+        name: "scId",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+    ],
     outputs: [
-      { name: "name", type: "string", internalType: "string" },
-      { name: "symbol", type: "string", internalType: "string" },
-      { name: "salt", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "name",
+        type: "string",
+        internalType: "string",
+      },
+      {
+        name: "symbol",
+        type: "string",
+        internalType: "string",
+      },
+      {
+        name: "salt",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "metrics",
-    inputs: [{ name: "scId", type: "bytes16", internalType: "ShareClassId" }],
+    inputs: [
+      {
+        name: "scId",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+    ],
     outputs: [
       {
         name: "totalIssuance",
         type: "uint128",
         internalType: "uint128",
       },
-      { name: "navPerShare", type: "uint128", internalType: "D18" },
+      {
+        name: "navPerShare",
+        type: "uint128",
+        internalType: "D18",
+      },
     ],
     stateMutability: "view",
   },
@@ -521,118 +853,220 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "nowDepositEpoch",
     inputs: [
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
       {
         name: "depositAssetId",
         type: "uint128",
         internalType: "AssetId",
       },
     ],
-    outputs: [{ name: "", type: "uint32", internalType: "uint32" }],
+    outputs: [
+      {
+        name: "",
+        type: "uint32",
+        internalType: "uint32",
+      },
+    ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "nowIssueEpoch",
     inputs: [
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
       {
         name: "depositAssetId",
         type: "uint128",
         internalType: "AssetId",
       },
     ],
-    outputs: [{ name: "", type: "uint32", internalType: "uint32" }],
+    outputs: [
+      {
+        name: "",
+        type: "uint32",
+        internalType: "uint32",
+      },
+    ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "nowRedeemEpoch",
     inputs: [
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
       {
         name: "depositAssetId",
         type: "uint128",
         internalType: "AssetId",
       },
     ],
-    outputs: [{ name: "", type: "uint32", internalType: "uint32" }],
+    outputs: [
+      {
+        name: "",
+        type: "uint32",
+        internalType: "uint32",
+      },
+    ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "nowRevokeEpoch",
     inputs: [
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
       {
         name: "depositAssetId",
         type: "uint128",
         internalType: "AssetId",
       },
     ],
-    outputs: [{ name: "", type: "uint32", internalType: "uint32" }],
+    outputs: [
+      {
+        name: "",
+        type: "uint32",
+        internalType: "uint32",
+      },
+    ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "pendingDeposit",
     inputs: [
-      { name: "scId", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "scId",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
       {
         name: "depositAssetId",
         type: "uint128",
         internalType: "AssetId",
       },
     ],
-    outputs: [{ name: "pending", type: "uint128", internalType: "uint128" }],
+    outputs: [
+      {
+        name: "pending",
+        type: "uint128",
+        internalType: "uint128",
+      },
+    ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "pendingRedeem",
     inputs: [
-      { name: "scId", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "scId",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
       {
         name: "payoutAssetId",
         type: "uint128",
         internalType: "AssetId",
       },
     ],
-    outputs: [{ name: "pending", type: "uint128", internalType: "uint128" }],
+    outputs: [
+      {
+        name: "pending",
+        type: "uint128",
+        internalType: "uint128",
+      },
+    ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "previewNextShareClassId",
-    inputs: [{ name: "poolId", type: "uint64", internalType: "PoolId" }],
-    outputs: [{ name: "scId", type: "bytes16", internalType: "ShareClassId" }],
+    inputs: [
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+    ],
+    outputs: [
+      {
+        name: "scId",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+    ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "previewShareClassId",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "index", type: "uint32", internalType: "uint32" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "index",
+        type: "uint32",
+        internalType: "uint32",
+      },
     ],
-    outputs: [{ name: "scId", type: "bytes16", internalType: "ShareClassId" }],
+    outputs: [
+      {
+        name: "scId",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+    ],
     stateMutability: "pure",
   },
   {
     type: "function",
     name: "queuedDepositRequest",
     inputs: [
-      { name: "scId", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "scId",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
       {
         name: "depositAssetId",
         type: "uint128",
         internalType: "AssetId",
       },
-      { name: "investor", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "investor",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
     outputs: [
-      { name: "isCancelling", type: "bool", internalType: "bool" },
-      { name: "amount", type: "uint128", internalType: "uint128" },
+      {
+        name: "isCancelling",
+        type: "bool",
+        internalType: "bool",
+      },
+      {
+        name: "amount",
+        type: "uint128",
+        internalType: "uint128",
+      },
     ],
     stateMutability: "view",
   },
@@ -640,17 +1074,33 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "queuedRedeemRequest",
     inputs: [
-      { name: "scId", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "scId",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
       {
         name: "payoutAssetId",
         type: "uint128",
         internalType: "AssetId",
       },
-      { name: "investor", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "investor",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
     outputs: [
-      { name: "isCancelling", type: "bool", internalType: "bool" },
-      { name: "amount", type: "uint128", internalType: "uint128" },
+      {
+        name: "isCancelling",
+        type: "bool",
+        internalType: "bool",
+      },
+      {
+        name: "amount",
+        type: "uint128",
+        internalType: "uint128",
+      },
     ],
     stateMutability: "view",
   },
@@ -658,24 +1108,46 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "redeemRequest",
     inputs: [
-      { name: "scId", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "scId",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
       {
         name: "payoutAssetId",
         type: "uint128",
         internalType: "AssetId",
       },
-      { name: "investor", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "investor",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
     ],
     outputs: [
-      { name: "pending", type: "uint128", internalType: "uint128" },
-      { name: "lastUpdate", type: "uint32", internalType: "uint32" },
+      {
+        name: "pending",
+        type: "uint128",
+        internalType: "uint128",
+      },
+      {
+        name: "lastUpdate",
+        type: "uint32",
+        internalType: "uint32",
+      },
     ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "rely",
-    inputs: [{ name: "user", type: "address", internalType: "address" }],
+    inputs: [
+      {
+        name: "user",
+        type: "address",
+        internalType: "address",
+      },
+    ],
     outputs: [],
     stateMutability: "nonpayable",
   },
@@ -683,10 +1155,26 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "requestDeposit",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
-      { name: "amount", type: "uint128", internalType: "uint128" },
-      { name: "investor", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+      {
+        name: "amount",
+        type: "uint128",
+        internalType: "uint128",
+      },
+      {
+        name: "investor",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
       {
         name: "depositAssetId",
         type: "uint128",
@@ -700,10 +1188,26 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "requestRedeem",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
-      { name: "amount", type: "uint128", internalType: "uint128" },
-      { name: "investor", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+      {
+        name: "amount",
+        type: "uint128",
+        internalType: "uint128",
+      },
+      {
+        name: "investor",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
       {
         name: "payoutAssetId",
         type: "uint128",
@@ -717,8 +1221,16 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "revokeShares",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
       {
         name: "payoutAssetId",
         type: "uint128",
@@ -729,7 +1241,11 @@ export const ShareClassManagerAbi = [
         type: "uint32",
         internalType: "uint32",
       },
-      { name: "navPoolPerShare", type: "uint128", internalType: "D18" },
+      {
+        name: "navPoolPerShare",
+        type: "uint128",
+        internalType: "D18",
+      },
     ],
     outputs: [
       {
@@ -753,35 +1269,89 @@ export const ShareClassManagerAbi = [
   {
     type: "function",
     name: "salts",
-    inputs: [{ name: "salt", type: "bytes32", internalType: "bytes32" }],
-    outputs: [{ name: "", type: "bool", internalType: "bool" }],
+    inputs: [
+      {
+        name: "salt",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+    ],
+    outputs: [
+      {
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
+    ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "shareClassCount",
-    inputs: [{ name: "poolId", type: "uint64", internalType: "PoolId" }],
-    outputs: [{ name: "", type: "uint32", internalType: "uint32" }],
+    inputs: [
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+    ],
+    outputs: [
+      {
+        name: "",
+        type: "uint32",
+        internalType: "uint32",
+      },
+    ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "shareClassIds",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "", type: "bytes16", internalType: "ShareClassId" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
     ],
-    outputs: [{ name: "", type: "bool", internalType: "bool" }],
+    outputs: [
+      {
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
+    ],
     stateMutability: "view",
   },
   {
     type: "function",
     name: "updateMetadata",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
-      { name: "name", type: "string", internalType: "string" },
-      { name: "symbol", type: "string", internalType: "string" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+      {
+        name: "name",
+        type: "string",
+        internalType: "string",
+      },
+      {
+        name: "symbol",
+        type: "string",
+        internalType: "string",
+      },
     ],
     outputs: [],
     stateMutability: "nonpayable",
@@ -790,9 +1360,21 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "updateSharePrice",
     inputs: [
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
-      { name: "navPoolPerShare", type: "uint128", internalType: "D18" },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+      {
+        name: "navPoolPerShare",
+        type: "uint128",
+        internalType: "D18",
+      },
     ],
     outputs: [],
     stateMutability: "nonpayable",
@@ -801,11 +1383,31 @@ export const ShareClassManagerAbi = [
     type: "function",
     name: "updateShares",
     inputs: [
-      { name: "centrifugeId", type: "uint16", internalType: "uint16" },
-      { name: "poolId", type: "uint64", internalType: "PoolId" },
-      { name: "scId_", type: "bytes16", internalType: "ShareClassId" },
-      { name: "amount", type: "uint128", internalType: "uint128" },
-      { name: "isIssuance", type: "bool", internalType: "bool" },
+      {
+        name: "centrifugeId",
+        type: "uint16",
+        internalType: "uint16",
+      },
+      {
+        name: "poolId",
+        type: "uint64",
+        internalType: "PoolId",
+      },
+      {
+        name: "scId_",
+        type: "bytes16",
+        internalType: "ShareClassId",
+      },
+      {
+        name: "amount",
+        type: "uint128",
+        internalType: "uint128",
+      },
+      {
+        name: "isIssuance",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
     outputs: [],
     stateMutability: "nonpayable",
@@ -813,8 +1415,20 @@ export const ShareClassManagerAbi = [
   {
     type: "function",
     name: "wards",
-    inputs: [{ name: "", type: "address", internalType: "address" }],
-    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    inputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [
+      {
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
     stateMutability: "view",
   },
   {
@@ -1475,39 +2089,135 @@ export const ShareClassManagerAbi = [
     ],
     anonymous: false,
   },
-  { type: "error", name: "AlreadyIssued", inputs: [] },
-  { type: "error", name: "AlreadyUsedSalt", inputs: [] },
-  { type: "error", name: "ApprovalRequired", inputs: [] },
+  {
+    type: "error",
+    name: "AlreadyIssued",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "AlreadyUsedSalt",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "ApprovalRequired",
+    inputs: [],
+  },
   {
     type: "error",
     name: "CancellationInitializationRequired",
     inputs: [],
   },
-  { type: "error", name: "CancellationQueued", inputs: [] },
-  { type: "error", name: "DecreaseMoreThanIssued", inputs: [] },
-  { type: "error", name: "EpochNotFound", inputs: [] },
+  {
+    type: "error",
+    name: "CancellationQueued",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "DecreaseMoreThanIssued",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "EpochNotFound",
+    inputs: [],
+  },
   {
     type: "error",
     name: "EpochNotInSequence",
     inputs: [
-      { name: "providedEpoch", type: "uint32", internalType: "uint32" },
-      { name: "nowEpoch", type: "uint32", internalType: "uint32" },
+      {
+        name: "providedEpoch",
+        type: "uint32",
+        internalType: "uint32",
+      },
+      {
+        name: "nowEpoch",
+        type: "uint32",
+        internalType: "uint32",
+      },
     ],
   },
-  { type: "error", name: "InsufficientPending", inputs: [] },
-  { type: "error", name: "InvalidMetadataName", inputs: [] },
-  { type: "error", name: "InvalidMetadataSize", inputs: [] },
-  { type: "error", name: "InvalidMetadataSymbol", inputs: [] },
-  { type: "error", name: "InvalidSalt", inputs: [] },
-  { type: "error", name: "IssuanceRequired", inputs: [] },
-  { type: "error", name: "MulDiv_Overflow", inputs: [] },
-  { type: "error", name: "NoOrderFound", inputs: [] },
-  { type: "error", name: "NotAuthorized", inputs: [] },
-  { type: "error", name: "PoolMissing", inputs: [] },
-  { type: "error", name: "RevocationRequired", inputs: [] },
-  { type: "error", name: "RevokeMoreThanIssued", inputs: [] },
-  { type: "error", name: "ShareClassNotFound", inputs: [] },
-  { type: "error", name: "Uint128_Overflow", inputs: [] },
-  { type: "error", name: "Uint64_Overflow", inputs: [] },
-  { type: "error", name: "ZeroApprovalAmount", inputs: [] },
+  {
+    type: "error",
+    name: "InsufficientPending",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "InvalidMetadataName",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "InvalidMetadataSize",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "InvalidMetadataSymbol",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "InvalidSalt",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "IssuanceRequired",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "MulDiv_Overflow",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "NoOrderFound",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "NotAuthorized",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "PoolMissing",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "RevocationRequired",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "RevokeMoreThanIssued",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "ShareClassNotFound",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "Uint128_Overflow",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "Uint64_Overflow",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "ZeroApprovalAmount",
+    inputs: [],
+  },
 ] as const;

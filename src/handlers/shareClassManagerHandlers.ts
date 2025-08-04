@@ -100,9 +100,9 @@ ponder.on(
       //epoch: _epochIndex,
       investor: investorAddress,
       depositAssetId,
-      pendingUserAssetAmount,
       queuedUserAssetAmount,
       pendingTotalAssetAmount,
+      pendingUserAssetAmount,
     } = event.args;
 
     const outstandingInvest = (await OutstandingInvestService.getOrInit(
@@ -117,7 +117,6 @@ ponder.on(
     await outstandingInvest
       .decorateOutstandingOrder(event)
       .processHubDepositRequest(queuedUserAssetAmount, pendingUserAssetAmount)
-      .computeTotalOutstandingAmount()
       .save();
 
     const epochOutstandingInvest =
@@ -159,7 +158,6 @@ ponder.on(
     await oo
       .decorateOutstandingOrder(event)
       .processHubRedeemRequest(queuedUserShareAmount, pendingUserShareAmount)
-      .computeTotalOutstandingAmount()
       .save();
 
     const epochOutstandingRedeem =
@@ -178,12 +176,12 @@ ponder.on(
 );
 
 ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:ApproveDeposits");
   console.log("OODEBUG-");
+  logEvent(event, context, "ShareClassManager:ApproveDeposits");
   const {
-    poolId,
+    //poolId,
     scId: tokenId,
-    epoch: epochIndex,
+    //epoch: epochIndex,
     depositAssetId,
     approvedAssetAmount,
     //approvedPoolAmount,
@@ -204,37 +202,17 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
   })) as OutstandingInvestService[];
 
   for (const oo of oos) {
-    const { account } = oo.read();
+    const { pendingAmount } = oo.read();
     const approvedUserAssetAmount = computeApprovedUserAmount(
-      approvedAssetAmount,
+      pendingAmount!,
       approvedPercentage,
       assetDecimals
     );
-    if (approvedUserAssetAmount === 0n) {
-      console.log(
-        `Approved user asset amount is 0 for pool ${poolId} token ${tokenId} asset ${depositAssetId} account ${account} epoch ${epochIndex}`
-      );
-      continue;
-    }
-    const io = (await InvestOrderService.getOrInit(context, {
-      poolId,
-      tokenId,
-      assetId: depositAssetId,
-      index: epochIndex,
-      account,
-    })) as InvestOrderService;
-
-    const ioOperation = io
-      .approveDeposit(approvedUserAssetAmount, event.block)
-      .save();
-    saves.push(ioOperation);
-
-    oo.processApprovedDeposit(
-      approvedUserAssetAmount
-    ).computeTotalOutstandingAmount();
-    const { totalOutstandingAmount } = oo.read();
-    if (totalOutstandingAmount === 0n) saves.push(oo.delete());
-    else saves.push(oo.save());
+    oo.approveInvest(
+      approvedUserAssetAmount,
+      event.block
+    );
+    saves.push(oo.save());
   }
   await Promise.all(saves);
   console.log("-OODEBUG");
@@ -246,7 +224,7 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
   const {
     poolId,
     scId: tokenId,
-    epoch: epochIndex,
+    //epoch: epochIndex,
     payoutAssetId,
     approvedShareAmount,
     pendingShareAmount,
@@ -270,40 +248,20 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
   const saves: Promise<RedeemOrderService | OutstandingRedeemService>[] = [];
   const oos = (await OutstandingRedeemService.query(context, {
     tokenId,
+    assetId: payoutAssetId,
   })) as OutstandingRedeemService[];
   for (const oo of oos) {
-    const { account } = oo.read();
+    const { pendingAmount } = oo.read();
     const approvedUserShareAmount = computeApprovedUserAmount(
-      approvedShareAmount,
+      pendingAmount!,
       approvedPercentage,
       shareDecimals
     );
-    if (approvedUserShareAmount === 0n) {
-      console.log(
-        `Approved user share amount is 0 for pool ${poolId} token ${tokenId} asset ${payoutAssetId} account ${account} epoch ${epochIndex}`
-      );
-      continue;
-    }
-    const io = (await RedeemOrderService.getOrInit(context, {
-      poolId,
-      tokenId,
-      assetId: payoutAssetId,
-      index: epochIndex,
-      account,
-    })) as RedeemOrderService;
-
-
-    const ioOperation = io
-      .approveRedeem(approvedUserShareAmount, event.block)
-      .save();
-    saves.push(ioOperation);
-
-    oo.processApprovedRedeem(
-      approvedUserShareAmount
-    ).computeTotalOutstandingAmount();
-    const { totalOutstandingAmount } = oo.read();
-    if (totalOutstandingAmount === 0n) saves.push(oo.delete());
-    else saves.push(oo.save());
+    oo.approveRedeem(
+      approvedUserShareAmount,
+      event.block
+    );
+    saves.push(oo.save());
   }
   await Promise.all(saves);
   console.log("-OODEBUG");
@@ -324,25 +282,37 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
 
   const assetDecimals = await getAssetDecimals(context, depositAssetId);
 
-  const investOrders = (await InvestOrderService.query(context, {
+  const outstandingInvests = (await OutstandingInvestService.query(context, {
     tokenId,
     assetId: depositAssetId,
-    index: epochIndex,
-  })) as InvestOrderService[];
+  })) as OutstandingInvestService[];
 
-  const investSaves: Promise<InvestOrderService>[] = [];
-  for (const investOrder of investOrders) {
-    const investOperation = investOrder
-      .issueShares(
-        navAssetPerShare,
-        navPoolPerShare,
-        assetDecimals,
-        event.block
-      )
-      .save();
-    investSaves.push(investOperation);
+  const outstandingInvestSaves: Promise<OutstandingInvestService>[] = [];
+  const investOrderSaves: Promise<InvestOrderService>[] = [];
+  for (const outstandingInvest of outstandingInvests) {
+    const { poolId, tokenId, assetId, account, approvedAmount, approvedAt, approvedAtBlock } = outstandingInvest.read();
+    const investOrder = (await InvestOrderService.getOrInit(context, {
+      poolId,
+      tokenId,
+      assetId,
+      index: epochIndex,
+      account,
+      approvedAssetsAmount: approvedAmount,
+      approvedAt,
+      approvedAtBlock,
+    })) as InvestOrderService;
+    investOrder.issueShares(
+      navAssetPerShare,
+      navPoolPerShare,
+      assetDecimals,
+      event.block
+    );
+    investOrderSaves.push(investOrder.save());
+    outstandingInvestSaves.push(outstandingInvest.clear());
   }
-  await Promise.all(investSaves);
+
+  await Promise.all(investOrderSaves);
+  await Promise.all(outstandingInvestSaves);
   console.log("-OODEBUG");
 });
 
@@ -370,25 +340,31 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
 
   const shareDecimals = await getAssetDecimals(context, currency);
 
-  const redeemOrders = (await RedeemOrderService.query(context, {
+  const outstandingRedeems = (await OutstandingRedeemService.query(context, {
     tokenId,
     assetId: payoutAssetId,
-    index: epochIndex,
-  })) as RedeemOrderService[];
+  })) as OutstandingRedeemService[];
 
-  const redeemSaves: Promise<RedeemOrderService>[] = [];
-  for (const redeemOrder of redeemOrders) {
-    const redeemOperation = redeemOrder
-      .revokeShares(
+  const outstandingRedeemSaves: Promise<OutstandingRedeemService>[] = [];
+  const redeemOrderSaves: Promise<RedeemOrderService>[] = [];
+  for (const outstandingRedeem of outstandingRedeems) {
+    const redeemOrder = (await RedeemOrderService.getOrInit(context, {
+      poolId,
+      tokenId,
+      assetId: payoutAssetId,
+      index: epochIndex,
+      account: outstandingRedeem.read().account,
+    })) as RedeemOrderService;
+    redeemOrder.revokeShares(
         navAssetPerShare,
         navPoolPerShare,
         shareDecimals,
         event.block
-      )
-      .save();
-    redeemSaves.push(redeemOperation);
+    );
+    outstandingRedeemSaves.push(outstandingRedeem.clear());
+    redeemOrderSaves.push(redeemOrder.save());
   }
-  await Promise.all(redeemSaves);
+  await Promise.all([...outstandingRedeemSaves, ...redeemOrderSaves]);
   console.log("-OODEBUG");
 });
 

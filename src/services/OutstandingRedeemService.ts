@@ -34,34 +34,11 @@ export class OutstandingRedeemService extends mixinCommonStatics(
    * @param amount - The new requested deposit amount as a bigint
    * @returns The service instance for method chaining
    */
-  public updatePendingAmount(amount: bigint) {
+  public updateDepositAmount(depositAmount: bigint) {
     console.info(
-      `Updating pending amount for OutstandingRedeem ${this.data.poolId}-${this.data.tokenId}-${this.data.account} to ${amount}`
+      `Updating deposit amount for OutstandingRedeem pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account} to ${depositAmount}`
     );
-    this.data.pendingAmount = amount;
-    return this;
-  }
-
-  /**
-   * Computes the total outstanding amount for the order.
-   *
-   * This method calculates the sum of depositAmount, queuedAmount, and pendingAmount
-   * and assigns it to the totalOutstandingAmount field of the order.
-   *
-   * @returns The service instance for method chaining
-   * @throws Error if any of the required fields (depositAmount, queuedAmount, pendingAmount) are missing
-   */
-  public computeTotalOutstandingAmount() {
-    console.log(`Computing total outstanding amount for pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account}`)
-    const { depositAmount, queuedAmount, pendingAmount } = this.data;
-    if (
-      depositAmount === null ||
-      queuedAmount === null ||
-      pendingAmount === null
-    )
-      throw new Error("Uninitialized required fields");
-    this.data.totalOutstandingAmount =
-      depositAmount + queuedAmount + pendingAmount;
+    this.data.depositAmount = depositAmount;
     return this;
   }
 
@@ -80,41 +57,41 @@ export class OutstandingRedeemService extends mixinCommonStatics(
     pendingUserShareAmount: bigint
   ) {
     console.log(`Processing hub redeem request for pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account}`)
-    const { depositAmount, queuedAmount, pendingAmount } = this.data;
-    if (
-      depositAmount === null ||
-      queuedAmount === null ||
-      pendingAmount === null
-    )
-      throw new Error("Uninitialized required fields");
-    const deltaPendingAmount =
-      queuedAmount -
-      queuedUserShareAmount +
-      depositAmount -
-      pendingUserShareAmount;
-    this.data.pendingAmount! -= deltaPendingAmount;
     this.data.queuedAmount = queuedUserShareAmount;
-    this.data.depositAmount = pendingUserShareAmount;
+    this.data.pendingAmount = pendingUserShareAmount;
     return this;
   }
 
   /**
-   * Processes an approved redeem for the outstanding order.
+   * Approves a redeem for the outstanding order.
    *
-   * This method updates the deposit amount based on the approved user share amount.
+   * This method updates the last approved amount, timestamp, and block number for the order.
    *
    * @param approvedUserShareAmount - The amount of approved user share
+   * @param event - The event that triggered the approval
    * @returns The service instance for method chaining
    */
-  public processApprovedRedeem(approvedUserShareAmount: bigint) {
-    console.log(`Processing approved redeem for pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account}`)
-    const { depositAmount, queuedAmount, pendingAmount } = this.data;
-    if (
-      depositAmount === null ||
-      queuedAmount === null ||
-      pendingAmount === null
-    ) throw new Error("Uninitialized required fields");
-    this.data.depositAmount! -= approvedUserShareAmount;
+  public approveRedeem(approvedUserShareAmount: bigint, block: Event['block']) {
+    console.log(`Approving redeem for pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account}`)
+    this.data.approvedAmount = approvedUserShareAmount;
+    this.data.approvedAt = new Date(Number(block.timestamp) * 1000);
+    this.data.approvedAtBlock = Number(block.number);
     return this;
+  }
+
+  /**
+   * Clears the approved amount for the outstanding order.
+   *
+   * This method updates the approved amount to 0, timestamp, and block number for the order.
+   *
+   * @returns The service instance for method chaining
+   */
+  public clear() {
+    this.data.pendingAmount! -= this.data.approvedAmount!;
+    this.data.approvedAmount = 0n;
+    this.data.approvedAt = null;
+    this.data.approvedAtBlock = null;
+    if (this.data.queuedAmount! + this.data.pendingAmount! === 0n)  return this.delete();
+    return this.save();
   }
 }

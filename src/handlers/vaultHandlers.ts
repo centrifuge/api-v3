@@ -69,8 +69,7 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   })) as OutstandingInvestService;
 
   await OutstandingInvest.decorateOutstandingOrder(event)
-    .updatePendingAmount(assets)
-    .computeTotalOutstandingAmount()
+    .updateDepositAmount(assets)
     .save();
   console.log("-OODEBUG");
 });
@@ -83,7 +82,7 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
     // owner,
     // requestId,
     sender: senderAddress,
-    assets,
+    shares,
   } = event.args;
   const vaultId = event.log.address;
   if (!vaultId) throw new Error(`Vault id not found in event`);
@@ -106,7 +105,7 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
     poolId,
     tokenId,
     account: senderAddress.substring(0, 42) as `0x${string}`,
-    tokenAmount: assets,
+    tokenAmount: shares,
     txHash: event.transaction.hash,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
@@ -129,8 +128,7 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
   })) as OutstandingRedeemService;
 
   await OutstandingRedeem.decorateOutstandingOrder(event)
-    .updatePendingAmount(assets)
-    .computeTotalOutstandingAmount()
+    .updateDepositAmount(shares)
     .save();
   console.log("-OODEBUG");
 });

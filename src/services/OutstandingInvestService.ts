@@ -34,32 +34,14 @@ export class OutstandingInvestService extends mixinCommonStatics(
    * @param amount - The new requested deposit amount as a bigint
    * @returns The service instance for method chaining
    */
-  public updatePendingAmount(amount: bigint) {
+  public updateDepositAmount(depositAmount: bigint) {
     console.info(
-      `Updating pending amount for OutstandingInvest pool ${this.data.poolId} token ${this.data.tokenId} account ${this.data.account} to ${amount}`
+      `Updating deposit amount for OutstandingInvest pool ${this.data.poolId} token ${this.data.tokenId} account ${this.data.account} to ${depositAmount}`
     );
-    this.data.pendingAmount = amount;
+    this.data.depositAmount = depositAmount;
     return this;
   }
 
-  /**
-   * Computes the total outstanding amount for the order.
-   *
-   * This method calculates the sum of depositAmount, queuedAmount, and pendingAmount
-   * and assigns it to the totalOutstandingAmount field of the order.
-   *
-   * @returns The service instance for method chaining
-   * @throws Error if any of the required fields (depositAmount, queuedAmount, pendingAmount) are missing
-   */
-  public computeTotalOutstandingAmount() {
-    console.log(`Computing total outstanding amount for pool ${this.data.poolId} token ${this.data.tokenId} account ${this.data.account}`)
-    const { depositAmount, queuedAmount, pendingAmount } = this.data;
-    if (depositAmount === null || queuedAmount === null || pendingAmount === null)
-      throw new Error("Uninitialized required fields");
-    this.data.totalOutstandingAmount =
-      depositAmount + queuedAmount + pendingAmount;
-    return this;
-  }
 
   /**
    * Processes a hub deposit request for the outstanding order.
@@ -73,45 +55,46 @@ export class OutstandingInvestService extends mixinCommonStatics(
    */
   public processHubDepositRequest(
     queuedUserAssetAmount: bigint,
-    pendingUserAssetAmount: bigint
+    pendingUserAssetAmount: bigint,
   ) {
     console.log(`Processing hub deposit request for pool ${this.data.poolId} token ${this.data.tokenId} account ${this.data.account}`)
-    const { queuedAmount, depositAmount, pendingAmount } = this.data;
-    if (queuedAmount === null || depositAmount === null || pendingAmount === null) {
-      throw new Error("Uninitialized required fields");
-    }
-
-    const deltaPendingAmount =  queuedAmount - queuedUserAssetAmount + depositAmount - pendingUserAssetAmount;
-    console.log(`Delta pending amount: ${deltaPendingAmount}`)
-
-    // Reduce pendingAmount by the difference in queued and deposit amounts
-    this.data.pendingAmount! -= deltaPendingAmount;
-    console.log(`NEW Pending amount: ${this.data.pendingAmount}`)
-
     // Update queued and deposit amounts from event
     this.data.queuedAmount = queuedUserAssetAmount;
-    console.log(`NEW Queued amount: ${this.data.queuedAmount}`)
-    this.data.depositAmount = pendingUserAssetAmount;
-    console.log(`NEW Deposit amount: ${this.data.depositAmount}`)
+    this.data.pendingAmount = pendingUserAssetAmount;
+    return this;
+  }
 
+
+  /**
+   * Approves an invest for the outstanding order.
+   *
+   * This method updates the last approved amount, timestamp, and block number for the order.
+   *
+   * @param approvedUserAssetAmount - The amount of approved user asset
+   * @param event - The event that triggered the approval
+   * @returns The service instance for method chaining
+   */
+  public approveInvest(approvedUserAssetAmount: bigint, block: Event['block']) {
+    console.log(`Approving invest for pool ${this.data.poolId} token ${this.data.tokenId} account ${this.data.account}`)
+    this.data.approvedAmount = approvedUserAssetAmount;
+    this.data.approvedAt = new Date(Number(block.timestamp) * 1000);
+    this.data.approvedAtBlock = Number(block.number);
     return this;
   }
 
   /**
-   * Processes an approved deposit for the outstanding order.
+   * Clears the approved amount for the outstanding order.
    *
-   * This method updates the deposit amount based on the approved user asset amount.
+   * This method updates the approved amount to 0, timestamp, and block number for the order.
    *
-   * @param approvedUserAssetAmount - The amount of approved user asset
-   * @returns The service instance for method chaining  
-   **/
-  public processApprovedDeposit(approvedUserAssetAmount: bigint) {
-    console.log(`Processing approved deposit for pool ${this.data.poolId} token ${this.data.tokenId} account ${this.data.account}`)
-    const { queuedAmount, depositAmount, pendingAmount } = this.data;
-    if (queuedAmount === null || depositAmount === null || pendingAmount === null) {
-      throw new Error("Uninitialized required fields");
-    }
-    this.data.depositAmount! -= approvedUserAssetAmount;
-    return this;
+   * @returns The service instance for method chaining
+   */
+  public clear() {
+    this.data.pendingAmount! -= this.data.approvedAmount!;
+    this.data.approvedAmount = 0n;
+    this.data.approvedAt = null;
+    this.data.approvedAtBlock = null;
+    if (this.data.queuedAmount! + this.data.pendingAmount! === 0n)  return this.delete();
+    return this.save();
   }
 }

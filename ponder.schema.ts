@@ -272,9 +272,13 @@ const OutstandingInvestColumns = (t: PgColumnsBuilders) => ({
   account: t.hex().notNull(),
 
   pendingAmount: t.bigint().default(0n), // Amount that is MAYBE in transit from Spoke to Hub, asset denomination
-  depositAmount: t.bigint().default(0n), // Amount that is deposited on Hub, asset denomination
+  
   queuedAmount: t.bigint().default(0n), // Amount that is queued onchain for AFTER claim, technically needed, asset denomination
-  totalOutstandingAmount: t.bigint().default(0n), // See formula above, that is the POTENTIALLY Cancellable amount available, asset denomination
+  depositAmount: t.bigint().default(0n), // Amount that is deposited on Hub, asset denomination
+
+  approvedAmount: t.bigint().default(0n), // Amount that is approved on Hub, asset denomination
+  approvedAt: t.timestamp(),
+  approvedAtBlock: t.integer(),
 
   updatedAt: t.timestamp(),
   updatedAtBlock: t.integer(),
@@ -308,9 +312,12 @@ const OutstandingRedeemColumns = (t: PgColumnsBuilders) => ({
   account: t.hex().notNull(),
 
   pendingAmount: t.bigint().default(0n), // Amount that is MAYBE in transit from Spoke to Hub, share denomination
-  depositAmount: t.bigint().default(0n), // Amount that is deposited on Hub, share denomination
   queuedAmount: t.bigint().default(0n), // Amount that is queued onchain for AFTER claim, technically needed, share denomination
-  totalOutstandingAmount: t.bigint().default(0n), // See formula above, that is the POTENTIALLY Cancellable amount available, share denomination
+  depositAmount: t.bigint().default(0n), // Amount that is deposited on Hub, share denomination
+
+  approvedAmount: t.bigint().default(0n), // Amount that is approved on Hub, share denomination
+  approvedAt: t.timestamp(),
+  approvedAtBlock: t.integer(),
 
   updatedAt: t.timestamp(),
   updatedAtBlock: t.integer(),

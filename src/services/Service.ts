@@ -84,6 +84,7 @@ export class Service<T extends OnchainTable> {
    * @throws {Error} When there's no data to delete or deletion fails
    */
   public async delete() {
+    console.info(`Deleting ${this.name}`, this.data);
     if (!this.data) throw new Error(`No data to delete for ${this.table}`);
     await this.db.sql
       .delete(this.table)
