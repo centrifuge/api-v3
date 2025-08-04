@@ -216,20 +216,13 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
       );
       continue;
     }
-    const io = (await InvestOrderService.init(context, {
+    const io = (await InvestOrderService.getOrInit(context, {
       poolId,
       tokenId,
       assetId: depositAssetId,
       index: epochIndex,
       account,
-    }).catch((e) => {
-      console.log(e);
-      return null;
     })) as InvestOrderService;
-    if (!io) {
-      console.log(`Invest order failed to init for pool ${poolId} token ${tokenId} asset ${depositAssetId} account ${account} epoch ${epochIndex}`);
-      return
-    }
 
     const ioOperation = io
       .approveDeposit(approvedUserAssetAmount, event.block)
@@ -291,20 +284,14 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
       );
       continue;
     }
-    const io = (await RedeemOrderService.init(context, {
+    const io = (await RedeemOrderService.getOrInit(context, {
       poolId,
       tokenId,
       assetId: payoutAssetId,
       index: epochIndex,
       account,
-    }).catch((e) => {
-      console.log(e);
-      return null;
     })) as RedeemOrderService;
-    if (!io) {
-      console.log(`Redeem order failed to init for pool ${poolId} token ${tokenId} asset ${payoutAssetId} account ${account} epoch ${epochIndex}`);
-      return;
-    }
+
 
     const ioOperation = io
       .approveRedeem(approvedUserShareAmount, event.block)
