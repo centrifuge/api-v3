@@ -211,7 +211,7 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
       assetDecimals
     );
     if (approvedUserAssetAmount === 0n) {
-      console.error(
+      console.log(
         `Approved user asset amount is 0 for pool ${poolId} token ${tokenId} asset ${depositAssetId} account ${account} epoch ${epochIndex}`
       );
       continue;
@@ -223,11 +223,11 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
       index: epochIndex,
       account,
     }).catch((e) => {
-      console.error(e);
+      console.log(e);
       return null;
     })) as InvestOrderService;
     if (!io) {
-      console.error(`Invest order failed to init for pool ${poolId} token ${tokenId} asset ${depositAssetId} account ${account} epoch ${epochIndex}`);
+      console.log(`Invest order failed to init for pool ${poolId} token ${tokenId} asset ${depositAssetId} account ${account} epoch ${epochIndex}`);
       return
     }
 
@@ -286,7 +286,7 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
       shareDecimals
     );
     if (approvedUserShareAmount === 0n) {
-      console.error(
+      console.log(
         `Approved user share amount is 0 for pool ${poolId} token ${tokenId} asset ${payoutAssetId} account ${account} epoch ${epochIndex}`
       );
       continue;
@@ -298,11 +298,11 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
       index: epochIndex,
       account,
     }).catch((e) => {
-      console.error(e);
+      console.log(e);
       return null;
     })) as RedeemOrderService;
     if (!io) {
-      console.error(`Redeem order failed to init for pool ${poolId} token ${tokenId} asset ${payoutAssetId} account ${account} epoch ${epochIndex}`);
+      console.log(`Redeem order failed to init for pool ${poolId} token ${tokenId} asset ${payoutAssetId} account ${account} epoch ${epochIndex}`);
       return;
     }
 
@@ -497,7 +497,7 @@ ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
     index: epochIndex,
   })) as InvestOrderService;
   if (!investOrder) {
-    console.error(
+    console.log(
       `Invest order not found for token ${tokenId} asset ${assetId} account ${investorAccount.substring(
         0,
         42
@@ -531,7 +531,7 @@ ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
     index: epochIndex,
   })) as RedeemOrderService;
   if (!redeemOrder) {
-    console.error(
+    console.log(
       `Redeem order not found for token ${tokenId} asset ${assetId} account ${investorAccount.substring(
         0,
         42
