@@ -95,11 +95,13 @@ export const DeploymentRelations = relations(Deployment, ({ one }) => ({
 const PoolColumns = (t: PgColumnsBuilders) => ({
   id: t.bigint().notNull(),
   centrifugeId: t.text().notNull(),
-  isActive: t.boolean().notNull().default(false),
+  isActive: t.boolean().notNull().default(true),
   createdAtBlock: t.integer(),
   createdAt: t.timestamp(),
   shareClassManager: t.text(),
   currency: t.bigint(),
+  metadata: t.text(),
+  name: t.text(),
 });
 export const Pool = onchainTable("pool", PoolColumns, (t) => ({
   id: primaryKey({ columns: [t.id] }),

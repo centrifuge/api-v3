@@ -3,6 +3,9 @@ import { PoolService } from "../services/PoolService";
 import { logEvent } from "../helpers/logger";
 import { AssetRegistrationService, getAssetCentrifugeId, PoolManagerService } from "../services";
 import { BlockchainService } from "../services/BlockchainService";
+import { fetchFromIpfs } from "../helpers/ipfs";
+
+const ipfsHashRegex = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[A-Za-z2-7]{58})$/
 
 ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
   logEvent(event, context, "HubRegistry:NewPool");
@@ -66,4 +69,30 @@ ponder.on("HubRegistry:UpdateManager", async ({ event, context }) => {
   }) as PoolManagerService;
   poolManager.setIsHubManager(canManage);
   await poolManager.save()
+})
+
+ponder.on("HubRegistry:SetMetadata", async ({ event, context }) => {
+  logEvent(event, context, "HubRegistry:SetMetadata");
+  const chainId = context.chain.id
+  if (typeof chainId !== 'number') throw new Error('Chain ID is required')
+
+  const { poolId, metadata: rawMetadata } = event.args;
+
+  const blockchain = await BlockchainService.get(context, { id: chainId.toString() }) as BlockchainService  
+  if (!blockchain) throw new Error("Blockchain not found");
+  const { centrifugeId } = blockchain.read()
+
+  const pool = await PoolService.getOrInit(context, { id: poolId, centrifugeId }) as PoolService;
+  if (!pool) throw new Error("Pool not found");
+
+  let metadata = Buffer.from(rawMetadata.slice(2), "hex").toString("utf-8");
+  const isIpfs = ipfsHashRegex.test(metadata)
+  if (isIpfs) {
+    metadata = `ipfs://${metadata}`
+    const ipfsData = await fetchFromIpfs(metadata)
+    pool.setName(ipfsData?.pool?.name)
+  }
+
+  pool.setMetadata(metadata);
+  await pool.save()
 })

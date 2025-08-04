@@ -74,4 +74,24 @@ export class PoolService extends mixinCommonStatics(
     }
     return shareClassesIds;
   }
+
+  /**
+   * Sets the metadata for the pool.
+   * @param metadata - The metadata to set.
+   * @returns The PoolService instance for chaining.
+   */
+  public setMetadata(metadata: string) {
+    this.data.metadata = metadata;
+    return this;
+  }
+
+  /**
+   * Sets the name for the pool.
+   * @param name - The name to set.
+   * @returns The PoolService instance for chaining.
+   */
+  public setName(name: string) {
+    this.data.name = name;
+    return this;
+  }
 }
