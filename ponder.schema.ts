@@ -930,6 +930,10 @@ export const CrosschainMessageRelations = relations(CrosschainMessage, ({one}) =
     fields: [CrosschainMessage.payloadId, CrosschainMessage.fromCentrifugeId, CrosschainMessage.toCentrifugeId],
     references: [CrosschainPayload.id, CrosschainPayload.fromCentrifugeId, CrosschainPayload.toCentrifugeId],
   }),
+  pool: one(Pool, {
+    fields: [CrosschainMessage.poolId],
+    references: [Pool.id],
+  }),
   fromBlockchain: one(Blockchain, {
     fields: [CrosschainMessage.fromCentrifugeId],
     references: [Blockchain.centrifugeId],
