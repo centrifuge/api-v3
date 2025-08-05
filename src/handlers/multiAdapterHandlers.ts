@@ -86,7 +86,8 @@ ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
     createdAtBlock: Number(event.block.number),
   })) as CrosschainPayloadService;
   if (!crosschainPayload) throw new Error("CrosschainPayload not found");
-  crosschainPayload.delivered(event);
+  const { status } = crosschainPayload.read();
+  if (status === "InProgress") crosschainPayload.delivered(event);
   crosschainPayload.setAdapterReceiving(adapter);
   await crosschainPayload.save();
   //TODO: Increase Votes by 1 and mark this adapter as processed successfully
