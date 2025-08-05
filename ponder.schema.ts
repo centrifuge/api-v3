@@ -877,6 +877,7 @@ const CrosschainPayloadColumns = (t: PgColumnsBuilders) => ({
   id: t.hex().notNull(),
   fromCentrifugeId: t.text().notNull(),
   toCentrifugeId: t.text().notNull(),
+  poolId: t.bigint(),
   votes: t.integer().notNull().default(0),
   status: CrosschainPayloadStatus("x_chain_payload_status").notNull().default("InProgress"),
   createdAt: t.timestamp().notNull(),
@@ -905,6 +906,10 @@ export const CrosschainPayloadRelations = relations(CrosschainPayload, ({one, ma
   }),
   crosschainMessages: many(CrosschainMessage, {
     relationName: "crosschainMessages",
+  }),
+  pool: one(Pool, {
+    fields: [CrosschainPayload.poolId],
+    references: [Pool.id],
   }),
 }));
 

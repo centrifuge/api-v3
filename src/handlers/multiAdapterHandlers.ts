@@ -27,20 +27,13 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: fromCentrifugeId } = blockchain.read();
 
-  const _crosschainPayload = (await CrosschainPayloadService.init(context, {
-    id: payloadId,
-    toCentrifugeId: toCentrifugeId.toString(),
-    fromCentrifugeId: fromCentrifugeId,
-    status: "InProgress",
-    createdAt: new Date(Number(event.block.timestamp) * 1000),
-    createdAtBlock: Number(event.block.number),
-    adapterSending: adapter,
-  })) as CrosschainPayloadService;
-
   const messages = excractMessagesFromPayload(payload);
   const messageIds = messages.map((message) =>
     getMessageId(fromCentrifugeId, toCentrifugeId.toString(), message)
   );
+
+  const poolIdSet = new Set<bigint>();
+  const crosschainMessageSaves: Promise<CrosschainMessageService>[] = [];
 
   for (const messageId of messageIds) {
     const crosschainMessages = (await CrosschainMessageService.query(context, {
@@ -51,9 +44,25 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
       throw new Error(`CrosschainMessage with id ${messageId} not found`);
     crosschainMessages.sort((a, b) => a.read().index - b.read().index);
     const crosschainMessage = crosschainMessages.shift()!;
+    const { poolId } = crosschainMessage.read();
     crosschainMessage.setPayloadId(payloadId);
-    await crosschainMessage.save();
+    crosschainMessageSaves.push(crosschainMessage.save());
+    if (poolId) poolIdSet.add(poolId);
   }
+
+  if (poolIdSet.size > 1) throw new Error("Multiple pools found");
+  const poolId = Array.from(poolIdSet).pop() ?? null;
+
+  const _crosschainPayload = (await CrosschainPayloadService.init(context, {
+    id: payloadId,
+    poolId,
+    toCentrifugeId: toCentrifugeId.toString(),
+    fromCentrifugeId: fromCentrifugeId,
+    status: "InProgress",
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
+    adapterSending: adapter,
+  })) as CrosschainPayloadService;
 });
 
 ponder.on("MultiAdapter:SendProof", async ({ event, context }) => {
