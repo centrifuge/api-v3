@@ -129,9 +129,13 @@ export function excractMessagesFromPayload(payload: `0x${string}`) {
   const messages: `0x${string}`[] = [];
   let offset = 0;
   // Keep extracting messages while we have enough bytes remaining
+  console.log("buffer length", payloadBuffer.length);
   while (offset < payloadBuffer.length) {
+    console.log("offset", offset);
     const messageType = payloadBuffer.readUInt8(offset);
-    const messageLength = getCrosschainMessageLength(messageType);
+    console.log("messageType", messageType);
+    const messageLength = getCrosschainMessageLength(messageType, payloadBuffer);
+    console.log("messageLength", messageLength);
     if (!messageLength) throw new Error(`Invalid message type: ${messageType}`);
 
     // Extract message bytes including the type byte

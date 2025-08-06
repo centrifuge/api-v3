@@ -17,7 +17,6 @@ export class CrosschainMessageService extends mixinCommonStatics(
   CrosschainMessage,
   "CrosschainMessage"
 ) {
-
   /**
    * Sets the status of the CrosschainMessage
    * @param status - The new status to set. Must be one of the valid CrosschainMessageStatuses
@@ -25,7 +24,7 @@ export class CrosschainMessageService extends mixinCommonStatics(
    */
   public setStatus(status: (typeof CrosschainMessageStatuses)[number]) {
     this.data.status = status;
-    return this
+    return this;
   }
 
   /**
@@ -33,14 +32,14 @@ export class CrosschainMessageService extends mixinCommonStatics(
    * @param payloadId - The hex string payload ID to set
    * @returns The CrosschainMessageService instance for chaining
    */
-  public setPayloadId(payloadId: `0x${string}`) {   
+  public setPayloadId(payloadId: `0x${string}`) {
     this.data.payloadId = payloadId;
-    return this
+    return this;
   }
 
   /**
    * Marks the CrosschainMessage as executed.
-   * 
+   *
    * @param {Event} event - The event that marks the CrosschainMessage as executed
    * @returns {CrosschainMessageService} Returns the current instance for method chaining
    */
@@ -48,11 +47,11 @@ export class CrosschainMessageService extends mixinCommonStatics(
     this.data.status = "Executed";
     this.data.executedAt = new Date(Number(event.block.timestamp) * 1000);
     this.data.executedAtBlock = Number(event.block.number);
-    return this
+    return this;
   }
 }
 
-export const CrosschainMessageType = {
+const CrosschainMessageType = {
   /// @dev Placeholder for null message type
   _Invalid: undefined,
   // -- Pool independent messages
@@ -78,18 +77,34 @@ export const CrosschainMessageType = {
   NotifyPricePoolPerAsset: 65,
   NotifyShareMetadata: 185,
   UpdateShareHook: 57,
-    InitiateTransferShares: 91,
+  InitiateTransferShares: 91,
   ExecuteTransferShares: 73,
-  UpdateRestriction: 25,
-  UpdateContract: 57,
+  UpdateRestriction: (message: Buffer) => {
+    const baseLength = 25;
+    const payloadLength = message.readUint16BE(baseLength);
+    return baseLength + 2 + payloadLength;
+  },
+  UpdateContract: (message: Buffer) => {
+    const baseLength = 57;
+    const payloadLength = message.readUint16BE(baseLength);
+    return baseLength + 2 + payloadLength;
+  },
   UpdateVault: 74,
   UpdateBalanceSheetManager: 42,
   UpdateHoldingAmount: 91,
   UpdateShares: 59,
   MaxAssetPriceAge: 49,
   MaxSharePriceAge: 33,
-  Request: 41,
-  RequestCallback: 41,
+  Request: (message: Buffer) => {
+    const baseLength = 41;
+    const payloadLength = message.readUint16BE(baseLength);
+    return baseLength + 2 + payloadLength;
+  },
+  RequestCallback: (message: Buffer) => {
+    const baseLength = 41;
+    const payloadLength = message.readUint16BE(baseLength);
+    return baseLength + 2 + payloadLength;
+  },
   SetRequestManager: 73,
 } as const;
 
@@ -98,38 +113,38 @@ export const CrosschainMessageType = {
  * @param messageType - The numeric ID of the message type
  * @returns The string name of the message type from CrosschainMessageType
  */
-
-/**
- * Gets the length in bytes of a cross-chain message type's payload
- * @param messageType - The numeric ID of the message type
- * @returns The expected payload length in bytes for that message type
- */
 export function getCrosschainMessageType(messageType: number) {
   return Object.keys(CrosschainMessageType)[messageType] ?? "_Invalid";
 }
 
 /**
  * Gets the string name of a cross-chain message type from its numeric ID
- * @param messageType - The numeric ID of the message type 
+ * @param messageType - The numeric ID of the message type
  * @returns The string name of the message type from CrosschainMessageType
  */
-export function getCrosschainMessageLength(messageType: number) {
-  return Object.values(CrosschainMessageType)[messageType];
+export function getCrosschainMessageLength(messageType: number, message: Buffer) {
+  const lengthEntry = Object.values(CrosschainMessageType)[messageType];
+  return typeof lengthEntry === "function" ? lengthEntry(message) : lengthEntry;
 }
 
 /**
  * Generates a unique message ID by hashing chain IDs and message bytes
- * 
+ *
  * @param sourceChainId - The Centrifuge Chain ID of the source chain
- * @param destChainId - The Centrifuge Chain ID of the destination chain  
+ * @param destChainId - The Centrifuge Chain ID of the destination chain
  * @param messageBytes - The hex-encoded message bytes
  * @returns The keccak256 hash of the encoded parameters as the message ID
  */
-export function getMessageId(sourceCentrifugeId: string, destCentrifugeId: string, messageBytes: `0x${string}`) {
-  
-  const messageId = keccak256(encodePacked(['uint16', 'uint16', 'bytes'],
-    [Number(sourceCentrifugeId), Number(destCentrifugeId), messageBytes]));
+export function getMessageId(
+  sourceCentrifugeId: string,
+  destCentrifugeId: string,
+  messageBytes: `0x${string}`
+) {
+  const messageId = keccak256(
+    encodePacked(
+      ["uint16", "uint16", "bytes"],
+      [Number(sourceCentrifugeId), Number(destCentrifugeId), messageBytes]
+    )
+  );
   return messageId;
 }
-
-
