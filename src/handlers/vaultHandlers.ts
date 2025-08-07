@@ -342,5 +342,6 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
  * @returns The price of the token in terms of currency
  */
 function getSharePrice(sharesAmount: bigint, assetsAmount: bigint, assetDecimals: number) {
+  if (assetsAmount === 0n) return null;
   return (sharesAmount * 10n ** BigInt(assetDecimals)) / assetsAmount;
 }
