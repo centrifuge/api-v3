@@ -134,7 +134,9 @@ export function excractMessagesFromPayload(payload: `0x${string}`) {
     console.log("offset", offset);
     const messageType = payloadBuffer.readUInt8(offset);
     console.log("messageType", messageType);
-    const messageLength = getCrosschainMessageLength(messageType, payloadBuffer);
+    // Pass the buffer slice starting from current offset
+    const messageBuffer = payloadBuffer.subarray(offset);
+    const messageLength = getCrosschainMessageLength(messageType, messageBuffer);
     console.log("messageLength", messageLength);
     if (!messageLength) throw new Error(`Invalid message type: ${messageType}`);
 
