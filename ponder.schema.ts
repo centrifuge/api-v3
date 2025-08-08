@@ -98,7 +98,6 @@ const PoolColumns = (t: PgColumnsBuilders) => ({
   isActive: t.boolean().notNull().default(true),
   createdAtBlock: t.integer(),
   createdAt: t.timestamp(),
-  shareClassManager: t.text(),
   currency: t.bigint(),
   metadata: t.text(),
   name: t.text(),

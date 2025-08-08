@@ -11,8 +11,7 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
   logEvent(event, context, "HubRegistry:NewPool");
   const chainId = context.chain.id
   if (typeof chainId !== 'number') throw new Error('Chain ID is required')
-  const { poolId, currency, manager: _manager } = event.args;
-  const manager = _manager.toString();
+  const { poolId, currency, manager } = event.args;
   const blockchain = await BlockchainService.get(context, { id: chainId.toString() }) as BlockchainService
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read()
@@ -20,12 +19,21 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
   const _pool = (await PoolService.init(context, {
     id: poolId,
     centrifugeId,
-    shareClassManager: manager,
     currency,
     isActive: true,
     createdAtBlock: Number(event.block.number),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
   })) as PoolService;
+
+  const poolManager = await PoolManagerService.getOrInit(context, {
+    address: manager.substring(0, 42) as `0x${string}`,
+    centrifugeId,
+    poolId,
+  }) as PoolManagerService;
+  poolManager.setIsHubManager(true);
+  await poolManager.save()
+
+
 })
 
 ponder.on("HubRegistry:NewAsset", async ({ event, context }) => { //Fires Second to complete
