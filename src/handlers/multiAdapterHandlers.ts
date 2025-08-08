@@ -52,7 +52,10 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
     if (poolId) poolIdSet.add(poolId);
   }
 
-  if (poolIdSet.size > 1) throw new Error("Multiple pools found");
+  if (poolIdSet.size > 1) {
+    console.error("Multiple pools found");
+    return;
+  }
   const poolId = Array.from(poolIdSet).pop() ?? null;
 
   const _crosschainPayload = (await CrosschainPayloadService.init(context, {
@@ -64,7 +67,10 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
     adapterSending: adapter,
-  })) as CrosschainPayloadService;
+  }).catch((error) => {
+    console.error("Error initializing crosschain payload", error);
+    return null;
+  })) as CrosschainPayloadService | null;
 });
 
 ponder.on("MultiAdapter:SendProof", async ({ event, context }) => {
@@ -89,14 +95,17 @@ ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
   })) as BlockchainService;
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: toCentrifugeId } = blockchain.read();
-  const crosschainPayload = (await CrosschainPayloadService.getOrInit(context, {
+  const crosschainPayload = (await CrosschainPayloadService.get(context, {
     id: payloadId,
     toCentrifugeId: toCentrifugeId,
     fromCentrifugeId: fromCentrifugeId.toString(),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
-  })) as CrosschainPayloadService;
-  if (!crosschainPayload) throw new Error("CrosschainPayload not found");
+  })) as CrosschainPayloadService | null;
+  if (!crosschainPayload) {
+    console.error("CrosschainPayload not found");
+    return;
+  }
   const { status } = crosschainPayload.read();
   if (status === "InProgress") crosschainPayload.delivered(event);
   crosschainPayload.setAdapterReceiving(adapter);
@@ -138,7 +147,10 @@ export function excractMessagesFromPayload(payload: `0x${string}`) {
     console.log("messageType", messageType);
     // Pass the buffer slice starting from current offset
     const messageBuffer = payloadBuffer.subarray(offset);
-    const messageLength = getCrosschainMessageLength(messageType, messageBuffer);
+    const messageLength = getCrosschainMessageLength(
+      messageType,
+      messageBuffer
+    );
     console.log("messageLength", messageLength);
     if (!messageLength) {
       console.error(`Invalid message type: ${messageType}`);

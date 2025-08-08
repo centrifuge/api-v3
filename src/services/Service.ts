@@ -126,7 +126,7 @@ export function mixinCommonStatics<
     static async init(context: Context, data: T["$inferInsert"]) {
       console.info(`Initialising ${name}`, data);
       const insert =
-        (await context.db.sql.insert(table).values(data).returning()).pop() ??
+        (await context.db.sql.insert(table).values(data).onConflictDoNothing().returning()).pop() ??
         null;
       if (!insert) throw new Error(`${name} with ${data} not inserted`);
       return new this(table, name, context, insert);

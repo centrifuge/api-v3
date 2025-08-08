@@ -56,7 +56,7 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: fromCentrifugeId } = blockchain.read();
 
-  const _crosschainPayload = (await CrosschainPayloadService.getOrInit(
+  const _crosschainPayload = (await CrosschainPayloadService.init(
     context,
     {
       id: batch,
