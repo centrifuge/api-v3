@@ -10,7 +10,6 @@ import { OutstandingInvestService } from "../services";
 import { OutstandingRedeemService } from "../services";
 
 ponder.on("Vault:DepositRequest", async ({ event, context }) => {
-  console.log("OODEBUG-");
   logEvent(event, context, "Vault:DepositRequest");
   const {
     // controller,
@@ -71,11 +70,10 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   await OutstandingInvest.decorateOutstandingOrder(event)
     .updateDepositAmount(assets)
     .save();
-  console.log("-OODEBUG");
 });
 
 ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
-  console.log("OODEBUG-");
+
   logEvent(event, context, "Vault:RedeemRequest");
   const {
     // controller,
@@ -130,7 +128,6 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
   await OutstandingRedeem.decorateOutstandingOrder(event)
     .updateDepositAmount(shares)
     .save();
-  console.log("-OODEBUG");
 });
 
 ponder.on("Vault:DepositClaimable", async ({ event, context }) => {

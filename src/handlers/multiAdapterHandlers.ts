@@ -140,27 +140,22 @@ export function excractMessagesFromPayload(payload: `0x${string}`) {
   const messages: `0x${string}`[] = [];
   let offset = 0;
   // Keep extracting messages while we have enough bytes remaining
-  console.log("buffer length", payloadBuffer.length);
   while (offset < payloadBuffer.length) {
-    console.log("offset", offset);
     const messageType = payloadBuffer.readUInt8(offset);
-    console.log("messageType", messageType);
     // Pass the buffer slice starting from current offset
-    const messageBuffer = payloadBuffer.subarray(offset);
+    const currentBuffer = payloadBuffer.subarray(offset);
     const messageLength = getCrosschainMessageLength(
       messageType,
-      messageBuffer
+      currentBuffer
     );
-    console.log("messageLength", messageLength);
     if (!messageLength) {
       console.error(`Invalid message type: ${messageType}`);
       break;
     }
 
     // Extract message bytes including the type byte
-    const messageBytes = payloadBuffer.subarray(offset, offset + messageLength);
+    const messageBytes = currentBuffer.subarray(0, messageLength);
     const message = `0x${messageBytes.toString("hex")}` as `0x${string}`;
-    console.log("message", message);
     messages.push(message);
 
     // Move offset past this message

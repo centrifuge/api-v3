@@ -92,7 +92,6 @@ ponder.on("ShareClassManager:UpdateMetadata", async ({ event, context }) => {
 ponder.on(
   "ShareClassManager:UpdateDepositRequest",
   async ({ event, context }) => {
-    console.log("OODEBUG-");
     logEvent(event, context, "ShareClassManager:UpdateDepositRequest");
     const {
       poolId,
@@ -130,14 +129,12 @@ ponder.on(
       .decorateEpochOutstandingInvest(event)
       .updatePendingAmount(pendingTotalAssetAmount)
       .save();
-    console.log("-OODEBUG");
   }
 );
 
 ponder.on(
   "ShareClassManager:UpdateRedeemRequest",
   async ({ event, context }) => {
-    console.log("OODEBUG-");
     logEvent(event, context, "ShareClassManager:UpdateRedeemRequest");
     const {
       poolId,
@@ -171,12 +168,10 @@ ponder.on(
       .decorateEpochOutstandingRedeem(event)
       .updatePendingAmount(pendingTotalShareAmount)
       .save();
-    console.log("-OODEBUG");
   }
 );
 
 ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
-  console.log("OODEBUG-");
   logEvent(event, context, "ShareClassManager:ApproveDeposits");
   const {
     //poolId,
@@ -215,11 +210,9 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
     saves.push(oo.save());
   }
   await Promise.all(saves);
-  console.log("-OODEBUG");
 });
 
 ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
-  console.log("OODEBUG-");
   logEvent(event, context, "ShareClassManager:ApproveRedeems");
   const {
     poolId,
@@ -264,11 +257,9 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
     saves.push(oo.save());
   }
   await Promise.all(saves);
-  console.log("-OODEBUG");
 });
 
 ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
-  console.log("OODEBUG-");
   logEvent(event, context, "ShareClassManager:IssueShares");
   const {
     //poolId,
@@ -313,11 +304,9 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
 
   await Promise.all(investOrderSaves);
   await Promise.all(outstandingInvestSaves);
-  console.log("-OODEBUG");
 });
 
 ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
-  console.log("OODEBUG-");
   logEvent(event, context, "ShareClassManager:RevokeShares");
   const {
     poolId,
@@ -365,7 +354,6 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
     redeemOrderSaves.push(redeemOrder.save());
   }
   await Promise.all([...outstandingRedeemSaves, ...redeemOrderSaves]);
-  console.log("-OODEBUG");
 });
 
 ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
@@ -439,7 +427,6 @@ ponder.on(
 );
 
 ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
-  console.log("OODEBUG-");
   logEvent(event, context, "ShareClassManager:ClaimDeposit");
   const {
     //poolId,
@@ -469,11 +456,9 @@ ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
     return;
   }
   await investOrder.claimDeposit(event.block).save();
-  console.log("-OODEBUG");
 });
 
 ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
-  console.log("OODEBUG-");
   logEvent(event, context, "ShareClassManager:ClaimRedeem");
   const {
     //poolId,
@@ -503,7 +488,6 @@ ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
     return;
   }
   await redeemOrder.claimRedeem(event.block).save();
-  console.log("-OODEBUG");
 });
 
 /**
