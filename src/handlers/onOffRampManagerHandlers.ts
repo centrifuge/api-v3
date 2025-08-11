@@ -111,3 +111,7 @@ ponder.on("OnOffRampManager:UpdateOfframp", async ({ event, context }) => {
   });
   await offRampAddress.save();
 });
+
+ponder.on("OnOffRampManagerFactory:DeployOnOfframpManager", async ({ event, context }) => {
+  logEvent(event, context, "OnOffRampManagerFactory:DeployOnOfframpManager");
+});
