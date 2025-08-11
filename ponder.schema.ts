@@ -957,6 +957,21 @@ export const CrosschainMessageRelations = relations(CrosschainMessage, ({one}) =
   }),
 }));
 
+const AdapterColumns = (t: PgColumnsBuilders) => ({
+  address: t.hex().notNull(),
+  centrifugeId: t.text().notNull(),
+  createdAt: t.timestamp().notNull(),
+  createdAtBlock: t.integer().notNull(),
+  name: t.text(),
+});
+
+export const Adapter = onchainTable("adapter", AdapterColumns, (t) => ({
+  id: primaryKey({ columns: [t.address, t.centrifugeId] }),
+  centrifugeIdIdx: index().on(t.centrifugeId),
+  addressIdx: index().on(t.address),
+}));
+
+
 
 /**
  * Creates a snapshot schema by selecting specific columns from a base table schema
