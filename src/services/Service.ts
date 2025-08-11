@@ -1,5 +1,5 @@
 import type { Context } from "ponder:registry";
-import { eq, and, count, isNull } from "drizzle-orm";
+import { eq, and, count, isNull, not } from "drizzle-orm";
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
 
 /** Type alias for PostgreSQL table with columns */
@@ -128,7 +128,7 @@ export function mixinCommonStatics<
       const insert =
         (await context.db.sql.insert(table).values(data).onConflictDoNothing().returning()).pop() ??
         null;
-      if (!insert) throw new Error(`${name} with ${data} not inserted`);
+      if (!insert) return null;
       return new this(table, name, context, insert);
     }
 
@@ -183,7 +183,7 @@ export function mixinCommonStatics<
      * @param query - Query criteria to filter records
      * @returns Promise that resolves to an array of service instances
      */
-    static async query(context: Context, query: Partial<T["$inferSelect"]>) {
+    static async query(context: Context, query: Partial<ExtendedQuery<T["$inferSelect"]>>) {
       console.info(`Querying ${name}`, query);
       const filter = queryToFilter(table, query);
       const results = await context.db.sql
@@ -293,6 +293,12 @@ function primaryKeyFilter<T extends OnchainTable>(
   }
 }
 
+type ExtendedQuery<T> = {
+  [P in keyof T]: T[P];
+} & {
+  [P in keyof T as `${string & P}_not`]: T[P];
+};
+
 /**
  * Converts a query object into a Drizzle ORM filter condition.
  * Creates equality conditions for each property in the query object.
@@ -304,11 +310,12 @@ function primaryKeyFilter<T extends OnchainTable>(
  */
 function queryToFilter<T extends OnchainTable>(
   table: T,
-  query: Partial<T["$inferInsert"]>
+  query: Partial<ExtendedQuery<T["$inferInsert"]>>
 ) {
   const queryEntries = Object.entries(query);
   const queries = queryEntries.map(([column, value]) => {
     if (value === null) return isNull(table[column as keyof T]);
+    if (column.endsWith("_not")) return not(eq(table[column.slice(0, -4) as keyof T], value));
     return eq(table[column as keyof T], value);
   });
   if (queries.length >= 1) {
