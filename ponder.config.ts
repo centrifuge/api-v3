@@ -107,6 +107,10 @@ const config = {
       abi: PoolEscrowFactoryAbi,
       chain: getContractChain("poolEscrowFactory"),
     },
+    OnOffRampManagerFactory: {
+      abi: OnOffRampManagerFactoryAbi,
+      chain: getContractChain("onOfframpManagerFactory"),
+    },
     OnOffRampManager: {
       abi: OnOffRampManagerAbi,
       chain: getContractChain("onOfframpManagerFactory", {
