@@ -7,6 +7,7 @@ import {
   getMessageId,
 } from "../services/CrosschainMessageService";
 import { CrosschainPayloadService } from "../services/CrosschainPayloadService";
+import { encodePacked, keccak256 } from "viem";
 
 ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
   logEvent(event, context, "Gateway:PrepareMessage");
@@ -42,7 +43,7 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
     data: `0x${Buffer.from(payload).toString("hex")}`,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
-  })) as CrosschainMessageService;
+  })) as CrosschainMessageService | null;
 });
 
 ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
@@ -56,17 +57,14 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: fromCentrifugeId } = blockchain.read();
 
-  const _crosschainPayload = (await CrosschainPayloadService.init(
-    context,
-    {
-      id: batch,
-      toCentrifugeId: toCentrifugeId.toString(),
-      fromCentrifugeId: fromCentrifugeId,
-      status: "Underpaid",
-      createdAt: new Date(Number(event.block.timestamp) * 1000),
-      createdAtBlock: Number(event.block.number),
-    }
-  )) as CrosschainPayloadService;
+  const _crosschainPayload = (await CrosschainPayloadService.init(context, {
+    id: batch,
+    toCentrifugeId: toCentrifugeId.toString(),
+    fromCentrifugeId: fromCentrifugeId,
+    status: "Underpaid",
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
+  })) as CrosschainPayloadService;
 });
 
 ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
@@ -80,10 +78,17 @@ ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: fromCentrifugeId } = blockchain.read();
 
+  const payloadId = keccak256(
+    encodePacked(
+      ["uint16", "uint16", "bytes32"],
+      [Number(fromCentrifugeId), toCentrifugeId, keccak256(batch)]
+    )
+  );
+
   const crosschainPayload = (await CrosschainPayloadService.get(context, {
-    id: batch,
-    toCentrifugeId: toCentrifugeId.toString(),
+    id: payloadId,
     fromCentrifugeId: fromCentrifugeId,
+    toCentrifugeId: toCentrifugeId.toString(),
   })) as CrosschainPayloadService;
   if (!crosschainPayload) throw new Error("CrosschainPayload not found");
   crosschainPayload.setStatus("InProgress");
@@ -109,7 +114,7 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
   );
   const crosschainMessages = (await CrosschainMessageService.query(context, {
     id: messageId,
-    status: "AwaitingBatchDelivery",
+    status_not: "Executed",
   })) as CrosschainMessageService[];
   if (crosschainMessages.length === 0) {
     console.log(
