@@ -19,5 +19,5 @@ ponder.on("PoolEscrowFactory:DeployPoolEscrow", async ({ event, context }) => {
     address: escrowAddress,
     poolId,
     centrifugeId,
-  })) as EscrowService;
+  })) as EscrowService | null;
 });
