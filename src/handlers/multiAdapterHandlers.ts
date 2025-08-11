@@ -7,6 +7,8 @@ import {
   getMessageId,
 } from "../services/CrosschainMessageService";
 import { CrosschainPayloadService } from "../services/CrosschainPayloadService";
+import { AdapterService } from "../services/AdapterService";
+import { currentChains } from "../../ponder.config";
 
 ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
   logEvent(event, context, "MultiAdapter:SendPayload");
@@ -28,8 +30,8 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
   const { centrifugeId: fromCentrifugeId } = blockchain.read();
 
   const messages = excractMessagesFromPayload(payload);
-  const messageIds = messages.map((message) =>
-    getMessageId(fromCentrifugeId, toCentrifugeId.toString(), message)
+  const messageIds = messages.map(([_messageType, messageBytes]) =>
+    getMessageId(fromCentrifugeId, toCentrifugeId.toString(), `0x${messageBytes.toString("hex")}`)
   );
 
   const poolIdSet = new Set<bigint>();
@@ -119,6 +121,45 @@ ponder.on("MultiAdapter:HandleProof", async ({ event, context }) => {
   // TODO: mark this adapter as processed successfully
 });
 
+ponder.on(
+  "MultiAdapter:File(bytes32 indexed what, uint16 centrifugeId, address[] adapters)",
+  async ({ event, context }) => {
+    logEvent(event, context, "MultiAdapter:File2");
+
+    const chainId = context.chain.id;
+    if (typeof chainId !== "number") throw new Error("Chain ID is required");
+
+    const currentChain = currentChains.find(
+      (chain) => chain.network.chainId === chainId
+    );
+    if (!currentChain) throw new Error("Chain not found");
+    
+    const { what, centrifugeId, adapters } = event.args;
+    const parsedWhat = Buffer.from(what.substring(2), "hex").toString("utf-8");
+    if (!parsedWhat.startsWith("adapters")) return;
+    
+    const adapterInits: Promise<AdapterService | null>[] = [];
+    for (const adapter of adapters) {
+      const contracts = Object.entries(currentChain.contracts);
+      const [contractName = null] =
+        contracts.find(([_, contractAddress]) => contractAddress === adapter) ??
+        [];
+      const firstPart = contractName
+        ? contractName.split(/(?=[A-Z])/)[0]
+        : null;
+      const adapterInit = AdapterService.init(context, {
+        address: adapter,
+        centrifugeId: centrifugeId.toString(),
+        createdAt: new Date(Number(event.block.timestamp) * 1000),
+        createdAtBlock: Number(event.block.number),
+        name: firstPart,
+      });
+      adapterInits.push(adapterInit);
+    }
+    await Promise.all(adapterInits);
+  }
+);
+
 /**
  * Extracts individual cross-chain messages from a concatenated payload
  *
@@ -137,7 +178,7 @@ ponder.on("MultiAdapter:HandleProof", async ({ event, context }) => {
  */
 export function excractMessagesFromPayload(payload: `0x${string}`) {
   const payloadBuffer = Buffer.from(payload.substring(2), "hex");
-  const messages: `0x${string}`[] = [];
+  const messages: [messageType: number, messageNubber: Buffer<ArrayBuffer>][] = [];
   let offset = 0;
   // Keep extracting messages while we have enough bytes remaining
   while (offset < payloadBuffer.length) {
@@ -155,8 +196,7 @@ export function excractMessagesFromPayload(payload: `0x${string}`) {
 
     // Extract message bytes including the type byte
     const messageBytes = currentBuffer.subarray(0, messageLength);
-    const message = `0x${messageBytes.toString("hex")}` as `0x${string}`;
-    messages.push(message);
+    messages.push([messageType, messageBytes]);
 
     // Move offset past this message
     offset += messageLength;
