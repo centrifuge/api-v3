@@ -92,8 +92,8 @@ const CrosschainMessageType = {
   SetRequestManager: 73,
 } as const;
 
-// eslint-disable-next-line no-unused-vars
-type BufferDecoderFunction<T = unknown> = (m: Buffer<ArrayBuffer>) => T;
+
+type BufferDecoderFunction<T = unknown> = (_m: Buffer<ArrayBuffer>) => T;
 
 const MessageDecoders = {
   uint8: (m) => m.readUInt8(),
