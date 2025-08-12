@@ -5,6 +5,7 @@ import {
   getCrosschainMessageType,
   CrosschainMessageService,
   getMessageId,
+  decodeMessage,
 } from "../services/CrosschainMessageService";
 import { CrosschainPayloadService } from "../services/CrosschainPayloadService";
 import { encodePacked, keccak256 } from "viem";
@@ -12,9 +13,9 @@ import { encodePacked, keccak256 } from "viem";
 ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
   logEvent(event, context, "Gateway:PrepareMessage");
   const { centrifugeId: toCentrifugeId, poolId, message } = event.args;
-  const [messageType, ...payload] = Buffer.from(message.substring(2), "hex");
-
-  if (!messageType) throw new Error("Message type is required");
+  const messageBuffer = Buffer.from(message.substring(2), "hex");
+  const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0));
+  const messagePayload = messageBuffer.subarray(1);
 
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is required");
@@ -33,14 +34,18 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
     id: messageId,
   });
 
+  const rawData = `0x${Buffer.from(messagePayload.toString("hex"))}` as `0x${string}`;
+  const data = decodeMessage(messageType, messagePayload);
+
   const _crosschainMessage = (await CrosschainMessageService.init(context, {
     id: messageId,
     index: messageCount,
     poolId: poolId || null,
     fromCentrifugeId,
     toCentrifugeId: toCentrifugeId.toString(),
-    messageType: getCrosschainMessageType(messageType),
-    data: `0x${Buffer.from(payload).toString("hex")}`,
+    messageType: messageType,
+    rawData,
+    data: data,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
   })) as CrosschainMessageService | null;
