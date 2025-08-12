@@ -3,10 +3,12 @@ import { logEvent } from "../helpers/logger";
 import { BlockchainService } from "../services/BlockchainService";
 import {
   CrosschainMessageService,
-  getCrosschainMessageLength,
   getMessageId,
 } from "../services/CrosschainMessageService";
-import { CrosschainPayloadService } from "../services/CrosschainPayloadService";
+import {
+  CrosschainPayloadService,
+  excractMessagesFromPayload,
+} from "../services/CrosschainPayloadService";
 import { AdapterService } from "../services/AdapterService";
 import { currentChains } from "../../ponder.config";
 
@@ -133,11 +135,11 @@ ponder.on(
       (chain) => chain.network.chainId === chainId
     );
     if (!currentChain) throw new Error("Chain not found");
-    
+
     const { what, centrifugeId, adapters } = event.args;
     const parsedWhat = Buffer.from(what.substring(2), "hex").toString("utf-8");
     if (!parsedWhat.startsWith("adapters")) return;
-    
+
     const adapterInits: Promise<AdapterService | null>[] = [];
     for (const adapter of adapters) {
       const contracts = Object.entries(currentChain.contracts);
@@ -159,47 +161,3 @@ ponder.on(
     await Promise.all(adapterInits);
   }
 );
-
-/**
- * Extracts individual cross-chain messages from a concatenated payload
- *
- * Takes a hex-encoded payload containing multiple concatenated messages and splits it into
- * individual message bytes. Each message consists of a 1-byte type identifier followed by
- * a fixed-length payload specific to that message type.
- *
- * @param payload - Hex string containing concatenated messages, with '0x' prefix
- * @returns Array of hex strings, each representing a single message (including type byte)
- * @throws {Error} If an invalid/unknown message type is encountered
- *
- * @example
- * const payload = '0x2100...3300...' // Multiple concatenated messages
- * const messages = extractMessagesFromPayload(payload)
- * // Returns: ['0x21...', '0x33...'] // Individual message bytes
- */
-export function excractMessagesFromPayload(payload: `0x${string}`) {
-  const payloadBuffer = Buffer.from(payload.substring(2), "hex");
-  const messages: `0x${string}`[] = [];
-  let offset = 0;
-  // Keep extracting messages while we have enough bytes remaining
-  while (offset < payloadBuffer.length) {
-    const messageType = payloadBuffer.readUInt8(offset);
-    // Pass the buffer slice starting from current offset
-    const currentBuffer = payloadBuffer.subarray(offset);
-    const messageLength = getCrosschainMessageLength(
-      messageType,
-      currentBuffer
-    );
-    if (!messageLength) {
-      console.error(`Invalid message type: ${messageType}`);
-      break;
-    }
-
-    // Extract message bytes including the type byte
-    const messageBytes = currentBuffer.subarray(0, messageLength);
-    messages.push(`0x${messageBytes.toString("hex")}`);
-
-    // Move offset past this message
-    offset += messageLength;
-  }
-  return messages;
-}
