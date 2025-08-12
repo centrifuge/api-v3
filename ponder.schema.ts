@@ -571,6 +571,7 @@ export const AssetRelations = relations(Asset, ({ one, many }) => ({
 export const TokenInstanceColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   tokenId: t.text().notNull(),
+  isActive: t.boolean().notNull().default(false),
   address: t.hex().notNull(),
   tokenPrice: t.bigint().default(0n),
   computedAt: t.timestamp(),
@@ -727,44 +728,6 @@ export const HoldingEscrowRelations = relations(
     escrow: one(Escrow, {
       fields: [HoldingEscrow.escrowAddress, HoldingEscrow.centrifugeId],
       references: [Escrow.address, Escrow.centrifugeId],
-    }),
-  })
-);
-
-// Snapshots
-export const PoolSnapshot = onchainTable(
-  "pool_snapshot",
-  snapshotColumns(PoolColumns, ["id", "currency"] as const),
-  (t) => ({
-    id: primaryKey({ columns: [t.id, t.blockNumber, t.trigger] }),
-  })
-);
-export const PoolSnapshotRelations = relations(PoolSnapshot, ({ one }) => ({
-  pool: one(Pool, {
-    fields: [PoolSnapshot.id],
-    references: [Pool.id],
-  }),
-}));
-
-export const TokenSnapshot = onchainTable(
-  "token_snapshot",
-  snapshotColumns(TokenColumns, ["id", "tokenPrice", "totalIssuance"] as const),
-  (t) => ({
-    id: primaryKey({ columns: [t.id, t.blockNumber, t.trigger] }),
-  })
-);
-
-export const HoldingSnapshot = onchainTable(
-  "holding_snapshot",
-  snapshotColumns(HoldingColumns, [
-    "tokenId",
-    "assetId",
-    "assetQuantity",
-    "totalValue",
-  ] as const),
-  (t) => ({
-    id: primaryKey({
-      columns: [t.tokenId, t.assetId, t.blockNumber, t.trigger],
     }),
   })
 );
@@ -956,6 +919,52 @@ export const CrosschainMessageRelations = relations(CrosschainMessage, ({one}) =
     references: [Blockchain.centrifugeId],
   }),
 }));
+
+// Snapshots
+export const PoolSnapshot = onchainTable(
+  "pool_snapshot",
+  snapshotColumns(PoolColumns, ["id", "currency"] as const),
+  (t) => ({
+    id: primaryKey({ columns: [t.id, t.blockNumber, t.trigger] }),
+  })
+);
+export const PoolSnapshotRelations = relations(PoolSnapshot, ({ one }) => ({
+  pool: one(Pool, {
+    fields: [PoolSnapshot.id],
+    references: [Pool.id],
+  }),
+}));
+
+export const TokenSnapshot = onchainTable(
+  "token_snapshot",
+  snapshotColumns(TokenColumns, ["id", "tokenPrice", "totalIssuance"] as const),
+  (t) => ({
+    id: primaryKey({ columns: [t.id, t.blockNumber, t.trigger] }),
+  })
+);
+
+export const TokenInstanceSnapshot = onchainTable(
+  "token_instance_snapshot",
+  snapshotColumns(TokenInstanceColumns, ["tokenId", "centrifugeId", "tokenPrice", "totalIssuance"] as const),
+  (t) => ({
+    id: primaryKey({ columns: [t.tokenId, t.blockNumber, t.trigger] }),
+  })
+);
+
+export const HoldingSnapshot = onchainTable(
+  "holding_snapshot",
+  snapshotColumns(HoldingColumns, [
+    "tokenId",
+    "assetId",
+    "assetQuantity",
+    "totalValue",
+  ] as const),
+  (t) => ({
+    id: primaryKey({
+      columns: [t.tokenId, t.assetId, t.blockNumber, t.trigger],
+    }),
+  })
+);
 
 
 /**
