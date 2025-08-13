@@ -11,6 +11,7 @@ import {
 } from "../services/CrosschainPayloadService";
 import { AdapterService } from "../services/AdapterService";
 import { currentChains } from "../../ponder.config";
+import { AdapterParticipationService } from "../services/AdapterParticipationService";
 
 ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
   logEvent(event, context, "MultiAdapter:SendPayload");
@@ -70,16 +71,52 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
     status: "InProgress",
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
-    adapterSending: adapter,
   }).catch((error) => {
     console.error("Error initializing crosschain payload", error);
     return null;
   })) as CrosschainPayloadService | null;
+
+  const _adapterParticipation = await AdapterParticipationService.init(context, {
+    payloadId,
+    adapterId: adapter,
+    centrifugeId: fromCentrifugeId,
+    fromCentrifugeId: fromCentrifugeId,
+    toCentrifugeId: toCentrifugeId.toString(),
+    side: "SEND",
+    type: "PAYLOAD",
+    timestamp: new Date(Number(event.block.timestamp) * 1000),
+    blockNumber: Number(event.block.number),
+    transactionHash: event.transaction.hash,
+  });
 });
 
 ponder.on("MultiAdapter:SendProof", async ({ event, context }) => {
   logEvent(event, context, "MultiAdapter:SendProof");
-  // TODO: connect payloadHash to right batch and the right payloadId and store adapter
+  const {
+    payloadId,
+    adapter,
+    centrifugeId: toCentrifugeId,
+  } = event.args;
+  const chainId = context.chain.id;
+  if (typeof chainId !== "number") throw new Error("Chain ID is required");
+  const blockchain = (await BlockchainService.get(context, {
+    id: chainId.toString(),
+  })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
+  const { centrifugeId: fromCentrifugeId } = blockchain.read();
+
+  const _adapterParticipation = (await AdapterParticipationService.init(context, {
+    payloadId,
+    adapterId: adapter,
+    centrifugeId: fromCentrifugeId,
+    fromCentrifugeId: fromCentrifugeId.toString(),
+    toCentrifugeId: toCentrifugeId.toString(),
+    side: "SEND",
+    type: "PROOF",
+    timestamp: new Date(Number(event.block.timestamp) * 1000),
+    blockNumber: Number(event.block.number),
+    transactionHash: event.transaction.hash,
+  })) as AdapterParticipationService;
 });
 
 ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
@@ -112,15 +149,75 @@ ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
   }
   const { status } = crosschainPayload.read();
   if (status === "InProgress") crosschainPayload.delivered(event);
-  crosschainPayload.setAdapterReceiving(adapter);
   await crosschainPayload.save();
-  //TODO: Increase Votes by 1 and mark this adapter as processed successfully
+
+  const _adapterParticipation = (await AdapterParticipationService.init(context, {
+    payloadId,
+    adapterId: adapter,
+    centrifugeId: toCentrifugeId.toString(),
+    fromCentrifugeId: fromCentrifugeId.toString(),
+    toCentrifugeId: toCentrifugeId.toString(),
+    side: "HANDLE",
+    type: "PAYLOAD",
+    timestamp: new Date(Number(event.block.timestamp) * 1000),
+    blockNumber: Number(event.block.number),
+    transactionHash: event.transaction.hash,
+  })) as AdapterParticipationService;
+
+  const handleCounts = await AdapterParticipationService.count(context, {
+    payloadId,
+    side: "HANDLE",
+  });
+  if (handleCounts >= 2) {
+    crosschainPayload.setStatus("Delivered");
+    await crosschainPayload.save();
+  }
 });
 
 ponder.on("MultiAdapter:HandleProof", async ({ event, context }) => {
   logEvent(event, context, "MultiAdapter:HandleProof"); //RECEIVING CHAIN
-  // TODO: increase votes for this batch by one
-  // TODO: mark this adapter as processed successfully
+  const {
+    payloadId,
+    adapter,
+    centrifugeId: fromCentrifugeId,
+  } = event.args;
+  const chainId = context.chain.id;
+  if (typeof chainId !== "number") throw new Error("Chain ID is required");
+  const blockchain = (await BlockchainService.get(context, {
+    id: chainId.toString(),
+  })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
+  const { centrifugeId: toCentrifugeId } = blockchain.read();
+
+  const _adapterParticipation = (await AdapterParticipationService.init(context, {
+    payloadId,
+    adapterId: adapter,
+    centrifugeId: toCentrifugeId.toString(),
+    fromCentrifugeId: fromCentrifugeId.toString(),
+    toCentrifugeId: toCentrifugeId.toString(),
+    side: "HANDLE",
+    type: "PROOF",
+    timestamp: new Date(Number(event.block.timestamp) * 1000),
+    blockNumber: Number(event.block.number),
+    transactionHash: event.transaction.hash,
+  })) as AdapterParticipationService;
+
+  const handleCounts = await AdapterParticipationService.count(context, {
+    payloadId,
+    side: "HANDLE",
+  });
+  
+  if (handleCounts >= 2) {
+    const crosschainPayload = (await CrosschainPayloadService.get(context, {
+      id: payloadId,
+    })) as CrosschainPayloadService | null;
+    if (!crosschainPayload) {
+      console.error("CrosschainPayload not found");
+      return;
+    }
+    crosschainPayload.setStatus("Delivered");
+    await crosschainPayload.save();
+  }
 });
 
 ponder.on(

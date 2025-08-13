@@ -41,27 +41,6 @@ export class CrosschainPayloadService extends mixinCommonStatics(
     return this;
   }
 
-  /**
-   * Sets the adapter that sent the CrosschainPayload.
-   * 
-   * @param {string} adapter - The adapter that sent the CrosschainPayload
-   * @returns {CrosschainPayloadService} Returns the current instance for method chaining
-   */
-  public setAdapterSending(adapter: `0x${string}`) {
-    this.data.adapterSending = adapter;
-    return this;
-  }
-
-  /**
-   * Sets the adapter that received the CrosschainPayload.
-   * 
-   * @param {string} adapter - The adapter that received the CrosschainPayload
-   * @returns {CrosschainPayloadService} Returns the current instance for method chaining
-   */
-  public setAdapterReceiving(adapter: `0x${string}`) {
-    this.data.adapterReceiving = adapter;
-    return this;
-  }
 }
 
 /**
