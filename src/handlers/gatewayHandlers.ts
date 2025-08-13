@@ -34,7 +34,9 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
     id: messageId,
   });
 
-  const rawData = `0x${Buffer.from(messagePayload.toString("hex"))}` as `0x${string}`;
+  const rawData = `0x${Buffer.from(
+    messagePayload.toString("hex")
+  )}` as `0x${string}`;
   const data = decodeMessage(messageType, messagePayload);
 
   const _crosschainMessage = (await CrosschainMessageService.init(context, {
@@ -132,6 +134,29 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
   const crosschainMessage = crosschainMessages.shift()!;
   crosschainMessage.executed(event);
   await crosschainMessage.save();
+
+  const { payloadId } = crosschainMessage.read();
+  if (!payloadId) {
+    console.error("Payload ID is required");
+    return;
+  }
+
+  const crosschainPayload = (await CrosschainPayloadService.get(context, {
+    id: payloadId,
+  })) as CrosschainPayloadService | null;
+  if (!crosschainPayload) {
+    console.error("CrosschainPayload not found");
+    return;
+  }
+  const { status } = crosschainPayload.read();
+  if (status === "Delivered") return;
+  const countFailedPayloadMessages = await CrosschainMessageService.count(context, {
+    payloadId,
+    status: "Failed",
+  });
+  if (countFailedPayloadMessages > 0) return;
+  crosschainPayload.delivered(event);
+  await crosschainPayload.save();
 });
 
 ponder.on("Gateway:FailMessage", async ({ event, context }) => {
