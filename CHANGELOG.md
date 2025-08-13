@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.1.0](https://github.com/centrifuge/api-v3/compare/v1.0.0...v1.1.0) (2025-08-13)
+
+
+### Features
+
+* add partiallyFailed batches ([d7fd5b1](https://github.com/centrifuge/api-v3/commit/d7fd5b1a49cde4b4464c7cf64b342b28012f0266))
+* add poolId to crosschainPayload ([8103e44](https://github.com/centrifuge/api-v3/commit/8103e44f6d05b7fc424e11d508a2ea5630284795))
+* pool metadata from ipfs ([9e06883](https://github.com/centrifuge/api-v3/commit/9e06883fbd6eaeedb200aefeb943625321fa5590))
+* tokenInstanceSnapshots ([f3c08b1](https://github.com/centrifuge/api-v3/commit/f3c08b12b92c3ba67d4c3125e04baebd224155d1))
+
+
+### Bug Fixes
+
+* add first pool hub manager ([fc3fe1c](https://github.com/centrifuge/api-v3/commit/fc3fe1cdbf9c1e18b61e3007c1ba71d5a6d110be))
+* display partiallyFailed payloads ([aa3a538](https://github.com/centrifuge/api-v3/commit/aa3a5389f69850cf348c4f0c49918affc254e74f))
+* fail gracefully and log pk collisions in invest and redeem orders ([a6c4e06](https://github.com/centrifuge/api-v3/commit/a6c4e06d3158b8b6f5bf5607a37b5cbfb7648a73))
+* fail gracefully and log pk collisions in invest and redeem orders ([78d462e](https://github.com/centrifuge/api-v3/commit/78d462edc723d3df3f15c2676f13ebf0882bfded))
+* handle dynamic length messages ([626b7a6](https://github.com/centrifuge/api-v3/commit/626b7a69b773878f51ca07724b845d6ef214d62a))
+* handle zero assets in getPrice ([ad5dd76](https://github.com/centrifuge/api-v3/commit/ad5dd76e8b66d127beb854d86b9a58b6a6419458))
+* ignore failed inserts ([2eb7bab](https://github.com/centrifuge/api-v3/commit/2eb7bab8fc158024dc6f4449e9d44e396328485a))
+* message decoding offset ([718dc33](https://github.com/centrifuge/api-v3/commit/718dc33fde214c99f748f75ef2c82b9ea808a222))
+* outstandingOrders ([f660c96](https://github.com/centrifuge/api-v3/commit/f660c96c26316b2759d771d58fb4dd0439aabfd5)), closes [#68](https://github.com/centrifuge/api-v3/issues/68)
+* partiallyFailed payload execution ([c0301fc](https://github.com/centrifuge/api-v3/commit/c0301fca25571548518991f2041a461654a0d65b))
+* plume endpoint ([9a5e5ed](https://github.com/centrifuge/api-v3/commit/9a5e5edd3e24e4b70807cb899307c04805fd8fab))
+* revert to upsert for Invest and Redeem orders ([8408272](https://github.com/centrifuge/api-v3/commit/840827222015871f4284ae4be745517b9d7b5992))
+* set delivered batches on failed messages retry ([e2c42d7](https://github.com/centrifuge/api-v3/commit/e2c42d7101909b56f8dcc40141b51849f19894dc))
+* silent error on crosschain messages ([dcd1a51](https://github.com/centrifuge/api-v3/commit/dcd1a5131d4df038aa0b4aff8172ffd4c2fd4f21))
+* tidy up current epoch ([e184c9c](https://github.com/centrifuge/api-v3/commit/e184c9c5a9270e63493a8c3178aa6932900e81c4))
+* update ethereum contracts ([f79163d](https://github.com/centrifuge/api-v3/commit/f79163dcf53671b363b93b157d67a46019eb24bf))
+
 ## 1.0.0 (2025-07-21)
 
 
