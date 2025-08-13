@@ -535,6 +535,7 @@ export const chains = [
       merkleProofManagerFactory: "0xaBd3cDc17C15a9E7771876cE24aB10A8E722781d",
       vaultDecoder: "0x72B188c37bD8Eb002d0D9c63CCd77F2Ff71d272e",
       circleDecoder: "0x6fce63E718fED6E20bAa8179e313C24cbF2EDa24",
+      wormholeAdapter: "0x6b98679eEC5b5DE3A803Dc801B2f12aDdDCD39Ec",
     },
   },
 ] as const;
