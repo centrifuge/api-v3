@@ -15,5 +15,5 @@ ponder.on("HubRegistry:setup", async ({ context }) => {
       chainId: network.chainId.toString(),
       centrifugeId: network.centrifugeId.toString(),
       ...contracts,
-    }) as DeploymentService;
+    }) as DeploymentService | null;
 });

@@ -51,7 +51,7 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
     factory: factory,
     kind: vaultKind,
     manager,
-  })) as VaultService;
+  })) as VaultService | null;
 });
 
 ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {

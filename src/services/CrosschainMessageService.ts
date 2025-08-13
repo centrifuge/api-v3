@@ -79,42 +79,221 @@ const CrosschainMessageType = {
   UpdateShareHook: 57,
   InitiateTransferShares: 91,
   ExecuteTransferShares: 73,
-  UpdateRestriction: (message: Buffer) => {
-    const baseLength = 25;
-    const payloadLength = message.readUint16BE(baseLength);
-    return baseLength + 2 + payloadLength;
-  },
-  UpdateContract: (message: Buffer) => {
-    const baseLength = 57;
-    const payloadLength = message.readUint16BE(baseLength);
-    return baseLength + 2 + payloadLength;
-  },
+  UpdateRestriction: dynamicLengthDecoder(25),
+  UpdateContract: dynamicLengthDecoder(57),
   UpdateVault: 74,
   UpdateBalanceSheetManager: 42,
   UpdateHoldingAmount: 91,
   UpdateShares: 59,
   MaxAssetPriceAge: 49,
   MaxSharePriceAge: 33,
-  Request: (message: Buffer) => {
-    const baseLength = 41;
-    const payloadLength = message.readUint16BE(baseLength);
-    return baseLength + 2 + payloadLength;
-  },
-  RequestCallback: (message: Buffer) => {
-    const baseLength = 41;
-    const payloadLength = message.readUint16BE(baseLength);
-    return baseLength + 2 + payloadLength;
-  },
+  Request: dynamicLengthDecoder(41),
+  RequestCallback: dynamicLengthDecoder(41),
   SetRequestManager: 73,
 } as const;
 
+
+type BufferDecoderFunction<T = unknown> = (_m: Buffer<ArrayBuffer>) => T;
+
+const MessageDecoders = {
+  uint8: (m) => m.readUInt8(),
+  uint16: (m) => m.readUInt16BE(),
+  uint64: (m) => m.readBigUInt64BE().toString(),
+  uint128: (m) => {
+    const low = m.readBigUInt64BE(0);
+    const high = m.readBigUInt64BE(8);
+    return ((high << 64n) | low).toString();
+  },
+  uint256: (m) => {
+    const lowest = m.readBigUInt64BE(0);
+    const low = m.readBigUInt64BE(8);
+    const high = m.readBigUInt64BE(16);
+    const highest = m.readBigUInt64BE(24);
+    return ((highest << 192n) | (high << 128n) | (low << 64n) | lowest).toString();
+  },
+  bytes16: (m) => `0x${m.toString("hex").padEnd(32, "0")}`,
+  bytes32: (m) => `0x${m.toString("hex").padEnd(64, "0")}`,
+  string: (m) => m.toString("utf-8").replace(/\0+$/, ""),
+  bytes: (m) => `0x${m.toString("hex")}`,
+} as const satisfies Record<string, BufferDecoderFunction>;
+
+// eslint-disable-next-line no-unused-vars
+interface DecoderConfig {
+  name: string;
+  decoder: keyof typeof MessageDecoders;
+  length: number;
+}
+
+// Type mapping for decoder return types - derived from MessageDecoders
+type DecoderReturnTypes = {
+  [K in keyof typeof MessageDecoders]: ReturnType<typeof MessageDecoders[K]>;
+};
+
+// Type that maps message type names to their decoded parameter types
+type DecodedMessageTypes = {
+  [K in keyof typeof messageDecoders]: {
+    [P in typeof messageDecoders[K][number] as P['name']]: DecoderReturnTypes[P['decoder']];
+  };
+};
+
+const messageDecoders = {
+  _Invalid: [],
+  ScheduleUpgrade: [
+    { name: "target", decoder: "bytes32", length: 32 }
+  ],
+  CancelUpgrade: [
+    { name: "target", decoder: "bytes32", length: 32 }
+  ],
+  RecoverTokens: [
+    { name: "target", decoder: "bytes32", length: 32 },
+    { name: "token", decoder: "bytes32", length: 32 },
+    { name: "tokenId", decoder: "uint256", length: 32 },
+    { name: "to", decoder: "bytes32", length: 32 },
+    { name: "amount", decoder: "uint256", length: 32 }
+  ],
+  RegisterAsset: [
+    { name: "assetId", decoder: "uint128", length: 16 },
+    { name: "decimals", decoder: "uint8", length: 1 }
+  ],
+  _Placeholder5: [],
+  _Placeholder6: [],
+  _Placeholder7: [],
+  _Placeholder8: [],
+  _Placeholder9: [],
+  _Placeholder10: [],
+  _Placeholder11: [],
+  _Placeholder12: [],
+  _Placeholder13: [],
+  _Placeholder14: [],
+  _Placeholder15: [],
+  NotifyPool: [
+    { name: "poolId", decoder: "uint64", length: 8 }
+  ],
+  NotifyShareClass: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "name", decoder: "string", length: 128 },
+    { name: "symbol", decoder: "bytes32", length: 32 },
+    { name: "decimals", decoder: "uint8", length: 1 },
+    { name: "salt", decoder: "bytes32", length: 32 },
+    { name: "hook", decoder: "bytes32", length: 32 }
+  ],
+  NotifyPricePoolPerShare: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "price", decoder: "uint128", length: 16 },
+    { name: "timestamp", decoder: "uint64", length: 8 }
+  ],
+  NotifyPricePoolPerAsset: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "assetId", decoder: "uint128", length: 16 },
+    { name: "price", decoder: "uint128", length: 16 },
+    { name: "timestamp", decoder: "uint64", length: 8 }
+  ],
+  NotifyShareMetadata: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "name", decoder: "string", length: 128 },
+    { name: "symbol", decoder: "bytes32", length: 32 }
+  ],
+  UpdateShareHook: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "hook", decoder: "bytes32", length: 32 }
+  ],
+  InitiateTransferShares: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "centrifugeId", decoder: "uint16", length: 2 },
+    { name: "receiver", decoder: "bytes32", length: 32 },
+    { name: "amount", decoder: "uint128", length: 16 },
+    { name: "extraGasLimit", decoder: "uint128", length: 16 }
+  ],
+  ExecuteTransferShares: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "receiver", decoder: "bytes32", length: 32 },
+    { name: "amount", decoder: "uint128", length: 16 }
+  ],
+  UpdateRestriction: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "payload", decoder: "bytes", length: 0 } // Dynamic length
+  ],
+  UpdateContract: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "target", decoder: "bytes32", length: 32 },
+    { name: "payload", decoder: "bytes", length: 0 } // Dynamic length
+  ],
+  UpdateVault: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "kind", decoder: "uint8", length: 1 },
+    { name: "target", decoder: "bytes32", length: 32 },
+    { name: "payload", decoder: "bytes", length: 0 } // Dynamic length
+  ],
+  UpdateBalanceSheetManager: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "target", decoder: "bytes32", length: 32 },
+    { name: "payload", decoder: "bytes", length: 0 } // Dynamic length
+  ],
+  UpdateHoldingAmount: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "assetId", decoder: "uint128", length: 16 },
+    { name: "amount", decoder: "uint128", length: 16 },
+    { name: "timestamp", decoder: "uint64", length: 8 }
+  ],
+  UpdateShares: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "amount", decoder: "uint128", length: 16 },
+    { name: "timestamp", decoder: "uint64", length: 8 }
+  ],
+  MaxAssetPriceAge: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "maxAge", decoder: "uint64", length: 8 }
+  ],
+  MaxSharePriceAge: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "maxAge", decoder: "uint64", length: 8 }
+  ],
+  Request: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "assetId", decoder: "uint128", length: 16 },
+    { name: "payload", decoder: "bytes", length: 0 } // Dynamic length
+  ],
+  RequestCallback: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "assetId", decoder: "uint128", length: 16 },
+    { name: "payload", decoder: "bytes", length: 0 } // Dynamic length
+  ],
+  SetRequestManager: [
+    { name: "poolId", decoder: "uint64", length: 8 },
+    { name: "scId", decoder: "bytes16", length: 16 },
+    { name: "target", decoder: "bytes32", length: 32 },
+    { name: "payload", decoder: "bytes", length: 0 } // Dynamic length
+  ]
+} as const satisfies Record<keyof typeof CrosschainMessageType, DecoderConfig[]>;
+
+
+
 /**
- * Gets the string name of a cross-chain message type from its numeric ID
- * @param messageType - The numeric ID of the message type
- * @returns The string name of the message type from CrosschainMessageType
+ * Creates a function that decodes the length of a dynamic length message
+ * @param baseLength - The base length of the message
+ * @returns A function that decodes the length of a dynamic length message
  */
-export function getCrosschainMessageType(messageType: number) {
-  return Object.keys(CrosschainMessageType)[messageType] ?? "_Invalid";
+function dynamicLengthDecoder(baseLength: number) {
+  return function (message: Buffer) {
+    return baseLength + 2 + message.readUint16BE(baseLength);
+  };
 }
 
 /**
@@ -122,7 +301,20 @@ export function getCrosschainMessageType(messageType: number) {
  * @param messageType - The numeric ID of the message type
  * @returns The string name of the message type from CrosschainMessageType
  */
-export function getCrosschainMessageLength(messageType: number, message: Buffer) {
+export function getCrosschainMessageType(messageType: number) {
+  return (Object.keys(CrosschainMessageType)[messageType] ??
+    "_Invalid") as keyof typeof CrosschainMessageType;
+}
+
+/**
+ * Gets the string name of a cross-chain message type from its numeric ID
+ * @param messageType - The numeric ID of the message type
+ * @returns The string name of the message type from CrosschainMessageType
+ */
+export function getCrosschainMessageLength(
+  messageType: number,
+  message: Buffer
+) {
   const lengthEntry = Object.values(CrosschainMessageType)[messageType];
   return typeof lengthEntry === "function" ? lengthEntry(message) : lengthEntry;
 }
@@ -147,4 +339,35 @@ export function getMessageId(
     )
   );
   return messageId;
+}
+
+/**
+ * Decodes a cross-chain message into its parameters
+ * @param messageType - The type of the message
+ * @param messageBuffer - The buffer containing the message
+ * @returns The decoded parameters as a properly typed object
+ */
+export function decodeMessage<T extends keyof typeof messageDecoders>(
+  messageType: T,
+  messageBuffer: Buffer<ArrayBuffer>
+): DecodedMessageTypes[T] | null {
+  const messageSpec = messageDecoders[messageType];
+  if (!messageSpec) {
+    console.error(`Invalid message type: ${messageType}`);
+    return null;
+  }
+
+  let offset = 0;
+  const decodedData: DecodedMessageTypes[T] = {} as DecodedMessageTypes[T];
+  for (const spec of messageSpec) {
+    const decoder = MessageDecoders[spec.decoder];
+    if (!decoder) {
+      console.error(`Invalid decoder: ${spec.decoder}`);
+      return null;
+    }
+    const value = decoder(messageBuffer.subarray(offset, offset + spec.length));
+    (decodedData as any)[spec.name] = value;
+    offset += spec.length;
+  }
+  return decodedData;
 }

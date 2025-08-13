@@ -840,14 +840,11 @@ const CrosschainPayloadColumns = (t: PgColumnsBuilders) => ({
   fromCentrifugeId: t.text().notNull(),
   toCentrifugeId: t.text().notNull(),
   poolId: t.bigint(),
-  votes: t.integer().notNull().default(0),
   status: CrosschainPayloadStatus("x_chain_payload_status").notNull().default("InProgress"),
   createdAt: t.timestamp().notNull(),
   createdAtBlock: t.integer().notNull(),
   deliveredAt: t.timestamp(),
   deliveredAtBlock: t.integer(),
-  adapterSending: t.hex(),
-  adapterReceiving: t.hex(),
 });
 
 export const CrosschainPayload = onchainTable("x_chain_payload", CrosschainPayloadColumns, (t) => ({
@@ -873,6 +870,9 @@ export const CrosschainPayloadRelations = relations(CrosschainPayload, ({one, ma
     fields: [CrosschainPayload.poolId],
     references: [Pool.id],
   }),
+  adapterParticipations: many(AdapterParticipation, {
+    relationName: "adapterParticipations",
+  }),
 }));
 
 export const CrosschainMessageStatuses = ["AwaitingBatchDelivery", "Failed", "Executed"] as const;
@@ -885,7 +885,8 @@ const CrosschainMessageColumns = (t: PgColumnsBuilders) => ({
   payloadId: t.hex(),
   messageType: t.text().notNull(),
   status: CrosschainMessageStatus("x_chain_message_status").notNull().default("AwaitingBatchDelivery"),
-  data: t.hex().notNull(),
+  rawData: t.hex().notNull(),
+  data: t.jsonb(),
   fromCentrifugeId: t.text().notNull(),
   toCentrifugeId: t.text().notNull(),
   createdAt: t.timestamp().notNull(),
@@ -916,6 +917,72 @@ export const CrosschainMessageRelations = relations(CrosschainMessage, ({one}) =
   }),
   toBlockchain: one(Blockchain, {
     fields: [CrosschainMessage.toCentrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
+}));
+
+const AdapterColumns = (t: PgColumnsBuilders) => ({
+  address: t.hex().notNull(),
+  centrifugeId: t.text().notNull(),
+  createdAt: t.timestamp().notNull(),
+  createdAtBlock: t.integer().notNull(),
+  name: t.text(),
+});
+
+export const Adapter = onchainTable("adapter", AdapterColumns, (t) => ({
+  id: primaryKey({ columns: [t.address, t.centrifugeId] }),
+  centrifugeIdIdx: index().on(t.centrifugeId),
+  addressIdx: index().on(t.address),
+}));
+
+export const AdapterParticipationTypes = ["PAYLOAD", "PROOF"] as const;
+export const AdapterParticipationType = onchainEnum("adapter_participation_type", AdapterParticipationTypes);
+export const AdapterParticipationSides = ["SEND", "HANDLE"] as const;
+export const AdapterParticipationSide = onchainEnum("adapter_participation_side", AdapterParticipationSides);
+
+const AdapterParticipationColumns = (t: PgColumnsBuilders) => ({
+  payloadId: t.text().notNull(),
+  adapterId: t.text().notNull(),
+  centrifugeId: t.text().notNull(),
+  fromCentrifugeId: t.text().notNull(),
+  toCentrifugeId: t.text().notNull(),
+  type: AdapterParticipationType("adapter_participation_type").notNull(),
+  side: AdapterParticipationSide("adapter_participation_side").notNull(),
+  timestamp: t.timestamp().notNull(),
+  blockNumber: t.integer().notNull(),
+  transactionHash: t.text().notNull(),
+});
+
+export const AdapterParticipation = onchainTable("adapter_participation", AdapterParticipationColumns, (t) => ({
+  id: primaryKey({ columns: [t.payloadId, t.adapterId, t.side, t.type] }),
+  payloadIdIdx: index().on(t.payloadId),
+  adapterIdIdx: index().on(t.adapterId),
+  centrifugeIdIdx: index().on(t.centrifugeId),
+  fromCentrifugeIdIdx: index().on(t.fromCentrifugeId),
+  toCentrifugeIdIdx: index().on(t.toCentrifugeId),
+  sideIdx: index().on(t.side),
+  typeIdx: index().on(t.type),
+}));
+
+export const AdapterParticipationRelations = relations(AdapterParticipation, ({ one }) => ({
+  payload: one(CrosschainPayload, {
+    fields: [AdapterParticipation.payloadId],
+    references: [CrosschainPayload.id],
+  }),
+  adapter: one(Adapter, {
+    fields: [AdapterParticipation.adapterId, AdapterParticipation.centrifugeId],
+    references: [Adapter.address, Adapter.centrifugeId],
+  }),
+  centrifugeBlockchain: one(Blockchain, {
+    fields: [AdapterParticipation.centrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
+  fromBlockchain: one(Blockchain, {
+    fields: [AdapterParticipation.fromCentrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
+  toBlockchain: one(Blockchain, {
+    fields: [AdapterParticipation.toCentrifugeId],
     references: [Blockchain.centrifugeId],
   }),
 }));

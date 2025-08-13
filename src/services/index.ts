@@ -23,3 +23,4 @@ export * from "./OffRampAddressService";
 export * from "./PolicyService";
 export * from "./CrosschainPayloadService";
 export * from "./CrosschainMessageService";
+export * from "./AdapterService";
