@@ -124,6 +124,7 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
     address: tokenAddress,
     tokenId,
     centrifugeId,
+    isActive: true
   })) as TokenInstanceService;
 });
 

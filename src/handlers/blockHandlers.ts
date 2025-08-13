@@ -1,11 +1,11 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
 import { Timekeeper } from "../helpers/timekeeper";
-import { BlockchainService, PoolService, TokenService } from "../services";
+import { BlockchainService, PoolService, TokenInstanceService, TokenService } from "../services";
 import { PoolSnapshot } from "ponder:schema";
 import { snapshotter } from "../helpers/snapshotter";
 import { currentChains } from "../../ponder.config";
-import { TokenSnapshot } from "ponder:schema";
+import { TokenInstanceSnapshot, TokenSnapshot } from "ponder:schema";
 
 const timekeeper = Timekeeper.start()
 
@@ -38,8 +38,14 @@ async function processBlock(args: Parameters<Parameters<typeof ponder.on>[1]>[0]
     centrifugeId
   }) as TokenService[];
 
+  const tokenInstances = await TokenInstanceService.query(context, {
+    isActive: true,
+    centrifugeId
+  }) as TokenInstanceService[];
+
   await snapshotter(context, event, `${chainName}:NewPeriod`, pools, PoolSnapshot)
   await snapshotter(context, event, `${chainName}:NewPeriod`, tokens, TokenSnapshot)
+  await snapshotter(context, event, `${chainName}:NewPeriod`, tokenInstances, TokenInstanceSnapshot)
 }
 
 currentChains.forEach(chain => {
