@@ -143,6 +143,8 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
 
   const crosschainPayload = (await CrosschainPayloadService.get(context, {
     id: payloadId,
+    fromCentrifugeId: fromCentrifugeId.toString(),
+    toCentrifugeId: toCentrifugeId,
   })) as CrosschainPayloadService | null;
   if (!crosschainPayload) {
     console.error("CrosschainPayload not found");
@@ -152,6 +154,8 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
   if (status === "Delivered") return;
   const countFailedPayloadMessages = await CrosschainMessageService.count(context, {
     payloadId,
+    fromCentrifugeId: fromCentrifugeId.toString(),
+    toCentrifugeId: toCentrifugeId,
     status: "Failed",
   });
   if (countFailedPayloadMessages > 0) return;
