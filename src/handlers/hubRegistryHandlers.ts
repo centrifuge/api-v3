@@ -51,7 +51,7 @@ ponder.on("HubRegistry:NewAsset", async ({ event, context }) => { //Fires Second
   const assetRegistration = (await AssetRegistrationService.getOrInit(context, {
     assetId,
     centrifugeId,
-    decimals,
+    decimals
   })) as AssetRegistrationService;
 
   assetRegistration.setAssetCentrifugeId(assetCentrifugeId);

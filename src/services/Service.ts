@@ -177,6 +177,31 @@ export function mixinCommonStatics<
     }
 
     /**
+     * Updates an existing record or creates a new one if it doesn't exist.
+     * 
+     * @param context - Database and client context 
+     * @param query - Query criteria to find or create the record
+     * @returns Promise that resolves to a service instance
+     * @throws {Error} When the upsert operation fails
+     */
+    static async upsert(context: Context, query: T["$inferInsert"]) {
+      console.log("upsert", name, query);
+      const entity = (
+        await context.db.sql
+          .insert(table)
+          .values(query)
+          .onConflictDoUpdate({
+            target: getPrimaryKeysFieldNames(table).map((key) => table[key]),
+            set: query
+          })
+          .returning()
+      ).pop() ?? null;
+      
+      if (!entity) throw new Error(`Failed to upsert ${name}: ${query}`);
+      return new this(table, name, context, entity);
+    }
+
+    /**
      * Queries the database for multiple records matching the criteria.
      * 
      * @param context - Database and client context
