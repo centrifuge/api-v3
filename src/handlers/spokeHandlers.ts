@@ -74,7 +74,7 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
   const { centrifugeId } = blockchain.read();
   const assetCentrifugeId = getAssetCentrifugeId(assetId);
 
-  const assetRegistration = (await AssetRegistrationService.getOrInit(context, {
+  const assetRegistration = (await AssetRegistrationService.upsert(context, {
     centrifugeId,
     assetId,
     decimals: decimals,
@@ -92,7 +92,7 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
     assetRegistration.setAssetCentrifugeId(assetCentrifugeId);
   if (hasNoStatus || hasNoAssetCentrifugeId) await assetRegistration.save();
 
-  const _asset = (await AssetService.getOrInit(context, {
+  const _asset = (await AssetService.upsert(context, {
     id: assetId,
     centrifugeId,
     address: assetAddress,
