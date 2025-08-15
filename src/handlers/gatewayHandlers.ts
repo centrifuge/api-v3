@@ -122,6 +122,7 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
   const crosschainMessages = (await CrosschainMessageService.query(context, {
     id: messageId,
     status_not: "Executed",
+    _sort: [{ field: "index", direction: "asc" }],
   })) as CrosschainMessageService[];
   if (crosschainMessages.length === 0) {
     console.log(
@@ -130,7 +131,7 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
     );
     return;
   }
-  crosschainMessages.sort((a, b) => a.read().index - b.read().index);
+
   const crosschainMessage = crosschainMessages.shift()!;
   crosschainMessage.executed(event);
   await crosschainMessage.save();
@@ -183,6 +184,7 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
   const crosschainMessages = (await CrosschainMessageService.query(context, {
     id: messageId,
     status: "AwaitingBatchDelivery",
+    _sort: [{ field: "index", direction: "asc" }],
   })) as CrosschainMessageService[];
   if (crosschainMessages.length === 0) {
     console.log(
@@ -191,7 +193,6 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
     );
     return;
   }
-  crosschainMessages.sort((a, b) => a.read().index - b.read().index);
   const crosschainMessage = crosschainMessages.shift()!;
   crosschainMessage.setStatus("Failed");
   await crosschainMessage.save();

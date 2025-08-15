@@ -44,12 +44,12 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
     const crosschainMessages = (await CrosschainMessageService.query(context, {
       id: messageId,
       payloadId: null,
+      _sort: [{ field: "index", direction: "asc" }],
     })) as CrosschainMessageService[];
     if (crosschainMessages.length === 0) {
       console.error(`CrosschainMessage with id ${messageId} not found`);
       continue;
     }
-    crosschainMessages.sort((a, b) => a.read().index - b.read().index);
     const crosschainMessage = crosschainMessages.shift()!;
     const { poolId } = crosschainMessage.read();
     crosschainMessage.setPayloadId(payloadId);
