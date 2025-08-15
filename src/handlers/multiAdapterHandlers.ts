@@ -212,7 +212,7 @@ ponder.on("MultiAdapter:HandleProof", async ({ event, context }) => {
       id: payloadId,
     })) as CrosschainPayloadService | null;
     if (!crosschainPayload) {
-      console.error("CrosschainPayload not found");
+      console.error(`CrosschainPayload for payloadId ${payloadId} not found`);
       return;
     }
     crosschainPayload.setStatus("Delivered");

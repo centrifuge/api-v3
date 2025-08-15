@@ -3,9 +3,7 @@ import { logEvent } from "../helpers/logger";
 import { VaultKinds } from "ponder:schema";
 import {
   BlockchainService,
-  AssetRegistrationService,
   AssetService,
-  getAssetCentrifugeId,
   VaultService,
   TokenInstanceService,
   HoldingEscrowService,
@@ -72,26 +70,6 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
   })) as BlockchainService;
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
-  const assetCentrifugeId = getAssetCentrifugeId(assetId);
-
-  const assetRegistration = (await AssetRegistrationService.upsert(context, {
-    centrifugeId,
-    assetId,
-    decimals: decimals,
-    name: name,
-    symbol: symbol,
-  })) as AssetRegistrationService;
-
-  const { status, assetCentrifugeId: assetRegistrationAssetCentrifugeId } =
-    assetRegistration.read();
-
-  const hasNoStatus = !status;
-  const hasNoAssetCentrifugeId = !assetRegistrationAssetCentrifugeId;
-  if (hasNoStatus) assetRegistration.setStatus("IN_PROGRESS");
-  if (hasNoAssetCentrifugeId)
-    assetRegistration.setAssetCentrifugeId(assetCentrifugeId);
-  if (hasNoStatus || hasNoAssetCentrifugeId) await assetRegistration.save();
-
   const _asset = (await AssetService.upsert(context, {
     id: assetId,
     centrifugeId,
@@ -124,7 +102,7 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
     address: tokenAddress,
     tokenId,
     centrifugeId,
-    isActive: true
+    isActive: true,
   })) as TokenInstanceService;
 });
 
