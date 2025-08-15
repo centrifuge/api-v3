@@ -123,8 +123,8 @@ export function mixinCommonStatics<
      * @returns Promise that resolves to a new service instance
      * @throws {Error} When the insert operation fails
      */
-    static async init(context: Context, data: T["$inferInsert"]) {
-      console.info(`Initialising ${name}`, data);
+    static async insert(context: Context, data: T["$inferInsert"]) {
+      console.info(`Inserting ${name}`, data);
       const insert =
         (await context.db.sql.insert(table).values(data).onConflictDoNothing().returning()).pop() ??
         null;

@@ -16,7 +16,7 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read()
 
-  const _pool = (await PoolService.init(context, {
+  const _pool = (await PoolService.insert(context, {
     id: poolId,
     centrifugeId,
     currency,

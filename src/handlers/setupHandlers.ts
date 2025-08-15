@@ -11,7 +11,7 @@ ponder.on("HubRegistry:setup", async ({ context }) => {
     }
     const network = currentChain.network;
     const contracts = currentChain.contracts;
-    const _deployment = await DeploymentService.init(context, {
+    const _deployment = await DeploymentService.insert(context, {
       chainId: network.chainId.toString(),
       centrifugeId: network.centrifugeId.toString(),
       ...contracts,

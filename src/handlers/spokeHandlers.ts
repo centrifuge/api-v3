@@ -42,7 +42,7 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
     args: [],
   });
 
-  const _vault = (await VaultService.init(context, {
+  const _vault = (await VaultService.insert(context, {
     id: vaultId,
     centrifugeId,
     poolId,

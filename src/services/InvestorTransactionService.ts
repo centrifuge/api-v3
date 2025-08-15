@@ -35,7 +35,7 @@ export class InvestorTransactionService extends mixinCommonStatics(
       "Creating investor transaction of type DEPOSIT_REQUEST_UPDATED with data:",
       data
     );
-    return this.init(context, { ...data, type: "DEPOSIT_REQUEST_UPDATED" });
+    return this.insert(context, { ...data, type: "DEPOSIT_REQUEST_UPDATED" });
   }
 
   /**
@@ -50,7 +50,7 @@ export class InvestorTransactionService extends mixinCommonStatics(
     query: Omit<typeof InvestorTransaction.$inferInsert, "type">
   ) {
     console.info("Creating redeem request", query);
-    return this.init(context, { ...query, type: "REDEEM_REQUEST_UPDATED" });
+    return this.insert(context, { ...query, type: "REDEEM_REQUEST_UPDATED" });
   }
 
   /**
@@ -68,7 +68,7 @@ export class InvestorTransactionService extends mixinCommonStatics(
       "Creating investor transaction of type DEPOSIT_REQUEST_CANCELLED with data:",
       query
     );
-    return this.init(context, { ...query, type: "DEPOSIT_REQUEST_CANCELLED" });
+    return this.insert(context, { ...query, type: "DEPOSIT_REQUEST_CANCELLED" });
   }
 
   /**
@@ -86,7 +86,7 @@ export class InvestorTransactionService extends mixinCommonStatics(
       "Creating investor transaction of type REDEEM_REQUEST_CANCELLED with data:",
       query
     );
-    return this.init(context, { ...query, type: "REDEEM_REQUEST_CANCELLED" });
+    return this.insert(context, { ...query, type: "REDEEM_REQUEST_CANCELLED" });
   }
 
   /**
@@ -104,7 +104,7 @@ export class InvestorTransactionService extends mixinCommonStatics(
       "Creating investor transaction of type DEPOSIT_REQUEST_EXECUTED with data:",
       query
     );
-    return this.init(context, { ...query, type: "DEPOSIT_REQUEST_EXECUTED" });
+    return this.insert(context, { ...query, type: "DEPOSIT_REQUEST_EXECUTED" });
   }
 
   /**
@@ -122,7 +122,7 @@ export class InvestorTransactionService extends mixinCommonStatics(
       "Creating investor transaction of type REDEEM_REQUEST_EXECUTED with data:",
       query
     );
-    return this.init(context, { ...query, type: "REDEEM_REQUEST_EXECUTED" });
+    return this.insert(context, { ...query, type: "REDEEM_REQUEST_EXECUTED" });
   }
 
   /**
@@ -140,7 +140,7 @@ export class InvestorTransactionService extends mixinCommonStatics(
       "Creating investor transaction of type DEPOSIT_CLAIMED with data:",
       query
     );
-    return this.init(context, { ...query, type: "DEPOSIT_CLAIMED" });
+    return this.insert(context, { ...query, type: "DEPOSIT_CLAIMED" });
   }
 
   /**
@@ -158,7 +158,7 @@ export class InvestorTransactionService extends mixinCommonStatics(
       "Creating investor transaction of type REDEEM_CLAIMED with data:",
       query
     );
-    return this.init(context, { ...query, type: "REDEEM_CLAIMED" });
+    return this.insert(context, { ...query, type: "REDEEM_CLAIMED" });
   }
 
   /**
@@ -176,7 +176,7 @@ export class InvestorTransactionService extends mixinCommonStatics(
       "Creating investor transaction of type DEPOSIT_CLAIMABLE with data:",
       query
     );
-    return this.init(context, { ...query, type: "DEPOSIT_CLAIMABLE" });
+    return this.insert(context, { ...query, type: "DEPOSIT_CLAIMABLE" });
   }
 
   /**
@@ -194,7 +194,7 @@ export class InvestorTransactionService extends mixinCommonStatics(
       "Creating investor transaction of type REDEEM_CLAIMABLE with data:",
       query
     );
-    return this.init(context, { ...query, type: "REDEEM_CLAIMABLE" });
+    return this.insert(context, { ...query, type: "REDEEM_CLAIMABLE" });
   }
 
   /**
@@ -212,7 +212,7 @@ export class InvestorTransactionService extends mixinCommonStatics(
       "Creating investor transaction of type SYNC_DEPOSIT with data:",
       query
     );
-    return this.init(context, { ...query, type: "SYNC_DEPOSIT" });
+    return this.insert(context, { ...query, type: "SYNC_DEPOSIT" });
   }
 
   /**
@@ -230,6 +230,6 @@ export class InvestorTransactionService extends mixinCommonStatics(
       "Creating investor transaction of type SYNC_REDEEM with data:",
       query
     );
-    return this.init(context, { ...query, type: "SYNC_REDEEM" });
+    return this.insert(context, { ...query, type: "SYNC_REDEEM" });
   }
 }

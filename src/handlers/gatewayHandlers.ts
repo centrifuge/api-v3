@@ -39,7 +39,7 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
   )}` as `0x${string}`;
   const data = decodeMessage(messageType, messagePayload);
 
-  const _crosschainMessage = (await CrosschainMessageService.init(context, {
+  const _crosschainMessage = (await CrosschainMessageService.insert(context, {
     id: messageId,
     index: messageCount,
     poolId: poolId || null,
@@ -64,7 +64,7 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: fromCentrifugeId } = blockchain.read();
 
-  const _crosschainPayload = (await CrosschainPayloadService.init(context, {
+  const _crosschainPayload = (await CrosschainPayloadService.insert(context, {
     id: batch,
     toCentrifugeId: toCentrifugeId.toString(),
     fromCentrifugeId: fromCentrifugeId,
