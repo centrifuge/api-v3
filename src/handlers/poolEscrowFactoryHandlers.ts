@@ -15,7 +15,7 @@ ponder.on("PoolEscrowFactory:DeployPoolEscrow", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read()
 
-  const _escrow = (await EscrowService.init(context, {
+  const _escrow = (await EscrowService.insert(context, {
     address: escrowAddress,
     poolId,
     centrifugeId,

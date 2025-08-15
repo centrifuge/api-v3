@@ -2,6 +2,7 @@ import { CrosschainPayload, CrosschainPayloadStatuses } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
 import { Event } from "ponder:registry";
 import { getCrosschainMessageLength } from ".";
+import { keccak256, encodePacked } from "viem";
 
 /**
  * Service class for managing CrosschainPayload entities.
@@ -85,4 +86,21 @@ export function excractMessagesFromPayload(payload: `0x${string}`) {
     offset += messageLength;
   }
   return messages;
+}
+
+/**
+ * Generates a unique payload ID by hashing chain IDs and payload bytes
+ *
+ * @param fromCentrifugeId - The Centrifuge Chain ID of the source chain
+ * @param toCentrifugeId - The Centrifuge Chain ID of the destination chain
+ * @param payload - The hex-encoded payload bytes
+ * @returns The keccak256 hash of the encoded parameters as the payload ID
+ */
+export function getPayloadId(fromCentrifugeId: string, toCentrifugeId: string, payload: `0x${string}`) {
+  return keccak256(
+    encodePacked(
+      ["uint16", "uint16", "bytes32"],
+      [Number(fromCentrifugeId), Number(toCentrifugeId), keccak256(payload)]
+    )
+  );
 }
