@@ -1023,6 +1023,24 @@ export const HoldingSnapshot = onchainTable(
   })
 );
 
+const AccountColumns = (t: PgColumnsBuilders) => ({ 
+  address: t.hex().notNull(),
+  centrifugeId: t.text().notNull(),
+  createdAt: t.timestamp().notNull(),
+  createdAtBlock: t.integer().notNull(),
+});
+export const Account = onchainTable("account", AccountColumns, (t) => ({
+  id: primaryKey({ columns: [t.address, t.centrifugeId] }),
+  centrifugeIdIdx: index().on(t.centrifugeId),
+  addressIdx: index().on(t.address),
+}));
+export const AccountRelations = relations(Account, ({ one }) => ({
+  blockchain: one(Blockchain, {
+    fields: [Account.centrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
+}));
+
 
 /**
  * Creates a snapshot schema by selecting specific columns from a base table schema
