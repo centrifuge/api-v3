@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/centrifuge/api-v3/compare/v1.1.0...v1.1.1) (2025-08-18)
+
+
+### Bug Fixes
+
+* missing asset metadata ([#98](https://github.com/centrifuge/api-v3/issues/98)) ([75d9d10](https://github.com/centrifuge/api-v3/commit/75d9d10f3f1b66f7d14b34aedc2bbe3816746c9c))
+
 ## [1.1.0](https://github.com/centrifuge/api-v3/compare/v1.0.0...v1.1.0) (2025-08-13)
 
 
