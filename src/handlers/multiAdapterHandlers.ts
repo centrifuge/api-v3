@@ -44,12 +44,12 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
     const crosschainMessages = (await CrosschainMessageService.query(context, {
       id: messageId,
       payloadId: null,
+      _sort: [{ field: "index", direction: "asc" }],
     })) as CrosschainMessageService[];
     if (crosschainMessages.length === 0) {
       console.error(`CrosschainMessage with id ${messageId} not found`);
       continue;
     }
-    crosschainMessages.sort((a, b) => a.read().index - b.read().index);
     const crosschainMessage = crosschainMessages.shift()!;
     const { poolId } = crosschainMessage.read();
     crosschainMessage.setPayloadId(payloadId);
@@ -63,7 +63,7 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
   }
   const poolId = Array.from(poolIdSet).pop() ?? null;
 
-  const _crosschainPayload = (await CrosschainPayloadService.init(context, {
+  const _crosschainPayload = (await CrosschainPayloadService.insert(context, {
     id: payloadId,
     poolId,
     toCentrifugeId: toCentrifugeId.toString(),
@@ -76,7 +76,7 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
     return null;
   })) as CrosschainPayloadService | null;
 
-  const _adapterParticipation = await AdapterParticipationService.init(context, {
+  const _adapterParticipation = await AdapterParticipationService.insert(context, {
     payloadId,
     adapterId: adapter,
     centrifugeId: fromCentrifugeId,
@@ -105,7 +105,7 @@ ponder.on("MultiAdapter:SendProof", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: fromCentrifugeId } = blockchain.read();
 
-  const _adapterParticipation = (await AdapterParticipationService.init(context, {
+  const _adapterParticipation = (await AdapterParticipationService.insert(context, {
     payloadId,
     adapterId: adapter,
     centrifugeId: fromCentrifugeId,
@@ -151,7 +151,7 @@ ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
   if (status === "InProgress") crosschainPayload.delivered(event);
   await crosschainPayload.save();
 
-  const _adapterParticipation = (await AdapterParticipationService.init(context, {
+  const _adapterParticipation = (await AdapterParticipationService.insert(context, {
     payloadId,
     adapterId: adapter,
     centrifugeId: toCentrifugeId.toString(),
@@ -189,7 +189,7 @@ ponder.on("MultiAdapter:HandleProof", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: toCentrifugeId } = blockchain.read();
 
-  const _adapterParticipation = (await AdapterParticipationService.init(context, {
+  const _adapterParticipation = (await AdapterParticipationService.insert(context, {
     payloadId,
     adapterId: adapter,
     centrifugeId: toCentrifugeId.toString(),
@@ -212,7 +212,7 @@ ponder.on("MultiAdapter:HandleProof", async ({ event, context }) => {
       id: payloadId,
     })) as CrosschainPayloadService | null;
     if (!crosschainPayload) {
-      console.error("CrosschainPayload not found");
+      console.error(`CrosschainPayload for payloadId ${payloadId} not found`);
       return;
     }
     crosschainPayload.setStatus("Delivered");
@@ -246,7 +246,7 @@ ponder.on(
       const firstPart = contractName
         ? contractName.split(/(?=[A-Z])/)[0]
         : null;
-      const adapterInit = AdapterService.init(context, {
+      const adapterInit = AdapterService.insert(context, {
         address: adapter,
         centrifugeId: centrifugeId.toString(),
         createdAt: new Date(Number(event.block.timestamp) * 1000),

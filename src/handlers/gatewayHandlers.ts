@@ -7,8 +7,7 @@ import {
   getMessageId,
   decodeMessage,
 } from "../services/CrosschainMessageService";
-import { CrosschainPayloadService } from "../services/CrosschainPayloadService";
-import { encodePacked, keccak256 } from "viem";
+import { CrosschainPayloadService, getPayloadId } from "../services/CrosschainPayloadService";
 
 ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
   logEvent(event, context, "Gateway:PrepareMessage");
@@ -39,7 +38,7 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
   )}` as `0x${string}`;
   const data = decodeMessage(messageType, messagePayload);
 
-  const _crosschainMessage = (await CrosschainMessageService.init(context, {
+  const _crosschainMessage = (await CrosschainMessageService.insert(context, {
     id: messageId,
     index: messageCount,
     poolId: poolId || null,
@@ -64,7 +63,7 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: fromCentrifugeId } = blockchain.read();
 
-  const _crosschainPayload = (await CrosschainPayloadService.init(context, {
+  const _crosschainPayload = (await CrosschainPayloadService.insert(context, {
     id: batch,
     toCentrifugeId: toCentrifugeId.toString(),
     fromCentrifugeId: fromCentrifugeId,
@@ -85,19 +84,17 @@ ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: fromCentrifugeId } = blockchain.read();
 
-  const payloadId = keccak256(
-    encodePacked(
-      ["uint16", "uint16", "bytes32"],
-      [Number(fromCentrifugeId), toCentrifugeId, keccak256(batch)]
-    )
-  );
+  const payloadId = getPayloadId(fromCentrifugeId, toCentrifugeId.toString(), batch);
 
   const crosschainPayload = (await CrosschainPayloadService.get(context, {
     id: payloadId,
     fromCentrifugeId: fromCentrifugeId,
     toCentrifugeId: toCentrifugeId.toString(),
   })) as CrosschainPayloadService;
-  if (!crosschainPayload) throw new Error("CrosschainPayload not found");
+  if (!crosschainPayload) {
+    console.error(`CrosschainPayload not found for payloadId ${payloadId} fromCentrifugeId ${fromCentrifugeId} toCentrifugeId ${toCentrifugeId}`);
+    return;
+  }
   crosschainPayload.setStatus("InProgress");
   await crosschainPayload.save();
 });
@@ -119,19 +116,13 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
     toCentrifugeId,
     message
   );
-  const crosschainMessages = (await CrosschainMessageService.query(context, {
-    id: messageId,
-    status_not: "Executed",
-  })) as CrosschainMessageService[];
-  if (crosschainMessages.length === 0) {
-    console.log(
-      "CrosschainMessage not found maybe source chain is not connected to this centrifuge? from centrifugeId",
-      fromCentrifugeId
-    );
+
+  const crosschainMessage = await CrosschainMessageService.getMessageFromQueue(context, messageId, fromCentrifugeId.toString(), toCentrifugeId);
+  if (!crosschainMessage) {
+    console.error(`CrosschainMessage not found for messageId ${messageId} fromCentrifugeId ${fromCentrifugeId} toCentrifugeId ${toCentrifugeId}`);
     return;
   }
-  crosschainMessages.sort((a, b) => a.read().index - b.read().index);
-  const crosschainMessage = crosschainMessages.shift()!;
+  
   crosschainMessage.executed(event);
   await crosschainMessage.save();
 
@@ -180,19 +171,12 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
     toCentrifugeId,
     message
   );
-  const crosschainMessages = (await CrosschainMessageService.query(context, {
-    id: messageId,
-    status: "AwaitingBatchDelivery",
-  })) as CrosschainMessageService[];
-  if (crosschainMessages.length === 0) {
-    console.log(
-      "CrosschainMessage not found maybe source chain is not connected to this centrifuge? from centrifugeId",
-      fromCentrifugeId
-    );
+
+  const crosschainMessage = await CrosschainMessageService.getMessageFromQueue(context, messageId, fromCentrifugeId.toString(), toCentrifugeId);
+  if (!crosschainMessage) {
+    console.error(`CrosschainMessage not found for messageId ${messageId} fromCentrifugeId ${fromCentrifugeId} toCentrifugeId ${toCentrifugeId}`);
     return;
   }
-  crosschainMessages.sort((a, b) => a.read().index - b.read().index);
-  const crosschainMessage = crosschainMessages.shift()!;
   crosschainMessage.setStatus("Failed");
   await crosschainMessage.save();
 
@@ -204,7 +188,7 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
     fromCentrifugeId: fromCentrifugeId.toString(),
     toCentrifugeId,
   })) as CrosschainPayloadService;
-  if (!crosschainPayload) throw new Error("CrosschainPayload not found");
+  if (!crosschainPayload) throw new Error(`CrosschainPayload not found for payloadId ${payloadId} fromCentrifugeId ${fromCentrifugeId} toCentrifugeId ${toCentrifugeId}`);
   // @ts-ignore
   if (status === "PartiallyFailed") return;
   crosschainPayload.setStatus("PartiallyFailed");

@@ -506,19 +506,9 @@ export const EpochRedeemOrder = onchainTable(
   })
 );
 
-export const AssetRegistrationStatus = onchainEnum(
-  "asset_registration_status",
-  ["IN_PROGRESS", "REGISTERED"]
-);
-
 const AssetRegistrationColumns = (t: PgColumnsBuilders) => ({
   assetId: t.bigint().notNull(),
   centrifugeId: t.text().notNull(),
-  assetCentrifugeId: t.text(),
-  status: AssetRegistrationStatus("asset_registration_status"),
-  decimals: t.integer(),
-  name: t.text(),
-  symbol: t.text(),
   createdAt: t.timestamp(),
   createdAtBlock: t.integer(),
 });

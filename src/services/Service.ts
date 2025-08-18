@@ -1,5 +1,5 @@
 import type { Context } from "ponder:registry";
-import { eq, and, count, isNull, not } from "drizzle-orm";
+import { eq, and, count, isNull, not, asc, desc } from "drizzle-orm";
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
 
 /** Type alias for PostgreSQL table with columns */
@@ -123,8 +123,8 @@ export function mixinCommonStatics<
      * @returns Promise that resolves to a new service instance
      * @throws {Error} When the insert operation fails
      */
-    static async init(context: Context, data: T["$inferInsert"]) {
-      console.info(`Initialising ${name}`, data);
+    static async insert(context: Context, data: T["$inferInsert"]) {
+      console.info(`Inserting ${name}`, data);
       const insert =
         (await context.db.sql.insert(table).values(data).onConflictDoNothing().returning()).pop() ??
         null;
@@ -211,10 +211,25 @@ export function mixinCommonStatics<
     static async query(context: Context, query: Partial<ExtendedQuery<T["$inferSelect"]>>) {
       console.info(`Querying ${name}`, query);
       const filter = queryToFilter(table, query);
-      const results = await context.db.sql
-        .select()
-        .from(table as OnchainTable)
-        .where(filter);
+
+      const sqlQuery = (query._sort && query._sort.length > 0) ? (
+        context.db.sql
+          .select()
+          .from(table as OnchainTable)
+          .where(filter)
+          .orderBy(...query._sort.map((sort: { field: keyof T; direction: 'asc' | 'desc' }) => {
+            const column = table[sort.field];
+            return sort.direction === 'asc' ? asc(column) : desc(column);
+          }))
+      ) : (
+        context.db.sql
+          .select()
+          .from(table as OnchainTable)
+          .where(filter)
+      );
+      
+      
+      const results = await sqlQuery;
       console.info(`Found ${results.length} ${name}`);
       return results.map((result) => new this(table, name, context, result));
     }
@@ -322,6 +337,11 @@ type ExtendedQuery<T> = {
   [P in keyof T]: T[P];
 } & {
   [P in keyof T as `${string & P}_not`]: T[P];
+} & {
+  _sort?: Array<{
+    field: keyof T;
+    direction: 'asc' | 'desc';
+  }>;
 };
 
 /**
@@ -337,7 +357,7 @@ function queryToFilter<T extends OnchainTable>(
   table: T,
   query: Partial<ExtendedQuery<T["$inferInsert"]>>
 ) {
-  const queryEntries = Object.entries(query);
+  const queryEntries = Object.entries(query).filter(([key]) => !key.startsWith("_"));
   const queries = queryEntries.map(([column, value]) => {
     if (value === null) return isNull(table[column as keyof T]);
     if (column.endsWith("_not")) return not(eq(table[column.slice(0, -4) as keyof T], value));

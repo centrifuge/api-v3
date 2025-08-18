@@ -1,8 +1,7 @@
-import { CrosschainMessage } from "ponder:schema";
+import { CrosschainMessage, CrosschainMessageStatuses } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
-import { CrosschainMessageStatuses } from "ponder:schema";
 import { encodePacked, keccak256 } from "viem";
-import { Event } from "ponder:registry";
+import { Event, Context } from "ponder:registry";
 
 /**
  * Service class for managing CrosschainMessage entities.
@@ -17,6 +16,41 @@ export class CrosschainMessageService extends mixinCommonStatics(
   CrosschainMessage,
   "CrosschainMessage"
 ) {
+  /**
+   * Gets the first message from the queue for a given message ID
+   * @param context - The database and client context
+   * @param messageId - The ID of the message to get from the queue
+   * @returns The first message from the queue or null if no message is found
+   */
+  static async getMessageFromQueue(context: Context, messageId: `0x${string}`, fromCentrifugeId: string, toCentrifugeId: string) {
+    const crosschainMessages = (await CrosschainMessageService.query(context, {
+      id: messageId,
+      status_not: "Executed",
+      fromCentrifugeId,
+      toCentrifugeId,
+      _sort: [{ field: "index", direction: "asc" }],
+    })) as CrosschainMessageService[];
+    if (crosschainMessages.length === 0) return null;
+    return crosschainMessages.shift()!;
+  }
+
+  /**
+   * Counts the number of failed messages for a given message ID
+   * @param context - The database and client context
+   * @param messageId - The ID of the message to count failed messages for
+   * @param fromCentrifugeId - The ID of the from centrifuge
+   * @param toCentrifugeId - The ID of the to centrifuge
+   * @returns The number of failed messages
+   */
+  static async countPayloadFailedMessages(context: Context, payloadId: `0x${string}`, fromCentrifugeId: string, toCentrifugeId: string) {
+    return await CrosschainMessageService.count(context, {
+      payloadId,
+      status: "Failed",
+      fromCentrifugeId,
+      toCentrifugeId,
+    });
+  }
+
   /**
    * Sets the status of the CrosschainMessage
    * @param status - The new status to set. Must be one of the valid CrosschainMessageStatuses
@@ -92,68 +126,67 @@ const CrosschainMessageType = {
   SetRequestManager: 73,
 } as const;
 
-
-type BufferDecoderFunction<T = unknown> = (_m: Buffer<ArrayBuffer>) => T;
+type BufferDecoderEntry<T = unknown> = [decoder: (_m: Buffer<ArrayBuffer>) => T, length: number];
 
 const MessageDecoders = {
-  uint8: (m) => m.readUInt8(),
-  uint16: (m) => m.readUInt16BE(),
-  uint64: (m) => m.readBigUInt64BE().toString(),
-  uint128: (m) => {
-    const low = m.readBigUInt64BE(0);
-    const high = m.readBigUInt64BE(8);
+  uint8: [(m) => m.readUInt8(), 1],
+  uint16: [(m) => m.readUInt16BE(), 2],
+  uint64: [(m) => m.readBigUInt64BE().toString(), 8],
+  uint128: [(m) => {
+    const high = m.readBigUInt64BE(0);  // Bytes 0-7 (upper 64 bits)
+    const low = m.readBigUInt64BE(8);   // Bytes 8-15 (lower 64 bits)
     return ((high << 64n) | low).toString();
-  },
-  uint256: (m) => {
-    const lowest = m.readBigUInt64BE(0);
-    const low = m.readBigUInt64BE(8);
-    const high = m.readBigUInt64BE(16);
-    const highest = m.readBigUInt64BE(24);
-    return ((highest << 192n) | (high << 128n) | (low << 64n) | lowest).toString();
-  },
-  bytes16: (m) => `0x${m.toString("hex").padEnd(32, "0")}`,
-  bytes32: (m) => `0x${m.toString("hex").padEnd(64, "0")}`,
-  string: (m) => m.toString("utf-8").replace(/\0+$/, ""),
-  bytes: (m) => `0x${m.toString("hex")}`,
-} as const satisfies Record<string, BufferDecoderFunction>;
+  }, 16],
+    uint256: [(m) => {
+      const highest = m.readBigUInt64BE(0);  // Bytes 0-7 (upper 64 bits)
+      const high = m.readBigUInt64BE(8);    // Bytes 8-15 (upper 64 bits)
+      const low = m.readBigUInt64BE(16);    // Bytes 16-23 (lower 64 bits)
+      const lowest = m.readBigUInt64BE(24); // Bytes 24-31 (lower 64 bits)
+      return (
+        (highest << 192n) |
+        (high << 128n) |
+        (low << 64n) |
+        lowest
+      ).toString();
+    }, 32],
+  bytes16: [(m) => `0x${m.toString("hex").padEnd(32, "0")}`, 16],
+  bytes32: [(m) => `0x${m.toString("hex").padEnd(64, "0")}`, 32],
+  string: [(m) => m.toString("utf-8").replace(/\0+$/, ""), 0],
+  bytes: [(m) => `0x${m.toString("hex")}`, 0],
+} as const satisfies Record<string, BufferDecoderEntry>;
 
 // eslint-disable-next-line no-unused-vars
 interface DecoderConfig {
   name: string;
   decoder: keyof typeof MessageDecoders;
-  length: number;
 }
 
 // Type mapping for decoder return types - derived from MessageDecoders
 type DecoderReturnTypes = {
-  [K in keyof typeof MessageDecoders]: ReturnType<typeof MessageDecoders[K]>;
+  [K in keyof typeof MessageDecoders]: ReturnType<(typeof MessageDecoders)[K][0]>
 };
 
 // Type that maps message type names to their decoded parameter types
 type DecodedMessageTypes = {
   [K in keyof typeof messageDecoders]: {
-    [P in typeof messageDecoders[K][number] as P['name']]: DecoderReturnTypes[P['decoder']];
+    [P in (typeof messageDecoders)[K][number] as P["name"]]: DecoderReturnTypes[P["decoder"]];
   };
 };
 
 const messageDecoders = {
   _Invalid: [],
-  ScheduleUpgrade: [
-    { name: "target", decoder: "bytes32", length: 32 }
-  ],
-  CancelUpgrade: [
-    { name: "target", decoder: "bytes32", length: 32 }
-  ],
+  ScheduleUpgrade: [{ name: "target", decoder: "bytes32" }],
+  CancelUpgrade: [{ name: "target", decoder: "bytes32" }],
   RecoverTokens: [
-    { name: "target", decoder: "bytes32", length: 32 },
-    { name: "token", decoder: "bytes32", length: 32 },
-    { name: "tokenId", decoder: "uint256", length: 32 },
-    { name: "to", decoder: "bytes32", length: 32 },
-    { name: "amount", decoder: "uint256", length: 32 }
+    { name: "target", decoder: "bytes32" },
+    { name: "token", decoder: "bytes32" },
+    { name: "tokenId", decoder: "uint256" },
+    { name: "to", decoder: "bytes32" },
+    { name: "amount", decoder: "uint256" },
   ],
   RegisterAsset: [
-    { name: "assetId", decoder: "uint128", length: 16 },
-    { name: "decimals", decoder: "uint8", length: 1 }
+    { name: "assetId", decoder: "uint128" },
+    { name: "decimals", decoder: "uint8" },
   ],
   _Placeholder5: [],
   _Placeholder6: [],
@@ -166,124 +199,123 @@ const messageDecoders = {
   _Placeholder13: [],
   _Placeholder14: [],
   _Placeholder15: [],
-  NotifyPool: [
-    { name: "poolId", decoder: "uint64", length: 8 }
-  ],
+  NotifyPool: [{ name: "poolId", decoder: "uint64" }],
   NotifyShareClass: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "name", decoder: "string", length: 128 },
-    { name: "symbol", decoder: "bytes32", length: 32 },
-    { name: "decimals", decoder: "uint8", length: 1 },
-    { name: "salt", decoder: "bytes32", length: 32 },
-    { name: "hook", decoder: "bytes32", length: 32 }
+    { name: "poolId", decoder: "uint64"},
+    { name: "scId", decoder: "bytes16" },
+    { name: "name", decoder: "string" },
+    { name: "symbol", decoder: "bytes32" },
+    { name: "decimals", decoder: "uint8" },
+    { name: "salt", decoder: "bytes32" },
+    { name: "hook", decoder: "bytes32" },
   ],
   NotifyPricePoolPerShare: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "price", decoder: "uint128", length: 16 },
-    { name: "timestamp", decoder: "uint64", length: 8 }
+    { name: "poolId", decoder: "uint64" },
+    { name: "scId", decoder: "bytes16" },
+    { name: "price", decoder: "uint128" },
+    { name: "timestamp", decoder: "uint64" },
   ],
   NotifyPricePoolPerAsset: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "assetId", decoder: "uint128", length: 16 },
-    { name: "price", decoder: "uint128", length: 16 },
-    { name: "timestamp", decoder: "uint64", length: 8 }
+    { name: "poolId", decoder: "uint64" },
+    { name: "scId", decoder: "bytes16" },
+    { name: "assetId", decoder: "uint128" },
+    { name: "price", decoder: "uint128" },
+    { name: "timestamp", decoder: "uint64" },
   ],
   NotifyShareMetadata: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "name", decoder: "string", length: 128 },
-    { name: "symbol", decoder: "bytes32", length: 32 }
+    { name: "poolId", decoder: "uint64" },
+    { name: "scId", decoder: "bytes16" },
+    { name: "name", decoder: "string" },
+    { name: "symbol", decoder: "bytes32" },
   ],
   UpdateShareHook: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "hook", decoder: "bytes32", length: 32 }
+    { name: "poolId", decoder: "uint64" },
+    { name: "scId", decoder: "bytes16" },
+    { name: "hook", decoder: "bytes32" },
   ],
   InitiateTransferShares: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "centrifugeId", decoder: "uint16", length: 2 },
-    { name: "receiver", decoder: "bytes32", length: 32 },
-    { name: "amount", decoder: "uint128", length: 16 },
-    { name: "extraGasLimit", decoder: "uint128", length: 16 }
+    { name: "poolId", decoder: "uint64" },
+    { name: "scId", decoder: "bytes16" },
+    { name: "centrifugeId", decoder: "uint16" },
+    { name: "receiver", decoder: "bytes32" },
+    { name: "amount", decoder: "uint128" },
+    { name: "extraGasLimit", decoder: "uint128" },
   ],
   ExecuteTransferShares: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "receiver", decoder: "bytes32", length: 32 },
-    { name: "amount", decoder: "uint128", length: 16 }
+    { name: "poolId", decoder: "uint64" },
+    { name: "scId", decoder: "bytes16" },
+    { name: "receiver", decoder: "bytes32" },
+    { name: "amount", decoder: "uint128" },
   ],
   UpdateRestriction: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "payload", decoder: "bytes", length: 0 } // Dynamic length
+    { name: "poolId", decoder: "uint64" },
+    { name: "scId", decoder: "bytes16" },
+    { name: "payload", decoder: "bytes" }, // Dynamic length
   ],
   UpdateContract: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "target", decoder: "bytes32", length: 32 },
-    { name: "payload", decoder: "bytes", length: 0 } // Dynamic length
+    { name: "poolId", decoder: "uint64" },
+    { name: "scId", decoder: "bytes16" },
+    { name: "target", decoder: "bytes32" },
+    { name: "payload", decoder: "bytes" }, // Dynamic length
   ],
   UpdateVault: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "kind", decoder: "uint8", length: 1 },
-    { name: "target", decoder: "bytes32", length: 32 },
-    { name: "payload", decoder: "bytes", length: 0 } // Dynamic length
+    { name: "poolId", decoder: "uint64" },
+    { name: "scId", decoder: "bytes16" },
+    { name: "kind", decoder: "uint8" },
+    { name: "target", decoder: "bytes32" },
+    { name: "payload", decoder: "bytes" }, // Dynamic length
   ],
   UpdateBalanceSheetManager: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "target", decoder: "bytes32", length: 32 },
-    { name: "payload", decoder: "bytes", length: 0 } // Dynamic length
+    { name: "poolId", decoder: "uint64" },
+    { name: "scId", decoder: "bytes16" },
+    { name: "target", decoder: "bytes32" },
+    { name: "payload", decoder: "bytes" }, // Dynamic length
   ],
   UpdateHoldingAmount: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "assetId", decoder: "uint128", length: 16 },
-    { name: "amount", decoder: "uint128", length: 16 },
-    { name: "timestamp", decoder: "uint64", length: 8 }
+    { name: "poolId", decoder: "uint64" },
+    { name: "scId", decoder: "bytes16" },
+    { name: "assetId", decoder: "uint128" },
+    { name: "amount", decoder: "uint128" },
+    { name: "timestamp", decoder: "uint64" },
   ],
   UpdateShares: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "amount", decoder: "uint128", length: 16 },
-    { name: "timestamp", decoder: "uint64", length: 8 }
+    { name: "poolId", decoder: "uint64" },
+    { name: "scId", decoder: "bytes16" },
+    { name: "amount", decoder: "uint128" },
+    { name: "timestamp", decoder: "uint64" },
   ],
   MaxAssetPriceAge: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "maxAge", decoder: "uint64", length: 8 }
+    { name: "poolId", decoder: "uint64" },
+    { name: "scId", decoder: "bytes16" },
+    { name: "maxAge", decoder: "uint64" },
   ],
   MaxSharePriceAge: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "maxAge", decoder: "uint64", length: 8 }
+    { name: "poolId", decoder: "uint64" },
+    { name: "scId", decoder: "bytes16" },
+    { name: "maxAge", decoder: "uint64" },
   ],
   Request: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "assetId", decoder: "uint128", length: 16 },
-    { name: "payload", decoder: "bytes", length: 0 } // Dynamic length
+    { name: "poolId", decoder: "uint64" },
+    { name: "scId", decoder: "bytes16" },
+    { name: "assetId", decoder: "uint128" },
+    { name: "payload", decoder: "bytes" }, // Dynamic length
   ],
   RequestCallback: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "assetId", decoder: "uint128", length: 16 },
-    { name: "payload", decoder: "bytes", length: 0 } // Dynamic length
+    { name: "poolId", decoder: "uint64" },
+    { name: "scId", decoder: "bytes16" },
+    { name: "assetId", decoder: "uint128" },
+    { name: "payload", decoder: "bytes" }, // Dynamic length
   ],
   SetRequestManager: [
-    { name: "poolId", decoder: "uint64", length: 8 },
-    { name: "scId", decoder: "bytes16", length: 16 },
-    { name: "target", decoder: "bytes32", length: 32 },
-    { name: "payload", decoder: "bytes", length: 0 } // Dynamic length
-  ]
-} as const satisfies Record<keyof typeof CrosschainMessageType, DecoderConfig[]>;
-
-
+    { name: "poolId", decoder: "uint64" },
+    { name: "scId", decoder: "bytes16" },
+    { name: "target", decoder: "bytes32" },
+    { name: "payload", decoder: "bytes" }, // Dynamic length
+  ],
+} as const satisfies Record<
+  keyof typeof CrosschainMessageType,
+  DecoderConfig[]
+>;
 
 /**
  * Creates a function that decodes the length of a dynamic length message
@@ -360,14 +392,14 @@ export function decodeMessage<T extends keyof typeof messageDecoders>(
   let offset = 0;
   const decodedData: DecodedMessageTypes[T] = {} as DecodedMessageTypes[T];
   for (const spec of messageSpec) {
-    const decoder = MessageDecoders[spec.decoder];
+    const [decoder, length] = MessageDecoders[spec.decoder];
     if (!decoder) {
       console.error(`Invalid decoder: ${spec.decoder}`);
       return null;
     }
-    const value = decoder(messageBuffer.subarray(offset, offset + spec.length));
+    const value = decoder(messageBuffer.subarray(offset, offset + length));
     (decodedData as any)[spec.name] = value;
-    offset += spec.length;
+    offset += length;
   }
   return decodedData;
 }
