@@ -12,10 +12,10 @@ import { OutstandingRedeemService } from "../services";
 ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   logEvent(event, context, "Vault:DepositRequest");
   const {
-    // controller,
+    controller: investorAddress,
     // owner,
     // requestId,
-    sender: senderAddress,
+    //sender: senderAddress,
     assets,
   } = event.args;
 
@@ -45,7 +45,7 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   const _it = await InvestorTransactionService.updateDepositRequest(context, {
     poolId,
     tokenId,
-    account: senderAddress.substring(0, 42) as `0x${string}`,
+    account: investorAddress.substring(0, 42) as `0x${string}`,
     currencyAmount: assets,
     txHash: event.transaction.hash,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
@@ -63,7 +63,7 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   const OutstandingInvest = (await OutstandingInvestService.getOrInit(context, {
     poolId,
     tokenId,
-    account: senderAddress.substring(0, 42) as `0x${string}`,
+    account: investorAddress.substring(0, 42) as `0x${string}`,
     assetId,
   })) as OutstandingInvestService;
 
@@ -76,10 +76,10 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
 
   logEvent(event, context, "Vault:RedeemRequest");
   const {
-    // controller,
+    controller: investorAddress,
     // owner,
     // requestId,
-    sender: senderAddress,
+    // sender: senderAddress,
     shares,
   } = event.args;
   const vaultId = event.log.address;
@@ -102,7 +102,7 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
   const _it = await InvestorTransactionService.updateRedeemRequest(context, {
     poolId,
     tokenId,
-    account: senderAddress.substring(0, 42) as `0x${string}`,
+    account: investorAddress.substring(0, 42) as `0x${string}`,
     tokenAmount: shares,
     txHash: event.transaction.hash,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
@@ -121,7 +121,7 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
   const OutstandingRedeem = (await OutstandingRedeemService.getOrInit(context, {
     poolId,
     tokenId,
-    account: senderAddress.substring(0, 42) as `0x${string}`,
+    account: investorAddress.substring(0, 42) as `0x${string}`,
     assetId,
   })) as OutstandingRedeemService;
 
@@ -222,8 +222,9 @@ ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
 ponder.on("Vault:Deposit", async ({ event, context }) => {
   logEvent(event, context, "Vault:Deposit");
   const {
-    sender: senderAddress,
-    //owner,
+    //controller: investorAddress,
+    //sender: investorAddress,
+    owner: investorAddress,
     assets,
     shares,
   } = event.args;
@@ -255,7 +256,7 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
   const itData = {
     poolId,
     tokenId,
-    account: senderAddress.substring(0, 42) as `0x${string}`,
+    account: investorAddress.substring(0, 42) as `0x${string}`,
     tokenAmount: shares,
     currencyAmount: assets,
     tokenPrice: getSharePrice(shares, assets, decimals),
@@ -278,8 +279,8 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
 ponder.on("Vault:Withdraw", async ({ event, context }) => {
   logEvent(event, context, "Vault:Withdraw");
   const {
-    //sender: senderAddress,
-    receiver: receiverAddress,
+    //controller: investorAddress,
+    owner: investorAddress,
     assets,
     shares,
   } = event.args;
@@ -311,7 +312,7 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
   const itData = {
     poolId,
     tokenId,
-    account: receiverAddress.substring(0, 42) as `0x${string}`,
+    account: investorAddress.substring(0, 42) as `0x${string}`,
     tokenAmount: shares,
     currencyAmount: assets,
     tokenPrice: getSharePrice(shares, assets, decimals),
