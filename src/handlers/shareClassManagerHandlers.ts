@@ -276,6 +276,7 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
   const outstandingInvests = (await OutstandingInvestService.query(context, {
     tokenId,
     assetId: depositAssetId,
+    approvedAmount_not: 0n,
   })) as OutstandingInvestService[];
 
   const outstandingInvestSaves: Promise<OutstandingInvestService>[] = [];
@@ -332,6 +333,7 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
   const outstandingRedeems = (await OutstandingRedeemService.query(context, {
     tokenId,
     assetId: payoutAssetId,
+    approvedAmount_not: 0n,
   })) as OutstandingRedeemService[];
 
   const outstandingRedeemSaves: Promise<OutstandingRedeemService>[] = [];

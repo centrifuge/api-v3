@@ -37,8 +37,8 @@ const chains = currentChains.reduce<Record<Networks, ChainConfig>>(
   (acc, network) => {
     acc[network.network.network] = {
       id: network.network.chainId,
-      rpc: `https://${endpoints[network.network.chainId]}`,
-      ws: `wss://${endpoints[network.network.chainId]}`,
+      rpc: process.env[`PONDER_RPC_URL_${network.network.chainId}`] ? process.env[`PONDER_RPC_URL_${network.network.chainId}`] : `https://${endpoints[network.network.chainId]}`,
+      ws: process.env[`PONDER_WS_URL_${network.network.chainId}`] ? process.env[`PONDER_WS_URL_${network.network.chainId}`] : `wss://${endpoints[network.network.chainId]}`,
     };
     return acc;
   },
