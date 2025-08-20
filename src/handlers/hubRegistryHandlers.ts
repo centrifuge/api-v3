@@ -2,11 +2,13 @@ import { ponder } from "ponder:registry";
 import { PoolService } from "../services/PoolService";
 import { logEvent } from "../helpers/logger";
 import {
+  AccountService,
   AssetRegistrationService,
   PoolManagerService,
 } from "../services";
 import { BlockchainService } from "../services/BlockchainService";
 import { fetchFromIpfs } from "../helpers/ipfs";
+import { getAddress } from "viem";
 
 const ipfsHashRegex = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[A-Za-z2-7]{58})$/;
 
@@ -30,8 +32,16 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
     createdAt: new Date(Number(event.block.timestamp) * 1000),
   })) as PoolService;
 
+  const account = await AccountService.getOrInit(context, {
+    address: getAddress(manager),
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
+  }) as AccountService;
+
+  const { address: managerAddress } = account.read();
+
   const poolManager = (await PoolManagerService.getOrInit(context, {
-    address: manager.substring(0, 42) as `0x${string}`,
+    address: managerAddress,
     centrifugeId,
     poolId,
   })) as PoolManagerService;
@@ -73,10 +83,17 @@ ponder.on("HubRegistry:UpdateManager", async ({ event, context }) => {
 
   const { manager, poolId, canManage } = event.args;
 
+  const account = await AccountService.getOrInit(context, {
+    address: getAddress(manager),
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
+  }) as AccountService;
+  const { address: managerAddress } = account.read();
+
   const poolManager = (await PoolManagerService.getOrInit(context, {
     centrifugeId,
     poolId,
-    address: manager.substring(0, 42) as `0x${string}`,
+    address: managerAddress,
   })) as PoolManagerService;
   poolManager.setIsHubManager(canManage);
   await poolManager.save();

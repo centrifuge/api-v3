@@ -1,6 +1,7 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
-import { AssetService, BlockchainService, EscrowService, HoldingEscrowService, PoolManagerService, TokenInstanceService } from "../services";
+import { AccountService, AssetService, BlockchainService, EscrowService, HoldingEscrowService, PoolManagerService, TokenInstanceService } from "../services";
+import { getAddress } from "viem";
 
 ponder.on("BalanceSheet:Issue", async ({ event, context }) => {
   logEvent(event, context, "BalanceSheet:Issue");
@@ -157,8 +158,17 @@ ponder.on("BalanceSheet:UpdateManager", async ({ event, context }) => {
   const { centrifugeId } = blockchain.read();
 
   const { who: manager, poolId, canManage } = event.args;
+
+  const account = await AccountService.getOrInit(context, {
+    address: getAddress(manager),
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
+  }) as AccountService;
+
+  const { address: managerAddress } = account.read();
+
   const poolManager = await PoolManagerService.getOrInit(context, {
-    address: manager.substring(0, 42) as `0x${string}`,
+    address: managerAddress,
     centrifugeId,
     poolId,
   }) as PoolManagerService;
