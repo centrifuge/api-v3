@@ -1,8 +1,9 @@
 import { ponder } from "ponder:registry";
-import { BlockchainService, OffRampAddressService, OffRampRelayerService } from "../services";
+import { AccountService, BlockchainService, OffRampAddressService, OffRampRelayerService } from "../services";
 import { logEvent } from "../helpers/logger";
 import { OnOffRampManagerAbi } from "../../abis/OnOffRampManagerAbi";
 import { OnRampAssetService } from "../services";
+import { getAddress } from "viem";
 
 ponder.on("OnOffRampManager:UpdateRelayer", async ({ event, context }) => {
   logEvent(event, context, "OnOffRampManager:UpdateRelayer");
@@ -102,12 +103,19 @@ ponder.on("OnOffRampManager:UpdateOfframp", async ({ event, context }) => {
     `0x${string}`
   ];
 
+  const receiverAccount = await AccountService.getOrInit(context, {
+    address: getAddress(receiver),
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
+  }) as AccountService;
+  const { address: receiverAddress } = receiverAccount.read();
+
   const offRampAddress = await OffRampAddressService.getOrInit(context, {
     poolId,
     centrifugeId,
     tokenId: scId,
-    assetAddress: asset.substring(0, 42) as `0x${string}`,
-    receiverAddress: receiver.substring(0, 42) as `0x${string}`,
+    assetAddress: getAddress(asset),
+    receiverAddress,
   });
   await offRampAddress.save();
 });

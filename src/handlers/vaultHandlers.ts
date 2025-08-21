@@ -1,18 +1,21 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
 import {
+  AccountService,
   AssetService,
   BlockchainService,
+  TokenInstancePositionService,
   TokenService,
 } from "../services";
 import { InvestorTransactionService, VaultService } from "../services";
 import { OutstandingInvestService } from "../services";
 import { OutstandingRedeemService } from "../services";
+import { getAddress } from "viem";
 
 ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   logEvent(event, context, "Vault:DepositRequest");
   const {
-    controller: investorAddress,
+    controller,
     // owner,
     // requestId,
     //sender: senderAddress,
@@ -42,10 +45,27 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   });
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
 
+  const invstorAccount = (await AccountService.getOrInit(context, {
+    address: getAddress(controller),
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
+  })) as AccountService;
+  const { address: investorAddress } = invstorAccount.read();
+
+  const _tokenInstancePosition = (await TokenInstancePositionService.getOrInit(context, {
+    tokenId,
+    centrifugeId,
+    accountAddress: investorAddress,
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
+    updatedAt: new Date(Number(event.block.timestamp) * 1000),
+    updatedAtBlock: Number(event.block.number),
+  })) as TokenInstancePositionService;
+
   const _it = await InvestorTransactionService.updateDepositRequest(context, {
     poolId,
     tokenId,
-    account: investorAddress.substring(0, 42) as `0x${string}`,
+    account: investorAddress,
     currencyAmount: assets,
     txHash: event.transaction.hash,
     createdAt: new Date(Number(event.block.timestamp) * 1000),
@@ -63,20 +83,19 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   const OutstandingInvest = (await OutstandingInvestService.getOrInit(context, {
     poolId,
     tokenId,
-    account: investorAddress.substring(0, 42) as `0x${string}`,
+    account: investorAddress,
     assetId,
   })) as OutstandingInvestService;
 
   await OutstandingInvest.decorateOutstandingOrder(event)
     .updateDepositAmount(assets)
-    .save();
+    .saveOrClear();
 });
 
 ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
-
   logEvent(event, context, "Vault:RedeemRequest");
   const {
-    controller: investorAddress,
+    controller,
     // owner,
     // requestId,
     // sender: senderAddress,
@@ -98,6 +117,13 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
 
   const token = await TokenService.get(context, { poolId, id: tokenId });
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
+
+  const invstorAccount = (await AccountService.getOrInit(context, {
+    address: getAddress(controller),
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
+  })) as AccountService;
+  const { address: investorAddress } = invstorAccount.read();
 
   const _it = await InvestorTransactionService.updateRedeemRequest(context, {
     poolId,
@@ -127,12 +153,12 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
 
   await OutstandingRedeem.decorateOutstandingOrder(event)
     .updateDepositAmount(shares)
-    .save();
+    .saveOrClear();
 });
 
 ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
   logEvent(event, context, "Vault:DepositClaimable");
-  const { controller: accountAddress, assets, shares } = event.args;
+  const { controller, assets, shares } = event.args;
   const vaultId = event.log.address;
   if (!vaultId) throw new Error(`Vault id not found in event`);
   const chainId = context.chain.id;
@@ -161,10 +187,17 @@ ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
   const token = await TokenService.get(context, { poolId, id: tokenId });
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
 
+  const invstorAccount = (await AccountService.getOrInit(context, {
+    address: getAddress(controller),
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
+  })) as AccountService;
+  const { address: investorAddress } = invstorAccount.read();
+
   const _it = await InvestorTransactionService.depositClaimable(context, {
     poolId,
     tokenId,
-    account: accountAddress.substring(0, 42) as `0x${string}`,
+    account: investorAddress,
     tokenAmount: shares,
     currencyAmount: assets,
     tokenPrice: getSharePrice(shares, assets, decimals),
@@ -177,7 +210,7 @@ ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
 
 ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
   logEvent(event, context, "Vault:RedeemClaimable");
-  const { controller: accountAddress, assets, shares } = event.args;
+  const { controller, assets, shares } = event.args;
   const vaultId = event.log.address;
   if (!vaultId) throw new Error(`Vault id not found in event`);
   const chainId = context.chain.id;
@@ -205,10 +238,17 @@ ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
   const token = await TokenService.get(context, { poolId, id: tokenId });
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
 
+  const invstorAccount = (await AccountService.getOrInit(context, {
+    address: getAddress(controller),
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
+  })) as AccountService;
+  const { address: investorAddress } = invstorAccount.read();
+
   const _it = await InvestorTransactionService.redeemClaimable(context, {
     poolId,
     tokenId,
-    account: accountAddress.substring(0, 42) as `0x${string}`,
+    account: investorAddress,
     tokenAmount: shares,
     currencyAmount: assets,
     tokenPrice: getSharePrice(shares, assets, decimals),
@@ -224,7 +264,7 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
   const {
     //controller: investorAddress,
     //sender: investorAddress,
-    owner: investorAddress,
+    owner,
     assets,
     shares,
   } = event.args;
@@ -253,10 +293,18 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
   const { decimals } = asset.read();
   if (typeof decimals !== "number") throw new Error("Decimals is required");
 
+  const invstorAccount = (await AccountService.getOrInit(context, {
+    address: getAddress(owner),
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
+  })) as AccountService;
+
+  const { address: investorAddress } = invstorAccount.read();
+
   const itData = {
     poolId,
     tokenId,
-    account: investorAddress.substring(0, 42) as `0x${string}`,
+    account: investorAddress,
     tokenAmount: shares,
     currencyAmount: assets,
     tokenPrice: getSharePrice(shares, assets, decimals),
@@ -280,7 +328,7 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
   logEvent(event, context, "Vault:Withdraw");
   const {
     //controller: investorAddress,
-    owner: investorAddress,
+    owner,
     assets,
     shares,
   } = event.args;
@@ -309,10 +357,17 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
   const token = await TokenService.get(context, { poolId, id: tokenId });
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
 
+  const invstorAccount = (await AccountService.getOrInit(context, {
+    address: getAddress(owner),
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
+  })) as AccountService;
+  const { address: investorAddress } = invstorAccount.read();
+
   const itData = {
     poolId,
     tokenId,
-    account: investorAddress.substring(0, 42) as `0x${string}`,
+    account: investorAddress,
     tokenAmount: shares,
     currencyAmount: assets,
     tokenPrice: getSharePrice(shares, assets, decimals),
@@ -334,12 +389,16 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
 
 /**
  * Calculates the price of a token in terms of currency.
- * 
+ *
  * @param tokenAmount - The amount of tokens
  * @param currencyAmount - The amount of currency
  * @returns The price of the token in terms of currency
  */
-function getSharePrice(sharesAmount: bigint, assetsAmount: bigint, assetDecimals: number) {
+function getSharePrice(
+  sharesAmount: bigint,
+  assetsAmount: bigint,
+  assetDecimals: number
+) {
   if (assetsAmount === 0n) return null;
   return (sharesAmount * 10n ** BigInt(assetDecimals)) / assetsAmount;
 }

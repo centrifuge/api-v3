@@ -24,3 +24,5 @@ export * from "./PolicyService";
 export * from "./CrosschainPayloadService";
 export * from "./CrosschainMessageService";
 export * from "./AdapterService";
+export * from "./AccountService";
+export * from "./TokenInstancePositionService";

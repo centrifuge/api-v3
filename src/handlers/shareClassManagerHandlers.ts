@@ -10,10 +10,12 @@ import {
   EpochOutstandingInvestService,
   AssetService,
   PoolService,
+  AccountService,
 } from "../services";
 import { snapshotter } from "../helpers/snapshotter";
 import { TokenSnapshot } from "ponder:schema";
 import { EpochOutstandingRedeemService } from "../services/EpochOutstandingRedeemService";
+import { getAddress } from "viem";
 
 // SHARE CLASS LIFECYCLE
 ponder.on(
@@ -93,16 +95,26 @@ ponder.on(
   "ShareClassManager:UpdateDepositRequest",
   async ({ event, context }) => {
     logEvent(event, context, "ShareClassManager:UpdateDepositRequest");
+    const chainId = context.chain.id;
+    if (typeof chainId !== "number") throw new Error("Chain ID is required");
+    
     const {
       poolId,
       scId: tokenId,
       //epoch: _epochIndex,
-      investor: investorAddress,
+      investor,
       depositAssetId,
       queuedUserAssetAmount,
       pendingTotalAssetAmount,
       pendingUserAssetAmount,
     } = event.args;
+
+    const investorAccount = await AccountService.getOrInit(context, {
+      address: getAddress(investor.substring(0, 42)),
+      createdAt: new Date(Number(event.block.timestamp) * 1000),
+      createdAtBlock: Number(event.block.number),
+    }) as AccountService;
+    const { address: investorAddress } = investorAccount.read();
 
     const outstandingInvest = (await OutstandingInvestService.getOrInit(
       context,
@@ -110,13 +122,13 @@ ponder.on(
         poolId,
         tokenId,
         assetId: depositAssetId,
-        account: investorAddress.substring(0, 42) as `0x${string}`,
+        account: investorAddress,
       }
     )) as OutstandingInvestService;
     await outstandingInvest
       .decorateOutstandingOrder(event)
       .processHubDepositRequest(queuedUserAssetAmount, pendingUserAssetAmount)
-      .save();
+      .saveOrClear();
 
     const epochOutstandingInvest =
       (await EpochOutstandingInvestService.getOrInit(context, {
@@ -136,26 +148,37 @@ ponder.on(
   "ShareClassManager:UpdateRedeemRequest",
   async ({ event, context }) => {
     logEvent(event, context, "ShareClassManager:UpdateRedeemRequest");
+    const chainId = context.chain.id;
+    if (typeof chainId !== "number") throw new Error("Chain ID is required");
     const {
       poolId,
       scId: tokenId,
       //epoch: epochIndex,
-      investor: investorAddress,
+      investor,
       payoutAssetId,
       pendingUserShareAmount,
       pendingTotalShareAmount,
       queuedUserShareAmount,
     } = event.args;
+
+
+    const investorAccount = await AccountService.getOrInit(context, {
+      address: getAddress(investor.substring(0, 42)),
+      createdAt: new Date(Number(event.block.timestamp) * 1000),
+      createdAtBlock: Number(event.block.number),
+    }) as AccountService;
+    const { address: investorAddress } = investorAccount.read();
+
     const oo = (await OutstandingRedeemService.getOrInit(context, {
       poolId,
       tokenId,
       assetId: payoutAssetId,
-      account: investorAddress.substring(0, 42) as `0x${string}`,
+      account: investorAddress,
     })) as OutstandingRedeemService;
     await oo
       .decorateOutstandingOrder(event)
       .processHubRedeemRequest(queuedUserShareAmount, pendingUserShareAmount)
-      .save();
+      .saveOrClear();
 
     const epochOutstandingRedeem =
       (await EpochOutstandingRedeemService.getOrInit(context, {
@@ -430,11 +453,13 @@ ponder.on(
 
 ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
   logEvent(event, context, "ShareClassManager:ClaimDeposit");
+  const chainId = context.chain.id;
+  if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const {
     //poolId,
     scId: tokenId,
     epoch: epochIndex,
-    investor: investorAccount,
+    investor,
     depositAssetId: assetId,
     //paymentAssetAmount,
     //pendingAssetAmount,
@@ -442,18 +467,22 @@ ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
     //issuedAt,
   } = event.args;
 
+  const investorAccount = await AccountService.getOrInit(context, {
+    address: getAddress(investor.substring(0, 42)),
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
+  }) as AccountService;
+  const { address: investorAddress } = investorAccount.read();
+
   const investOrder = (await InvestOrderService.get(context, {
     tokenId,
     assetId,
-    account: investorAccount.substring(0, 42) as `0x${string}`,
+    account: investorAddress,
     index: epochIndex,
   })) as InvestOrderService;
   if (!investOrder) {
     console.log(
-      `Invest order not found for token ${tokenId} asset ${assetId} account ${investorAccount.substring(
-        0,
-        42
-      )} index ${epochIndex}`
+      `Invest order not found for token ${tokenId} asset ${assetId} account ${investorAddress} index ${epochIndex}`
     );
     return;
   }
@@ -466,7 +495,7 @@ ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
     //poolId,
     scId: tokenId,
     epoch: epochIndex,
-    investor: investorAccount,
+    investor,
     payoutAssetId: assetId,
     //paymentShareAmount,
     //pendingShareAmount,
@@ -474,18 +503,22 @@ ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
     //revokedAt,
   } = event.args;
 
+  const investorAccount = await AccountService.getOrInit(context, {
+    address: getAddress(investor.substring(0, 42)),
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
+  }) as AccountService;
+  const { address: investorAddress } = investorAccount.read();
+
   const redeemOrder = (await RedeemOrderService.get(context, {
     tokenId,
     assetId,
-    account: investorAccount.substring(0, 42) as `0x${string}`,
+    account: investorAddress,
     index: epochIndex,
   })) as RedeemOrderService;
   if (!redeemOrder) {
     console.log(
-      `Redeem order not found for token ${tokenId} asset ${assetId} account ${investorAccount.substring(
-        0,
-        42
-      )} index ${epochIndex}`
+      `Redeem order not found for token ${tokenId} asset ${assetId} account ${investorAddress} index ${epochIndex}`
     );
     return;
   }

@@ -26,6 +26,8 @@ import { MerkleProofManagerFactoryAbi } from "./abis/MerkleProofManagerFactoryAb
 import { MerkleProofManagerAbi } from "./abis/MerkleProofManagerAbi";
 import { GatewayAbi } from "./abis/GatewayAbi";
 import { MultiAdapterAbi } from "./abis/MultiAdapterAbi";
+import { Erc20Abi } from "./abis/Erc20Abi";
+import { HubAbi } from "./abis/HubAbi";
 
 export const selectedNetworks = process.env.SELECTED_NETWORKS!.split(",");
 export const currentChains = _chains.filter((chain) =>
@@ -138,6 +140,20 @@ const config = {
     MultiAdapter: {
       abi: MultiAdapterAbi,
       chain: getContractChain("multiAdapter"),
+    },
+    TokenInstance: {
+      abi: Erc20Abi,
+      chain: getContractChain("spoke", {
+        event: getAbiItem({
+          abi: SpokeAbi,
+          name: "AddShareClass",
+        }),
+        parameter: "token",
+      }),
+    },
+    Hub: {
+      abi: HubAbi,
+      chain: getContractChain("hub"),
     },
   },
 } as const;
