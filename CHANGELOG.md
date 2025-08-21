@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.2](https://github.com/centrifuge/api-v3/compare/v1.1.1...v1.1.2) (2025-08-21)
+
+
+### Bug Fixes
+
+* investor addresses in orders and transactions ([3ba86f3](https://github.com/centrifuge/api-v3/commit/3ba86f329c9f292fa136909f2c995046272fe01a))
+* prevent approval of 0n amounts ([324ec49](https://github.com/centrifuge/api-v3/commit/324ec499b776e0ea8c43d4547faaf1681b3530a5))
+
 ## [1.1.1](https://github.com/centrifuge/api-v3/compare/v1.1.0...v1.1.1) (2025-08-18)
 
 
