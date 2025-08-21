@@ -128,7 +128,7 @@ ponder.on(
     await outstandingInvest
       .decorateOutstandingOrder(event)
       .processHubDepositRequest(queuedUserAssetAmount, pendingUserAssetAmount)
-      .save();
+      .saveOrClear();
 
     const epochOutstandingInvest =
       (await EpochOutstandingInvestService.getOrInit(context, {
@@ -178,7 +178,7 @@ ponder.on(
     await oo
       .decorateOutstandingOrder(event)
       .processHubRedeemRequest(queuedUserShareAmount, pendingUserShareAmount)
-      .save();
+      .saveOrClear();
 
     const epochOutstandingRedeem =
       (await EpochOutstandingRedeemService.getOrInit(context, {

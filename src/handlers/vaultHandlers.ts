@@ -69,7 +69,7 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
 
   await OutstandingInvest.decorateOutstandingOrder(event)
     .updateDepositAmount(assets)
-    .save();
+    .saveOrClear();
 });
 
 ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
@@ -127,7 +127,7 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
 
   await OutstandingRedeem.decorateOutstandingOrder(event)
     .updateDepositAmount(shares)
-    .save();
+    .saveOrClear();
 });
 
 ponder.on("Vault:DepositClaimable", async ({ event, context }) => {

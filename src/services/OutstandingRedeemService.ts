@@ -22,7 +22,9 @@ export class OutstandingRedeemService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public decorateOutstandingOrder(event: Event) {
-    console.log(`Decorating OutstandingRedeem pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account}`)
+    console.log(
+      `Decorating OutstandingRedeem pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account}`
+    );
     this.data.updatedAt = new Date(Number(event.block.timestamp) * 1000);
     this.data.updatedAtBlock = Number(event.block.number);
     return this;
@@ -56,7 +58,9 @@ export class OutstandingRedeemService extends mixinCommonStatics(
     queuedUserShareAmount: bigint,
     pendingUserShareAmount: bigint
   ) {
-    console.log(`Processing hub redeem request for pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account}`)
+    console.log(
+      `Processing hub redeem request for pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account}`
+    );
     this.data.queuedAmount = queuedUserShareAmount;
     this.data.pendingAmount = pendingUserShareAmount;
     return this;
@@ -71,8 +75,10 @@ export class OutstandingRedeemService extends mixinCommonStatics(
    * @param event - The event that triggered the approval
    * @returns The service instance for method chaining
    */
-  public approveRedeem(approvedUserShareAmount: bigint, block: Event['block']) {
-    console.log(`Approving redeem for pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account}`)
+  public approveRedeem(approvedUserShareAmount: bigint, block: Event["block"]) {
+    console.log(
+      `Approving redeem for pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account}`
+    );
     this.data.approvedAmount = approvedUserShareAmount;
     this.data.approvedAt = new Date(Number(block.timestamp) * 1000);
     this.data.approvedAtBlock = Number(block.number);
@@ -91,7 +97,18 @@ export class OutstandingRedeemService extends mixinCommonStatics(
     this.data.approvedAmount = 0n;
     this.data.approvedAt = null;
     this.data.approvedAtBlock = null;
-    if (this.data.queuedAmount! + this.data.pendingAmount! === 0n)  return this.delete();
+    if (this.data.queuedAmount! + this.data.pendingAmount! === 0n)
+      return this.delete();
+    return this.save();
+  }
+
+  public saveOrClear() {
+    if (
+      this.data.approvedAmount === 0n &&
+      this.data.queuedAmount === 0n &&
+      this.data.pendingAmount! === 0n
+    )
+      return this.delete();
     return this.save();
   }
 }
