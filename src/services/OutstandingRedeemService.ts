@@ -102,6 +102,14 @@ export class OutstandingRedeemService extends mixinCommonStatics(
     return this.save();
   }
 
+  /**
+   * Saves or clears the outstanding redeem order.
+   *
+   * This method checks if the approved amount is 0, the queued amount is 0, and the pending amount is 0.
+   * If all conditions are met, it deletes the order. Otherwise, it saves the order.
+   *
+   * @returns The service instance for method chaining
+   */
   public saveOrClear() {
     if (
       this.data.approvedAmount === 0n &&

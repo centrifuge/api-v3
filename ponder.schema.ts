@@ -1100,16 +1100,48 @@ export const HoldingSnapshot = onchainTable(
 
 const AccountColumns = (t: PgColumnsBuilders) => ({
   address: t.hex().notNull(),
-  //centrifugeId: t.text().notNull(),
   createdAt: t.timestamp().notNull(),
   createdAtBlock: t.integer().notNull(),
 });
 export const Account = onchainTable("account", AccountColumns, (t) => ({
   id: primaryKey({ columns: [t.address] }),
-  //centrifugeIdIdx: index().on(t.centrifugeId),
   addressIdx: index().on(t.address),
 }));
 export const AccountRelations = relations(Account, ({}) => ({}));
+
+const TokenInstancePositionColumns = (t: PgColumnsBuilders) => ({
+  tokenId: t.text().notNull(),
+  centrifugeId: t.text().notNull(),
+  accountAddress: t.hex().notNull(),
+  balance: t.bigint().notNull().default(0n),
+  isFrozen: t.boolean().notNull().default(false),
+  createdAt: t.timestamp().notNull(),
+  createdAtBlock: t.integer().notNull(),
+  updatedAt: t.timestamp().notNull(),
+  updatedAtBlock: t.integer().notNull(),
+});
+
+export const TokenInstancePosition = onchainTable(
+  "token_instance_position",
+  TokenInstancePositionColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.tokenId, t.centrifugeId, t.accountAddress] }),
+    tokenIdx: index().on(t.tokenId),
+    centrifugeIdIdx: index().on(t.centrifugeId),
+    accountIdx: index().on(t.accountAddress),
+  })
+);
+
+export const TokenInstancePositionRelations = relations(TokenInstancePosition, ({ one }) => ({
+  tokenInstance: one(TokenInstance, {
+    fields: [TokenInstancePosition.tokenId, TokenInstancePosition.centrifugeId],
+    references: [TokenInstance.tokenId, TokenInstance.centrifugeId],
+  }),
+  account: one(Account, {
+    fields: [TokenInstancePosition.accountAddress],
+    references: [Account.address],
+  }),
+}));
 
 /**
  * Creates a snapshot schema by selecting specific columns from a base table schema
