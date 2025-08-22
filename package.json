@@ -1,10 +1,10 @@
 {
-  "name": "cfg-ponder-test",
+  "name": "cfg-abi-v3",
   "version": "1.1.2",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "ponder dev",
+    "dev": "ponder dev --port 8000 --disable-ui",
     "start": "ponder start",
     "db": "ponder db",
     "codegen": "ponder codegen",
