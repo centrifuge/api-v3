@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/centrifuge/api-v3/compare/v1.1.2...v1.2.0) (2025-08-25)
+
+
+### Features
+
+* trackk minting and burning of tokenInstances ([4bea74b](https://github.com/centrifuge/api-v3/commit/4bea74b697594c514248f1cfbf080093f95b0aea))
+
+
+### Bug Fixes
+
+* tokensnInstanceSnapshot totalIssuance ([#104](https://github.com/centrifuge/api-v3/issues/104)) ([3a155a0](https://github.com/centrifuge/api-v3/commit/3a155a036ec5a2a0bdad2be166171483c0eb08c3))
+
 ## [1.1.2](https://github.com/centrifuge/api-v3/compare/v1.1.1...v1.1.2) (2025-08-21)
 
 
