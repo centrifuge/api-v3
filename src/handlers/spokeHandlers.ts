@@ -8,6 +8,7 @@ import {
   TokenInstanceService,
   HoldingEscrowService,
 } from "../services";
+import { Erc20Abi } from "../../abis/Erc20Abi";
 
 ponder.on("Spoke:DeployVault", async ({ event, context }) => {
   logEvent(event, context, "Spoke:DeployVault");
@@ -98,11 +99,19 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
+  const totalSupply = await context.client.readContract({
+    abi: Erc20Abi,
+    address: tokenAddress,
+    functionName: "totalSupply",
+    args: [],
+  });
+
   const _tokenInstance = (await TokenInstanceService.getOrInit(context, {
     address: tokenAddress,
     tokenId,
     centrifugeId,
     isActive: true,
+    totalIssuance: totalSupply,
   })) as TokenInstanceService;
 });
 
