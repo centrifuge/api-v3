@@ -29,6 +29,7 @@ ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
   }
   const { tokenId } = tokenInstance.read();
 
+
   const isFromNull = BigInt(from) === 0n
   const isToNull = BigInt(to) === 0n
 
@@ -70,5 +71,15 @@ ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
     }) as TokenInstancePositionService;
     toPosition.addBalance(amount)
     await toPosition.save()
+  }
+
+  if (isFromNull){
+    tokenInstance.increaseTotalIssuance(amount)
+    await tokenInstance.save()
+  }
+
+  if (isToNull){
+    tokenInstance.decreaseTotalIssuance(amount)
+    await tokenInstance.save()
   }
 });
