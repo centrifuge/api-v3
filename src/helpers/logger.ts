@@ -48,7 +48,7 @@ export function logEvent(event: Event, context: Context, name?: string) {
         []
       )
     : ["undefined"];
-  logger.info(
+  console.log(
     `Received event ${name} on block ${block.number} with chainId ${
       chain.id
     }, timestamp ${date.toISOString()}, args: ${eventDetails.join(

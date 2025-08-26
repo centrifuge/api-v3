@@ -42,9 +42,9 @@ export class TokenInstanceService extends mixinCommonStatics(Service<typeof Toke
    * @throws {Error} When total issuance is not set (null)
    */
   public increaseTotalIssuance(tokenAmount: bigint) {
-    console.log(`Increasing token total issuance for token ${this.data.centrifugeId}-${this.data.tokenId}`, tokenAmount);
     if(this.data.totalIssuance === null) throw new Error(`Total issuance for token ${this.data.centrifugeId}-${this.data.tokenId} is not set`);
     this.data.totalIssuance += tokenAmount;
+    console.log(`Increased totalIssuance for token ${this.data.centrifugeId}-${this.data.tokenId} by ${tokenAmount} to ${this.data.totalIssuance}`);
     return this;
   }
 
@@ -56,9 +56,9 @@ export class TokenInstanceService extends mixinCommonStatics(Service<typeof Toke
    * @throws {Error} When total issuance is not set (null)
    */
   public decreaseTotalIssuance(tokenAmount: bigint) {
-    console.log(`Decreasing token total issuance for token ${this.data.centrifugeId}-${this.data.tokenId}`, tokenAmount);
     if(this.data.totalIssuance === null) throw new Error(`Total issuance for token ${this.data.centrifugeId}-${this.data.tokenId} is not set`);
     this.data.totalIssuance -= tokenAmount;
+    console.log(`Decreased totalIssuance for token ${this.data.centrifugeId}-${this.data.tokenId} by ${tokenAmount} to ${this.data.totalIssuance}`);
     return this;
   }
 

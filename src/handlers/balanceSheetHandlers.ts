@@ -1,62 +1,7 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
-import { AccountService, AssetService, BlockchainService, EscrowService, HoldingEscrowService, PoolManagerService, TokenInstanceService } from "../services";
+import { AccountService, AssetService, BlockchainService, EscrowService, HoldingEscrowService, PoolManagerService } from "../services";
 import { getAddress } from "viem";
-
-ponder.on("BalanceSheet:Issue", async ({ event, context }) => {
-  logEvent(event, context, "BalanceSheet:Issue");
-  const _chainId = context.chain.id as number
-  const chainId = _chainId.toString();
-  const {
-    poolId: _poolId,
-    scId: tokenId,
-    to: _receiver,
-    //pricePerShare,
-    shares,
-  } = event.args;
-
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
-
-  const tokenInstance = (await TokenInstanceService.get(context, {
-    tokenId,
-    centrifugeId,
-  })) as TokenInstanceService;
-  if (!tokenInstance) throw new Error("TokenInstance not found for share class");
-  
-  await tokenInstance.increaseTotalIssuance(shares);
-  await tokenInstance.save();
-});
-
-ponder.on("BalanceSheet:Revoke", async ({ event, context }) => {
-  logEvent(event, context, "BalanceSheet:Revoke");
-  const _chainId = context.chain.id as number
-  const chainId = _chainId.toString();
-  const {
-    poolId: _poolId,
-    scId: tokenId,
-    from: _sender,
-    shares,
-  } = event.args;
-
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read(); 
-
-  const tokenInstance = (await TokenInstanceService.get(context, {
-    tokenId,
-    centrifugeId,
-  })) as TokenInstanceService;
-  if (!tokenInstance) throw new Error("TokenInstance not found for share class");
-
-  await tokenInstance.decreaseTotalIssuance(shares);
-  await tokenInstance.save();
-});
 
 ponder.on("BalanceSheet:NoteDeposit", async ({ event, context }) => {
   logEvent(event, context, "BalanceSheet:NoteDeposit");

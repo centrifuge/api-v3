@@ -106,6 +106,8 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
     args: [],
   });
 
+  console.log(`Initial totalIssuance for token ${tokenId} is ${totalSupply}`);
+
   const _tokenInstance = (await TokenInstanceService.getOrInit(context, {
     address: tokenAddress,
     tokenId,

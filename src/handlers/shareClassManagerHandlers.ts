@@ -403,54 +403,6 @@ ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
   );
 });
 
-ponder.on("ShareClassManager:RemoteIssueShares", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:RemoteIssueShares");
-  const {
-    //poolId,
-    scId: tokenId,
-    issuedShareAmount,
-  } = event.args;
-  const token = (await TokenService.get(context, {
-    id: tokenId,
-  })) as TokenService;
-  if (!token) throw new Error(`Token not found for id ${tokenId}`);
-  await token.increaseTotalSupply(issuedShareAmount);
-  await token.save();
-  await snapshotter(
-    context,
-    event,
-    "ShareClassManager:RemoteIssueShares",
-    [token],
-    TokenSnapshot
-  );
-});
-
-ponder.on(
-  "ShareClassManager:RemoteRevokeShares",
-  async ({ event, context }) => {
-    logEvent(event, context, "ShareClassManager:RemoteRevokeShares");
-    const {
-      //centrifugeId,
-      //poolId,
-      scId: tokenId,
-      revokedShareAmount,
-    } = event.args;
-    const token = (await TokenService.get(context, {
-      id: tokenId,
-    })) as TokenService;
-    if (!token) throw new Error(`Token not found for id ${tokenId}`);
-    await token.decreaseTotalSupply(revokedShareAmount);
-    await token.save();
-    await snapshotter(
-      context,
-      event,
-      "ShareClassManager:RemoteRevokeShares",
-      [token],
-      TokenSnapshot
-    );
-  }
-);
-
 ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
   logEvent(event, context, "ShareClassManager:ClaimDeposit");
   const chainId = context.chain.id;
