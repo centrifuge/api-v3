@@ -124,7 +124,7 @@ const TokenColumns = (t: PgColumnsBuilders) => ({
   index: t.integer(),
   isActive: t.boolean().notNull().default(false),
   centrifugeId: t.text(),
-  poolId: t.bigint().notNull(),
+  poolId: t.bigint(),
   // Metadata fields
   name: t.text(),
   symbol: t.text(),

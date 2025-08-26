@@ -72,30 +72,30 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
   }
 
   /**
-   * Increases the total supply of tokens by the specified amount.
+   * Increases the totalIssuance of tokens by the specified amount.
    * 
-   * @param {bigint} tokenAmount - The amount of tokens to add to the total supply
+   * @param {bigint} tokenAmount - The amount of tokens to add to the totalIssuance
    * @returns {TokenService} The current TokenService instance for method chaining
    * @throws {Error} When totalIssuance is null (not initialized)
    */
-  public increaseTotalSupply(tokenAmount: bigint) {
-    console.info(`Increasing total supply for shareClass ${this.data.id} by ${tokenAmount}`);
-    if(this.data.totalIssuance === null) throw new Error(`Total supply for shareClass ${this.data.id} is not set`);
+  public increaseTotalIssuance(tokenAmount: bigint) {
+    if(this.data.totalIssuance === null) throw new Error(`totalIssuance for token ${this.data.id} is not set`);
     this.data.totalIssuance += tokenAmount;
+    console.info(`Increased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`);
     return this;
   }
 
   /**
-   * Decreases the total supply of tokens by the specified amount.
+   * Decreases the totalIssuance of tokens by the specified amount.
    * 
-   * @param {bigint} tokenAmount - The amount of tokens to subtract from the total supply
+   * @param {bigint} tokenAmount - The amount of tokens to subtract from the totalIssuance
    * @returns {TokenService} The current TokenService instance for method chaining
    * @throws {Error} When totalIssuance is null (not initialized)
    */
-  public decreaseTotalSupply(tokenAmount: bigint) {
-    console.info(`Decreasing total supply for shareClass ${this.data.id} by ${tokenAmount}`);
-    if(this.data.totalIssuance === null) throw new Error(`Total supply for shareClass ${this.data.id} is not set`);
+  public decreaseTotalIssuance(tokenAmount: bigint) {
+    if(this.data.totalIssuance === null) throw new Error(`totalIssuance for token ${this.data.id} is not set`);
     this.data.totalIssuance -= tokenAmount;
+    console.info(`Decreased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`);
     return this;
   }
 }

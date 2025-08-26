@@ -7,6 +7,7 @@ import {
   VaultService,
   TokenInstanceService,
   HoldingEscrowService,
+  TokenService,
 } from "../services";
 import { Erc20Abi } from "../../abis/Erc20Abi";
 
@@ -115,6 +116,12 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
     isActive: true,
     totalIssuance: totalSupply,
   })) as TokenInstanceService;
+
+  const token = (await TokenService.getOrInit(context, {
+    id: tokenId,
+  })) as TokenService;
+  token.increaseTotalIssuance(totalSupply);
+  await token.save();
 });
 
 ponder.on("Spoke:LinkVault", async ({ event, context }) => {

@@ -32,14 +32,13 @@ ponder.on(
     if (!blockchain) throw new Error("Blockchain not found");
     const { centrifugeId } = blockchain.read();
 
-    const token = (await TokenService.getOrInit(context, {
+    const _token = (await TokenService.upsert(context, {
       id: tokenId,
       poolId,
       centrifugeId,
+      isActive: true,
+      index,
     })) as TokenService;
-    await token.setIndex(index);
-    await token.activate();
-    await token.save();
   }
 );
 
@@ -57,15 +56,16 @@ ponder.on(
     if (!blockchain) throw new Error("Blockchain not found");
     const { centrifugeId } = blockchain.read();
 
-    const token = (await TokenService.getOrInit(context, {
+    const _token = (await TokenService.upsert(context, {
       id: tokenId,
       poolId,
       centrifugeId,
+      name,
+      symbol,
+      salt,
+      isActive: true,
+      index,
     })) as TokenService;
-    await token.setIndex(index);
-    await token.setMetadata(name, symbol, salt);
-    await token.activate();
-    await token.save();
   }
 );
 
@@ -97,7 +97,7 @@ ponder.on(
     logEvent(event, context, "ShareClassManager:UpdateDepositRequest");
     const chainId = context.chain.id;
     if (typeof chainId !== "number") throw new Error("Chain ID is required");
-    
+
     const {
       poolId,
       scId: tokenId,
@@ -109,11 +109,11 @@ ponder.on(
       pendingUserAssetAmount,
     } = event.args;
 
-    const investorAccount = await AccountService.getOrInit(context, {
+    const investorAccount = (await AccountService.getOrInit(context, {
       address: getAddress(investor.substring(0, 42)),
       createdAt: new Date(Number(event.block.timestamp) * 1000),
       createdAtBlock: Number(event.block.number),
-    }) as AccountService;
+    })) as AccountService;
     const { address: investorAddress } = investorAccount.read();
 
     const outstandingInvest = (await OutstandingInvestService.getOrInit(
@@ -161,12 +161,11 @@ ponder.on(
       queuedUserShareAmount,
     } = event.args;
 
-
-    const investorAccount = await AccountService.getOrInit(context, {
+    const investorAccount = (await AccountService.getOrInit(context, {
       address: getAddress(investor.substring(0, 42)),
       createdAt: new Date(Number(event.block.timestamp) * 1000),
       createdAtBlock: Number(event.block.number),
-    }) as AccountService;
+    })) as AccountService;
     const { address: investorAddress } = investorAccount.read();
 
     const oo = (await OutstandingRedeemService.getOrInit(context, {
@@ -226,10 +225,7 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
       approvedPercentage,
       assetDecimals
     );
-    oo.approveInvest(
-      approvedUserAssetAmount,
-      event.block
-    );
+    oo.approveInvest(approvedUserAssetAmount, event.block);
     saves.push(oo.save());
   }
   await Promise.all(saves);
@@ -273,10 +269,7 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
       approvedPercentage,
       shareDecimals
     );
-    oo.approveRedeem(
-      approvedUserShareAmount,
-      event.block
-    );
+    oo.approveRedeem(approvedUserShareAmount, event.block);
     saves.push(oo.save());
   }
   await Promise.all(saves);
@@ -305,7 +298,15 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
   const outstandingInvestSaves: Promise<OutstandingInvestService>[] = [];
   const investOrderSaves: Promise<InvestOrderService>[] = [];
   for (const outstandingInvest of outstandingInvests) {
-    const { poolId, tokenId, assetId, account, approvedAmount, approvedAt, approvedAtBlock } = outstandingInvest.read();
+    const {
+      poolId,
+      tokenId,
+      assetId,
+      account,
+      approvedAmount,
+      approvedAt,
+      approvedAtBlock,
+    } = outstandingInvest.read();
     const investOrder = (await InvestOrderService.getOrInit(context, {
       poolId,
       tokenId,
@@ -370,10 +371,10 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
       account: outstandingRedeem.read().account,
     })) as RedeemOrderService;
     redeemOrder.revokeShares(
-        navAssetPerShare,
-        navPoolPerShare,
-        shareDecimals,
-        event.block
+      navAssetPerShare,
+      navPoolPerShare,
+      shareDecimals,
+      event.block
     );
     outstandingRedeemSaves.push(outstandingRedeem.clear());
     redeemOrderSaves.push(redeemOrder.save());
@@ -384,12 +385,23 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
 ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
   logEvent(event, context, "ShareClassManager:UpdateShareClass");
   const {
-    //poolId: poolId,
+    poolId,
     scId: tokenId,
     navPoolPerShare: tokenPrice,
   } = event.args;
-  const token = (await TokenService.get(context, {
+
+  const chainId = context.chain.id;
+  if (typeof chainId !== "number") throw new Error("Chain ID is required");
+  const blockchain = await BlockchainService.get(context, {
+    id: chainId.toString(),
+  });
+  if (!blockchain) throw new Error("Blockchain not found");
+  const { centrifugeId } = blockchain.read();
+
+  const token = (await TokenService.getOrInit(context, {
     id: tokenId,
+    poolId,
+    centrifugeId,
   })) as TokenService;
   if (!token) throw new Error(`Token not found for id ${tokenId}`);
   await token.setTokenPrice(tokenPrice);
@@ -419,11 +431,11 @@ ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
     //issuedAt,
   } = event.args;
 
-  const investorAccount = await AccountService.getOrInit(context, {
+  const investorAccount = (await AccountService.getOrInit(context, {
     address: getAddress(investor.substring(0, 42)),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
-  }) as AccountService;
+  })) as AccountService;
   const { address: investorAddress } = investorAccount.read();
 
   const investOrder = (await InvestOrderService.get(context, {
@@ -455,11 +467,11 @@ ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
     //revokedAt,
   } = event.args;
 
-  const investorAccount = await AccountService.getOrInit(context, {
+  const investorAccount = (await AccountService.getOrInit(context, {
     address: getAddress(investor.substring(0, 42)),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
-  }) as AccountService;
+  })) as AccountService;
   const { address: investorAddress } = investorAccount.read();
 
   const redeemOrder = (await RedeemOrderService.get(context, {
