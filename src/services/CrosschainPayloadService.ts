@@ -60,7 +60,7 @@ export class CrosschainPayloadService extends mixinCommonStatics(
  * const messages = extractMessagesFromPayload(payload)
  * // Returns: ['0x21...', '0x33...'] // Individual message bytes
  */
-export function excractMessagesFromPayload(payload: `0x${string}`) {
+export function extractMessagesFromPayload(payload: `0x${string}`) {
   const payloadBuffer = Buffer.from(payload.substring(2), "hex");
   const messages: `0x${string}`[] = [];
   let offset = 0;

@@ -7,7 +7,7 @@ import {
 } from "../services/CrosschainMessageService";
 import {
   CrosschainPayloadService,
-  excractMessagesFromPayload,
+  extractMessagesFromPayload,
 } from "../services/CrosschainPayloadService";
 import { AdapterService } from "../services/AdapterService";
 import { currentChains } from "../../ponder.config";
@@ -32,7 +32,7 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: fromCentrifugeId } = blockchain.read();
 
-  const messages = excractMessagesFromPayload(payload);
+  const messages = extractMessagesFromPayload(payload);
   const messageIds = messages.map((message) =>
     getMessageId(fromCentrifugeId, toCentrifugeId.toString(), message)
   );
