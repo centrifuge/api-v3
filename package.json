@@ -1,5 +1,5 @@
 {
-  "name": "cfg-abi-v3",
+  "name": "@centrifuge/api-v3",
   "version": "1.1.2",
   "private": true,
   "type": "module",

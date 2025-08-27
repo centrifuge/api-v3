@@ -1,10 +1,10 @@
-# CFG API V3
+# Centrifuge API V3
 
-A blockchain event indexer for the CFG protocol v3 built with [Ponder.sh](https://ponder.sh/).
+A blockchain event indexer for the Centrifuge protocol, built with [Ponder](https://ponder.sh/).
 
 ## Overview
 
-This project indexes EVM events from smart contracts in the CFG protocol, maintaining a structured database of pools, share classes, and investment transactions.
+This project indexes EVM events from smart contracts in the Centrifuge protocol, maintaining a structured database of pools, share classes, and investment transactions.
 
 ## Key Components
 
@@ -122,4 +122,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-TBD
+[MIT](/LICENSE) License
