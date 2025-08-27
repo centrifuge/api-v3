@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.0](https://github.com/centrifuge/api-v3/compare/v1.1.2...v1.2.0) (2025-08-27)
+
+
+### Features
+
+* aggregated totalIssuance on token entity ([d6afe2d](https://github.com/centrifuge/api-v3/commit/d6afe2dd9b55d995d73784455a3b279c0f272276))
+* initialise unprepared messages and batches ([#107](https://github.com/centrifuge/api-v3/issues/107)) ([61731d6](https://github.com/centrifuge/api-v3/commit/61731d6218993bc2442fa164df203f059b6ac252))
+* trackk minting and burning of tokenInstances ([4bea74b](https://github.com/centrifuge/api-v3/commit/4bea74b697594c514248f1cfbf080093f95b0aea))
+
+
+### Bug Fixes
+
+* tokensnInstanceSnapshot totalIssuance ([#104](https://github.com/centrifuge/api-v3/issues/104)) ([3a155a0](https://github.com/centrifuge/api-v3/commit/3a155a036ec5a2a0bdad2be166171483c0eb08c3))
+* totalIssuance only on token transfers ([2607b79](https://github.com/centrifuge/api-v3/commit/2607b79d5d101bd7135352836cb8b0138335c765))
+
 ## [1.1.2](https://github.com/centrifuge/api-v3/compare/v1.1.1...v1.1.2) (2025-08-21)
 
 
