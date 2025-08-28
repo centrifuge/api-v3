@@ -42,8 +42,19 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=main,enable={{is_default_branch}}
+          flavor: |
+            latest=auto
+          labels: |
+            org.opencontainers.image.title={{repo}}
+            org.opencontainers.image.description={{description}}
+            org.opencontainers.image.vendor={{vendor}}
+            org.opencontainers.image.version={{version}}
+            org.opencontainers.image.revision={{sha}}
+            org.opencontainers.image.created={{created}}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
