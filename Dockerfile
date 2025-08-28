@@ -11,9 +11,6 @@ export PATH="/app/node_modules/.bin:$PATH"
 if [ $# -eq 0 ]; then
   # If no arguments given, use default command
   set -- ponder start
-elif [ "$1" = "start" ]; then
-  # Special case for start command
-  set -- ponder start
 elif [ "${1#-}" != "$1" ]; then
   # If first arg starts with '-', prepend default command
   set -- ponder start "$@"
