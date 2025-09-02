@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0](https://github.com/centrifuge/api-v3/compare/v1.2.0...v1.3.0) (2025-09-02)
+
+
+### Features
+
+* add iso currencies and decimals to pools and assets ([#113](https://github.com/centrifuge/api-v3/issues/113)) ([1f01985](https://github.com/centrifuge/api-v3/commit/1f019851d5f0cf57bbb423cb0ee9c4da3d76afe5))
+
+
+### Bug Fixes
+
+* deployments ([#110](https://github.com/centrifuge/api-v3/issues/110)) ([816c084](https://github.com/centrifuge/api-v3/commit/816c084d6ebc7b2541ce3c09d9076ee58bf6f57a))
+
 ## [1.2.0](https://github.com/centrifuge/api-v3/compare/v1.1.2...v1.2.0) (2025-08-27)
 
 

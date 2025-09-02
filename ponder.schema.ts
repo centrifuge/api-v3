@@ -113,6 +113,10 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
     fields: [Pool.centrifugeId],
     references: [Blockchain.centrifugeId],
   }),
+  asset: one(Asset, {
+    fields: [Pool.currency],
+    references: [Asset.id],
+  }),
   tokens: many(Token, { relationName: "tokens" }),
   snapshots: many(PoolSnapshot, { relationName: "snapshots" }),
   managers: many(PoolManager, { relationName: "managers" }),
@@ -532,10 +536,10 @@ export const AssetRegistrationRelations = relations(
 
 const AssetColumns = (t: PgColumnsBuilders) => ({
   id: t.bigint().notNull(),
-  centrifugeId: t.text().notNull(),
-  address: t.hex().notNull(),
+  centrifugeId: t.text(),
+  address: t.hex(),
   assetTokenId: t.bigint(),
-  decimals: t.integer(),
+  decimals: t.integer().notNull(),
   name: t.text(),
   symbol: t.text(),
 });

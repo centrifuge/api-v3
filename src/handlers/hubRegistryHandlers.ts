@@ -4,11 +4,13 @@ import { logEvent } from "../helpers/logger";
 import {
   AccountService,
   AssetRegistrationService,
+  AssetService,
   PoolManagerService,
 } from "../services";
 import { BlockchainService } from "../services/BlockchainService";
 import { fetchFromIpfs } from "../helpers/ipfs";
 import { getAddress } from "viem";
+import { isoCurrencies } from "../helpers/isoCurrencies";
 
 const ipfsHashRegex = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[A-Za-z2-7]{58})$/;
 
@@ -55,7 +57,7 @@ ponder.on("HubRegistry:NewAsset", async ({ event, context }) => {
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is required");
 
-  const { assetId, decimals: _decimals } = event.args;
+  const { assetId, decimals } = event.args;
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
   })) as BlockchainService;
@@ -68,6 +70,17 @@ ponder.on("HubRegistry:NewAsset", async ({ event, context }) => {
     createdAtBlock: Number(event.block.number),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
   })) as AssetRegistrationService;
+
+  const isIsoCurrency = assetId < 1000n;
+  if (isIsoCurrency) {
+    const isoCurrency = isoCurrencies[Number(assetId) as keyof typeof isoCurrencies];
+    const _asset = await AssetService.getOrInit(context, {
+      id: assetId,
+      decimals,
+      symbol: isoCurrency.shortcode,
+      name: isoCurrency.name,
+    }) as AssetService;
+  }
 });
 
 ponder.on("HubRegistry:UpdateManager", async ({ event, context }) => {
