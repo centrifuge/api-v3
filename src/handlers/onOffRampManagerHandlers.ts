@@ -1,23 +1,45 @@
 import { ponder } from "ponder:registry";
-import { AccountService, BlockchainService, OffRampAddressService, OffRampRelayerService } from "../services";
+import {
+  AccountService,
+  BlockchainService,
+  OffRampAddressService,
+  OffRampRelayerService,
+  OnOffRampManagerService,
+} from "../services";
 import { logEvent } from "../helpers/logger";
-import { OnOffRampManagerAbi } from "../../abis/OnOffRampManagerAbi";
 import { OnRampAssetService } from "../services";
 import { getAddress } from "viem";
+
+ponder.on(
+  "OnOffRampManagerFactory:DeployOnOfframpManager",
+  async ({ event, context }) => {
+    logEvent(event, context, "OnOffRampManagerFactory:DeployOnOfframpManager");
+    const { poolId, scId: tokenId, manager } = event.args;
+    const chainId = context.chain.id;
+    if (typeof chainId !== "number")
+      throw new Error("Chain ID is not a number");
+    const blockchain = (await BlockchainService.get(context, {
+      id: chainId.toString(),
+    })) as BlockchainService;
+    if (!blockchain) throw new Error("Blockchain not found");
+    const { centrifugeId } = blockchain.read();
+
+    const _onOffRampManager = (await OnOffRampManagerService.insert(context, {
+      address: manager,
+      centrifugeId,
+      poolId,
+      tokenId,
+    })) as OnOffRampManagerService | null;
+    if (!_onOffRampManager) {
+      console.error("Failed to insert OnOffRampManager");
+    }
+  }
+);
 
 ponder.on("OnOffRampManager:UpdateRelayer", async ({ event, context }) => {
   logEvent(event, context, "OnOffRampManager:UpdateRelayer");
   const { relayer, isEnabled } = event.args;
-  const offRampRelayer = (await OffRampRelayerService.getOrInit(context, {
-    address: relayer,
-  })) as OffRampRelayerService;
-  offRampRelayer.setEnabled(isEnabled);
-  await offRampRelayer.save();
-});
-
-ponder.on("OnOffRampManager:UpdateOnramp", async ({ event, context }) => {
-  logEvent(event, context, "OnOffRampManager:UpdateOnramp");
-  const { asset } = event.args;
+  const manager = getAddress(event.log.address);
 
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is not a number");
@@ -27,99 +49,97 @@ ponder.on("OnOffRampManager:UpdateOnramp", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
+  const onOffRampManager = (await OnOffRampManagerService.get(context, {
+    address: manager,
+    centrifugeId,
+  })) as OnOffRampManagerService;
+  if (!onOffRampManager) {
+    console.error("OnOffRampManager not found");
+    return;
+  }
+  const { poolId, tokenId } = onOffRampManager.read();
 
-  const onOffRampManagerMulticall = {
-    address: event.log.address,
-    abi: OnOffRampManagerAbi,
-  } as const;
 
-  const multicallResult = await context.client.multicall({
-    contracts: [
-      {
-        ...onOffRampManagerMulticall,
-        functionName: "poolId",
-      },
-      {
-        ...onOffRampManagerMulticall,
-        functionName: "scId",
-      },
-    ],
-  });
+  const offRampRelayer = (await OffRampRelayerService.upsert(context, {
+    address: relayer,
+    centrifugeId,
+    tokenId,
+    poolId,
+    isEnabled,
+  })) as OffRampRelayerService | null;
+  if (!offRampRelayer) console.error("Failed to upsert OffRampRelayer");
+});
 
-  for (const result of multicallResult.map((r) => r.status)) {
-    if (result !== "success") throw new Error(`Multicall failed: ${result}`);
+ponder.on("OnOffRampManager:UpdateOnramp", async ({ event, context }) => {
+  logEvent(event, context, "OnOffRampManager:UpdateOnramp");
+  const manager = event.log.address;
+  const { asset, isEnabled } = event.args;
+
+  const chainId = context.chain.id;
+  if (typeof chainId !== "number") throw new Error("Chain ID is not a number");
+  const blockchain = (await BlockchainService.get(context, {
+    id: chainId.toString(),
+  })) as BlockchainService;
+  if (!blockchain) throw new Error("Blockchain not found");
+  const { centrifugeId } = blockchain.read();
+
+  const onOffRampManager = (await OnOffRampManagerService.get(context, {
+    address: manager,
+    centrifugeId,
+  })) as OnOffRampManagerService;
+  if (!onOffRampManager) {
+    console.error("OnOffRampManager not found");
+    return;
   }
 
-  const [poolId, scId] = multicallResult.map((r) => r.result!) as [
-    bigint,
-    `0x${string}`
-  ];
+  const { poolId, tokenId } = onOffRampManager.read();
 
-  const onRampAsset = await OnRampAssetService.getOrInit(context, {
-    assetAddress: asset as `0x${string}`,
+  const onRampAsset = (await OnRampAssetService.upsert(context, {
+    assetAddress: asset,
     poolId,
     centrifugeId,
-    tokenId: scId,
-  });
-  await onRampAsset.save();
+    tokenId,
+    isEnabled,
+  })) as OnRampAssetService | null;
+  if (!onRampAsset) console.error("Failed to upsert OnRampAsset");
 });
 
 ponder.on("OnOffRampManager:UpdateOfframp", async ({ event, context }) => {
   logEvent(event, context, "OnOffRampManager:UpdateOfframp");
   const { asset, receiver } = event.args;
+  const manager = event.log.address;
+  
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is not a number");
-  
   const blockchain = (await BlockchainService.get(context, {
     id: chainId.toString(),
   })) as BlockchainService;
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
-  const onOffRampManagerMulticall = {
-    address: event.log.address,
-    abi: OnOffRampManagerAbi,
-  } as const;
-
-  const multicallResult = await context.client.multicall({
-    contracts: [
-      {
-        ...onOffRampManagerMulticall,
-        functionName: "poolId",
-      },
-      {
-        ...onOffRampManagerMulticall,
-        functionName: "scId",
-      },
-    ],
-  });
-
-  for (const result of multicallResult.map((r) => r.status)) {
-    if (result !== "success") throw new Error(`Multicall failed: ${result}`);
+  const onOffRampManager = (await OnOffRampManagerService.get(context, {
+    address: manager,
+    centrifugeId,
+  })) as OnOffRampManagerService;
+  if (!onOffRampManager) {
+    console.error("OnOffRampManager not found");
+    return;
   }
+  const { poolId, tokenId } = onOffRampManager.read();
 
-  const [poolId, scId] = multicallResult.map((r) => r.result!) as [
-    bigint,
-    `0x${string}`
-  ];
-
-  const receiverAccount = await AccountService.getOrInit(context, {
+  const receiverAccount = (await AccountService.getOrInit(context, {
     address: getAddress(receiver),
     createdAt: new Date(Number(event.block.timestamp) * 1000),
     createdAtBlock: Number(event.block.number),
-  }) as AccountService;
+  })) as AccountService;
   const { address: receiverAddress } = receiverAccount.read();
 
   const offRampAddress = await OffRampAddressService.getOrInit(context, {
     poolId,
     centrifugeId,
-    tokenId: scId,
+    tokenId,
     assetAddress: getAddress(asset),
     receiverAddress,
   });
   await offRampAddress.save();
-});
-
-ponder.on("OnOffRampManagerFactory:DeployOnOfframpManager", async ({ event, context }) => {
-  logEvent(event, context, "OnOffRampManagerFactory:DeployOnOfframpManager");
 });

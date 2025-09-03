@@ -7,13 +7,22 @@ import { OfframpRelayer } from "ponder:schema";
  */
 export class OffRampRelayerService extends mixinCommonStatics(Service<typeof OfframpRelayer>, OfframpRelayer, "OffRampRelayer") {
   /**
-   * Sets the enabled status of the off-ramp relayer.
+   * Enables the off-ramp relayer
    *
-   * @param isEnabled - The new enabled status
    * @returns The service instance for method chaining
    */
-  public setEnabled(isEnabled: boolean) {
-    this.data.isEnabled = isEnabled;
+  public enable() {
+    this.data.isEnabled = true;
+    return this;
+  }
+
+  /**
+   * Disables the off-ramp relayer
+   *
+   * @returns The service instance for method chaining
+   */
+  public disable() {
+    this.data.isEnabled = false;
     return this;
   }
 }

@@ -197,7 +197,10 @@ export function mixinCommonStatics<
           .returning()
       ).pop() ?? null;
       
-      if (!entity) throw new Error(`Failed to upsert ${name}: ${query}`);
+      if (!entity) {
+        console.error(`Failed to upsert ${name}: ${query}`);
+        return null;
+      }
       return new this(table, name, context, entity);
     }
 

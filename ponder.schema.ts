@@ -121,6 +121,7 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
   snapshots: many(PoolSnapshot, { relationName: "snapshots" }),
   managers: many(PoolManager, { relationName: "managers" }),
   policies: many(Policy, { relationName: "policies" }),
+  merkleProofManagers: many(MerkleProofManager, { relationName: "merkleProofManagers" }),
 }));
 
 const TokenColumns = (t: PgColumnsBuilders) => ({
@@ -157,6 +158,7 @@ export const TokenRelations = relations(Token, ({ one, many }) => ({
   OutstandingInvests: many(OutstandingInvest, {
     relationName: "OutstandingInvests",
   }),
+  onOffRampManagers: many(OnOffRampManager, { relationName: "onOffRampManagers" }),
   onRampAssets: many(OnRampAsset, { relationName: "onRampAssets" }),
   offRampAddresses: many(OffRampAddress, { relationName: "offRampAddresses" }),
 }));
@@ -747,7 +749,39 @@ export const PoolManagerRelations = relations(PoolManager, ({ one }) => ({
   }),
 }));
 
+const OnOffRampManagerColumns = (t: PgColumnsBuilders) => ({
+  centrifugeId: t.text().notNull(),
+  address: t.hex().notNull(),
+  poolId: t.bigint().notNull(),
+  tokenId: t.text().notNull(),
+});
+
+export const OnOffRampManager = onchainTable(
+  "on_off_ramp_manager",
+  OnOffRampManagerColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.address, t.centrifugeId] }),
+    tokenIdx: index().on(t.tokenId),
+    poolIdx: index().on(t.poolId),
+    centrifugeIdIdx: index().on(t.centrifugeId),
+  })
+);
+
+export const OnOffRampManagerRelations = relations(OnOffRampManager, ({ one }) => ({
+  pool: one(Pool, {
+    fields: [OnOffRampManager.poolId],
+    references: [Pool.id],
+  }),
+  token: one(Token, {
+    fields: [OnOffRampManager.tokenId],
+    references: [Token.id],
+  }),
+}));
+
 const OfframpRelayerColumns = (t: PgColumnsBuilders) => ({
+  centrifugeId: t.text().notNull(),
+  tokenId: t.text().notNull(),
+  poolId: t.bigint().notNull(),
   address: t.hex().notNull(),
   isEnabled: t.boolean().notNull().default(false),
 });
@@ -756,7 +790,10 @@ export const OfframpRelayer = onchainTable(
   "offramp_relayer",
   OfframpRelayerColumns,
   (t) => ({
-    id: primaryKey({ columns: [t.address] }),
+    id: primaryKey({ columns: [t.tokenId, t.centrifugeId, t.address] }),
+    tokenIdx: index().on(t.tokenId),
+    centrifugeIdIdx: index().on(t.centrifugeId),
+    addressIdx: index().on(t.address),
   })
 );
 
@@ -765,16 +802,17 @@ const OnRampAssetColumns = (t: PgColumnsBuilders) => ({
   tokenId: t.text().notNull(),
   centrifugeId: t.text().notNull(),
   assetAddress: t.hex().notNull(),
+  isEnabled: t.boolean().notNull().default(false),
 });
 
 export const OnRampAsset = onchainTable(
   "on_ramp_asset",
   OnRampAssetColumns,
   (t) => ({
-    id: primaryKey({ columns: [t.tokenId, t.assetAddress] }),
-    poolIdx: index().on(t.poolId),
+    id: primaryKey({ columns: [t.tokenId, t.centrifugeId, t.assetAddress] }),
     tokenIdx: index().on(t.tokenId),
     assetIdx: index().on(t.assetAddress),
+    centrifugeIdIdx: index().on(t.centrifugeId),
   })
 );
 
@@ -1144,6 +1182,25 @@ export const TokenInstancePositionRelations = relations(TokenInstancePosition, (
   account: one(Account, {
     fields: [TokenInstancePosition.accountAddress],
     references: [Account.address],
+  }),
+}));
+
+const MerkleProofManagerColumns = (t: PgColumnsBuilders) => ({
+  address: t.hex().notNull(),
+  centrifugeId: t.text().notNull(),
+  poolId: t.bigint().notNull(),
+});
+export const MerkleProofManager = onchainTable(
+  "merkle_proof_manager",
+  MerkleProofManagerColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.address, t.centrifugeId] }),
+  })
+);
+export const MerkleProofManagerRelations = relations(MerkleProofManager, ({ one }) => ({
+  pool: one(Pool, {
+    fields: [MerkleProofManager.poolId],
+    references: [Pool.id],
   }),
 }));
 

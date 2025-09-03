@@ -123,6 +123,10 @@ const config = {
         parameter: "manager",
       }),
     },
+    MerkleProofManagerFactory: {
+      abi: MerkleProofManagerFactoryAbi,
+      chain: getContractChain("merkleProofManagerFactory"),
+    },
     MerkleProofManager: {
       abi: MerkleProofManagerAbi,
       chain: getContractChain("merkleProofManagerFactory", {
