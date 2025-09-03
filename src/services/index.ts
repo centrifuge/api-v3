@@ -26,3 +26,5 @@ export * from "./CrosschainMessageService";
 export * from "./AdapterService";
 export * from "./AccountService";
 export * from "./TokenInstancePositionService";
+export * from "./OnOffRampManagerService";
+export * from "./MerkleProofManagerService";
