@@ -550,8 +550,8 @@ export const endpoints = {
     `arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
   ],
   43114: [
-    `${process.env.QUICKNODE_API_NAME}.avalanche-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
     `avax-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `${process.env.QUICKNODE_API_NAME}.avalanche-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/ext/bc/C/rpc/`,
   ],
   8453: [
     `${process.env.QUICKNODE_API_NAME}.base-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
