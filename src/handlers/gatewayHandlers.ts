@@ -12,11 +12,13 @@ import {
   getPayloadId,
   extractMessagesFromPayload,
 } from "../services/CrosschainPayloadService";
+import { keccak256 } from "viem";
 
 ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
   logEvent(event, context, "Gateway:PrepareMessage");
   const { centrifugeId: toCentrifugeId, poolId, message } = event.args;
   const messageBuffer = Buffer.from(message.substring(2), "hex");
+  const messageHash = keccak256(messageBuffer);
   const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0));
   const messagePayload = messageBuffer.subarray(1);
 
@@ -38,7 +40,7 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
   });
 
   const rawData = `0x${Buffer.from(
-    messagePayload.toString("hex")
+    messageBuffer.toString("hex")
   )}` as `0x${string}`;
   const data = decodeMessage(messageType, messagePayload);
 
@@ -48,6 +50,7 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
     poolId: poolId || null,
     fromCentrifugeId,
     toCentrifugeId: toCentrifugeId.toString(),
+    messageHash,
     messageType: messageType,
     rawData,
     data: data,
@@ -77,6 +80,7 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
   const messages = extractMessagesFromPayload(batch);
   for (const message of messages) {
     const messageBuffer = Buffer.from(message.substring(2), "hex");
+    const messageHash = keccak256(messageBuffer);
     const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0));
     const messagePayload = messageBuffer.subarray(1);
 
@@ -90,7 +94,7 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
     });
 
     const rawData = `0x${Buffer.from(
-      messagePayload.toString("hex")
+      messageBuffer.toString("hex")
     )}` as `0x${string}`;
     
     const data = decodeMessage(messageType, messagePayload);
@@ -108,6 +112,7 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
       poolId,
       fromCentrifugeId,
       toCentrifugeId: toCentrifugeId.toString(),
+      messageHash,
       messageType: messageType,
       rawData,
       data: data,

@@ -953,6 +953,7 @@ const CrosschainMessageColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint(),
   payloadId: t.hex(),
   messageType: t.text().notNull(),
+  messageHash: t.hex().notNull(),
   status: CrosschainMessageStatus("x_chain_message_status")
     .notNull()
     .default("AwaitingBatchDelivery"),
