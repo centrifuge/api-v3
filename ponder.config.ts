@@ -17,7 +17,7 @@ import { BalanceSheetAbi } from "./abis/BalanceSheetAbi";
 import { AsyncVaultAbi } from "./abis/AsyncVaultAbi";
 import { SyncDepositVaultAbi } from "./abis/SyncDepositVaultAbi";
 
-import { chains as _chains, endpoints, startBlocks } from "./chains";
+import { chains as _chains, endpoints, skipBlocks, startBlocks } from "./chains";
 import { PoolEscrowFactoryAbi } from "./abis/PoolEscrowFactoryAbi";
 import { PoolEscrowAbi } from "./abis/PoolEscrowAbi";
 import { OnOffRampManagerFactoryAbi } from "./abis/OnOffRampManagerFactoryAbi";
@@ -37,10 +37,17 @@ type Networks = (typeof currentChains)[number]["network"]["network"];
 
 const chains = currentChains.reduce<Record<Networks, ChainConfig>>(
   (acc, network) => {
+    const chainEndpoints = endpoints[network.network.chainId];
+    const envRpcEndpoints = process.env[`PONDER_RPC_URL_${network.network.chainId}`]?.split(",");
+    const hasEnvRpcEndpoints = envRpcEndpoints!! && envRpcEndpoints.length > 0;
+    const envWsEndpoint = process.env[`PONDER_WS_URL_${network.network.chainId}`];
+    const hasEnvWsEndpoint = envWsEndpoint!!;
     acc[network.network.network] = {
       id: network.network.chainId,
-      rpc: process.env[`PONDER_RPC_URL_${network.network.chainId}`] ? process.env[`PONDER_RPC_URL_${network.network.chainId}`] : `https://${endpoints[network.network.chainId]}`,
-      ws: process.env[`PONDER_WS_URL_${network.network.chainId}`] ? process.env[`PONDER_WS_URL_${network.network.chainId}`] : `wss://${endpoints[network.network.chainId]}`,
+      rpc: hasEnvRpcEndpoints
+        ? envRpcEndpoints
+        : chainEndpoints.map(endpoint => `https://${endpoint}`),
+      ws: hasEnvWsEndpoint ? envWsEndpoint : `wss://${chainEndpoints[0]}`,
     };
     return acc;
   },
@@ -52,7 +59,7 @@ const blocks = currentChains.reduce<Record<string, BlockConfig>>(
     acc[network.network.network] = {
       chain: network.network.network,
       startBlock: startBlocks[network.network.chainId],
-      interval: 300,
+      interval: skipBlocks[network.network.chainId],
     };
     return acc;
   },

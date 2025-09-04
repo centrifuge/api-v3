@@ -542,14 +542,28 @@ export const chains = [
 ] as const;
 
 export const endpoints = {
-  84532: `base-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-  421614: `arb-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-  11155111: `eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-  42161: `arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-  43114: `avax-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-  8453: `base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-  1: `eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-  98866: `rpc.plume.org`,
+  84532: [`base-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`],
+  421614: [`arb-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`],
+  11155111: [`eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`],
+  42161: [
+    `${process.env.QUICKNODE_API_NAME}.arbitrum-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+  ],
+  43114: [
+    `${process.env.QUICKNODE_API_NAME}.avalanche-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `avax-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+  ],
+  8453: [
+    `${process.env.QUICKNODE_API_NAME}.base-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+  ],
+  1: [
+    `${process.env.QUICKNODE_API_NAME}.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+  ],
+  98866: [
+    `rpc.plume.org/${process.env.CONDUIT_API_KEY}`,
+  ],
 } as const;
 
 export const startBlocks = {
@@ -561,4 +575,15 @@ export const startBlocks = {
   8453: 32901251,
   1: 22924235,
   98866: 564725,
+} as const;
+
+export const skipBlocks = {
+  84532: 1800,
+  421614: 14230,
+  11155111: 300,
+  42161: 14230,
+  43114: 1800,
+  8453: 1800,
+  1: 300,
+  98866: 36,
 } as const;
