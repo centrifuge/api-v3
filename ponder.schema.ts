@@ -375,8 +375,24 @@ export const InvestOrder = onchainTable(
   InvestOrderColumns,
   (t) => ({
     id: primaryKey({ columns: [t.tokenId, t.assetId, t.account, t.index] }),
+    poolIdx: index().on(t.poolId),
+    tokenIdx: index().on(t.tokenId),
+    assetIdx: index().on(t.assetId),
+    accountIdx: index().on(t.account),
   })
 );
+
+export const InvestOrderRelations = relations(InvestOrder, ({ one }) => ({
+  token: one(Token, {
+    fields: [InvestOrder.tokenId],
+    references: [Token.id],
+  }),
+  asset: one(Asset, {
+    fields: [InvestOrder.assetId],
+    references: [Asset.id],
+  }),
+}));
+
 
 const RedeemOrderColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
@@ -408,8 +424,24 @@ export const RedeemOrder = onchainTable(
   RedeemOrderColumns,
   (t) => ({
     id: primaryKey({ columns: [t.tokenId, t.assetId, t.account, t.index] }),
+    poolIdx: index().on(t.poolId),
+    tokenIdx: index().on(t.tokenId),
+    assetIdx: index().on(t.assetId),
+    accountIdx: index().on(t.account),
   })
 );
+
+export const RedeemOrderRelations = relations(RedeemOrder, ({ one }) => ({
+  token: one(Token, {
+    fields: [RedeemOrder.tokenId],
+    references: [Token.id],
+  }),
+  asset: one(Asset, {
+    fields: [RedeemOrder.assetId],
+    references: [Asset.id],
+  }),
+}));
+
 
 const EpochOutstandingInvestColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
@@ -427,8 +459,23 @@ export const EpochOutstandingInvest = onchainTable(
   EpochOutstandingInvestColumns,
   (t) => ({
     id: primaryKey({ columns: [t.tokenId, t.assetId] }),
+    poolIdx: index().on(t.poolId),
+    tokenIdx: index().on(t.tokenId),
+    assetIdx: index().on(t.assetId),
   })
 );
+
+export const EpochOutstandingInvestRelations = relations(EpochOutstandingInvest, ({ one }) => ({
+  token: one(Token, {
+    fields: [EpochOutstandingInvest.tokenId],
+    references: [Token.id],
+  }),
+  asset: one(Asset, {
+    fields: [EpochOutstandingInvest.assetId],
+    references: [Asset.id],
+  }),
+}));
+
 
 const EpochOutstandingRedeemColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
@@ -446,8 +493,23 @@ export const EpochOutstandingRedeem = onchainTable(
   EpochOutstandingRedeemColumns,
   (t) => ({
     id: primaryKey({ columns: [t.tokenId, t.assetId] }),
+    poolIdx: index().on(t.poolId),
+    tokenIdx: index().on(t.tokenId),
+    assetIdx: index().on(t.assetId),
   })
 );
+
+export const EpochOutstandingRedeemRelations = relations(EpochOutstandingRedeem, ({ one }) => ({
+  token: one(Token, {
+    fields: [EpochOutstandingRedeem.tokenId],
+    references: [Token.id],
+  }),
+  asset: one(Asset, {
+    fields: [EpochOutstandingRedeem.assetId],
+    references: [Asset.id],
+  }),
+}));
+
 
 const EpochInvestOrderColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
@@ -475,8 +537,23 @@ export const EpochInvestOrder = onchainTable(
   EpochInvestOrderColumns,
   (t) => ({
     id: primaryKey({ columns: [t.tokenId, t.assetId, t.index] }),
+    poolIdx: index().on(t.poolId),
+    tokenIdx: index().on(t.tokenId),
+    assetIdx: index().on(t.assetId),
   })
 );
+
+export const EpochInvestOrderRelations = relations(EpochInvestOrder, ({ one }) => ({
+  token: one(Token, {
+    fields: [EpochInvestOrder.tokenId],
+    references: [Token.id],
+  }),
+  asset: one(Asset, {
+    fields: [EpochInvestOrder.assetId],
+    references: [Asset.id],
+  }),
+}));
+
 
 const EpochRedeemOrderColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
@@ -487,8 +564,7 @@ const EpochRedeemOrderColumns = (t: PgColumnsBuilders) => ({
   // Approved fields
   approvedAt: t.timestamp(),
   approvedAtBlock: t.integer(),
-  approvedAssetsAmount: t.bigint().default(0n), // asset denomination
-  approvedPoolAmount: t.bigint().default(0n), // pool denomination
+  approvedSharesAmount: t.bigint().default(0n), // asset denomination
   approvedPercentageOfTotalPending: t.bigint().default(0n), // percentage value as fixed point would be best
 
   // Closed fields
@@ -506,8 +582,23 @@ export const EpochRedeemOrder = onchainTable(
   EpochRedeemOrderColumns,
   (t) => ({
     id: primaryKey({ columns: [t.tokenId, t.assetId, t.index] }),
+    poolIdx: index().on(t.poolId),
+    tokenIdx: index().on(t.tokenId),
+    assetIdx: index().on(t.assetId),
   })
 );
+
+export const EpochRedeemOrderRelations = relations(EpochRedeemOrder, ({ one }) => ({
+  token: one(Token, {
+    fields: [EpochRedeemOrder.tokenId],
+    references: [Token.id],
+  }),
+  asset: one(Asset, {
+    fields: [EpochRedeemOrder.assetId],
+    references: [Asset.id],
+  }),
+}));
+
 
 const AssetRegistrationColumns = (t: PgColumnsBuilders) => ({
   assetId: t.bigint().notNull(),
@@ -515,6 +606,7 @@ const AssetRegistrationColumns = (t: PgColumnsBuilders) => ({
   createdAt: t.timestamp(),
   createdAtBlock: t.integer(),
 });
+
 export const AssetRegistration = onchainTable(
   "asset_registration",
   AssetRegistrationColumns,

@@ -169,8 +169,8 @@ packages:
   '@electric-sql/pglite@0.2.13':
     resolution: {integrity: sha512-YRY806NnScVqa21/1L1vaysSQ+0/cAva50z7vlwzaGiBOTS9JhdzIRHN0KfgMhobFAphbznZJ7urMso4RtMBIQ==}
 
-  '@envelop/core@5.3.0':
-    resolution: {integrity: sha512-xvUkOWXI8JsG2OOnqiI2tOkEc52wbmIqWORr7yGc8B8E53Oh1MMGGGck4mbR80s25LnHVzfNIiIlNkuDgZRuuA==}
+  '@envelop/core@5.3.1':
+    resolution: {integrity: sha512-n29V3vRqXvPcG76C8zE482LQykk0P66zv1mjpk7aHeGe9qnh8AzB/RvoX5SVFwApJQPp0ixob8NoYXg4FHKMGA==}
     engines: {node: '>=18.0.0'}
 
   '@envelop/instrumentation@1.0.0':
@@ -2457,7 +2457,7 @@ snapshots:
 
   '@electric-sql/pglite@0.2.13': {}
 
-  '@envelop/core@5.3.0':
+  '@envelop/core@5.3.1':
     dependencies:
       '@envelop/instrumentation': 1.0.0
       '@envelop/types': 5.2.1
@@ -2633,21 +2633,21 @@ snapshots:
     dependencies:
       graphql: 16.11.0
     optionalDependencies:
-      '@envelop/core': 5.3.0
+      '@envelop/core': 5.3.1
       '@escape.tech/graphql-armor-types': 0.7.0
 
   '@escape.tech/graphql-armor-max-depth@2.4.2':
     dependencies:
       graphql: 16.11.0
     optionalDependencies:
-      '@envelop/core': 5.3.0
+      '@envelop/core': 5.3.1
       '@escape.tech/graphql-armor-types': 0.7.0
 
   '@escape.tech/graphql-armor-max-tokens@2.5.1':
     dependencies:
       graphql: 16.11.0
     optionalDependencies:
-      '@envelop/core': 5.3.0
+      '@envelop/core': 5.3.1
       '@escape.tech/graphql-armor-types': 0.7.0
 
   '@escape.tech/graphql-armor-types@0.7.0':
@@ -3591,7 +3591,7 @@ snapshots:
 
   graphql-yoga@5.15.1(graphql@16.11.0):
     dependencies:
-      '@envelop/core': 5.3.0
+      '@envelop/core': 5.3.1
       '@envelop/instrumentation': 1.0.0
       '@graphql-tools/executor': 1.4.9(graphql@16.11.0)
       '@graphql-tools/schema': 10.0.25(graphql@16.11.0)
