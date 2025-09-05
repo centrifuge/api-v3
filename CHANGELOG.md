@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0](https://github.com/centrifuge/api-v3/compare/v1.3.0...v1.4.0) (2025-09-05)
+
+
+### Features
+
+* crosschainMessages include messageHash ([#120](https://github.com/centrifuge/api-v3/issues/120)) ([641c7d8](https://github.com/centrifuge/api-v3/commit/641c7d8d8a366e9691429580c6c28ce9bdbd932a))
+* tracking merkle proof managers and onOfframp managers contracts ([#117](https://github.com/centrifuge/api-v3/issues/117)) ([3440786](https://github.com/centrifuge/api-v3/commit/3440786738fba9cf756338d35788f6f3761745de))
+
 ## [1.3.0](https://github.com/centrifuge/api-v3/compare/v1.2.0...v1.3.0) (2025-09-02)
 
 
