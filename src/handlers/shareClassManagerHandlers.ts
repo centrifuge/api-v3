@@ -7,6 +7,8 @@ import {
   BlockchainService,
   InvestOrderService,
   RedeemOrderService,
+  EpochInvestOrderService,
+  EpochRedeemOrderService,
   EpochOutstandingInvestService,
   AssetService,
   PoolService,
@@ -196,12 +198,12 @@ ponder.on(
 ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
   logEvent(event, context, "ShareClassManager:ApproveDeposits");
   const {
-    //poolId,
+    poolId,
     scId: tokenId,
-    //epoch: epochIndex,
+    epoch: epochIndex,
     depositAssetId,
     approvedAssetAmount,
-    //approvedPoolAmount,
+    approvedPoolAmount,
     pendingAssetAmount,
   } = event.args;
 
@@ -211,6 +213,18 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
     pendingAssetAmount,
     assetDecimals
   );
+
+  const _epochInvestOrder = (await EpochInvestOrderService.insert(context, {
+    poolId,
+    tokenId,
+    assetId: depositAssetId,
+    index: epochIndex,
+    approvedAt: new Date(Number(event.block.timestamp) * 1000),
+    approvedAtBlock: Number(event.block.number),
+    approvedAssetsAmount: approvedAssetAmount,
+    approvedPoolAmount: approvedPoolAmount,
+    approvedPercentageOfTotalPending: approvedPercentage,
+  })) as EpochInvestOrderService | null;
 
   const saves: Promise<InvestOrderService | OutstandingInvestService>[] = [];
   const oos = (await OutstandingInvestService.query(context, {
@@ -236,7 +250,7 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
   const {
     poolId,
     scId: tokenId,
-    //epoch: epochIndex,
+    epoch: epochIndex,
     payoutAssetId,
     approvedShareAmount,
     pendingShareAmount,
@@ -256,6 +270,17 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
     pendingShareAmount,
     shareDecimals
   );
+
+  const _epochRedeemOrder = (await EpochRedeemOrderService.insert(context, {
+    poolId,
+    tokenId,
+    assetId: payoutAssetId,
+    index: epochIndex,
+    approvedAt: new Date(Number(event.block.timestamp) * 1000),
+    approvedAtBlock: Number(event.block.number),
+    approvedSharesAmount: approvedShareAmount,
+    approvedPercentageOfTotalPending: approvedPercentage,
+  })) as EpochRedeemOrderService | null;
 
   const saves: Promise<RedeemOrderService | OutstandingRedeemService>[] = [];
   const oos = (await OutstandingRedeemService.query(context, {
@@ -284,11 +309,27 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
     depositAssetId,
     navAssetPerShare,
     navPoolPerShare,
-    //issuedShareAmount,
+    issuedShareAmount,
   } = event.args;
 
-  const assetDecimals = await getAssetDecimals(context, depositAssetId);
+  const epochInvestOrder = (await EpochInvestOrderService.get(context, {
+    tokenId,
+    assetId: depositAssetId,
+    index: epochIndex,
+  })) as EpochInvestOrderService | null;
+  if (!epochInvestOrder) {
+    console.log(`EpochInvestOrder not found for token ${tokenId} asset ${depositAssetId} index ${epochIndex}`);
+    return;
+  }
+  epochInvestOrder.issuedShares(
+    issuedShareAmount,
+    navPoolPerShare,
+    navAssetPerShare,
+    event.block
+  );
+  await epochInvestOrder.save();
 
+  const assetDecimals = await getAssetDecimals(context, depositAssetId);
   const outstandingInvests = (await OutstandingInvestService.query(context, {
     tokenId,
     assetId: depositAssetId,
@@ -340,9 +381,9 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
     payoutAssetId,
     navAssetPerShare,
     navPoolPerShare,
-    //revokedShareAmount,
-    //revokedAssetAmount,
-    //revokedPoolAmount,
+    revokedShareAmount,
+    revokedAssetAmount,
+    revokedPoolAmount,
   } = event.args;
 
   const pool = (await PoolService.get(context, {
@@ -352,8 +393,19 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
   const { currency } = pool.read();
   if (!currency) throw new Error("Currency is required");
 
-  const shareDecimals = await getAssetDecimals(context, currency);
+  const epochRedeemOrder = (await EpochRedeemOrderService.get(context, {
+    tokenId,
+    assetId: payoutAssetId,
+    index: epochIndex,
+  })) as EpochRedeemOrderService | null;
+  if (!epochRedeemOrder) {
+    console.log(`EpochRedeemOrder not found for token ${tokenId} asset ${payoutAssetId} index ${epochIndex}`);
+    return;
+  }
+  epochRedeemOrder.revokedShares(revokedShareAmount, revokedAssetAmount, revokedPoolAmount, navPoolPerShare, navAssetPerShare, event.block);
+  await epochRedeemOrder.save();
 
+  const shareDecimals = await getAssetDecimals(context, currency);
   const outstandingRedeems = (await OutstandingRedeemService.query(context, {
     tokenId,
     assetId: payoutAssetId,
@@ -384,11 +436,7 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
 
 ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
   logEvent(event, context, "ShareClassManager:UpdateShareClass");
-  const {
-    poolId,
-    scId: tokenId,
-    navPoolPerShare: tokenPrice,
-  } = event.args;
+  const { poolId, scId: tokenId, navPoolPerShare: tokenPrice } = event.args;
 
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is required");

@@ -5,6 +5,8 @@ export * from "./OutstandingInvestService";
 export * from "./OutstandingRedeemService";
 export * from "./InvestOrderService";
 export * from "./RedeemOrderService";
+export * from "./EpochInvestOrderService";
+export * from "./EpochRedeemOrderService";
 export * from "./InvestorTransactionService";
 export * from "./VaultService";
 export * from "./TokenInstanceService";
