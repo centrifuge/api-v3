@@ -5,7 +5,7 @@ on:
     branches:
       - main
   release:
-    types: [published]
+    types: [published, created]  # Add 'created' to trigger on release creation
 
 env:
   REGISTRY: ghcr.io
