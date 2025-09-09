@@ -37,13 +37,15 @@ type Networks = (typeof currentChains)[number]["network"]["network"];
 
 const chains = currentChains.reduce<Record<Networks, ChainConfig>>(
   (acc, network) => {
-    const chainEndpoints = endpoints[network.network.chainId];
-    const envRpcEndpoints = process.env[`PONDER_RPC_URL_${network.network.chainId}`]?.split(",");
+    const chainId = network.network.chainId
+    const networkName = network.network.network
+    const chainEndpoints = endpoints[chainId];
+    const envRpcEndpoints = process.env[`PONDER_RPC_URL_${chainId}`]?.split(",");
     const hasEnvRpcEndpoints = envRpcEndpoints!! && envRpcEndpoints.length > 0;
-    const envWsEndpoint = process.env[`PONDER_WS_URL_${network.network.chainId}`];
+    const envWsEndpoint = process.env[`PONDER_WS_URL_${chainId}`];
     const hasEnvWsEndpoint = envWsEndpoint!!;
-    acc[network.network.network] = {
-      id: network.network.chainId,
+    acc[networkName] = {
+      id: chainId,
       rpc: hasEnvRpcEndpoints
         ? envRpcEndpoints
         : chainEndpoints.map(endpoint => `https://${endpoint}`),
