@@ -30,3 +30,4 @@ export * from "./AccountService";
 export * from "./TokenInstancePositionService";
 export * from "./OnOffRampManagerService";
 export * from "./MerkleProofManagerService";
+export * from "./InvestorWhitelistService";

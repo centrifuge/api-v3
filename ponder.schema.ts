@@ -270,6 +270,40 @@ export const InvestorTransactionRelations = relations(
   })
 );
 
+const InvestorWhitelistColumns = (t: PgColumnsBuilders) => ({
+  poolId: t.bigint().notNull(),
+  tokenId: t.text().notNull(),
+  accountAddress: t.hex().notNull(),
+  chainId: t.text().notNull(),
+  isFrozen: t.boolean().notNull().default(false),
+  validUntil: t.timestamp().notNull(),
+  createdAt: t.timestamp().notNull(),
+  createdAtBlock: t.integer().notNull(),
+  updatedAt: t.timestamp().notNull(),
+  updatedAtBlock: t.integer().notNull(),
+  
+});
+
+export const InvestorWhitelist = onchainTable("investor_whitelist", InvestorWhitelistColumns, (t) => ({
+  id: primaryKey({ columns: [t.tokenId, t.chainId, t.accountAddress] }),
+  poolIdx: index().on(t.poolId),
+  tokenIdx: index().on(t.tokenId),
+  accountAddressIdx: index().on(t.accountAddress),
+  chainIdIdx: index().on(t.chainId),
+}));
+export const InvestorWhitelistRelations = relations(InvestorWhitelist, ({ one }) => ({
+  token: one(Token, {
+    fields: [InvestorWhitelist.tokenId],
+    references: [Token.id],
+  }),
+  account: one(Account, {
+    fields: [InvestorWhitelist.accountAddress],
+    references: [Account.address],
+  }),
+}));
+
+
+
 const OutstandingInvestColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   tokenId: t.text().notNull(),
