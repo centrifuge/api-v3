@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/centrifuge/api-v3/compare/v1.5.0...v1.5.1) (2025-09-10)
+
+
+### Bug Fixes
+
+* validUntil fallback to largest possible ISO date ([c30143c](https://github.com/centrifuge/api-v3/commit/c30143c79d2ff074399f72c102cc982001764894))
+
 ## [1.5.0](https://github.com/centrifuge/api-v3/compare/v1.4.0...v1.5.0) (2025-09-10)
 
 
