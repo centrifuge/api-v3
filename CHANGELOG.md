@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/centrifuge/api-v3/compare/v1.4.0...v1.5.0) (2025-09-10)
+
+
+### Features
+
+* whitelisted investors ([#123](https://github.com/centrifuge/api-v3/issues/123)) ([dc587c2](https://github.com/centrifuge/api-v3/commit/dc587c22ab0aba548349409c671f2e08b92bc5b0))
+
 ## [1.4.0](https://github.com/centrifuge/api-v3/compare/v1.3.0...v1.4.0) (2025-09-05)
 
 
