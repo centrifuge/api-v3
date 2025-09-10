@@ -22,13 +22,7 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
   const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0));
   const messagePayload = messageBuffer.subarray(1);
 
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId: fromCentrifugeId } = blockchain.read();
+  const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const messageId = getMessageId(
     fromCentrifugeId,
@@ -64,13 +58,8 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
 ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
   logEvent(event, context, "Gateway:UnderpaidBatch");
   const { centrifugeId: toCentrifugeId, batch } = event.args;
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId: fromCentrifugeId } = blockchain.read();
+  
+  const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const payloadId = getPayloadId(
     fromCentrifugeId,
@@ -139,13 +128,8 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
 ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
   logEvent(event, context, "Gateway:RepayBatch");
   const { centrifugeId: toCentrifugeId, batch } = event.args;
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId: fromCentrifugeId } = blockchain.read();
+  
+  const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const payloadId = getPayloadId(
     fromCentrifugeId,
@@ -172,13 +156,8 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
   // RECEIVING CHAIN
   logEvent(event, context, "Gateway:ExecuteMessage");
   const { centrifugeId: fromCentrifugeId, message } = event.args;
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId: toCentrifugeId } = blockchain.read();
+  
+  const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const messageId = getMessageId(
     fromCentrifugeId.toString(),
@@ -237,13 +216,8 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
   // RECEIVING CHAIN
   logEvent(event, context, "Gateway:FailMessage");
   const { centrifugeId: fromCentrifugeId, message } = event.args;
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId: toCentrifugeId } = blockchain.read();
+  
+  const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const messageId = getMessageId(
     fromCentrifugeId.toString(),

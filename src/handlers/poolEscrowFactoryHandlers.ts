@@ -7,13 +7,8 @@ import { EscrowService } from "../services/EscrowService";
 
 ponder.on("PoolEscrowFactory:DeployPoolEscrow", async ({ event, context }) => {
   logEvent(event, context, "PoolEscrowFactory:DeployPoolEscrow");
-  const chainId = context.chain.id
-  if (typeof chainId !== 'number') throw new Error('Chain ID is required')
   const { poolId, escrow: escrowAddress } = event.args;
-
-  const blockchain = await BlockchainService.get(context, { id: chainId.toString() }) as BlockchainService
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read()
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const _escrow = (await EscrowService.insert(context, {
     address: escrowAddress,

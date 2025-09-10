@@ -13,8 +13,7 @@ import { Erc20Abi } from "../../abis/Erc20Abi";
 
 ponder.on("Spoke:DeployVault", async ({ event, context }) => {
   logEvent(event, context, "Spoke:DeployVault");
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
+
   const {
     poolId,
     scId: tokenId,
@@ -28,11 +27,7 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
   const vaultKind = VaultKinds[kind];
   if (!vaultKind) throw new Error("Invalid vault kind");
 
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const { client, contracts } = context;
   const manager = await client.readContract({
@@ -61,8 +56,6 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
 ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
   //Fires first to request registration to HUB
   logEvent(event, context, "Spoke:RegisterAsset");
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const {
     assetId,
     asset: assetAddress,
@@ -71,11 +64,8 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
     symbol,
     decimals,
   } = event.args;
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
   const _asset = (await AssetService.upsert(
     context,
     {
@@ -93,20 +83,13 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
 
 ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
   logEvent(event, context, "Spoke:AddShareClass");
-  const _chainId = context.chain.id;
-  if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const {
     poolId,
     scId: tokenId,
     token: tokenAddress,
   } = event.args;
-  const chainId = _chainId.toString();
 
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId,
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const totalSupply = await context.client.readContract({
     abi: Erc20Abi,
@@ -143,8 +126,6 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
 
 ponder.on("Spoke:LinkVault", async ({ event, context }) => {
   logEvent(event, context, "Spoke:LinkVault");
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const {
     //poolId: poolId,
     //scId: tokenId,
@@ -153,11 +134,7 @@ ponder.on("Spoke:LinkVault", async ({ event, context }) => {
     vault: vaultId,
   } = event.args;
 
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const vault = (await VaultService.get(context, {
     id: vaultId,
@@ -170,16 +147,9 @@ ponder.on("Spoke:LinkVault", async ({ event, context }) => {
 
 ponder.on("Spoke:UnlinkVault", async ({ event, context }) => {
   logEvent(event, context, "Spoke:UnlinkVault");
-  const _chainId = context.chain.id;
-  if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const { vault: vaultId } = event.args;
 
-  const chainId = _chainId.toString();
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId,
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const vault = (await VaultService.get(context, {
     id: vaultId,
@@ -192,8 +162,6 @@ ponder.on("Spoke:UnlinkVault", async ({ event, context }) => {
 
 ponder.on("Spoke:UpdateSharePrice", async ({ event, context }) => {
   logEvent(event, context, "Spoke:PriceUpdate");
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const {
     //poolId,
     scId: tokenId,
@@ -203,11 +171,7 @@ ponder.on("Spoke:UpdateSharePrice", async ({ event, context }) => {
   } = event.args;
   const computedAt = new Date(Number(_computedAt.toString()) * 1000);
 
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const tokenInstance = (await TokenInstanceService.get(context, {
     tokenId,
@@ -223,8 +187,7 @@ ponder.on("Spoke:UpdateSharePrice", async ({ event, context }) => {
 
 ponder.on("Spoke:UpdateAssetPrice", async ({ event, context }) => {
   logEvent(event, context, "Spoke:UpdateAssetPrice");
-  const _chainId = context.chain.id;
-  if (typeof _chainId !== "number") throw new Error("Chain ID is required");
+
   const {
     //poolId: poolId,
     //scId: tokenId,
@@ -233,12 +196,8 @@ ponder.on("Spoke:UpdateAssetPrice", async ({ event, context }) => {
     //computedAt,
   } = event.args;
 
-  const chainId = _chainId.toString();
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId,
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const holdingEscrows = (await HoldingEscrowService.query(context, {
     centrifugeId,

@@ -1,10 +1,6 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
-import {
-  BlockchainService,
-  WhitelistedInvestorService,
-  TokenService,
-} from "../services";
+import { WhitelistedInvestorService, TokenService } from "../services";
 import { getAddress } from "viem";
 
 ponder.on("Hub:UpdateRestriction", async ({ event, context }) => {
@@ -14,15 +10,6 @@ ponder.on("Hub:UpdateRestriction", async ({ event, context }) => {
     scId: tokenId,
     payload,
   } = event.args;
-
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
-
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId: _hubCentrifugeId } = blockchain.read();
 
   const token = (await TokenService.get(context, {
     id: tokenId,

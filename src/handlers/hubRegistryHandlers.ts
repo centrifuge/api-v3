@@ -16,14 +16,9 @@ const ipfsHashRegex = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[A-Za-z2-7]{58})$/;
 
 ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
   logEvent(event, context, "HubRegistry:NewPool");
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const { poolId, currency, manager } = event.args;
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const _pool = (await PoolService.insert(
     context,
@@ -62,15 +57,10 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
 ponder.on("HubRegistry:NewAsset", async ({ event, context }) => {
   //Fires Second to complete
   logEvent(event, context, "HubRegistry:NewAsset");
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
 
   const { assetId, decimals } = event.args;
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const _assetRegistration = (await AssetRegistrationService.insert(
     context,
@@ -100,15 +90,8 @@ ponder.on("HubRegistry:NewAsset", async ({ event, context }) => {
 
 ponder.on("HubRegistry:UpdateManager", async ({ event, context }) => {
   logEvent(event, context, "HubRegistry:UpdateManager");
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
 
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
-
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
   const { manager, poolId, canManage } = event.args;
 
   const account = (await AccountService.getOrInit(
@@ -135,16 +118,11 @@ ponder.on("HubRegistry:UpdateManager", async ({ event, context }) => {
 
 ponder.on("HubRegistry:SetMetadata", async ({ event, context }) => {
   logEvent(event, context, "HubRegistry:SetMetadata");
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
+
 
   const { poolId, metadata: rawMetadata } = event.args;
 
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const pool = (await PoolService.getOrInit(
     context,

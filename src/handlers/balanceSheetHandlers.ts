@@ -22,12 +22,7 @@ ponder.on("BalanceSheet:NoteDeposit", async ({ event, context }) => {
     pricePoolPerAsset,
   } = event.args;
 
-  const chainId = _chainId.toString();
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const assetQuery = (await AssetService.query(context, {
     address: assetAddress,
@@ -75,12 +70,7 @@ ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
     pricePoolPerAsset,
   } = event.args;
 
-  const chainId = _chainId.toString();
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const assetQuery = (await AssetService.query(context, {
     address: assetAddress,
@@ -119,14 +109,8 @@ ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
 
 ponder.on("BalanceSheet:UpdateManager", async ({ event, context }) => {
   logEvent(event, context, "BalanceSheet:UpdateManager");
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
-
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const { who: manager, poolId, canManage } = event.args;
 

@@ -15,14 +15,8 @@ ponder.on(
   async ({ event, context }) => {
     logEvent(event, context, "OnOffRampManagerFactory:DeployOnOfframpManager");
     const { poolId, scId: tokenId, manager } = event.args;
-    const chainId = context.chain.id;
-    if (typeof chainId !== "number")
-      throw new Error("Chain ID is not a number");
-    const blockchain = (await BlockchainService.get(context, {
-      id: chainId.toString(),
-    })) as BlockchainService;
-    if (!blockchain) throw new Error("Blockchain not found");
-    const { centrifugeId } = blockchain.read();
+    
+    const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
     const _onOffRampManager = (await OnOffRampManagerService.insert(
       context,
@@ -45,13 +39,7 @@ ponder.on("OnOffRampManager:UpdateRelayer", async ({ event, context }) => {
   const { relayer, isEnabled } = event.args;
   const manager = getAddress(event.log.address);
 
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is not a number");
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const onOffRampManager = (await OnOffRampManagerService.get(context, {
     address: manager,
@@ -82,13 +70,7 @@ ponder.on("OnOffRampManager:UpdateOnramp", async ({ event, context }) => {
   const manager = event.log.address;
   const { asset, isEnabled } = event.args;
 
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is not a number");
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const onOffRampManager = (await OnOffRampManagerService.get(context, {
     address: manager,
@@ -120,13 +102,7 @@ ponder.on("OnOffRampManager:UpdateOfframp", async ({ event, context }) => {
   const { asset, receiver } = event.args;
   const manager = event.log.address;
 
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is not a number");
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const onOffRampManager = (await OnOffRampManagerService.get(context, {
     address: manager,

@@ -12,15 +12,8 @@ import { getAddress } from "viem";
 ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
   logEvent(event, context, "TokenInstance:Transfer");
   const { from, to, value: amount } = event.args;
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
-  const _chainId = chainId.toString();
 
-  const blockchain = (await BlockchainService.get(context, {
-    id: _chainId,
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const tokenInstanceQuery = (await TokenInstanceService.query(context, {
     address: event.log.address,

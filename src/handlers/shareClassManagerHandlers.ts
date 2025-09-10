@@ -24,15 +24,9 @@ ponder.on(
   "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index)",
   async ({ event, context }) => {
     logEvent(event, context, "ShareClassManager:AddShareClassShort");
-    const chainId = context.chain.id;
-    if (typeof chainId !== "number") throw new Error("Chain ID is required");
     const { poolId, scId: tokenId, index } = event.args;
 
-    const blockchain = await BlockchainService.get(context, {
-      id: chainId.toString(),
-    });
-    if (!blockchain) throw new Error("Blockchain not found");
-    const { centrifugeId } = blockchain.read();
+    const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
     const _token = (await TokenService.upsert(
       context,
@@ -52,15 +46,9 @@ ponder.on(
   "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index, string name, string symbol, bytes32 salt)",
   async ({ event, context }) => {
     logEvent(event, context, "ShareClassManager:AddShareClassLong");
-    const chainId = context.chain.id;
-    if (typeof chainId !== "number") throw new Error("Chain ID is required");
     const { poolId, scId: tokenId, index, name, symbol, salt } = event.args;
 
-    const blockchain = await BlockchainService.get(context, {
-      id: chainId.toString(),
-    });
-    if (!blockchain) throw new Error("Blockchain not found");
-    const { centrifugeId } = blockchain.read();
+    const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
     const _token = (await TokenService.upsert(
       context,
@@ -82,15 +70,9 @@ ponder.on(
 // INVESTOR TRANSACTIONS
 ponder.on("ShareClassManager:UpdateMetadata", async ({ event, context }) => {
   logEvent(event, context, "ShareClassManager:UpdatedMetadata");
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const { poolId, scId: tokenId, name, symbol } = event.args;
 
-  const blockchain = await BlockchainService.get(context, {
-    id: chainId.toString(),
-  });
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const token = (await TokenService.getOrInit(
     context,
@@ -494,13 +476,7 @@ ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
   logEvent(event, context, "ShareClassManager:UpdateShareClass");
   const { poolId, scId: tokenId, navPoolPerShare: tokenPrice } = event.args;
 
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
-  const blockchain = await BlockchainService.get(context, {
-    id: chainId.toString(),
-  });
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const token = (await TokenService.getOrInit(
     context,

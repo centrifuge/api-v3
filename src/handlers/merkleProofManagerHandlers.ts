@@ -6,14 +6,7 @@ import { MerkleProofManagerAbi } from "../../abis/MerkleProofManagerAbi";
 ponder.on("MerkleProofManagerFactory:DeployMerkleProofManager", async ({ event, context }) => {
   logEvent(event, context, "MerkleProofManagerFactory:DeployMerkleProofManager");
   const { poolId, manager } = event.args;
-
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is not a number");
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const merkleProofManager = (await MerkleProofManagerService.insert(context, {
     address: manager,
@@ -29,13 +22,7 @@ ponder.on("MerkleProofManager:UpdatePolicy", async ({ event, context }) => {
   logEvent(event, context, "MerkleProofManager:UpdatePolicy");
   const { strategist, newRoot } = event.args;
 
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is not a number");
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const poolId = await context.client.readContract({
     address: event.log.address,
