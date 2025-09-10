@@ -5,7 +5,7 @@ const pinoLogger = pino({
   transport: {
     target: "pino-pretty",
     options: {
-      colorize: true,
+      colorize: false,
        translateTime: "hh:MM:ss TT",
        ignore: 'pid,hostname'
     },

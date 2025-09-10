@@ -1,6 +1,6 @@
 import { Service, mixinCommonStatics } from "./Service";
 import { InvestorTransaction } from "ponder:schema";
-import type { Context } from "ponder:registry";
+import type { Context, Event } from "ponder:registry";
 
 /**
  * Service class for managing investor transaction records in the database.
@@ -29,13 +29,14 @@ export class InvestorTransactionService extends mixinCommonStatics(
    */
   static async updateDepositRequest(
     context: Context,
-    data: Omit<typeof InvestorTransaction.$inferInsert, "type">
+    data: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    block: Event["block"]
   ) {
     console.info(
       "Creating investor transaction of type DEPOSIT_REQUEST_UPDATED with data:",
       data
     );
-    return this.insert(context, { ...data, type: "DEPOSIT_REQUEST_UPDATED" });
+    return this.insert(context, { ...data, type: "DEPOSIT_REQUEST_UPDATED" }, block);
   }
 
   /**
@@ -47,10 +48,11 @@ export class InvestorTransactionService extends mixinCommonStatics(
    */
   static async updateRedeemRequest(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type">
+    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    block: Event["block"]
   ) {
     console.info("Creating redeem request", query);
-    return this.insert(context, { ...query, type: "REDEEM_REQUEST_UPDATED" });
+    return this.insert(context, { ...query, type: "REDEEM_REQUEST_UPDATED" }, block);
   }
 
   /**
@@ -62,13 +64,14 @@ export class InvestorTransactionService extends mixinCommonStatics(
    */
   static async cancelDepositRequest(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type">
+    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    block: Event["block"]
   ) {
     console.info(
       "Creating investor transaction of type DEPOSIT_REQUEST_CANCELLED with data:",
       query
     );
-    return this.insert(context, { ...query, type: "DEPOSIT_REQUEST_CANCELLED" });
+    return this.insert(context, { ...query, type: "DEPOSIT_REQUEST_CANCELLED" }, block);
   }
 
   /**
@@ -80,13 +83,14 @@ export class InvestorTransactionService extends mixinCommonStatics(
    */
   static async cancelRedeemRequest(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type">
+    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    block: Event["block"]
   ) {
     console.info(
       "Creating investor transaction of type REDEEM_REQUEST_CANCELLED with data:",
       query
     );
-    return this.insert(context, { ...query, type: "REDEEM_REQUEST_CANCELLED" });
+    return this.insert(context, { ...query, type: "REDEEM_REQUEST_CANCELLED" }, block);
   }
 
   /**
@@ -98,13 +102,14 @@ export class InvestorTransactionService extends mixinCommonStatics(
    */
   static async executeDepositRequest(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type">
+    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    block: Event["block"]
   ) {
     console.info(
       "Creating investor transaction of type DEPOSIT_REQUEST_EXECUTED with data:",
       query
     );
-    return this.insert(context, { ...query, type: "DEPOSIT_REQUEST_EXECUTED" });
+    return this.insert(context, { ...query, type: "DEPOSIT_REQUEST_EXECUTED" }, block);
   }
 
   /**
@@ -116,13 +121,14 @@ export class InvestorTransactionService extends mixinCommonStatics(
    */
   static async executeRedeemRequest(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type">
+    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    block: Event["block"]
   ) {
     console.info(
       "Creating investor transaction of type REDEEM_REQUEST_EXECUTED with data:",
       query
     );
-    return this.insert(context, { ...query, type: "REDEEM_REQUEST_EXECUTED" });
+    return this.insert(context, { ...query, type: "REDEEM_REQUEST_EXECUTED" }, block);
   }
 
   /**
@@ -134,13 +140,14 @@ export class InvestorTransactionService extends mixinCommonStatics(
    */
   static async claimDeposit(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type">
+    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    block: Event["block"]
   ) {
     console.info(
       "Creating investor transaction of type DEPOSIT_CLAIMED with data:",
       query
     );
-    return this.insert(context, { ...query, type: "DEPOSIT_CLAIMED" });
+    return this.insert(context, { ...query, type: "DEPOSIT_CLAIMED" }, block);
   }
 
   /**
@@ -152,13 +159,14 @@ export class InvestorTransactionService extends mixinCommonStatics(
    */
   static async claimRedeem(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type">
+    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    block: Event["block"]
   ) {
     console.info(
       "Creating investor transaction of type REDEEM_CLAIMED with data:",
       query
     );
-    return this.insert(context, { ...query, type: "REDEEM_CLAIMED" });
+    return this.insert(context, { ...query, type: "REDEEM_CLAIMED" }, block);
   }
 
   /**
@@ -170,13 +178,14 @@ export class InvestorTransactionService extends mixinCommonStatics(
    */
   static async depositClaimable(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type">
+    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    block: Event["block"]
   ) {
     console.info(
       "Creating investor transaction of type DEPOSIT_CLAIMABLE with data:",
       query
     );
-    return this.insert(context, { ...query, type: "DEPOSIT_CLAIMABLE" });
+    return this.insert(context, { ...query, type: "DEPOSIT_CLAIMABLE" }, block);
   }
 
   /**
@@ -188,13 +197,14 @@ export class InvestorTransactionService extends mixinCommonStatics(
    */
   static async redeemClaimable(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type">
+    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    block: Event["block"]
   ) {
     console.info(
       "Creating investor transaction of type REDEEM_CLAIMABLE with data:",
       query
     );
-    return this.insert(context, { ...query, type: "REDEEM_CLAIMABLE" });
+    return this.insert(context, { ...query, type: "REDEEM_CLAIMABLE" }, block);
   }
 
   /**
@@ -206,13 +216,14 @@ export class InvestorTransactionService extends mixinCommonStatics(
    */
   static async syncDeposit(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type">
+    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    block: Event["block"]
   ) {
     console.info(
       "Creating investor transaction of type SYNC_DEPOSIT with data:",
       query
     );
-    return this.insert(context, { ...query, type: "SYNC_DEPOSIT" });
+    return this.insert(context, { ...query, type: "SYNC_DEPOSIT" }, block);
   }
 
   /**
@@ -224,12 +235,13 @@ export class InvestorTransactionService extends mixinCommonStatics(
    */
   static async syncRedeem(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type">
+    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    block: Event["block"]
   ) {
     console.info(
       "Creating investor transaction of type SYNC_REDEEM with data:",
       query
     );
-    return this.insert(context, { ...query, type: "SYNC_REDEEM" });
+    return this.insert(context, { ...query, type: "SYNC_REDEEM" }, block);
   }
 }

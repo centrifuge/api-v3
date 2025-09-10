@@ -9,7 +9,7 @@ import { currentContractNames } from "./ponder.config";
 
 type PgColumnsFunction = Extract<Parameters<typeof onchainTable>[1], Function>;
 type PgColumnsBuilders = Parameters<PgColumnsFunction>[0];
-type PgHexColumn = ReturnType<PgColumnsBuilders["hex"]>;
+type PgColumn<T extends keyof PgColumnsBuilders> = ReturnType<PgColumnsBuilders[T]>;
 
 const BlockchainColumns = (t: PgColumnsBuilders) => ({
   id: t.text().notNull(),
@@ -47,7 +47,7 @@ export const BlockchainRelations = relations(Blockchain, ({ many }) => ({
 
 const currentContractFields = (t: PgColumnsBuilders) => Object.fromEntries(currentContractNames.map((contract) => ([
   contract, t.hex(),
-]))) as Record<typeof currentContractNames[number], PgHexColumn>;
+]))) as Record<typeof currentContractNames[number], PgColumn<"hex">>;
 const DeploymentColumns = (t: PgColumnsBuilders) => ({
   chainId: t.text().notNull(),
   centrifugeId: t.text().notNull(),
@@ -74,11 +74,10 @@ const PoolColumns = (t: PgColumnsBuilders) => ({
   id: t.bigint().notNull(),
   centrifugeId: t.text().notNull(),
   isActive: t.boolean().notNull().default(true),
-  createdAtBlock: t.integer(),
-  createdAt: t.timestamp(),
   currency: t.bigint(),
   metadata: t.text(),
   name: t.text(),
+  ...(defaultColumns(t)),
 });
 export const Pool = onchainTable("pool", PoolColumns, (t) => ({
   id: primaryKey({ columns: [t.id] }),
@@ -212,13 +211,12 @@ const InvestorTransactionColumns = (t: PgColumnsBuilders) => ({
   tokenId: t.text().notNull(),
   type: InvestorTransactionType("investor_transaction_type").notNull(),
   account: t.hex().notNull(),
-  createdAt: t.timestamp().notNull(),
-  createdAtBlock: t.integer().notNull(),
   epochIndex: t.integer(),
   tokenAmount: t.bigint().default(0n),
   currencyAmount: t.bigint().default(0n),
   tokenPrice: t.bigint().default(0n),
   transactionFee: t.bigint().default(0n),
+  ...(defaultColumns(t, false)),
 });
 export const InvestorTransaction = onchainTable(
   "investor_transaction",
@@ -255,10 +253,7 @@ const WhitelistedInvestorColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   isFrozen: t.boolean().notNull().default(false),
   validUntil: t.timestamp(),
-  createdAt: t.timestamp().notNull(),
-  createdAtBlock: t.integer().notNull(),
-  updatedAt: t.timestamp().notNull(),
-  updatedAtBlock: t.integer().notNull(),
+  ...(defaultColumns(t)),
 
 });
 
@@ -615,8 +610,7 @@ export const EpochRedeemOrderRelations = relations(EpochRedeemOrder, ({ one }) =
 const AssetRegistrationColumns = (t: PgColumnsBuilders) => ({
   assetId: t.bigint().notNull(),
   centrifugeId: t.text().notNull(),
-  createdAt: t.timestamp(),
-  createdAtBlock: t.integer(),
+  ...(defaultColumns(t)),
 });
 
 export const AssetRegistration = onchainTable(
@@ -648,6 +642,7 @@ const AssetColumns = (t: PgColumnsBuilders) => ({
   decimals: t.integer().notNull(),
   name: t.text(),
   symbol: t.text(),
+  ...(defaultColumns(t, false)),
 });
 
 export const Asset = onchainTable("asset", AssetColumns, (t) => ({
@@ -673,6 +668,7 @@ export const TokenInstanceColumns = (t: PgColumnsBuilders) => ({
   tokenPrice: t.bigint().default(0n),
   computedAt: t.timestamp(),
   totalIssuance: t.bigint().default(0n),
+  ...(defaultColumns(t)),
 });
 export const TokenInstance = onchainTable(
   "token_instance",
@@ -709,9 +705,7 @@ const HoldingColumns = (t: PgColumnsBuilders) => ({
   // Spoke side amounts and values
   assetQuantity: t.bigint().notNull().default(0n),
   totalValue: t.bigint().notNull().default(0n),
-
-  updatedAt: t.timestamp(),
-  updatedAtBlock: t.integer(),
+  ...(defaultColumns(t, false)),
 });
 
 export const Holding = onchainTable("holding", HoldingColumns, (t) => ({
@@ -1000,10 +994,9 @@ const CrosschainPayloadColumns = (t: PgColumnsBuilders) => ({
   status: CrosschainPayloadStatus("x_chain_payload_status")
     .notNull()
     .default("InProgress"),
-  createdAt: t.timestamp().notNull(),
-  createdAtBlock: t.integer().notNull(),
   deliveredAt: t.timestamp(),
   deliveredAtBlock: t.integer(),
+  ...(defaultColumns(t, false)),
 });
 
 export const CrosschainPayload = onchainTable(
@@ -1065,10 +1058,9 @@ const CrosschainMessageColumns = (t: PgColumnsBuilders) => ({
   data: t.jsonb(),
   fromCentrifugeId: t.text().notNull(),
   toCentrifugeId: t.text().notNull(),
-  createdAt: t.timestamp().notNull(),
-  createdAtBlock: t.integer().notNull(),
   executedAt: t.timestamp(),
   executedAtBlock: t.integer(),
+  ...(defaultColumns(t, false)),
 });
 
 export const CrosschainMessage = onchainTable(
@@ -1115,9 +1107,8 @@ export const CrosschainMessageRelations = relations(
 const AdapterColumns = (t: PgColumnsBuilders) => ({
   address: t.hex().notNull(),
   centrifugeId: t.text().notNull(),
-  createdAt: t.timestamp().notNull(),
-  createdAtBlock: t.integer().notNull(),
   name: t.text(),
+  ...(defaultColumns(t, false)),
 });
 
 export const Adapter = onchainTable("adapter", AdapterColumns, (t) => ({
@@ -1247,8 +1238,7 @@ export const HoldingSnapshot = onchainTable(
 
 const AccountColumns = (t: PgColumnsBuilders) => ({
   address: t.hex().notNull(),
-  createdAt: t.timestamp().notNull(),
-  createdAtBlock: t.integer().notNull(),
+  ...(defaultColumns(t, false)),
 });
 export const Account = onchainTable("account", AccountColumns, (t) => ({
   id: primaryKey({ columns: [t.address] }),
@@ -1262,10 +1252,7 @@ const TokenInstancePositionColumns = (t: PgColumnsBuilders) => ({
   accountAddress: t.hex().notNull(),
   balance: t.bigint().notNull().default(0n),
   isFrozen: t.boolean().notNull().default(false), //TODO: Deprecate this column
-  createdAt: t.timestamp().notNull(),
-  createdAtBlock: t.integer().notNull(),
-  updatedAt: t.timestamp().notNull(),
-  updatedAtBlock: t.integer().notNull(),
+  ...(defaultColumns(t)),
 });
 
 export const TokenInstancePosition = onchainTable(
@@ -1337,4 +1324,27 @@ function snapshotColumns<
     };
     return snapshotColumns;
   };
+}
+
+/**
+ * Creates a default column definition function with createdAt and updatedAt columns
+ * @param t - The PgColumnsBuilders instance
+ * @returns A new column definition function with createdAt and updatedAt columns
+ */
+function defaultColumns(t: PgColumnsBuilders, update = true) {
+  const defauls: DefaultColumns = {
+    createdAt: t.timestamp().notNull(),
+    createdAtBlock: t.integer().notNull(),
+  }
+  if (update) {
+    defauls.updatedAt = t.timestamp().notNull();
+    defauls.updatedAtBlock = t.integer().notNull();
+  }
+  return defauls;
+}
+type DefaultColumns = {
+  createdAt: PgColumn<"timestamp">;
+  createdAtBlock: PgColumn<"integer">;
+  updatedAt?: PgColumn<"timestamp">;
+  updatedAtBlock?: PgColumn<"integer">;
 }

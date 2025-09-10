@@ -59,7 +59,7 @@ export class Timekeeper {
    * @returns Promise that resolves to the current Timekeeper instance for chaining
    * @throws {Error} When chain ID is not a number
    */
-  public async init(context: Context): Promise<Timekeeper> {
+  public async init(context: Context, block: Event["block"]): Promise<Timekeeper> {
     const chainId = context.chain.id;
     console.log("Initializing timekeeper for chainId", chainId);
     if (typeof chainId !== "number") throw new Error("Chain ID is required");
@@ -71,7 +71,7 @@ export class Timekeeper {
       id: chainId.toString(),
       centrifugeId: chain.network.centrifugeId.toString(),
       network: chain.network.network,
-    })) as BlockchainService;
+    }, block)) as BlockchainService;
     const lastPeriodStart = blockchain.read().lastPeriodStart;
     if (!lastPeriodStart) blockchain.setLastPeriodStart(new Date(0));
     this.blockchains[chainId] = blockchain;
@@ -136,7 +136,7 @@ export class Timekeeper {
   ): Promise<boolean> {
     const chainId = context.chain.id as number;
     const timestamp = new Date(Number(blockEvent.block.timestamp) * 1000);
-    if (!this.isInitialized(chainId)) await this.init(context);
+    if (!this.isInitialized(chainId)) await this.init(context, blockEvent.block);
     const blockPeriodStart = getPeriodStart(timestamp);
     const isNewPeriod =
       blockPeriodStart.valueOf() > this.getCurrentPeriod(chainId).valueOf();
@@ -151,11 +151,11 @@ export class Timekeeper {
    * @returns Promise that resolves to the current Timekeeper instance for chaining
    * @throws {Error} When the timekeeper is not initialized for the specified chain
    */
-  public async update(context: Context) {
+  public async update(context: Context, block: Event["block"]) {
     const chainId = context.chain.id as number;
     if (!this.isInitialized(chainId))
       throw new Error(`Timekeeper not initialized for chain ${chainId}`);
-    await this.blockchains[chainId]!.save();
+    await this.blockchains[chainId]!.save(block);
     return this;
   }
 }

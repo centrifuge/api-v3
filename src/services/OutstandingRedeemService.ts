@@ -92,14 +92,14 @@ export class OutstandingRedeemService extends mixinCommonStatics(
    *
    * @returns The service instance for method chaining
    */
-  public clear() {
+  public clear(block: Event["block"]) {
     this.data.pendingAmount! -= this.data.approvedAmount!;
     this.data.approvedAmount = 0n;
     this.data.approvedAt = null;
     this.data.approvedAtBlock = null;
     if (this.data.queuedAmount! + this.data.pendingAmount! === 0n)
       return this.delete();
-    return this.save();
+    return this.save(block);
   }
 
   /**
@@ -110,13 +110,13 @@ export class OutstandingRedeemService extends mixinCommonStatics(
    *
    * @returns The service instance for method chaining
    */
-  public saveOrClear() {
+  public saveOrClear(block: Event["block"]) {
     if (
       this.data.approvedAmount === 0n &&
       this.data.queuedAmount === 0n &&
       this.data.pendingAmount! === 0n
     )
       return this.delete();
-    return this.save();
+    return this.save(block);
   }
 }

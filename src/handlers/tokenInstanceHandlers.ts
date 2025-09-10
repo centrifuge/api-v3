@@ -38,19 +38,23 @@ ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
 
   const fromAccount = isFromNull
     ? null
-    : ((await AccountService.getOrInit(context, {
-        address: getAddress(from),
-        createdAt: new Date(Number(event.block.timestamp) * 1000),
-        createdAtBlock: Number(event.block.number),
-      })) as AccountService | null);
+    : ((await AccountService.getOrInit(
+        context,
+        {
+          address: getAddress(from),
+        },
+        event.block
+      )) as AccountService | null);
 
   const toAccount = isToNull
     ? null
-    : ((await AccountService.getOrInit(context, {
-        address: getAddress(to),
-        createdAt: new Date(Number(event.block.timestamp) * 1000),
-        createdAtBlock: Number(event.block.number),
-      })) as AccountService | null);
+    : ((await AccountService.getOrInit(
+        context,
+        {
+          address: getAddress(to),
+        },
+        event.block
+      )) as AccountService | null);
 
   if (fromAccount) {
     const fromPosition = (await TokenInstancePositionService.getOrInit(
@@ -59,14 +63,11 @@ ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
         tokenId: tokenId,
         centrifugeId,
         accountAddress: from,
-        createdAt: new Date(Number(event.block.timestamp) * 1000),
-        createdAtBlock: Number(event.block.number),
-        updatedAt: new Date(Number(event.block.timestamp) * 1000),
-        updatedAtBlock: Number(event.block.number),
-      }
+      },
+      event.block
     )) as TokenInstancePositionService;
     fromPosition.subBalance(amount);
-    await fromPosition.save();
+    await fromPosition.save(event.block);
   }
 
   if (toAccount) {
@@ -74,30 +75,30 @@ ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
       tokenId: tokenId,
       centrifugeId,
       accountAddress: to,
-      createdAt: new Date(Number(event.block.timestamp) * 1000),
-      createdAtBlock: Number(event.block.number),
-      updatedAt: new Date(Number(event.block.timestamp) * 1000),
-      updatedAtBlock: Number(event.block.number),
-    })) as TokenInstancePositionService;
+    }, event.block)) as TokenInstancePositionService;
     toPosition.addBalance(amount);
-    await toPosition.save();
+    await toPosition.save(event.block);
   }
 
-  const token = (await TokenService.getOrInit(context, {
+  const token = (await TokenService.get(context, {
     id: tokenId,
-  })) as TokenService;
+  })) as TokenService | null;
+  if (!token) {
+    console.error("Token not found for ", tokenId);
+    return;
+  }
 
   if (isFromNull) {
     tokenInstance.increaseTotalIssuance(amount);
-    await tokenInstance.save();
+    await tokenInstance.save(event.block);
     token.increaseTotalIssuance(amount);
-    await token.save();
+    await token.save(event.block);
   }
 
   if (isToNull) {
     tokenInstance.decreaseTotalIssuance(amount);
-    await tokenInstance.save();
+    await tokenInstance.save(event.block);
     token.decreaseTotalIssuance(amount);
-    await token.save();
+    await token.save(event.block);
   }
 });

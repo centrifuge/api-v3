@@ -42,16 +42,20 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
     args: [],
   });
 
-  const _vault = (await VaultService.insert(context, {
-    id: vaultId,
-    centrifugeId,
-    poolId,
-    tokenId,
-    assetAddress,
-    factory: factory,
-    kind: vaultKind,
-    manager,
-  })) as VaultService | null;
+  const _vault = (await VaultService.insert(
+    context,
+    {
+      id: vaultId,
+      centrifugeId,
+      poolId,
+      tokenId,
+      assetAddress,
+      factory: factory,
+      kind: vaultKind,
+      manager,
+    },
+    event.block
+  )) as VaultService | null;
 });
 
 ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
@@ -72,15 +76,19 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
   })) as BlockchainService;
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
-  const _asset = (await AssetService.upsert(context, {
-    id: assetId,
-    centrifugeId,
-    address: assetAddress,
-    decimals: decimals,
-    name: name,
-    symbol: symbol,
-    assetTokenId,
-  })) as AssetService;
+  const _asset = (await AssetService.upsert(
+    context,
+    {
+      id: assetId,
+      centrifugeId,
+      address: assetAddress,
+      decimals: decimals,
+      name: name,
+      symbol: symbol,
+      assetTokenId,
+    },
+    event.block
+  )) as AssetService | null;
 });
 
 ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
@@ -88,7 +96,7 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const {
-    //poolId,
+    poolId,
     scId: tokenId,
     token: tokenAddress,
   } = event.args;
@@ -109,19 +117,28 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
 
   console.log(`Initial totalIssuance for token ${tokenId} is ${totalSupply}`);
 
-  const _tokenInstance = (await TokenInstanceService.getOrInit(context, {
-    address: tokenAddress,
-    tokenId,
-    centrifugeId,
-    isActive: true,
-    totalIssuance: totalSupply,
-  })) as TokenInstanceService;
+  const _tokenInstance = (await TokenInstanceService.getOrInit(
+    context,
+    {
+      address: tokenAddress,
+      tokenId,
+      centrifugeId,
+      isActive: true,
+      totalIssuance: totalSupply,
+    },
+    event.block
+  )) as TokenInstanceService;
 
-  const token = (await TokenService.getOrInit(context, {
-    id: tokenId,
-  })) as TokenService;
+  const token = (await TokenService.getOrInit(
+    context,
+    {
+      id: tokenId,
+      poolId,
+    },
+    event.block
+  )) as TokenService;
   token.increaseTotalIssuance(totalSupply);
-  await token.save();
+  await token.save(event.block);
 });
 
 ponder.on("Spoke:LinkVault", async ({ event, context }) => {
@@ -148,7 +165,7 @@ ponder.on("Spoke:LinkVault", async ({ event, context }) => {
   })) as VaultService;
   if (!vault) throw new Error("Vault not found");
   vault.setStatus("Linked");
-  await vault.save();
+  await vault.save(event.block);
 });
 
 ponder.on("Spoke:UnlinkVault", async ({ event, context }) => {
@@ -170,7 +187,7 @@ ponder.on("Spoke:UnlinkVault", async ({ event, context }) => {
   })) as VaultService;
   if (!vault) throw new Error("Vault not found");
   vault.setStatus("Unlinked");
-  await vault.save();
+  await vault.save(event.block);
 });
 
 ponder.on("Spoke:UpdateSharePrice", async ({ event, context }) => {
@@ -201,7 +218,7 @@ ponder.on("Spoke:UpdateSharePrice", async ({ event, context }) => {
 
   await tokenInstance.setTokenPrice(tokenPrice);
   await tokenInstance.setComputedAt(computedAt);
-  await tokenInstance.save();
+  await tokenInstance.save(event.block);
 });
 
 ponder.on("Spoke:UpdateAssetPrice", async ({ event, context }) => {
@@ -230,6 +247,6 @@ ponder.on("Spoke:UpdateAssetPrice", async ({ event, context }) => {
 
   for (const holdingEscrow of holdingEscrows) {
     await holdingEscrow.setAssetPrice(assetPrice);
-    await holdingEscrow.save();
+    await holdingEscrow.save(event.block);
   }
 });

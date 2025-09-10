@@ -25,30 +25,38 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
-  const _pool = (await PoolService.insert(context, {
-    id: poolId,
-    centrifugeId,
-    currency,
-    isActive: true,
-    createdAtBlock: Number(event.block.number),
-    createdAt: new Date(Number(event.block.timestamp) * 1000),
-  })) as PoolService;
+  const _pool = (await PoolService.insert(
+    context,
+    {
+      id: poolId,
+      centrifugeId,
+      currency,
+      isActive: true,
+    },
+    event.block
+  )) as PoolService;
 
-  const account = await AccountService.getOrInit(context, {
-    address: getAddress(manager),
-    createdAt: new Date(Number(event.block.timestamp) * 1000),
-    createdAtBlock: Number(event.block.number),
-  }) as AccountService;
+  const account = (await AccountService.getOrInit(
+    context,
+    {
+      address: getAddress(manager),
+    },
+    event.block
+  )) as AccountService;
 
   const { address: managerAddress } = account.read();
 
-  const poolManager = (await PoolManagerService.getOrInit(context, {
-    address: managerAddress,
-    centrifugeId,
-    poolId,
-  })) as PoolManagerService;
+  const poolManager = (await PoolManagerService.getOrInit(
+    context,
+    {
+      address: managerAddress,
+      centrifugeId,
+      poolId,
+    },
+    event.block
+  )) as PoolManagerService;
   poolManager.setIsHubManager(true);
-  await poolManager.save();
+  await poolManager.save(event.block);
 });
 
 ponder.on("HubRegistry:NewAsset", async ({ event, context }) => {
@@ -64,22 +72,29 @@ ponder.on("HubRegistry:NewAsset", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
-  const _assetRegistration = (await AssetRegistrationService.insert(context, {
-    assetId,
-    centrifugeId,
-    createdAtBlock: Number(event.block.number),
-    createdAt: new Date(Number(event.block.timestamp) * 1000),
-  })) as AssetRegistrationService;
+  const _assetRegistration = (await AssetRegistrationService.insert(
+    context,
+    {
+      assetId,
+      centrifugeId,
+    },
+    event.block
+  )) as AssetRegistrationService;
 
   const isIsoCurrency = assetId < 1000n;
   if (isIsoCurrency) {
-    const isoCurrency = isoCurrencies[Number(assetId) as keyof typeof isoCurrencies];
-    const _asset = await AssetService.getOrInit(context, {
-      id: assetId,
-      decimals,
-      symbol: isoCurrency.shortcode,
-      name: isoCurrency.name,
-    }) as AssetService;
+    const isoCurrency =
+      isoCurrencies[Number(assetId) as keyof typeof isoCurrencies];
+    const _asset = (await AssetService.getOrInit(
+      context,
+      {
+        id: assetId,
+        decimals,
+        symbol: isoCurrency.shortcode,
+        name: isoCurrency.name,
+      },
+      event.block
+    )) as AssetService;
   }
 });
 
@@ -96,20 +111,26 @@ ponder.on("HubRegistry:UpdateManager", async ({ event, context }) => {
 
   const { manager, poolId, canManage } = event.args;
 
-  const account = await AccountService.getOrInit(context, {
-    address: getAddress(manager),
-    createdAt: new Date(Number(event.block.timestamp) * 1000),
-    createdAtBlock: Number(event.block.number),
-  }) as AccountService;
+  const account = (await AccountService.getOrInit(
+    context,
+    {
+      address: getAddress(manager),
+    },
+    event.block
+  )) as AccountService;
   const { address: managerAddress } = account.read();
 
-  const poolManager = (await PoolManagerService.getOrInit(context, {
-    centrifugeId,
-    poolId,
-    address: managerAddress,
-  })) as PoolManagerService;
+  const poolManager = (await PoolManagerService.getOrInit(
+    context,
+    {
+      centrifugeId,
+      poolId,
+      address: managerAddress,
+    },
+    event.block
+  )) as PoolManagerService;
   poolManager.setIsHubManager(canManage);
-  await poolManager.save();
+  await poolManager.save(event.block);
 });
 
 ponder.on("HubRegistry:SetMetadata", async ({ event, context }) => {
@@ -125,10 +146,14 @@ ponder.on("HubRegistry:SetMetadata", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
-  const pool = (await PoolService.getOrInit(context, {
-    id: poolId,
-    centrifugeId,
-  })) as PoolService;
+  const pool = (await PoolService.getOrInit(
+    context,
+    {
+      id: poolId,
+      centrifugeId,
+    },
+    event.block
+  )) as PoolService;
   if (!pool) throw new Error("Pool not found");
 
   let metadata = Buffer.from(rawMetadata.slice(2), "hex").toString("utf-8");
@@ -140,5 +165,5 @@ ponder.on("HubRegistry:SetMetadata", async ({ event, context }) => {
   }
 
   pool.setMetadata(metadata);
-  await pool.save();
+  await pool.save(event.block);
 });
