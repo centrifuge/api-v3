@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/centrifuge/api-v3/compare/v1.5.1...v1.6.0) (2025-09-10)
+
+
+### Features
+
+* instantiate deployment contract from available chain contracts ([#126](https://github.com/centrifuge/api-v3/issues/126)) ([9b14046](https://github.com/centrifuge/api-v3/commit/9b14046dd167aa430bd2093da6f0885e05598e90))
+
 ## [1.5.1](https://github.com/centrifuge/api-v3/compare/v1.5.0...v1.5.1) (2025-09-10)
 
 
