@@ -19,7 +19,7 @@ ponder.on("MerkleProofManagerFactory:DeployMerkleProofManager", async ({ event, 
     address: manager,
     centrifugeId,
     poolId,
-  })) as MerkleProofManagerService | null;
+  }, event.block)) as MerkleProofManagerService | null;
   if (!merkleProofManager) {
     console.error("Failed to insert MerkleProofManager");
   }
@@ -48,6 +48,6 @@ ponder.on("MerkleProofManager:UpdatePolicy", async ({ event, context }) => {
     centrifugeId,
     poolId,
     root: newRoot,
-  }) as PolicyService;
-  await merkleProofManager.save();
+  }, event.block) as PolicyService;
+  await merkleProofManager.save(event.block);
 });

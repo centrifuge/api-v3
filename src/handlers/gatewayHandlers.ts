@@ -44,19 +44,21 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
   )}` as `0x${string}`;
   const data = decodeMessage(messageType, messagePayload);
 
-  const _crosschainMessage = (await CrosschainMessageService.insert(context, {
-    id: messageId,
-    index: messageCount,
-    poolId: poolId || null,
-    fromCentrifugeId,
-    toCentrifugeId: toCentrifugeId.toString(),
-    messageHash,
-    messageType: messageType,
-    rawData,
-    data: data,
-    createdAt: new Date(Number(event.block.timestamp) * 1000),
-    createdAtBlock: Number(event.block.number),
-  })) as CrosschainMessageService | null;
+  const _crosschainMessage = (await CrosschainMessageService.insert(
+    context,
+    {
+      id: messageId,
+      index: messageCount,
+      poolId: poolId || null,
+      fromCentrifugeId,
+      toCentrifugeId: toCentrifugeId.toString(),
+      messageHash,
+      messageType: messageType,
+      rawData,
+      data: data,
+    },
+    event.block
+  )) as CrosschainMessageService | null;
 });
 
 ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
@@ -96,13 +98,13 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
     const rawData = `0x${Buffer.from(
       messageBuffer.toString("hex")
     )}` as `0x${string}`;
-    
+
     const data = decodeMessage(messageType, messagePayload);
     if (!data) {
       console.error(`Failed to decode message for messageId ${messageId}`);
       return;
     }
-    
+
     const poolId = "poolId" in data ? BigInt(data.poolId!) : null;
     if (poolId) poolIdSet.add(poolId);
 
@@ -116,14 +118,12 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
       messageType: messageType,
       rawData,
       data: data,
-      createdAt: new Date(Number(event.block.timestamp) * 1000),
-      createdAtBlock: Number(event.block.number),
-    })) as CrosschainMessageService | null;
+    }, event.block)) as CrosschainMessageService | null;
   }
   const poolIds = Array.from(poolIdSet);
   if (poolIds.length > 1) {
     console.error(`Multiple poolIds found for payloadId ${payloadId}`);
-    return
+    return;
   }
 
   const poolId = Array.from(poolIdSet).pop() ?? null;
@@ -133,9 +133,7 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
     toCentrifugeId: toCentrifugeId.toString(),
     fromCentrifugeId: fromCentrifugeId,
     status: "Underpaid",
-    createdAt: new Date(Number(event.block.timestamp) * 1000),
-    createdAtBlock: Number(event.block.number),
-  })) as CrosschainPayloadService;
+  }, event.block)) as CrosschainPayloadService;
 });
 
 ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
@@ -167,7 +165,7 @@ ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
     return;
   }
   crosschainPayload.setStatus("InProgress");
-  await crosschainPayload.save();
+  await crosschainPayload.save(event.block);
 });
 
 ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
@@ -202,7 +200,7 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
   }
 
   crosschainMessage.executed(event);
-  await crosschainMessage.save();
+  await crosschainMessage.save(event.block);
 
   const { payloadId } = crosschainMessage.read();
   if (!payloadId) {
@@ -232,7 +230,7 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
   );
   if (countFailedPayloadMessages > 0) return;
   crosschainPayload.delivered(event);
-  await crosschainPayload.save();
+  await crosschainPayload.save(event.block);
 });
 
 ponder.on("Gateway:FailMessage", async ({ event, context }) => {
@@ -266,7 +264,7 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
     return;
   }
   crosschainMessage.setStatus("Failed");
-  await crosschainMessage.save();
+  await crosschainMessage.save(event.block);
 
   const { payloadId, status } = crosschainMessage.read();
   if (!payloadId) throw new Error("Payload ID is required");
@@ -283,5 +281,5 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
   // @ts-ignore
   if (status === "PartiallyFailed") return;
   crosschainPayload.setStatus("PartiallyFailed");
-  await crosschainPayload.save();
+  await crosschainPayload.save(event.block);
 });

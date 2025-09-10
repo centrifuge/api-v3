@@ -24,12 +24,16 @@ ponder.on(
     if (!blockchain) throw new Error("Blockchain not found");
     const { centrifugeId } = blockchain.read();
 
-    const _onOffRampManager = (await OnOffRampManagerService.insert(context, {
-      address: manager,
-      centrifugeId,
-      poolId,
-      tokenId,
-    })) as OnOffRampManagerService | null;
+    const _onOffRampManager = (await OnOffRampManagerService.insert(
+      context,
+      {
+        address: manager,
+        centrifugeId,
+        poolId,
+        tokenId,
+      },
+      event.block
+    )) as OnOffRampManagerService | null;
     if (!_onOffRampManager) {
       console.error("Failed to insert OnOffRampManager");
     }
@@ -59,14 +63,17 @@ ponder.on("OnOffRampManager:UpdateRelayer", async ({ event, context }) => {
   }
   const { poolId, tokenId } = onOffRampManager.read();
 
-
-  const offRampRelayer = (await OffRampRelayerService.upsert(context, {
-    address: relayer,
-    centrifugeId,
-    tokenId,
-    poolId,
-    isEnabled,
-  })) as OffRampRelayerService | null;
+  const offRampRelayer = (await OffRampRelayerService.upsert(
+    context,
+    {
+      address: relayer,
+      centrifugeId,
+      tokenId,
+      poolId,
+      isEnabled,
+    },
+    event.block
+  )) as OffRampRelayerService | null;
   if (!offRampRelayer) console.error("Failed to upsert OffRampRelayer");
 });
 
@@ -94,13 +101,17 @@ ponder.on("OnOffRampManager:UpdateOnramp", async ({ event, context }) => {
 
   const { poolId, tokenId } = onOffRampManager.read();
 
-  const onRampAsset = (await OnRampAssetService.upsert(context, {
-    assetAddress: asset,
-    poolId,
-    centrifugeId,
-    tokenId,
-    isEnabled,
-  })) as OnRampAssetService | null;
+  const onRampAsset = (await OnRampAssetService.upsert(
+    context,
+    {
+      assetAddress: asset,
+      poolId,
+      centrifugeId,
+      tokenId,
+      isEnabled,
+    },
+    event.block
+  )) as OnRampAssetService | null;
   if (!onRampAsset) console.error("Failed to upsert OnRampAsset");
 });
 
@@ -108,7 +119,7 @@ ponder.on("OnOffRampManager:UpdateOfframp", async ({ event, context }) => {
   logEvent(event, context, "OnOffRampManager:UpdateOfframp");
   const { asset, receiver } = event.args;
   const manager = event.log.address;
-  
+
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is not a number");
   const blockchain = (await BlockchainService.get(context, {
@@ -127,19 +138,25 @@ ponder.on("OnOffRampManager:UpdateOfframp", async ({ event, context }) => {
   }
   const { poolId, tokenId } = onOffRampManager.read();
 
-  const receiverAccount = (await AccountService.getOrInit(context, {
-    address: getAddress(receiver),
-    createdAt: new Date(Number(event.block.timestamp) * 1000),
-    createdAtBlock: Number(event.block.number),
-  })) as AccountService;
+  const receiverAccount = (await AccountService.getOrInit(
+    context,
+    {
+      address: getAddress(receiver),
+    },
+    event.block
+  )) as AccountService;
   const { address: receiverAddress } = receiverAccount.read();
 
-  const offRampAddress = await OffRampAddressService.getOrInit(context, {
-    poolId,
-    centrifugeId,
-    tokenId,
-    assetAddress: getAddress(asset),
-    receiverAddress,
-  });
-  await offRampAddress.save();
+  const offRampAddress = (await OffRampAddressService.getOrInit(
+    context,
+    {
+      poolId,
+      centrifugeId,
+      tokenId,
+      assetAddress: getAddress(asset),
+      receiverAddress,
+    },
+    event.block
+  )) as OffRampAddressService;
+  await offRampAddress.save(event.block);
 });

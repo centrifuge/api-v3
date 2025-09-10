@@ -5,10 +5,17 @@ import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
 /** Type alias for PostgreSQL table with columns */
 type OnchainTable = PgTableWithColumns<any>;
 
+type DefaultColumns = {
+  updatedAt?: Date;
+  updatedAtBlock?: number;
+  createdAt?: Date;
+  createdAtBlock?: number;
+};
+
 /**
  * Generic service class for managing database operations on PostgreSQL tables.
  * Provides CRUD operations and database interaction utilities.
- * 
+ *
  * @template T - The PostgreSQL table type extending OnchainTable
  */
 export class Service<T extends OnchainTable> {
@@ -21,11 +28,11 @@ export class Service<T extends OnchainTable> {
   /** Client context for additional operations */
   protected readonly client: Context["client"];
   /** Current data instance of the table row */
-  protected data: T["$inferSelect"] & { updatedAt?: Date; updatedAtBlock?: number; createdAt?: Date; createdAtBlock?: number };
+  protected data: T["$inferSelect"] & DefaultColumns;
 
   /**
    * Creates a new Service instance.
-   * 
+   *
    * @param table - The PostgreSQL table to operate on
    * @param name - Human-readable name for the service entity
    * @param context - Database and client context
@@ -35,7 +42,7 @@ export class Service<T extends OnchainTable> {
     table: T,
     name: string,
     context: Context,
-    data: T["$inferInsert"] & { updatedAt?: Date; updatedAtBlock?: number; createdAt?: Date; createdAtBlock?: number }
+    data: T["$inferInsert"] & DefaultColumns
   ) {
     this.db = context.db;
     this.client = context.client;
@@ -46,7 +53,7 @@ export class Service<T extends OnchainTable> {
 
   /**
    * Returns a copy of the current data.
-   * 
+   *
    * @returns A shallow copy of the current data object
    */
   public read() {
@@ -56,15 +63,14 @@ export class Service<T extends OnchainTable> {
   /**
    * Updates the database record with the current data.
    * Uses primary key filtering to identify the record to update.
-   * 
+   *
    * @returns Promise that resolves to the service instance after successful update
    * @throws {Error} When the update operation fails
    */
-  public async save(block?: Event["block"]) {
+  public async save(block: Event["block"] | null) {
+    updateDefaults(this.table, this.data, block);
     console.info(`Saving ${this.name}`, this.data);
     const pkFilter = primaryKeyFilter(this.table, this.data);
-    if (block && "updatedAt" in this.table) this.data["updatedAt"] = new Date(Number(block.timestamp) * 1000);
-    if (block && "updatedAtBlock" in this.table) this.data["updatedAtBlock"] = Number(block.number);
     const update =
       (
         await this.db.sql
@@ -81,7 +87,7 @@ export class Service<T extends OnchainTable> {
   /**
    * Deletes the current record from the database.
    * Uses primary key filtering to identify the record to delete.
-   * 
+   *
    * @returns Promise that resolves to the service instance after successful deletion
    * @throws {Error} When there's no data to delete or deletion fails
    */
@@ -102,7 +108,7 @@ type Constructor<I> = new (..._args: any[]) => I;
 /**
  * Mixin function that adds common static methods to a service class.
  * Provides factory methods for creating, finding, and querying service instances.
- * 
+ *
  * @template C - The constructor type of the service class
  * @template I - The instance type of the service class
  * @template T - The PostgreSQL table type
@@ -119,24 +125,34 @@ export function mixinCommonStatics<
   return class extends service {
     /**
      * Creates a new record in the database and returns a service instance.
-     * 
+     *
      * @param context - Database and client context
      * @param data - Data to insert into the database
      * @returns Promise that resolves to a new service instance
      * @throws {Error} When the insert operation fails
      */
-    static async insert(context: Context, data: T["$inferInsert"]) {
+    static async insert(
+      context: Context,
+      data: T["$inferInsert"] & DefaultColumns,
+      block: Event["block"] | null
+    ) {
+      insertDefaults(table, data, block);
       console.info(`Inserting ${name}`, data);
       const insert =
-        (await context.db.sql.insert(table).values(data).onConflictDoNothing().returning()).pop() ??
-        null;
+        (
+          await context.db.sql
+            .insert(table)
+            .values(data)
+            .onConflictDoNothing()
+            .returning()
+        ).pop() ?? null;
       if (!insert) return null;
       return new this(table, name, context, insert);
     }
 
     /**
      * Finds an existing record in the database by query criteria.
-     * 
+     *
      * @param context - Database and client context
      * @param query - Query criteria to find the record
      * @returns Promise that resolves to a service instance for the found record
@@ -157,17 +173,22 @@ export function mixinCommonStatics<
 
     /**
      * Finds an existing record or creates a new one if it doesn't exist.
-     * 
+     *
      * @param context - Database and client context
      * @param query - Query criteria to find or create the record
      * @returns Promise that resolves to a service instance
      * @throws {Error} When the create operation fails
      */
-    static async getOrInit(context: Context, query: T["$inferInsert"]) {
+    static async getOrInit(
+      context: Context,
+      query: T["$inferInsert"] & DefaultColumns,
+      block: Event["block"] | null
+    ) {
       console.log("getOrInit", name, query);
       let entity = await context.db.find(table as any, query);
       console.log(`Found ${name}: `, entity);
       if (!entity) {
+        insertDefaults(table, query, block);
         console.info(`Initialising ${name}: `, query);
         entity =
           (
@@ -180,25 +201,35 @@ export function mixinCommonStatics<
 
     /**
      * Updates an existing record or creates a new one if it doesn't exist.
-     * 
-     * @param context - Database and client context 
+     *
+     * @param context - Database and client context
      * @param query - Query criteria to find or create the record
      * @returns Promise that resolves to a service instance
      * @throws {Error} When the upsert operation fails
      */
-    static async upsert(context: Context, query: T["$inferInsert"]) {
+    static async upsert(
+      context: Context,
+      query: T["$inferInsert"] & DefaultColumns,
+      block: Event["block"] | null
+    ) {
+      insertDefaults(table, query, block);
       console.log("upsert", name, query);
-      const entity = (
-        await context.db.sql
-          .insert(table)
-          .values(query)
-          .onConflictDoUpdate({
-            target: getPrimaryKeysFieldNames(table).map((key) => table[key]),
-            set: query
-          })
-          .returning()
-      ).pop() ?? null;
-      
+      const entity =
+        (
+          await context.db.sql
+            .insert(table)
+            .values(query)
+            .onConflictDoUpdate({
+              target: getPrimaryKeysFieldNames(table).map((key) => table[key]),
+              set: {
+                ...query,
+                createdAt: undefined,
+                createdAtBlock: undefined,
+              },
+            })
+            .returning()
+        ).pop() ?? null;
+
       if (!entity) {
         console.error(`Failed to upsert ${name}: ${query}`);
         return null;
@@ -208,40 +239,47 @@ export function mixinCommonStatics<
 
     /**
      * Queries the database for multiple records matching the criteria.
-     * 
+     *
      * @param context - Database and client context
      * @param query - Query criteria to filter records
      * @returns Promise that resolves to an array of service instances
      */
-    static async query(context: Context, query: Partial<ExtendedQuery<T["$inferSelect"]>>) {
+    static async query(
+      context: Context,
+      query: Partial<ExtendedQuery<T["$inferSelect"]>>
+    ) {
       console.info(`Querying ${name}`, query);
       const filter = queryToFilter(table, query);
 
-      const sqlQuery = (query._sort && query._sort.length > 0) ? (
-        context.db.sql
-          .select()
-          .from(table as OnchainTable)
-          .where(filter)
-          .orderBy(...query._sort.map((sort: { field: keyof T; direction: 'asc' | 'desc' }) => {
-            const column = table[sort.field];
-            return sort.direction === 'asc' ? asc(column) : desc(column);
-          }))
-      ) : (
-        context.db.sql
-          .select()
-          .from(table as OnchainTable)
-          .where(filter)
-      );
-      
-      
+      const sqlQuery =
+        query._sort && query._sort.length > 0
+          ? context.db.sql
+              .select()
+              .from(table as OnchainTable)
+              .where(filter)
+              .orderBy(
+                ...query._sort.map(
+                  (sort: { field: keyof T; direction: "asc" | "desc" }) => {
+                    const column = table[sort.field];
+                    return sort.direction === "asc"
+                      ? asc(column)
+                      : desc(column);
+                  }
+                )
+              )
+          : context.db.sql
+              .select()
+              .from(table as OnchainTable)
+              .where(filter);
+
       const results = await sqlQuery;
       console.info(`Found ${results.length} ${name}`);
       return results.map((result) => new this(table, name, context, result));
     }
-    
+
     /**
      * Counts the number of records matching the query criteria.
-     * 
+     *
      * @param context - Database and client context
      * @param query - Query criteria to filter records
      * @returns Promise that resolves to the count of matching records
@@ -257,11 +295,10 @@ export function mixinCommonStatics<
   };
 }
 
-
 /**
  * Extracts the names of primary key fields from a table configuration.
  * Handles both direct primary keys and composite primary keys.
- * 
+ *
  * @template T - The PostgreSQL table type
  * @param table - The table to extract primary key names from
  * @returns Array of primary key field names
@@ -281,7 +318,7 @@ function getPrimaryKeysFieldNames<T extends OnchainTable>(table: T) {
 
 /**
  * Extracts primary key field values from a data object.
- * 
+ *
  * @template T - The PostgreSQL table type
  * @param table - The table to get primary key configuration from
  * @param data - The data object to extract primary key values from
@@ -297,7 +334,7 @@ function getPrimaryKeysFields<T extends OnchainTable>(
 
 /**
  * Creates a new object with only the specified properties from the input object.
- * 
+ *
  * @template T - The type of the input object
  * @template K - The type of the keys to pick
  * @param obj - The source object
@@ -314,7 +351,7 @@ function pick<T, K extends keyof T>(obj: T, ...props: K[]): Pick<T, K> {
 /**
  * Creates a Drizzle ORM filter condition based on primary key values.
  * Handles both single and composite primary keys.
- * 
+ *
  * @template T - The PostgreSQL table type
  * @param table - The table to create the filter for
  * @param data - The data object containing primary key values
@@ -345,14 +382,14 @@ type ExtendedQuery<T> = {
 } & {
   _sort?: Array<{
     field: keyof T;
-    direction: 'asc' | 'desc';
+    direction: "asc" | "desc";
   }>;
 };
 
 /**
  * Converts a query object into a Drizzle ORM filter condition.
  * Creates equality conditions for each property in the query object.
- * 
+ *
  * @template T - The PostgreSQL table type
  * @param table - The table to create the filter for
  * @param query - The query object containing field-value pairs
@@ -362,10 +399,13 @@ function queryToFilter<T extends OnchainTable>(
   table: T,
   query: Partial<ExtendedQuery<T["$inferInsert"]>>
 ) {
-  const queryEntries = Object.entries(query).filter(([key]) => !key.startsWith("_"));
+  const queryEntries = Object.entries(query).filter(
+    ([key]) => !key.startsWith("_")
+  );
   const queries = queryEntries.map(([column, value]) => {
     if (value === null) return isNull(table[column as keyof T]);
-    if (column.endsWith("_not")) return not(eq(table[column.slice(0, -4) as keyof T], value));
+    if (column.endsWith("_not"))
+      return not(eq(table[column.slice(0, -4) as keyof T], value));
     return eq(table[column as keyof T], value);
   });
   if (queries.length >= 1) {
@@ -374,3 +414,42 @@ function queryToFilter<T extends OnchainTable>(
     return queries[0];
   }
 }
+
+/**
+ * Sets the default values for the data object based on the block for insert.
+ * 
+ * @template T - The PostgreSQL table type
+ * @param data - The data object to set the defaults for
+ * @param block - The block to set the defaults for
+ * @returns The data object with the defaults set
+ */
+function insertDefaults<T extends OnchainTable>(table: T, data: T["$inferInsert"] & DefaultColumns, block: Event["block"] | null) {
+  if (!block) return data;
+  if ("createdAt" in table)
+    data.createdAt = new Date(Number(block.timestamp) * 1000);
+  if ("createdAtBlock" in table)
+    data.createdAtBlock = Number(block.number);
+  if ("updatedAt" in table)
+    data.updatedAt = new Date(Number(block.timestamp) * 1000);
+  if ("updatedAtBlock" in table)
+    data.updatedAtBlock = Number(block.number);
+  return data;
+}
+
+
+/**
+ * Updates the default values for the data object based on the block.
+ * 
+ * @template T - The PostgreSQL table type
+ * @param data - The data object to update the defaults for
+ * @param block - The block to update the defaults for
+ * @returns The data object with the defaults updated
+ */
+function updateDefaults<T extends OnchainTable>(table: T, data: T["$inferInsert"] & DefaultColumns, block: Event["block"] | null) {
+  if (!block) return data;
+  if ("updatedAt" in table)
+    data.updatedAt = new Date(Number(block.timestamp) * 1000);
+  if ("updatedAtBlock" in table)
+    data.updatedAtBlock = Number(block.number);
+  return data;
+} 

@@ -41,16 +41,16 @@ ponder.on("Hub:UpdateRestriction", async ({ event, context }) => {
 
   const [restrictionType, accountAddress, validUntil] = decodedPayload;
 
-  const whitelistedInvestor = (await WhitelistedInvestorService.getOrInit(context, {
-    poolId,
-    tokenId,
-    centrifugeId: spokeCentrifugeId.toString(),
-    accountAddress,
-    createdAt: new Date(Number(event.block.timestamp) * 1000),
-    createdAtBlock: Number(event.block.number),
-    updatedAt: new Date(Number(event.block.timestamp) * 1000),
-    updatedAtBlock: Number(event.block.number),
-  })) as WhitelistedInvestorService;
+  const whitelistedInvestor = (await WhitelistedInvestorService.getOrInit(
+    context,
+    {
+      poolId,
+      tokenId,
+      centrifugeId: spokeCentrifugeId.toString(),
+      accountAddress,
+    },
+    event.block
+  )) as WhitelistedInvestorService;
 
   switch (restrictionType) {
     case RestrictionType.Member:
@@ -86,7 +86,10 @@ function decodeUpdateRestriction(
   payload: `0x${string}`
 ):
   | [
-      restrictionType: RestrictionType.Member | RestrictionType.Freeze | RestrictionType.Unfreeze,
+      restrictionType:
+        | RestrictionType.Member
+        | RestrictionType.Freeze
+        | RestrictionType.Unfreeze,
       accountAddress: `0x${string}`,
       validUntil: Date | null
     ]

@@ -34,13 +34,17 @@ ponder.on(
     if (!blockchain) throw new Error("Blockchain not found");
     const { centrifugeId } = blockchain.read();
 
-    const _token = (await TokenService.upsert(context, {
-      id: tokenId,
-      poolId,
-      centrifugeId,
-      isActive: true,
-      index,
-    })) as TokenService;
+    const _token = (await TokenService.upsert(
+      context,
+      {
+        id: tokenId,
+        poolId,
+        centrifugeId,
+        isActive: true,
+        index,
+      },
+      event.block
+    )) as TokenService;
   }
 );
 
@@ -58,16 +62,20 @@ ponder.on(
     if (!blockchain) throw new Error("Blockchain not found");
     const { centrifugeId } = blockchain.read();
 
-    const _token = (await TokenService.upsert(context, {
-      id: tokenId,
-      poolId,
-      centrifugeId,
-      name,
-      symbol,
-      salt,
-      isActive: true,
-      index,
-    })) as TokenService;
+    const _token = (await TokenService.upsert(
+      context,
+      {
+        id: tokenId,
+        poolId,
+        centrifugeId,
+        name,
+        symbol,
+        salt,
+        isActive: true,
+        index,
+      },
+      event.block
+    )) as TokenService;
   }
 );
 
@@ -84,13 +92,17 @@ ponder.on("ShareClassManager:UpdateMetadata", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
-  const token = (await TokenService.getOrInit(context, {
-    id: tokenId,
-    poolId,
-    centrifugeId,
-  })) as TokenService;
+  const token = (await TokenService.getOrInit(
+    context,
+    {
+      id: tokenId,
+      poolId,
+      centrifugeId,
+    },
+    event.block
+  )) as TokenService;
   await token.setMetadata(name, symbol);
-  await token.save();
+  await token.save(event.block);
 });
 
 ponder.on(
@@ -111,11 +123,13 @@ ponder.on(
       pendingUserAssetAmount,
     } = event.args;
 
-    const investorAccount = (await AccountService.getOrInit(context, {
-      address: getAddress(investor.substring(0, 42)),
-      createdAt: new Date(Number(event.block.timestamp) * 1000),
-      createdAtBlock: Number(event.block.number),
-    })) as AccountService;
+    const investorAccount = (await AccountService.getOrInit(
+      context,
+      {
+        address: getAddress(investor.substring(0, 42)),
+      },
+      event.block
+    )) as AccountService;
     const { address: investorAddress } = investorAccount.read();
 
     const outstandingInvest = (await OutstandingInvestService.getOrInit(
@@ -125,24 +139,29 @@ ponder.on(
         tokenId,
         assetId: depositAssetId,
         account: investorAddress,
-      }
+      },
+      event.block
     )) as OutstandingInvestService;
     await outstandingInvest
       .decorateOutstandingOrder(event)
       .processHubDepositRequest(queuedUserAssetAmount, pendingUserAssetAmount)
-      .saveOrClear();
+      .saveOrClear(event.block);
 
     const epochOutstandingInvest =
-      (await EpochOutstandingInvestService.getOrInit(context, {
-        poolId,
-        tokenId,
-        assetId: depositAssetId,
-      })) as EpochOutstandingInvestService;
+      (await EpochOutstandingInvestService.getOrInit(
+        context,
+        {
+          poolId,
+          tokenId,
+          assetId: depositAssetId,
+        },
+        event.block
+      )) as EpochOutstandingInvestService;
 
     await epochOutstandingInvest
       .decorateEpochOutstandingInvest(event)
       .updatePendingAmount(pendingTotalAssetAmount)
-      .save();
+      .save(event.block);
   }
 );
 
@@ -163,35 +182,45 @@ ponder.on(
       queuedUserShareAmount,
     } = event.args;
 
-    const investorAccount = (await AccountService.getOrInit(context, {
-      address: getAddress(investor.substring(0, 42)),
-      createdAt: new Date(Number(event.block.timestamp) * 1000),
-      createdAtBlock: Number(event.block.number),
-    })) as AccountService;
+    const investorAccount = (await AccountService.getOrInit(
+      context,
+      {
+        address: getAddress(investor.substring(0, 42)),
+      },
+      event.block
+    )) as AccountService;
     const { address: investorAddress } = investorAccount.read();
 
-    const oo = (await OutstandingRedeemService.getOrInit(context, {
-      poolId,
-      tokenId,
-      assetId: payoutAssetId,
-      account: investorAddress,
-    })) as OutstandingRedeemService;
-    await oo
-      .decorateOutstandingOrder(event)
-      .processHubRedeemRequest(queuedUserShareAmount, pendingUserShareAmount)
-      .saveOrClear();
-
-    const epochOutstandingRedeem =
-      (await EpochOutstandingRedeemService.getOrInit(context, {
+    const oo = (await OutstandingRedeemService.getOrInit(
+      context,
+      {
         poolId,
         tokenId,
         assetId: payoutAssetId,
-      })) as EpochOutstandingRedeemService;
+        account: investorAddress,
+      },
+      event.block
+    )) as OutstandingRedeemService;
+    await oo
+      .decorateOutstandingOrder(event)
+      .processHubRedeemRequest(queuedUserShareAmount, pendingUserShareAmount)
+      .saveOrClear(event.block);
+
+    const epochOutstandingRedeem =
+      (await EpochOutstandingRedeemService.getOrInit(
+        context,
+        {
+          poolId,
+          tokenId,
+          assetId: payoutAssetId,
+        },
+        event.block
+      )) as EpochOutstandingRedeemService;
 
     await epochOutstandingRedeem
       .decorateEpochOutstandingRedeem(event)
       .updatePendingAmount(pendingTotalShareAmount)
-      .save();
+      .save(event.block);
   }
 );
 
@@ -214,17 +243,21 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
     assetDecimals
   );
 
-  const _epochInvestOrder = (await EpochInvestOrderService.insert(context, {
-    poolId,
-    tokenId,
-    assetId: depositAssetId,
-    index: epochIndex,
-    approvedAt: new Date(Number(event.block.timestamp) * 1000),
-    approvedAtBlock: Number(event.block.number),
-    approvedAssetsAmount: approvedAssetAmount,
-    approvedPoolAmount: approvedPoolAmount,
-    approvedPercentageOfTotalPending: approvedPercentage,
-  })) as EpochInvestOrderService | null;
+  const _epochInvestOrder = (await EpochInvestOrderService.insert(
+    context,
+    {
+      poolId,
+      tokenId,
+      assetId: depositAssetId,
+      index: epochIndex,
+      approvedAt: new Date(Number(event.block.timestamp) * 1000),
+      approvedAtBlock: Number(event.block.number),
+      approvedAssetsAmount: approvedAssetAmount,
+      approvedPoolAmount: approvedPoolAmount,
+      approvedPercentageOfTotalPending: approvedPercentage,
+    },
+    event.block
+  )) as EpochInvestOrderService | null;
 
   const saves: Promise<InvestOrderService | OutstandingInvestService>[] = [];
   const oos = (await OutstandingInvestService.query(context, {
@@ -240,7 +273,7 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
       assetDecimals
     );
     oo.approveInvest(approvedUserAssetAmount, event.block);
-    saves.push(oo.save());
+    saves.push(oo.save(event.block));
   }
   await Promise.all(saves);
 });
@@ -271,16 +304,20 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
     shareDecimals
   );
 
-  const _epochRedeemOrder = (await EpochRedeemOrderService.insert(context, {
-    poolId,
-    tokenId,
-    assetId: payoutAssetId,
-    index: epochIndex,
-    approvedAt: new Date(Number(event.block.timestamp) * 1000),
-    approvedAtBlock: Number(event.block.number),
-    approvedSharesAmount: approvedShareAmount,
-    approvedPercentageOfTotalPending: approvedPercentage,
-  })) as EpochRedeemOrderService | null;
+  const _epochRedeemOrder = (await EpochRedeemOrderService.insert(
+    context,
+    {
+      poolId,
+      tokenId,
+      assetId: payoutAssetId,
+      index: epochIndex,
+      approvedAt: new Date(Number(event.block.timestamp) * 1000),
+      approvedAtBlock: Number(event.block.number),
+      approvedSharesAmount: approvedShareAmount,
+      approvedPercentageOfTotalPending: approvedPercentage,
+    },
+    event.block
+  )) as EpochRedeemOrderService | null;
 
   const saves: Promise<RedeemOrderService | OutstandingRedeemService>[] = [];
   const oos = (await OutstandingRedeemService.query(context, {
@@ -295,7 +332,7 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
       shareDecimals
     );
     oo.approveRedeem(approvedUserShareAmount, event.block);
-    saves.push(oo.save());
+    saves.push(oo.save(event.block));
   }
   await Promise.all(saves);
 });
@@ -318,7 +355,9 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
     index: epochIndex,
   })) as EpochInvestOrderService | null;
   if (!epochInvestOrder) {
-    console.log(`EpochInvestOrder not found for token ${tokenId} asset ${depositAssetId} index ${epochIndex}`);
+    console.log(
+      `EpochInvestOrder not found for token ${tokenId} asset ${depositAssetId} index ${epochIndex}`
+    );
     return;
   }
   epochInvestOrder.issuedShares(
@@ -327,7 +366,7 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
     navAssetPerShare,
     event.block
   );
-  await epochInvestOrder.save();
+  await epochInvestOrder.save(event.block);
 
   const assetDecimals = await getAssetDecimals(context, depositAssetId);
   const outstandingInvests = (await OutstandingInvestService.query(context, {
@@ -348,24 +387,28 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
       approvedAt,
       approvedAtBlock,
     } = outstandingInvest.read();
-    const investOrder = (await InvestOrderService.getOrInit(context, {
-      poolId,
-      tokenId,
-      assetId,
-      index: epochIndex,
-      account,
-      approvedAssetsAmount: approvedAmount,
-      approvedAt,
-      approvedAtBlock,
-    })) as InvestOrderService;
+    const investOrder = (await InvestOrderService.getOrInit(
+      context,
+      {
+        poolId,
+        tokenId,
+        assetId,
+        index: epochIndex,
+        account,
+        approvedAssetsAmount: approvedAmount,
+        approvedAt,
+        approvedAtBlock,
+      },
+      event.block
+    )) as InvestOrderService;
     investOrder.issueShares(
       navAssetPerShare,
       navPoolPerShare,
       assetDecimals,
       event.block
     );
-    investOrderSaves.push(investOrder.save());
-    outstandingInvestSaves.push(outstandingInvest.clear());
+    investOrderSaves.push(investOrder.save(event.block));
+    outstandingInvestSaves.push(outstandingInvest.clear(event.block));
   }
 
   await Promise.all(investOrderSaves);
@@ -399,11 +442,20 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
     index: epochIndex,
   })) as EpochRedeemOrderService | null;
   if (!epochRedeemOrder) {
-    console.log(`EpochRedeemOrder not found for token ${tokenId} asset ${payoutAssetId} index ${epochIndex}`);
+    console.log(
+      `EpochRedeemOrder not found for token ${tokenId} asset ${payoutAssetId} index ${epochIndex}`
+    );
     return;
   }
-  epochRedeemOrder.revokedShares(revokedShareAmount, revokedAssetAmount, revokedPoolAmount, navPoolPerShare, navAssetPerShare, event.block);
-  await epochRedeemOrder.save();
+  epochRedeemOrder.revokedShares(
+    revokedShareAmount,
+    revokedAssetAmount,
+    revokedPoolAmount,
+    navPoolPerShare,
+    navAssetPerShare,
+    event.block
+  );
+  await epochRedeemOrder.save(event.block);
 
   const shareDecimals = await getAssetDecimals(context, currency);
   const outstandingRedeems = (await OutstandingRedeemService.query(context, {
@@ -415,21 +467,25 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
   const outstandingRedeemSaves: Promise<OutstandingRedeemService>[] = [];
   const redeemOrderSaves: Promise<RedeemOrderService>[] = [];
   for (const outstandingRedeem of outstandingRedeems) {
-    const redeemOrder = (await RedeemOrderService.getOrInit(context, {
-      poolId,
-      tokenId,
-      assetId: payoutAssetId,
-      index: epochIndex,
-      account: outstandingRedeem.read().account,
-    })) as RedeemOrderService;
+    const redeemOrder = (await RedeemOrderService.getOrInit(
+      context,
+      {
+        poolId,
+        tokenId,
+        assetId: payoutAssetId,
+        index: epochIndex,
+        account: outstandingRedeem.read().account,
+      },
+      event.block
+    )) as RedeemOrderService;
     redeemOrder.revokeShares(
       navAssetPerShare,
       navPoolPerShare,
       shareDecimals,
       event.block
     );
-    outstandingRedeemSaves.push(outstandingRedeem.clear());
-    redeemOrderSaves.push(redeemOrder.save());
+    outstandingRedeemSaves.push(outstandingRedeem.clear(event.block));
+    redeemOrderSaves.push(redeemOrder.save(event.block));
   }
   await Promise.all([...outstandingRedeemSaves, ...redeemOrderSaves]);
 });
@@ -446,14 +502,18 @@ ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId } = blockchain.read();
 
-  const token = (await TokenService.getOrInit(context, {
-    id: tokenId,
-    poolId,
-    centrifugeId,
-  })) as TokenService;
+  const token = (await TokenService.getOrInit(
+    context,
+    {
+      id: tokenId,
+      poolId,
+      centrifugeId,
+    },
+    event.block
+  )) as TokenService;
   if (!token) throw new Error(`Token not found for id ${tokenId}`);
   await token.setTokenPrice(tokenPrice);
-  await token.save();
+  await token.save(event.block);
   await snapshotter(
     context,
     event,
@@ -479,11 +539,13 @@ ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
     //issuedAt,
   } = event.args;
 
-  const investorAccount = (await AccountService.getOrInit(context, {
-    address: getAddress(investor.substring(0, 42)),
-    createdAt: new Date(Number(event.block.timestamp) * 1000),
-    createdAtBlock: Number(event.block.number),
-  })) as AccountService;
+  const investorAccount = (await AccountService.getOrInit(
+    context,
+    {
+      address: getAddress(investor.substring(0, 42)),
+    },
+    event.block
+  )) as AccountService;
   const { address: investorAddress } = investorAccount.read();
 
   const investOrder = (await InvestOrderService.get(context, {
@@ -498,7 +560,7 @@ ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
     );
     return;
   }
-  await investOrder.claimDeposit(event.block).save();
+  await investOrder.claimDeposit(event.block).save(event.block);
 });
 
 ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
@@ -515,11 +577,13 @@ ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
     //revokedAt,
   } = event.args;
 
-  const investorAccount = (await AccountService.getOrInit(context, {
-    address: getAddress(investor.substring(0, 42)),
-    createdAt: new Date(Number(event.block.timestamp) * 1000),
-    createdAtBlock: Number(event.block.number),
-  })) as AccountService;
+  const investorAccount = (await AccountService.getOrInit(
+    context,
+    {
+      address: getAddress(investor.substring(0, 42)),
+    },
+    event.block
+  )) as AccountService;
   const { address: investorAddress } = investorAccount.read();
 
   const redeemOrder = (await RedeemOrderService.get(context, {
@@ -534,7 +598,7 @@ ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
     );
     return;
   }
-  await redeemOrder.claimRedeem(event.block).save();
+  await redeemOrder.claimRedeem(event.block).save(event.block);
 });
 
 /**

@@ -28,12 +28,12 @@ ponder.on("Holdings:Initialize", async ({ event, context }) => {
     poolId,
     tokenId,
     assetId,
-  })) as HoldingService;
+  }, event.block)) as HoldingService;
 
   await holding.initialize();
   await holding.setValuation(valuation);
   await holding.setIsLiability(isLiability);
-  await holding.save();
+  await holding.save(event.block);
 
   for (const { accountId: _accountId, kind: _kind } of accounts) {
     const accountId = _accountId.toString();
@@ -45,7 +45,7 @@ ponder.on("Holdings:Initialize", async ({ event, context }) => {
       id: accountId,
       kind,
       tokenId,
-    });
+    }, event.block);
   }
 });
 
@@ -71,10 +71,10 @@ ponder.on("Holdings:Increase", async ({ event, context }) => {
     poolId,
     tokenId,
     assetId,
-  })) as HoldingService;
+  }, event.block)) as HoldingService;
 
   await holding.increase(amount, increasedValue);
-  await holding.save();
+  await holding.save(event.block);
 
   await snapshotter(context, event, "Holdings:Increase", [holding], HoldingSnapshot);
 });
@@ -101,12 +101,12 @@ ponder.on("Holdings:Decrease", async ({ event, context }) => {
     poolId,
     tokenId,
     assetId,
-  })) as HoldingService;
+  }, event.block)) as HoldingService;
 
 
 
   await holding.decrease(amount, decreasedValue);
-  await holding.save();
+  await holding.save(event.block);
 });
 
 ponder.on("Holdings:Update", async ({ event, context }) => {
@@ -136,10 +136,10 @@ ponder.on("Holdings:Update", async ({ event, context }) => {
     poolId,
     tokenId,
     assetId,
-  })) as HoldingService;
+  }, event.block)) as HoldingService;
 
   await holding.update(isPositive, diffValue);
-  await holding.save();
+  await holding.save(event.block);
 
   await snapshotter(context, event, "Holdings:Update", [holding], HoldingSnapshot);
 });
@@ -170,10 +170,10 @@ ponder.on("Holdings:UpdateValuation", async ({ event, context }) => {
     poolId,
     tokenId,
     assetId,
-  })) as HoldingService;
+  }, event.block)) as HoldingService;
 
   await holding.setValuation(valuation);
-  await holding.save();
+  await holding.save(event.block);
 
   await snapshotter(context, event, "Holdings:UpdateValuation", [holding], HoldingSnapshot);
 });
