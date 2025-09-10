@@ -1,4 +1,4 @@
-import type { Context } from "ponder:registry";
+import type { Context, Event } from "ponder:registry";
 import { eq, and, count, isNull, not, asc, desc } from "drizzle-orm";
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
 
@@ -21,7 +21,7 @@ export class Service<T extends OnchainTable> {
   /** Client context for additional operations */
   protected readonly client: Context["client"];
   /** Current data instance of the table row */
-  protected data: T["$inferSelect"];
+  protected data: T["$inferSelect"] & { updatedAt?: Date; updatedAtBlock?: number; createdAt?: Date; createdAtBlock?: number };
 
   /**
    * Creates a new Service instance.
@@ -35,7 +35,7 @@ export class Service<T extends OnchainTable> {
     table: T,
     name: string,
     context: Context,
-    data: T["$inferInsert"]
+    data: T["$inferInsert"] & { updatedAt?: Date; updatedAtBlock?: number; createdAt?: Date; createdAtBlock?: number }
   ) {
     this.db = context.db;
     this.client = context.client;
@@ -60,9 +60,11 @@ export class Service<T extends OnchainTable> {
    * @returns Promise that resolves to the service instance after successful update
    * @throws {Error} When the update operation fails
    */
-  public async save() {
+  public async save(block?: Event["block"]) {
     console.info(`Saving ${this.name}`, this.data);
     const pkFilter = primaryKeyFilter(this.table, this.data);
+    if (block && "updatedAt" in this.table) this.data["updatedAt"] = new Date(Number(block.timestamp) * 1000);
+    if (block && "updatedAtBlock" in this.table) this.data["updatedAtBlock"] = Number(block.number);
     const update =
       (
         await this.db.sql

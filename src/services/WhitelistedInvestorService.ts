@@ -1,4 +1,4 @@
-import { InvestorWhitelist } from "ponder:schema";
+import { WhitelistedInvestor } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
 
 /**
@@ -6,11 +6,11 @@ import { Service, mixinCommonStatics } from "./Service";
  * 
  * Provides static methods for creating, finding, and querying investor whitelist records.
  * 
- * @extends {Service<typeof InvestorWhitelist>}
+ * @extends {Service<typeof WhitelistedInvestor>}
  * @see {@link Service} Base service class for common CRUD operations
- * @see {@link InvestorWhitelist} Investor whitelist entity schema definition
+ * @see {@link WhitelistedInvestor} Investor whitelist entity schema definition
  */
-export class InvestorWhitelistService extends mixinCommonStatics(Service<typeof InvestorWhitelist>, InvestorWhitelist, "InvestorWhitelist") {
+export class WhitelistedInvestorService extends mixinCommonStatics(Service<typeof WhitelistedInvestor>, WhitelistedInvestor, "WhitelistedInvestor") {
   /**
    * Freezes the investor whitelist record.
    * 
@@ -28,6 +28,17 @@ export class InvestorWhitelistService extends mixinCommonStatics(Service<typeof 
    */
   public unfreeze() {
     this.data.isFrozen = false;
+    return this;
+  }
+
+  /**
+   * Sets the valid until date for the investor whitelist record.
+   * 
+   * @param validUntil - The date until which the investor whitelist record is valid
+   * @returns {InvestorWhitelistService} The current service instance for method chaining
+   */
+  public setValidUntil(validUntil: Date | null) {
+    this.data.validUntil = validUntil;
     return this;
   }
 }

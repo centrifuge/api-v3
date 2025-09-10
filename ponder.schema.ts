@@ -129,7 +129,7 @@ const TokenColumns = (t: PgColumnsBuilders) => ({
   index: t.integer(),
   isActive: t.boolean().notNull().default(false),
   centrifugeId: t.text(),
-  poolId: t.bigint(),
+  poolId: t.bigint().notNull(),
   // Metadata fields
   name: t.text(),
   symbol: t.text(),
@@ -270,34 +270,34 @@ export const InvestorTransactionRelations = relations(
   })
 );
 
-const InvestorWhitelistColumns = (t: PgColumnsBuilders) => ({
+const WhitelistedInvestorColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   tokenId: t.text().notNull(),
   accountAddress: t.hex().notNull(),
-  chainId: t.text().notNull(),
+  centrifugeId: t.text().notNull(),
   isFrozen: t.boolean().notNull().default(false),
-  validUntil: t.timestamp().notNull(),
+  validUntil: t.timestamp(),
   createdAt: t.timestamp().notNull(),
   createdAtBlock: t.integer().notNull(),
   updatedAt: t.timestamp().notNull(),
   updatedAtBlock: t.integer().notNull(),
-  
+
 });
 
-export const InvestorWhitelist = onchainTable("investor_whitelist", InvestorWhitelistColumns, (t) => ({
-  id: primaryKey({ columns: [t.tokenId, t.chainId, t.accountAddress] }),
+export const WhitelistedInvestor = onchainTable("whitelisted_investor", WhitelistedInvestorColumns, (t) => ({
+  id: primaryKey({ columns: [t.tokenId, t.centrifugeId, t.accountAddress] }),
   poolIdx: index().on(t.poolId),
   tokenIdx: index().on(t.tokenId),
   accountAddressIdx: index().on(t.accountAddress),
-  chainIdIdx: index().on(t.chainId),
+  centrifugeIdIdx: index().on(t.centrifugeId),
 }));
-export const InvestorWhitelistRelations = relations(InvestorWhitelist, ({ one }) => ({
+export const WhitelistedInvestorRelations = relations(WhitelistedInvestor, ({ one }) => ({
   token: one(Token, {
-    fields: [InvestorWhitelist.tokenId],
+    fields: [WhitelistedInvestor.tokenId],
     references: [Token.id],
   }),
   account: one(Account, {
-    fields: [InvestorWhitelist.accountAddress],
+    fields: [WhitelistedInvestor.accountAddress],
     references: [Account.address],
   }),
 }));
@@ -1283,7 +1283,7 @@ const TokenInstancePositionColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   accountAddress: t.hex().notNull(),
   balance: t.bigint().notNull().default(0n),
-  isFrozen: t.boolean().notNull().default(false),
+  isFrozen: t.boolean().notNull().default(false), //TODO: Deprecate this column
   createdAt: t.timestamp().notNull(),
   createdAtBlock: t.integer().notNull(),
   updatedAt: t.timestamp().notNull(),
