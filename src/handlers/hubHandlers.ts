@@ -103,7 +103,7 @@ function decodeUpdateRestriction(
       const _validUntil = Number(buffer.readBigUInt64BE(33) * 1000n);
       const validUntil = Number.isSafeInteger(_validUntil)
         ? new Date(Number(_validUntil))
-        : new Date("10000-01-01");
+        : new Date("9999-12-31T23:59:59Z");
       return [restrictionType, accountAddress, validUntil];
     case RestrictionType.Freeze:
       return [restrictionType, accountAddress, null];
