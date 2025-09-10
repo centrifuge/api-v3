@@ -5,9 +5,11 @@ import {
   primaryKey,
   index,
 } from "ponder";
+import { currentContractNames } from "./ponder.config";
 
 type PgColumnsFunction = Extract<Parameters<typeof onchainTable>[1], Function>;
 type PgColumnsBuilders = Parameters<PgColumnsFunction>[0];
+type PgHexColumn = ReturnType<PgColumnsBuilders["hex"]>;
 
 const BlockchainColumns = (t: PgColumnsBuilders) => ({
   id: t.text().notNull(),
@@ -42,38 +44,14 @@ export const BlockchainRelations = relations(Blockchain, ({ many }) => ({
   escrows: many(Escrow, { relationName: "escrows" }),
 }));
 
+
+const currentContractFields = (t: PgColumnsBuilders) => Object.fromEntries(currentContractNames.map((contract) => ([
+  contract, t.hex(),
+]))) as Record<typeof currentContractNames[number], PgHexColumn>;
 const DeploymentColumns = (t: PgColumnsBuilders) => ({
   chainId: t.text().notNull(),
   centrifugeId: t.text().notNull(),
-  root: t.hex(),
-  guardian: t.hex(),
-  gasService: t.hex(),
-  gateway: t.hex(),
-  multiAdapter: t.hex(),
-  messageProcessor: t.hex(),
-  messageDispatcher: t.hex(),
-  hubRegistry: t.hex(),
-  accounting: t.hex(),
-  holdings: t.hex(),
-  shareClassManager: t.hex(),
-  hub: t.hex(),
-  identityValuation: t.hex(),
-  poolEscrowFactory: t.hex(),
-  routerEscrow: t.hex(),
-  globalEscrow: t.hex(),
-  freezeOnlyHook: t.hex(),
-  redemptionRestrictionsHook: t.hex(),
-  fullRestrictionsHook: t.hex(),
-  tokenFactory: t.hex(),
-  asyncRequestManager: t.hex(),
-  syncManager: t.hex(),
-  asyncVaultFactory: t.hex(),
-  syncDepositVaultFactory: t.hex(),
-  spoke: t.hex(),
-  vaultRouter: t.hex(),
-  balanceSheet: t.hex(),
-  wormholeAdapter: t.hex(),
-  axelarAdapter: t.hex(),
+  ...(currentContractFields(t)),
 });
 
 export const Deployment = onchainTable(

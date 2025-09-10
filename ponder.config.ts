@@ -33,6 +33,7 @@ export const selectedNetworks = process.env.SELECTED_NETWORKS!.split(",");
 export const currentChains = _chains.filter((chain) =>
   selectedNetworks.includes(chain.network.chainId.toString())
 );
+export const currentContractNames = Array.from(new Set(currentChains.flatMap((chain) => Object.keys(chain.contracts)))) as (keyof (typeof currentChains)[number]["contracts"])[];
 type Networks = (typeof currentChains)[number]["network"]["network"];
 
 const chains = currentChains.reduce<Record<Networks, ChainConfig>>(
