@@ -1,14 +1,11 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
-import { BlockchainService, TokenInstancePositionService } from "../services";
+import {
+  BlockchainService,
+  WhitelistedInvestorService,
+  TokenService,
+} from "../services";
 import { getAddress } from "viem";
-
-enum RestrictionType {
-  "Invalid",
-  "Member",
-  "Freeze",
-  "Unfreeze",
-}
 
 ponder.on("Hub:UpdateRestriction", async ({ event, context }) => {
   logEvent(event, context, "Hub:UpdateRestriction");
@@ -27,40 +24,92 @@ ponder.on("Hub:UpdateRestriction", async ({ event, context }) => {
   if (!blockchain) throw new Error("Blockchain not found");
   const { centrifugeId: _hubCentrifugeId } = blockchain.read();
 
-  const dataBuffer = Buffer.from(payload.slice(2), "hex");
-  const restrictionType = dataBuffer.readUInt8(0);
-  const accountBuffer = dataBuffer.subarray(1,21);
+  const token = (await TokenService.get(context, {
+    id: tokenId,
+  })) as TokenService | null;
+  if (!token) {
+    console.error("Token not found for id ", tokenId);
+    return;
+  }
+  const { poolId } = token.read();
 
-  const accountAddress =
-    accountBuffer.length > 0 ? getAddress(`0x${accountBuffer.toString("hex")}`) : null;
-  if (!accountAddress) {
-    console.error("Account address is null");
+  const decodedPayload = decodeUpdateRestriction(payload);
+  if (!decodedPayload) {
+    console.error("Unable to decode updateRestriction payload: ", payload);
     return;
   }
 
-  const tokenInstancePosition = (await TokenInstancePositionService.getOrInit(
-    context,
-    {
-      tokenId,
-      centrifugeId: spokeCentrifugeId.toString(),
-      accountAddress,
-      createdAt: new Date(Number(event.block.timestamp) * 1000),
-      createdAtBlock: Number(event.block.number),
-      updatedAt: new Date(Number(event.block.timestamp) * 1000),
-      updatedAtBlock: Number(event.block.number),
-    }
-  )) as TokenInstancePositionService;
+  const [restrictionType, accountAddress, validUntil] = decodedPayload;
+
+  const whitelistedInvestor = (await WhitelistedInvestorService.getOrInit(context, {
+    poolId,
+    tokenId,
+    centrifugeId: spokeCentrifugeId.toString(),
+    accountAddress,
+    createdAt: new Date(Number(event.block.timestamp) * 1000),
+    createdAtBlock: Number(event.block.number),
+    updatedAt: new Date(Number(event.block.timestamp) * 1000),
+    updatedAtBlock: Number(event.block.number),
+  })) as WhitelistedInvestorService;
 
   switch (restrictionType) {
+    case RestrictionType.Member:
+      whitelistedInvestor.setValidUntil(validUntil);
+      await whitelistedInvestor.save(event.block);
+      break;
     case RestrictionType.Freeze:
-      tokenInstancePosition.freeze();
-      await tokenInstancePosition.save();
+      whitelistedInvestor.freeze();
+      await whitelistedInvestor.save(event.block);
       break;
     case RestrictionType.Unfreeze:
-      tokenInstancePosition.unfreeze();
-      await tokenInstancePosition.save();
+      whitelistedInvestor.unfreeze();
+      await whitelistedInvestor.save(event.block);
       break;
     default:
       break;
   }
 });
+
+enum RestrictionType {
+  "Invalid",
+  "Member",
+  "Freeze",
+  "Unfreeze",
+}
+
+/**
+ * Decodes the update restriction payload into its parameters.
+ * @param payload - The payload to decode.
+ * @returns The decoded parameters.
+ */
+function decodeUpdateRestriction(
+  payload: `0x${string}`
+):
+  | [
+      restrictionType: RestrictionType.Member | RestrictionType.Freeze | RestrictionType.Unfreeze,
+      accountAddress: `0x${string}`,
+      validUntil: Date | null
+    ]
+  | null {
+  const buffer = Buffer.from(payload.slice(2), "hex");
+  const restrictionType = buffer.readUInt8(0);
+  const accountBuffer = buffer.subarray(1, 32);
+  const accountAddress = getAddress(
+    `0x${accountBuffer.toString("hex").slice(0, 40)}`
+  );
+
+  switch (restrictionType) {
+    case RestrictionType.Member:
+      const _validUntil = Number(buffer.readBigUInt64BE(33) * 1000n);
+      const validUntil = Number.isSafeInteger(_validUntil)
+        ? new Date(Number(_validUntil))
+        : new Date("10000-01-01");
+      return [restrictionType, accountAddress, validUntil];
+    case RestrictionType.Freeze:
+      return [restrictionType, accountAddress, null];
+    case RestrictionType.Unfreeze:
+      return [restrictionType, accountAddress, null];
+    default:
+      return null;
+  }
+}

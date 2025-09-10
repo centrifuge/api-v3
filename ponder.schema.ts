@@ -129,7 +129,7 @@ const TokenColumns = (t: PgColumnsBuilders) => ({
   index: t.integer(),
   isActive: t.boolean().notNull().default(false),
   centrifugeId: t.text(),
-  poolId: t.bigint(),
+  poolId: t.bigint().notNull(),
   // Metadata fields
   name: t.text(),
   symbol: t.text(),
@@ -269,6 +269,40 @@ export const InvestorTransactionRelations = relations(
     }),
   })
 );
+
+const WhitelistedInvestorColumns = (t: PgColumnsBuilders) => ({
+  poolId: t.bigint().notNull(),
+  tokenId: t.text().notNull(),
+  accountAddress: t.hex().notNull(),
+  centrifugeId: t.text().notNull(),
+  isFrozen: t.boolean().notNull().default(false),
+  validUntil: t.timestamp(),
+  createdAt: t.timestamp().notNull(),
+  createdAtBlock: t.integer().notNull(),
+  updatedAt: t.timestamp().notNull(),
+  updatedAtBlock: t.integer().notNull(),
+
+});
+
+export const WhitelistedInvestor = onchainTable("whitelisted_investor", WhitelistedInvestorColumns, (t) => ({
+  id: primaryKey({ columns: [t.tokenId, t.centrifugeId, t.accountAddress] }),
+  poolIdx: index().on(t.poolId),
+  tokenIdx: index().on(t.tokenId),
+  accountAddressIdx: index().on(t.accountAddress),
+  centrifugeIdIdx: index().on(t.centrifugeId),
+}));
+export const WhitelistedInvestorRelations = relations(WhitelistedInvestor, ({ one }) => ({
+  token: one(Token, {
+    fields: [WhitelistedInvestor.tokenId],
+    references: [Token.id],
+  }),
+  account: one(Account, {
+    fields: [WhitelistedInvestor.accountAddress],
+    references: [Account.address],
+  }),
+}));
+
+
 
 const OutstandingInvestColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
@@ -1249,7 +1283,7 @@ const TokenInstancePositionColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   accountAddress: t.hex().notNull(),
   balance: t.bigint().notNull().default(0n),
-  isFrozen: t.boolean().notNull().default(false),
+  isFrozen: t.boolean().notNull().default(false), //TODO: Deprecate this column
   createdAt: t.timestamp().notNull(),
   createdAtBlock: t.integer().notNull(),
   updatedAt: t.timestamp().notNull(),
