@@ -3,7 +3,7 @@ import { eq, and, count, isNull, not, asc, desc } from "drizzle-orm";
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
 
 /** Type alias for PostgreSQL table with columns */
-type OnchainTable = PgTableWithColumns<any>;
+type OnchainTable = PgTableWithColumns<any>
 
 type DefaultColumns = {
   updatedAt?: Date;
