@@ -8,20 +8,13 @@ import { snapshotter } from "../helpers/snapshotter";
 
 ponder.on("Holdings:Initialize", async ({ event, context }) => {
   logEvent(event, context, "Holdings:Create");
-  const _chainId = context.chain.id;
-  if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const [_poolId, shareClassId, assetId, _valuation, isLiability, accounts] =
     event.args;
-  const chainId = _chainId.toString();
   const poolId = _poolId;
   const tokenId = shareClassId;
   const valuation = _valuation.toString();
 
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId,
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const holding = (await HoldingService.getOrInit(context, {
     centrifugeId,
@@ -51,20 +44,13 @@ ponder.on("Holdings:Initialize", async ({ event, context }) => {
 
 ponder.on("Holdings:Increase", async ({ event, context }) => {
   logEvent(event, context, "Holdings:Increase");
-  const _chainId = context.chain.id;
-  if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const [_poolId, _scId, assetId, _pricePoolPerAsset, amount, increasedValue] =
     event.args;
 
-  const chainId = _chainId.toString();
   const poolId = _poolId;
   const tokenId = _scId.toString();
 
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId,
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const holding = (await HoldingService.getOrInit(context, {
     centrifugeId,
@@ -81,20 +67,14 @@ ponder.on("Holdings:Increase", async ({ event, context }) => {
 
 ponder.on("Holdings:Decrease", async ({ event, context }) => {
   logEvent(event, context, "Holdings:Decrease");
-  const _chainId = context.chain.id;
-  if (typeof _chainId !== "number") throw new Error("Chain ID is required");
+  
   const [_poolId, _scId, assetId, _pricePoolPerAsset, amount, decreasedValue] =
     event.args;
 
-  const chainId = _chainId.toString();
   const poolId = _poolId;
   const tokenId = _scId.toString();
 
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId,
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const holding = (await HoldingService.getOrInit(context, {
     centrifugeId,
@@ -111,8 +91,7 @@ ponder.on("Holdings:Decrease", async ({ event, context }) => {
 
 ponder.on("Holdings:Update", async ({ event, context }) => {
   logEvent(event, context, "Holdings:Update");
-  const _chainId = context.chain.id;
-  if (typeof _chainId !== "number") throw new Error("Chain ID is required");
+  
   const {
     poolId: _poolId,
     scId: _scId,
@@ -121,15 +100,11 @@ ponder.on("Holdings:Update", async ({ event, context }) => {
     diffValue,
   } = event.args;
 
-  const chainId = _chainId.toString();
+  
   const poolId = _poolId;
   const tokenId = _scId.toString();
 
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId,
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const holding = (await HoldingService.getOrInit(context, {
     centrifugeId,
@@ -146,8 +121,6 @@ ponder.on("Holdings:Update", async ({ event, context }) => {
 
 ponder.on("Holdings:UpdateValuation", async ({ event, context }) => {
   logEvent(event, context, "Holdings:UpdateValuation");
-  const _chainId = context.chain.id;
-  if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const {
     poolId: _poolId,
     scId: _scId,
@@ -155,15 +128,10 @@ ponder.on("Holdings:UpdateValuation", async ({ event, context }) => {
     valuation,
   } = event.args;
 
-  const chainId = _chainId.toString();
   const poolId = _poolId;
   const tokenId = _scId.toString();
 
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId,
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId } = blockchain.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const holding = (await HoldingService.getOrInit(context, {
     centrifugeId,

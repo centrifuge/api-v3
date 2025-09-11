@@ -24,13 +24,7 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
     // refund,
   } = event.args;
 
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId: fromCentrifugeId } = blockchain.read();
+  const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const messages = extractMessagesFromPayload(payload);
   const messageIds = messages.map((message) =>
@@ -100,13 +94,8 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
 ponder.on("MultiAdapter:SendProof", async ({ event, context }) => {
   logEvent(event, context, "MultiAdapter:SendProof");
   const { payloadId, adapter, centrifugeId: toCentrifugeId } = event.args;
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId: fromCentrifugeId } = blockchain.read();
+
+  const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const _adapterParticipation = (await AdapterParticipationService.insert(
     context,
@@ -121,7 +110,8 @@ ponder.on("MultiAdapter:SendProof", async ({ event, context }) => {
       timestamp: new Date(Number(event.block.timestamp) * 1000),
       blockNumber: Number(event.block.number),
       transactionHash: event.transaction.hash,
-    }, event.block
+    },
+    event.block
   )) as AdapterParticipationService;
 });
 
@@ -135,13 +125,9 @@ ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
     // refund,
     centrifugeId: fromCentrifugeId,
   } = event.args;
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId: toCentrifugeId } = blockchain.read();
+
+  const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
+
   const crosschainPayload = (await CrosschainPayloadService.get(context, {
     id: payloadId,
     toCentrifugeId: toCentrifugeId,
@@ -168,7 +154,8 @@ ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
       timestamp: new Date(Number(event.block.timestamp) * 1000),
       blockNumber: Number(event.block.number),
       transactionHash: event.transaction.hash,
-    }, event.block
+    },
+    event.block
   )) as AdapterParticipationService;
 
   const handleCounts = await AdapterParticipationService.count(context, {
@@ -184,13 +171,8 @@ ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
 ponder.on("MultiAdapter:HandleProof", async ({ event, context }) => {
   logEvent(event, context, "MultiAdapter:HandleProof"); //RECEIVING CHAIN
   const { payloadId, adapter, centrifugeId: fromCentrifugeId } = event.args;
-  const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID is required");
-  const blockchain = (await BlockchainService.get(context, {
-    id: chainId.toString(),
-  })) as BlockchainService;
-  if (!blockchain) throw new Error("Blockchain not found");
-  const { centrifugeId: toCentrifugeId } = blockchain.read();
+  
+  const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const _adapterParticipation = (await AdapterParticipationService.insert(
     context,
@@ -205,7 +187,8 @@ ponder.on("MultiAdapter:HandleProof", async ({ event, context }) => {
       timestamp: new Date(Number(event.block.timestamp) * 1000),
       blockNumber: Number(event.block.number),
       transactionHash: event.transaction.hash,
-    }, event.block
+    },
+    event.block
   )) as AdapterParticipationService;
 
   const handleCounts = await AdapterParticipationService.count(context, {
