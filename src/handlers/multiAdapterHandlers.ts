@@ -230,7 +230,7 @@ ponder.on(
     for (const adapter of adapters) {
       const contracts = Object.entries(currentChain.contracts);
       const [contractName = null] =
-        contracts.find(([_, contractAddress]) => contractAddress === adapter) ??
+        contracts.find(([_, contractAddress]) => contractAddress.toLowerCase() === adapter) ??
         [];
       const firstPart = contractName
         ? contractName.split(/(?=[A-Z])/)[0]
