@@ -1,6 +1,12 @@
-# Centrifuge API V3
+# 🌀 Centrifuge API V3
+
+[![Deploy Pipeline](https://github.com/centrifuge/api-v3/actions/workflows/docker-build.yml/badge.svg)](https://github.com/centrifuge/api-v3/actions/workflows/docker-build.yml)
+[![Centrifuge](https://img.shields.io/static/v1?label=for&message=Centrifuge&color=2762ff)](https://centrifuge.io/)
+[![embrio.tech](https://img.shields.io/static/v1?label=by&message=EMBRIO.tech&color=24ae5f)](https://embrio.tech)
 
 A blockchain event indexer for the Centrifuge protocol, built with [Ponder](https://ponder.sh/).
+
+---
 
 ## Overview
 
