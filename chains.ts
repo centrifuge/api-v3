@@ -546,8 +546,8 @@ export const endpoints = {
   421614: [`arb-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`],
   11155111: [`eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`],
   42161: [
-    `${process.env.QUICKNODE_API_NAME}.arbitrum-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
     `arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `${process.env.QUICKNODE_API_NAME}.arbitrum-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
   ],
   43114: [
     `avax-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
