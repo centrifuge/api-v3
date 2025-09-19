@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.6.1](https://github.com/centrifuge/api-v3/compare/v1.6.0...v1.6.1) (2025-09-19)
+
+
+### Bug Fixes
+
+* investOrders contains wrong state ([#136](https://github.com/centrifuge/api-v3/issues/136)) ([6db9870](https://github.com/centrifuge/api-v3/commit/6db9870d2ea4e2d6c6f03e92f0f5bab1f69f26b6))
+* missing adapter names ([#134](https://github.com/centrifuge/api-v3/issues/134)) ([8f18438](https://github.com/centrifuge/api-v3/commit/8f184383629cc5848a3549599cbdbfe3f827238a))
+* prefer arbitrum alchemy wss ([16e3a87](https://github.com/centrifuge/api-v3/commit/16e3a87942013e867485ffcf64b29ca008048eb8))
+
 ## [1.6.0](https://github.com/centrifuge/api-v3/compare/v1.5.1...v1.6.0) (2025-09-10)
 
 
