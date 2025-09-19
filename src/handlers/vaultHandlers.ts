@@ -10,7 +10,6 @@ import {
 import { InvestorTransactionService, VaultService } from "../services";
 import { OutstandingInvestService } from "../services";
 import { OutstandingRedeemService } from "../services";
-import { getAddress } from "viem";
 
 ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   logEvent(event, context, "Vault:DepositRequest");
@@ -42,7 +41,7 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   const invstorAccount = (await AccountService.getOrInit(
     context,
     {
-      address: getAddress(controller),
+      address: controller,
     },
     event.block
   )) as AccountService;
@@ -118,7 +117,7 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
   const invstorAccount = (await AccountService.getOrInit(
     context,
     {
-      address: getAddress(controller),
+      address: controller,
     },
     event.block
   )) as AccountService;
@@ -191,7 +190,7 @@ ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
   const invstorAccount = (await AccountService.getOrInit(
     context,
     {
-      address: getAddress(controller),
+      address: controller,
     },
     event.block
   )) as AccountService;
@@ -242,7 +241,7 @@ ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
   const invstorAccount = (await AccountService.getOrInit(
     context,
     {
-      address: getAddress(controller),
+      address: controller,
     },
     event.block
   )) as AccountService;
@@ -297,7 +296,7 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
   const invstorAccount = (await AccountService.getOrInit(
     context,
     {
-      address: getAddress(owner),
+      address: owner,
     },
     event.block
   )) as AccountService;
@@ -365,7 +364,7 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
   const invstorAccount = (await AccountService.getOrInit(
     context,
     {
-      address: getAddress(owner),
+      address: owner,
     },
     event.block
   )) as AccountService;

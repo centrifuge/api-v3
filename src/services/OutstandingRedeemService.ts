@@ -1,6 +1,7 @@
 import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { OutstandingRedeem } from "ponder:schema";
+import { serviceLog } from "../helpers/logger";
 
 /**
  * Service class for managing outstanding redeem orders in the system.
@@ -22,8 +23,8 @@ export class OutstandingRedeemService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public decorateOutstandingOrder(event: Event) {
-    console.log(
-      `Decorating OutstandingRedeem pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account}`
+    serviceLog(
+      `Decorating OutstandingRedeem ${this.data.tokenId}-${this.data.assetId}-${this.data.account} with event block ${event.block.number} and timestamp ${event.block.timestamp}`
     );
     this.data.updatedAt = new Date(Number(event.block.timestamp) * 1000);
     this.data.updatedAtBlock = Number(event.block.number);
@@ -38,7 +39,7 @@ export class OutstandingRedeemService extends mixinCommonStatics(
    */
   public updateDepositAmount(depositAmount: bigint) {
     console.info(
-      `Updating deposit amount for OutstandingRedeem pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account} to ${depositAmount}`
+      `Updating deposit amount for OutstandingRedeem ${this.data.tokenId}-${this.data.assetId}-${this.data.account} to ${depositAmount}`
     );
     this.data.depositAmount = depositAmount;
     return this;
@@ -58,8 +59,8 @@ export class OutstandingRedeemService extends mixinCommonStatics(
     queuedUserShareAmount: bigint,
     pendingUserShareAmount: bigint
   ) {
-    console.log(
-      `Processing hub redeem request for pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account}`
+    serviceLog(
+      `Processing hub redeem request for ${this.data.tokenId}-${this.data.assetId}-${this.data.account} with queuedUserShareAmount: ${queuedUserShareAmount} and pendingUserShareAmount: ${pendingUserShareAmount}`
     );
     this.data.queuedAmount = queuedUserShareAmount;
     this.data.pendingAmount = pendingUserShareAmount;
@@ -75,10 +76,11 @@ export class OutstandingRedeemService extends mixinCommonStatics(
    * @param event - The event that triggered the approval
    * @returns The service instance for method chaining
    */
-  public approveRedeem(approvedUserShareAmount: bigint, block: Event["block"]) {
-    console.log(
-      `Approving redeem for pool ${this.data.poolId} token ${this.data.tokenId} asset ${this.data.assetId} account ${this.data.account}`
+  public approveRedeem(approvedUserShareAmount: bigint, approvedIndex: number, block: Event["block"]) {
+    serviceLog(
+      `Approving redeem for outstandingRedeem ${this.data.tokenId}-${this.data.assetId}-${this.data.account} for index ${approvedIndex} with approvedUserShareAmount: ${approvedUserShareAmount} on block ${block.number} and timestamp ${block.timestamp}`
     );
+    this.data.approvedIndex = approvedIndex;
     this.data.approvedAmount = approvedUserShareAmount;
     this.data.approvedAt = new Date(Number(block.timestamp) * 1000);
     this.data.approvedAtBlock = Number(block.number);
@@ -93,6 +95,9 @@ export class OutstandingRedeemService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public clear(block: Event["block"]) {
+    serviceLog(
+      `Clearing outstanding redeem ${this.data.tokenId}-${this.data.assetId}-${this.data.account} on block ${block.number} and timestamp ${block.timestamp}`
+    );
     this.data.pendingAmount! -= this.data.approvedAmount!;
     this.data.approvedAmount = 0n;
     this.data.approvedAt = null;

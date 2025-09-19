@@ -1,6 +1,7 @@
 import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { OutstandingInvest } from "ponder:schema";
+import { serviceLog } from "../helpers/logger";
 
 /**
  * Service class for managing outstanding invest orders in the system.
@@ -22,7 +23,7 @@ export class OutstandingInvestService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public decorateOutstandingOrder(event: Event) {
-    console.log(`Decorating OutstandingInvest`);
+    serviceLog(`Decorating OutstandingInvest ${this.data.tokenId}-${this.data.assetId}-${this.data.account} with event block ${event.block.number} and timestamp ${event.block.timestamp}`);
     this.data.updatedAt = new Date(Number(event.block.timestamp) * 1000);
     this.data.updatedAtBlock = Number(event.block.number);
     return this;
@@ -56,7 +57,7 @@ export class OutstandingInvestService extends mixinCommonStatics(
     queuedUserAssetAmount: bigint,
     pendingUserAssetAmount: bigint
   ) {
-    console.log(
+    serviceLog(
       `Processing hub deposit request for pool ${this.data.poolId} token ${this.data.tokenId} account ${this.data.account}`
     );
     // Update queued and deposit amounts from event
@@ -74,10 +75,11 @@ export class OutstandingInvestService extends mixinCommonStatics(
    * @param event - The event that triggered the approval
    * @returns The service instance for method chaining
    */
-  public approveInvest(approvedUserAssetAmount: bigint, block: Event["block"]) {
-    console.log(
-      `Approving invest for pool ${this.data.poolId} token ${this.data.tokenId} account ${this.data.account}`
+  public approveInvest(approvedUserAssetAmount: bigint, approvedIndex: number, block: Event["block"]) {
+    serviceLog(
+      `Approving invest for outstandingInvest ${this.data.tokenId}-${this.data.assetId}-${this.data.account} for index ${approvedIndex} with approvedUserAssetAmount: ${approvedUserAssetAmount} on block ${block.number} and timestamp ${block.timestamp}`
     );
+    this.data.approvedIndex = approvedIndex;
     this.data.approvedAmount = approvedUserAssetAmount;
     this.data.approvedAt = new Date(Number(block.timestamp) * 1000);
     this.data.approvedAtBlock = Number(block.number);
@@ -92,8 +94,8 @@ export class OutstandingInvestService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public clear(block: Event["block"]) {
-    console.log(
-      `Clearing outstanding invest for pool ${this.data.poolId} token ${this.data.tokenId} account ${this.data.account}`
+    serviceLog(
+      `Clearing outstanding invest ${this.data.tokenId}-${this.data.assetId}-${this.data.account}`
     );
     this.data.pendingAmount! -= this.data.approvedAmount!;
     this.data.approvedAmount = 0n;

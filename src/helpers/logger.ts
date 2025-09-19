@@ -56,3 +56,24 @@ export function logEvent(event: Event, context: Context, name?: string) {
     )}, txHash: ${transaction?.hash || "unknown"}`
   );
 }
+
+/**
+ * Logs an inline object to the console with formatted output.
+ *
+ * This function takes an object and formats it into a string with key-value pairs.
+ *
+ * @param obj - The object to log
+ */
+export function expandInlineObject(obj: Record<string, any> | null) {
+  if (!obj) return "null";
+  return "{" + Object.entries(obj).map(([key, value]) => `${key}: ${value}`).join(", ") + "}";
+}
+
+/**
+ * Logs a message to the console with a prefix.
+ *
+ * @param args - The arguments to log
+ */
+export function serviceLog(...args: any[]) {
+  console.log(">", ...args);
+}

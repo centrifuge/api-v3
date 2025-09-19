@@ -288,6 +288,7 @@ const OutstandingInvestColumns = (t: PgColumnsBuilders) => ({
   queuedAmount: t.bigint().default(0n), // Amount that is queued onchain for AFTER claim, technically needed, asset denomination
   depositAmount: t.bigint().default(0n), // Amount that is deposited on Hub, asset denomination
 
+  approvedIndex: t.integer(),
   approvedAmount: t.bigint().default(0n), // Amount that is approved on Hub, asset denomination
   approvedAt: t.timestamp(),
   approvedAtBlock: t.integer(),
@@ -301,9 +302,7 @@ export const OutstandingInvest = onchainTable(
   OutstandingInvestColumns,
   (t) => ({
     id: primaryKey({ columns: [t.tokenId, t.assetId, t.account] }),
-    poolIdx: index().on(t.poolId),
-    tokenIdx: index().on(t.tokenId),
-    assetIdx: index().on(t.assetId),
+    approvedIndexIdx: index().on(t.approvedIndex),
   })
 );
 
@@ -323,10 +322,12 @@ const OutstandingRedeemColumns = (t: PgColumnsBuilders) => ({
   assetId: t.bigint().notNull(),
   account: t.hex().notNull(),
 
+  depositAmount: t.bigint().default(0n), // Amount that is deposited on Hub, share denomination
+  
   pendingAmount: t.bigint().default(0n), // Amount that is MAYBE in transit from Spoke to Hub, share denomination
   queuedAmount: t.bigint().default(0n), // Amount that is queued onchain for AFTER claim, technically needed, share denomination
-  depositAmount: t.bigint().default(0n), // Amount that is deposited on Hub, share denomination
 
+  approvedIndex: t.integer(),
   approvedAmount: t.bigint().default(0n), // Amount that is approved on Hub, share denomination
   approvedAt: t.timestamp(),
   approvedAtBlock: t.integer(),
@@ -340,6 +341,7 @@ export const OutstandingRedeem = onchainTable(
   OutstandingRedeemColumns,
   (t) => ({
     id: primaryKey({ columns: [t.tokenId, t.assetId, t.account] }),
+    approvedIndexIdx: index().on(t.approvedIndex),
   })
 );
 

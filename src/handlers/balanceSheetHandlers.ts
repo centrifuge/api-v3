@@ -8,7 +8,6 @@ import {
   HoldingEscrowService,
   PoolManagerService,
 } from "../services";
-import { getAddress } from "viem";
 
 ponder.on("BalanceSheet:NoteDeposit", async ({ event, context }) => {
   logEvent(event, context, "BalanceSheet:NoteDeposit");
@@ -117,7 +116,7 @@ ponder.on("BalanceSheet:UpdateManager", async ({ event, context }) => {
   const account = (await AccountService.getOrInit(
     context,
     {
-      address: getAddress(manager),
+      address: manager,
     },
     event.block
   )) as AccountService;

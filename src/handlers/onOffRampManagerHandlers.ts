@@ -8,7 +8,6 @@ import {
 } from "../services";
 import { logEvent } from "../helpers/logger";
 import { OnRampAssetService } from "../services";
-import { getAddress } from "viem";
 
 ponder.on(
   "OnOffRampManagerFactory:DeployOnOfframpManager",
@@ -37,7 +36,7 @@ ponder.on(
 ponder.on("OnOffRampManager:UpdateRelayer", async ({ event, context }) => {
   logEvent(event, context, "OnOffRampManager:UpdateRelayer");
   const { relayer, isEnabled } = event.args;
-  const manager = getAddress(event.log.address);
+  const manager = event.log.address;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
@@ -117,7 +116,7 @@ ponder.on("OnOffRampManager:UpdateOfframp", async ({ event, context }) => {
   const receiverAccount = (await AccountService.getOrInit(
     context,
     {
-      address: getAddress(receiver),
+      address: receiver,
     },
     event.block
   )) as AccountService;
@@ -129,7 +128,7 @@ ponder.on("OnOffRampManager:UpdateOfframp", async ({ event, context }) => {
       poolId,
       centrifugeId,
       tokenId,
-      assetAddress: getAddress(asset),
+      assetAddress: asset,
       receiverAddress,
     },
     event.block
