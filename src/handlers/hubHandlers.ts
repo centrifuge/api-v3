@@ -1,7 +1,6 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
 import { WhitelistedInvestorService, TokenService } from "../services";
-import { getAddress } from "viem";
 
 ponder.on("Hub:UpdateRestriction", async ({ event, context }) => {
   logEvent(event, context, "Hub:UpdateRestriction");
@@ -84,10 +83,7 @@ function decodeUpdateRestriction(
   const buffer = Buffer.from(payload.slice(2), "hex");
   const restrictionType = buffer.readUInt8(0);
   const accountBuffer = buffer.subarray(1, 32);
-  const accountAddress = getAddress(
-    `0x${accountBuffer.toString("hex").slice(0, 40)}`
-  );
-
+  const accountAddress = `0x${accountBuffer.toString("hex").slice(0, 40)}` as `0x${string}`;
   switch (restrictionType) {
     case RestrictionType.Member:
       const _validUntil = Number(buffer.readBigUInt64BE(33) * 1000n);

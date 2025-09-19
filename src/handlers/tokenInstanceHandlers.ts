@@ -7,7 +7,6 @@ import {
   AccountService,
   TokenService,
 } from "../services";
-import { getAddress } from "viem";
 
 ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
   logEvent(event, context, "TokenInstance:Transfer");
@@ -34,7 +33,7 @@ ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
     : ((await AccountService.getOrInit(
         context,
         {
-          address: getAddress(from),
+          address: from,
         },
         event.block
       )) as AccountService | null);
@@ -44,7 +43,7 @@ ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
     : ((await AccountService.getOrInit(
         context,
         {
-          address: getAddress(to),
+          address: to,
         },
         event.block
       )) as AccountService | null);

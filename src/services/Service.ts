@@ -1,6 +1,7 @@
 import type { Context, Event } from "ponder:registry";
 import { eq, and, count, isNull, not, asc, desc } from "drizzle-orm";
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
+import { expandInlineObject, serviceLog } from "../helpers/logger";
 
 /** Type alias for PostgreSQL table with columns */
 type OnchainTable = PgTableWithColumns<any>
@@ -69,7 +70,7 @@ export class Service<T extends OnchainTable> {
    */
   public async save(block: Event["block"] | null) {
     updateDefaults(this.table, this.data, block);
-    console.info(`Saving ${this.name}`, this.data);
+    serviceLog(`Saving ${this.name}`, expandInlineObject(this.data));
     const pkFilter = primaryKeyFilter(this.table, this.data);
     const update =
       (
@@ -92,7 +93,7 @@ export class Service<T extends OnchainTable> {
    * @throws {Error} When there's no data to delete or deletion fails
    */
   public async delete() {
-    console.info(`Deleting ${this.name}`, this.data);
+    serviceLog(`Deleting ${this.name}`, expandInlineObject(this.data));
     if (!this.data) throw new Error(`No data to delete for ${this.table}`);
     await this.db.sql
       .delete(this.table)
@@ -137,7 +138,7 @@ export function mixinCommonStatics<
       block: Event["block"] | null
     ) {
       insertDefaults(table, data, block);
-      console.info(`Inserting ${name}`, data);
+      serviceLog(`Inserting ${name}`, expandInlineObject(data));
       const insert =
         (
           await context.db.sql
@@ -162,9 +163,9 @@ export function mixinCommonStatics<
       context: Context,
       query: Partial<NonNullable<T["$inferInsert"]>>
     ) {
-      console.log("get", name, query);
+      serviceLog("get", name, expandInlineObject(query));
       const entity = await context.db.find(table as any, query);
-      console.log(`Found ${name}: `, entity);
+      serviceLog(`Found ${name}: `, expandInlineObject(entity));
       if (!entity) {
         return null;
       }
@@ -184,17 +185,17 @@ export function mixinCommonStatics<
       query: T["$inferInsert"] & DefaultColumns,
       block: Event["block"] | null
     ) {
-      console.log("getOrInit", name, query);
+      serviceLog("getOrInit", name, expandInlineObject(query));
       let entity = await context.db.find(table as any, query);
-      console.log(`Found ${name}: `, entity);
+      serviceLog(`Found ${name}: `, expandInlineObject(entity));
       if (!entity) {
         insertDefaults(table, query, block);
-        console.info(`Initialising ${name}: `, query);
+        serviceLog(`Initialising ${name}: `, expandInlineObject(query));
         entity =
           (
             await context.db.sql.insert(table).values(query).returning()
           ).pop() ?? null;
-        if (!entity) throw new Error(`Failed to initialise ${name}: ${query}`);
+        if (!entity) throw new Error(`Failed to initialise ${name}: ${expandInlineObject(query)}`);
       }
       return new this(table, name, context, entity);
     }
@@ -213,7 +214,7 @@ export function mixinCommonStatics<
       block: Event["block"] | null
     ) {
       insertDefaults(table, query, block);
-      console.log("upsert", name, query);
+      serviceLog("upsert", name, expandInlineObject(query));
       const entity =
         (
           await context.db.sql
@@ -231,7 +232,7 @@ export function mixinCommonStatics<
         ).pop() ?? null;
 
       if (!entity) {
-        console.error(`Failed to upsert ${name}: ${query}`);
+        console.error(`Failed to upsert ${name}: ${expandInlineObject(query)}`);
         return null;
       }
       return new this(table, name, context, entity);
@@ -248,7 +249,7 @@ export function mixinCommonStatics<
       context: Context,
       query: Partial<ExtendedQuery<T["$inferSelect"]>>
     ) {
-      console.info(`Querying ${name}`, query);
+      serviceLog(`Querying ${name}`, expandInlineObject(query));
       const filter = queryToFilter(table, query);
 
       const sqlQuery =
@@ -273,7 +274,7 @@ export function mixinCommonStatics<
               .where(filter);
 
       const results = await sqlQuery;
-      console.info(`Found ${results.length} ${name}`);
+      serviceLog(`Found ${results.length} ${name}`);
       return results.map((result) => new this(table, name, context, result));
     }
 
@@ -452,4 +453,4 @@ function updateDefaults<T extends OnchainTable>(table: T, data: T["$inferInsert"
   if ("updatedAtBlock" in table)
     data.updatedAtBlock = Number(block.number);
   return data;
-} 
+}

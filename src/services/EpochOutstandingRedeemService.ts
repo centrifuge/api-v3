@@ -1,6 +1,7 @@
 import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { EpochOutstandingRedeem } from "ponder:schema";
+import { serviceLog } from "../helpers/logger";
 
 /**
  * Service class for managing invest orders in the system.
@@ -18,7 +19,7 @@ export class EpochOutstandingRedeemService extends mixinCommonStatics(Service<ty
    * @returns The current service instance for method chaining
    */
   public decorateEpochOutstandingRedeem(event: Event) {
-    console.log(`Decorating EpochOutstandingRedeem`)
+    serviceLog(`Decorating EpochOutstandingRedeem`)
     this.data.updatedAt = new Date(Number(event.block.timestamp) * 1000);
     this.data.updatedAtBlock = Number(event.block.number);
     return this;
@@ -31,7 +32,7 @@ export class EpochOutstandingRedeemService extends mixinCommonStatics(Service<ty
    * @returns The current service instance for method chaining
    */
   public updatePendingAmount(amount: bigint) {
-    console.log(`Updating pending amount to ${amount}`)
+    serviceLog(`Updating pending amount to ${amount}`)
     this.data.pendingSharesAmount = amount;
     return this;
   }

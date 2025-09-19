@@ -1,6 +1,7 @@
 import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { InvestOrder } from "ponder:schema";
+import { serviceLog } from "../helpers/logger";
 
 /**
  * Service class for managing invest orders in the system.
@@ -31,7 +32,7 @@ export class InvestOrderService extends mixinCommonStatics(
     assetDecimals: number,
     block: Event["block"]
   ) {
-    console.log(`Issuing shares ${navAssetPerShare} ${navPoolPerShare}`);
+    serviceLog(`Issuing shares for investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare}`);
     if (this.data.issuedAt) throw new Error("Shares already issued");
     this.data.issuedAt = new Date(Number(block.timestamp) * 1000);
     this.data.issuedAtBlock = Number(block.number);
@@ -53,7 +54,7 @@ export class InvestOrderService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public claimDeposit(block: Event["block"]) {
-    console.log(`Claiming deposit`);
+    serviceLog(`Claiming deposit for investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} on block ${block.number} with timestamp ${block.timestamp}`);
     if (this.data.claimedAt) throw new Error("Deposit already claimed");
     this.data.claimedAt = new Date(Number(block.timestamp) * 1000);
     this.data.claimedAtBlock = Number(block.number);

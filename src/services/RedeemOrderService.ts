@@ -1,6 +1,7 @@
 import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { RedeemOrder } from "ponder:schema";
+import { serviceLog } from "../helpers/logger";
 
 /**
  * Service class for managing redeem orders in the system.
@@ -35,8 +36,8 @@ export class RedeemOrderService extends mixinCommonStatics(
     shareDecimals: number,
     block: Event["block"]
   ) {
-    console.log(
-      `Revoking shares for pool ${this.data.poolId}, token ${this.data.tokenId}, index ${this.data.index}, account ${this.data.account}`
+    serviceLog(
+      `Revoking shares for ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare} shareDecimals: ${shareDecimals} on block ${block.number} and timestamp ${block.timestamp}`
     );
     if (this.data.revokedAt) throw new Error("Shares already revoked");
     this.data.revokedAt = new Date(Number(block.timestamp) * 1000);
@@ -61,8 +62,8 @@ export class RedeemOrderService extends mixinCommonStatics(
    * ```
    */
   public claimRedeem(block: Event["block"]) {
-    console.log(
-      `Claiming redeem for pool ${this.data.poolId}, token ${this.data.tokenId}, index ${this.data.index}, account ${this.data.account}`
+    serviceLog(
+      `Claiming redeem for ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} on block ${block.number} and timestamp ${block.timestamp}`
     );
     if (this.data.claimedAt) throw new Error("Redeem already claimed");
     this.data.claimedAt = new Date(Number(block.timestamp) * 1000);

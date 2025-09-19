@@ -1,5 +1,6 @@
 import { TokenInstance } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
+import { serviceLog } from "../helpers/logger";
 
 /**
  * Service class for managing TokenInstance entities in the database.
@@ -17,7 +18,7 @@ export class TokenInstanceService extends mixinCommonStatics(Service<typeof Toke
    * @returns The service instance for method chaining
    */
   public setTokenId(tokenId: string) {
-    console.log(`Setting tokenId for token ${this.data.centrifugeId}-${this.data.tokenId}`, tokenId);
+    serviceLog(`Setting tokenId for token ${this.data.centrifugeId}-${this.data.tokenId}`, tokenId);
     this.data.tokenId = tokenId;
     return this;
   }
@@ -29,7 +30,7 @@ export class TokenInstanceService extends mixinCommonStatics(Service<typeof Toke
    * @returns The service instance for method chaining
    */
   public setTokenPrice(price: bigint) {
-    console.log(`Setting token price for token ${this.data.centrifugeId}-${this.data.tokenId}`, price);
+    serviceLog(`Setting token price for token ${this.data.centrifugeId}-${this.data.tokenId}`, price);
     this.data.tokenPrice = price;
     return this;
   }
@@ -44,7 +45,7 @@ export class TokenInstanceService extends mixinCommonStatics(Service<typeof Toke
   public increaseTotalIssuance(tokenAmount: bigint) {
     if(this.data.totalIssuance === null) throw new Error(`Total issuance for token ${this.data.centrifugeId}-${this.data.tokenId} is not set`);
     this.data.totalIssuance += tokenAmount;
-    console.log(`Increased totalIssuance for token ${this.data.centrifugeId}-${this.data.tokenId} by ${tokenAmount} to ${this.data.totalIssuance}`);
+    serviceLog(`Increased totalIssuance for token ${this.data.centrifugeId}-${this.data.tokenId} by ${tokenAmount} to ${this.data.totalIssuance}`);
     return this;
   }
 
@@ -58,7 +59,7 @@ export class TokenInstanceService extends mixinCommonStatics(Service<typeof Toke
   public decreaseTotalIssuance(tokenAmount: bigint) {
     if(this.data.totalIssuance === null) throw new Error(`Total issuance for token ${this.data.centrifugeId}-${this.data.tokenId} is not set`);
     this.data.totalIssuance -= tokenAmount;
-    console.log(`Decreased totalIssuance for token ${this.data.centrifugeId}-${this.data.tokenId} by ${tokenAmount} to ${this.data.totalIssuance}`);
+    serviceLog(`Decreased totalIssuance for token ${this.data.centrifugeId}-${this.data.tokenId} by ${tokenAmount} to ${this.data.totalIssuance}`);
     return this;
   }
 
@@ -69,7 +70,7 @@ export class TokenInstanceService extends mixinCommonStatics(Service<typeof Toke
    * @returns The service instance for method chaining
    */
   public setComputedAt(computedAt: Date) {
-    console.log(`Setting computed at for token ${this.data.centrifugeId}-${this.data.tokenId}`, computedAt);
+    serviceLog(`Setting computed at for token ${this.data.centrifugeId}-${this.data.tokenId}`, computedAt);
     this.data.computedAt = computedAt;
     return this;
   }

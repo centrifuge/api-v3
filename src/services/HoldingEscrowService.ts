@@ -1,5 +1,6 @@
 import { HoldingEscrow } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
+import { serviceLog } from "../helpers/logger";
 
 /**
  * Service class for managing HoldingEscrow entities.
@@ -29,7 +30,7 @@ export class HoldingEscrowService extends mixinCommonStatics(
    * ```
    */
   public increaseAssetAmount(amount: bigint) {
-    console.log("Increasing asset amount by: ", amount);
+    serviceLog("Increasing asset amount by: ", amount);
     if (this.data.assetAmount === null) throw new Error("HoldingEscrow not initialized");
     this.data.assetAmount += amount;
     return this;
@@ -49,7 +50,7 @@ export class HoldingEscrowService extends mixinCommonStatics(
    * ```
    */
   public decreaseAssetAmount(amount: bigint) {
-    console.log("Decreasing asset amount by: ", amount);
+    serviceLog("Decreasing asset amount by: ", amount);
     if (this.data.assetAmount === null) throw new Error("HoldingEscrow not initialized");
     this.data.assetAmount -= amount;
     return this;
@@ -68,7 +69,7 @@ export class HoldingEscrowService extends mixinCommonStatics(
    * ```
    */
   public setAssetPrice(price: bigint) {
-    console.log("Setting asset price to: ", price);
+    serviceLog("Setting asset price to: ", price);
     this.data.assetPrice = price;
     return this;
   }

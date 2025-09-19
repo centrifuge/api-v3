@@ -9,7 +9,6 @@ import {
 } from "../services";
 import { BlockchainService } from "../services/BlockchainService";
 import { fetchFromIpfs } from "../helpers/ipfs";
-import { getAddress } from "viem";
 import { isoCurrencies } from "../helpers/isoCurrencies";
 
 const ipfsHashRegex = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[A-Za-z2-7]{58})$/;
@@ -34,7 +33,7 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
   const account = (await AccountService.getOrInit(
     context,
     {
-      address: getAddress(manager),
+      address: manager,
     },
     event.block
   )) as AccountService;
@@ -97,7 +96,7 @@ ponder.on("HubRegistry:UpdateManager", async ({ event, context }) => {
   const account = (await AccountService.getOrInit(
     context,
     {
-      address: getAddress(manager),
+      address: manager,
     },
     event.block
   )) as AccountService;

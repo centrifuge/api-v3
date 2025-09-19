@@ -2,6 +2,7 @@ import { Service } from "../services/Service";
 import { ponder } from "ponder:registry";
 import type { Context, Event } from "ponder:registry";
 import { PgTableWithColumns } from "drizzle-orm/pg-core";
+import { serviceLog } from "./logger";
 
 /**
  * Type representing trigger events that can initiate a snapshot.
@@ -51,7 +52,7 @@ export async function snapshotter<
   snapshotTable: ST
 ) {
   if (entities.length === 0) {
-    console.log("No entities to snapshot");
+    serviceLog(`No entities to snapshot`);
     return;
   }
   // @ts-ignore - transaction is not typed
@@ -59,7 +60,7 @@ export async function snapshotter<
   const chainId = (context.chain.id as number).toString();
   for (const entity of entities) {
     const data = entity.read();
-    console.log(`snapshotting ${data["id"]}`);
+    serviceLog(`snapshotting ${data["id"]}`);
     const snapshotData = {
       ...data,
       timestamp: new Date(Number(event.block.timestamp) * 1000),
@@ -68,7 +69,6 @@ export async function snapshotter<
       triggerTxHash: transaction?.hash,
       triggerChainId: chainId,
     };
-
     await context.db.sql.insert(snapshotTable).values(snapshotData);
   }
 }
