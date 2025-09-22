@@ -1,6 +1,12 @@
 import { Blockchain } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
 import { Context } from "ponder:registry";
+import { currentChains } from "../../ponder.config";
+
+
+type Network = typeof currentChains[number]["network"];
+type InMemoryChainId = { [K in Network["chainId"]]: Extract<Network, { chainId: K }>['centrifugeId']}
+const inMemoryChainId = Object.fromEntries(currentChains.map((chain) => [chain.network.chainId, chain.network.centrifugeId])) as InMemoryChainId
 
 /**
  * Service class for managing blockchain-related operations and data.
@@ -24,14 +30,9 @@ export class BlockchainService extends mixinCommonStatics(
    */
   static async getCentrifugeId(context: Context) {
     const chainId = context.chain.id;
-    if (typeof chainId !== "number")
-      throw new Error("Chain ID is not a number");
-    const blockchain = (await BlockchainService.get(context, {
-      id: chainId.toString(),
-    })) as BlockchainService;
-    if (!blockchain) throw new Error("Blockchain not found");
-    const { centrifugeId } = blockchain.read();
-    return centrifugeId;
+    if (typeof chainId !== "number") throw new Error("Chain ID is not a number");
+    if (!(chainId in inMemoryChainId)) throw new Error("Chain ID not found in inMemoryChainId");
+    return String(inMemoryChainId[chainId as keyof InMemoryChainId])
   }
   /**
    * Sets the last period start date for the blockchain.
