@@ -201,6 +201,8 @@ export const InvestorTransactionType = onchainEnum(
     "REDEEM_CLAIMED",
     "SYNC_DEPOSIT",
     "SYNC_REDEEM",
+    "TRANSFER_IN",
+    "TRANSFER_OUT",
   ] as const
 );
 
@@ -216,6 +218,10 @@ const InvestorTransactionColumns = (t: PgColumnsBuilders) => ({
   currencyAmount: t.bigint().default(0n),
   tokenPrice: t.bigint().default(0n),
   transactionFee: t.bigint().default(0n),
+  fromAccount: t.hex(),
+  toAccount: t.hex(),
+  fromCentrifugeId: t.text(),
+  toCentrifugeId: t.text(),
   ...(defaultColumns(t, false)),
 });
 export const InvestorTransaction = onchainTable(

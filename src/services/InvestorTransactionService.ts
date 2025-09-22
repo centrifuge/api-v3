@@ -30,7 +30,7 @@ export class InvestorTransactionService extends mixinCommonStatics(
    */
   static async updateDepositRequest(
     context: Context,
-    data: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    data: InvestorTransactionData,
     block: Event["block"]
   ) {
     serviceLog(
@@ -44,205 +44,245 @@ export class InvestorTransactionService extends mixinCommonStatics(
    * Creates an investor transaction record for an updated redeem request.
    * 
    * @param context - The Ponder context for database operations
-   * @param query - The transaction data excluding the type field
+   * @param data - The transaction data excluding the type field
    * @returns Promise resolving to the created investor transaction
    */
   static async updateRedeemRequest(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    data: InvestorTransactionData,
     block: Event["block"]
   ) {
-    serviceLog("Creating redeem request", expandInlineObject(query));
-    return this.insert(context, { ...query, type: "REDEEM_REQUEST_UPDATED" }, block);
+    serviceLog("Creating redeem request", expandInlineObject(data));
+    return this.insert(context, { ...data, type: "REDEEM_REQUEST_UPDATED" }, block);
   }
 
   /**
    * Creates an investor transaction record for a cancelled deposit request.
    * 
    * @param context - The Ponder context for database operations
-   * @param query - The transaction data excluding the type field
+   * @param data - The transaction data excluding the type field
    * @returns Promise resolving to the created investor transaction
    */
   static async cancelDepositRequest(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    data: InvestorTransactionData,
     block: Event["block"]
   ) {
     serviceLog(
       "Creating investor transaction of type DEPOSIT_REQUEST_CANCELLED with data:",
-      expandInlineObject(query)
+      expandInlineObject(data)
     );
-    return this.insert(context, { ...query, type: "DEPOSIT_REQUEST_CANCELLED" }, block);
+    return this.insert(context, { ...data, type: "DEPOSIT_REQUEST_CANCELLED" }, block);
   }
 
   /**
    * Creates an investor transaction record for a cancelled redeem request.
    * 
    * @param context - The Ponder context for database operations
-   * @param query - The transaction data excluding the type field
+   * @param data - The transaction data excluding the type field
    * @returns Promise resolving to the created investor transaction
    */
   static async cancelRedeemRequest(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    data: InvestorTransactionData,
     block: Event["block"]
   ) {
     serviceLog(
       "Creating investor transaction of type REDEEM_REQUEST_CANCELLED with data:",
-      expandInlineObject(query)
+      expandInlineObject(data)
     );
-    return this.insert(context, { ...query, type: "REDEEM_REQUEST_CANCELLED" }, block);
+    return this.insert(context, { ...data, type: "REDEEM_REQUEST_CANCELLED" }, block);
   }
 
   /**
    * Creates an investor transaction record for an executed deposit request.
    * 
    * @param context - The Ponder context for database operations
-   * @param query - The transaction data excluding the type field
+   * @param data - The transaction data excluding the type field
    * @returns Promise resolving to the created investor transaction
    */
   static async executeDepositRequest(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    data: InvestorTransactionData,
     block: Event["block"]
   ) {
     serviceLog(
       "Creating investor transaction of type DEPOSIT_REQUEST_EXECUTED with data:",
-      expandInlineObject(query)
+      expandInlineObject(data)
     );
-    return this.insert(context, { ...query, type: "DEPOSIT_REQUEST_EXECUTED" }, block);
+    return this.insert(context, { ...data, type: "DEPOSIT_REQUEST_EXECUTED" }, block);
   }
 
   /**
    * Creates an investor transaction record for an executed redeem request.
    * 
    * @param context - The Ponder context for database operations
-   * @param query - The transaction data excluding the type field
+   * @param data - The transaction data excluding the type field
    * @returns Promise resolving to the created investor transaction
    */
   static async executeRedeemRequest(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    data: InvestorTransactionData,
     block: Event["block"]
   ) {
     serviceLog(
       "Creating investor transaction of type REDEEM_REQUEST_EXECUTED with data:",
-      expandInlineObject(query)
+      expandInlineObject(data)
     );
-    return this.insert(context, { ...query, type: "REDEEM_REQUEST_EXECUTED" }, block);
+    return this.insert(context, { ...data, type: "REDEEM_REQUEST_EXECUTED" }, block);
   }
 
   /**
    * Creates an investor transaction record for a claimed deposit.
    * 
    * @param context - The Ponder context for database operations
-   * @param query - The transaction data excluding the type field
+   * @param data - The transaction data excluding the type field
    * @returns Promise resolving to the created investor transaction
    */
   static async claimDeposit(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    data: InvestorTransactionData,
     block: Event["block"]
   ) {
     serviceLog(
       "Creating investor transaction of type DEPOSIT_CLAIMED with data:",
-      expandInlineObject(query)
+      expandInlineObject(data)
     );
-    return this.insert(context, { ...query, type: "DEPOSIT_CLAIMED" }, block);
+    return this.insert(context, { ...data, type: "DEPOSIT_CLAIMED" }, block);
   }
 
   /**
    * Creates an investor transaction record for a claimed redeem.
    * 
    * @param context - The Ponder context for database operations
-   * @param query - The transaction data excluding the type field
+   * @param data - The transaction data excluding the type field
    * @returns Promise resolving to the created investor transaction
    */
   static async claimRedeem(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    data: InvestorTransactionData,
     block: Event["block"]
   ) {
     serviceLog(
       "Creating investor transaction of type REDEEM_CLAIMED with data:",
-      expandInlineObject(query)
+      expandInlineObject(data)
     );
-    return this.insert(context, { ...query, type: "REDEEM_CLAIMED" }, block);
+    return this.insert(context, { ...data, type: "REDEEM_CLAIMED" }, block);
   }
 
   /**
    * Creates an investor transaction record for a claimable deposit.
    * 
    * @param context - The Ponder context for database operations
-   * @param query - The transaction data excluding the type field
+   * @param data - The transaction data excluding the type field
    * @returns Promise resolving to the created investor transaction
    */
   static async depositClaimable(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    data: InvestorTransactionData,
     block: Event["block"]
   ) {
     serviceLog(
       "Creating investor transaction of type DEPOSIT_CLAIMABLE with data:",
-      expandInlineObject(query)
+      expandInlineObject(data)
     );
-    return this.insert(context, { ...query, type: "DEPOSIT_CLAIMABLE" }, block);
+    return this.insert(context, { ...data, type: "DEPOSIT_CLAIMABLE" }, block);
   }
 
   /**
    * Creates an investor transaction record for a claimable redeem.
    * 
    * @param context - The Ponder context for database operations
-   * @param query - The transaction data excluding the type field
+   * @param data - The transaction data excluding the type field
    * @returns Promise resolving to the created investor transaction
    */
   static async redeemClaimable(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    data: InvestorTransactionData,
     block: Event["block"]
   ) {
     serviceLog(
       "Creating investor transaction of type REDEEM_CLAIMABLE with data:",
-      expandInlineObject(query)
+      expandInlineObject(data)
     );
-    return this.insert(context, { ...query, type: "REDEEM_CLAIMABLE" }, block);
+    return this.insert(context, { ...data, type: "REDEEM_CLAIMABLE" }, block);
   }
 
   /**
    * Creates an investor transaction record for a deposit synchronization event.
    * 
    * @param context - The Ponder context for database operations
-   * @param query - The transaction data excluding the type field
+   * @param data - The transaction data excluding the type field
    * @returns Promise resolving to the created investor transaction
    */
   static async syncDeposit(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    data: InvestorTransactionData,
     block: Event["block"]
   ) {
     serviceLog(
       "Creating investor transaction of type SYNC_DEPOSIT with data:",
-      expandInlineObject(query)
+      expandInlineObject(data)
     );
-    return this.insert(context, { ...query, type: "SYNC_DEPOSIT" }, block);
+    return this.insert(context, { ...data, type: "SYNC_DEPOSIT" }, block);
   }
 
   /**
    * Creates an investor transaction record for a redeem synchronization event.
    * 
    * @param context - The Ponder context for database operations
-   * @param query - The transaction data excluding the type field
+   * @param data - The transaction data excluding the type field
    * @returns Promise resolving to the created investor transaction
    */
   static async syncRedeem(
     context: Context,
-    query: Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">,
+    data: InvestorTransactionData,
     block: Event["block"]
   ) {
     serviceLog(
       "Creating investor transaction of type SYNC_REDEEM with data:",
-      expandInlineObject(query)
+      expandInlineObject(data)
     );
-    return this.insert(context, { ...query, type: "SYNC_REDEEM" }, block);
+    return this.insert(context, { ...data, type: "SYNC_REDEEM" }, block);
+  }
+
+  /**
+   * Creates an investor transaction record for a transfer in.
+   * 
+   * @param context - The Ponder context for database operations
+   * @param data - The transaction data excluding the type field
+   * @returns Promise resolving to the created investor transaction
+   */
+  static async transferIn(
+    context: Context,
+    data: InvestorTransactionData,
+    block: Event["block"]
+  ) {
+    serviceLog(
+      "Creating investor transaction of type TRANSFER_IN with data:",
+      expandInlineObject(data)
+    );
+    return this.insert(context, { ...data, type: "TRANSFER_IN" }, block);
+  }
+
+  /**
+   * Creates an investor transaction record for a transfer out.
+   * 
+   * @param context - The Ponder context for database operations
+   * @param data - The transaction data excluding the type field
+   * @returns Promise resolving to the created investor transaction
+   */
+  static async transferOut(
+    context: Context,
+    data: InvestorTransactionData,
+    block: Event["block"]
+  ) {
+    serviceLog(
+      "Creating investor transaction of type TRANSFER_OUT with data:",
+      expandInlineObject(data)
+    );
+    return this.insert(context, { ...data, type: "TRANSFER_OUT" }, block);
   }
 }
+
+type InvestorTransactionData = Omit<typeof InvestorTransaction.$inferInsert, "type" | "createdAt" | "createdAtBlock" | "updatedAt" | "updatedAtBlock">

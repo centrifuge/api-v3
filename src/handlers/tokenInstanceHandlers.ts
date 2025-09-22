@@ -6,6 +6,7 @@ import {
   TokenInstancePositionService,
   AccountService,
   TokenService,
+  InvestorTransactionService,
 } from "../services";
 
 ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
@@ -63,11 +64,15 @@ ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
   }
 
   if (toAccount) {
-    const toPosition = (await TokenInstancePositionService.getOrInit(context, {
-      tokenId: tokenId,
-      centrifugeId,
-      accountAddress: to,
-    }, event.block)) as TokenInstancePositionService;
+    const toPosition = (await TokenInstancePositionService.getOrInit(
+      context,
+      {
+        tokenId: tokenId,
+        centrifugeId,
+        accountAddress: to,
+      },
+      event.block
+    )) as TokenInstancePositionService;
     toPosition.addBalance(amount);
     await toPosition.save(event.block);
   }
@@ -92,5 +97,44 @@ ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
     await tokenInstance.save(event.block);
     token.decreaseTotalIssuance(amount);
     await token.save(event.block);
+  }
+
+  // Handle transfers
+  if (fromAccount && toAccount) {
+    const token = await TokenService.get(context, { id: tokenId });
+    if (!token) {
+      console.error("Token not found for ", tokenId);
+      return;
+    }
+    const { poolId } = token.read();
+    const transferData = {
+      poolId: poolId,
+      tokenId: tokenId,
+      tokenAmount: amount,
+      txHash: event.transaction.hash,
+      centrifugeId,
+      fromAccount: from,
+      toAccount: to,
+      fromCentrifugeId: centrifugeId,
+      toCentrifugeId: centrifugeId,
+    } as const;
+    await Promise.all([
+      InvestorTransactionService.transferIn(
+        context,
+        {
+          ...transferData,
+          account: to,
+        },
+        event.block
+      ),
+      InvestorTransactionService.transferOut(
+        context,
+        {
+          ...transferData,
+          account: from,
+        },
+        event.block
+      ),
+    ]);
   }
 });

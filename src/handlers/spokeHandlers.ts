@@ -8,6 +8,8 @@ import {
   TokenInstanceService,
   HoldingEscrowService,
   TokenService,
+  InvestorTransactionService,
+  AccountService,
 } from "../services";
 import { Erc20Abi } from "../../abis/Erc20Abi";
 
@@ -208,4 +210,49 @@ ponder.on("Spoke:UpdateAssetPrice", async ({ event, context }) => {
     await holdingEscrow.setAssetPrice(assetPrice);
     await holdingEscrow.save(event.block);
   }
+});
+
+ponder.on("Spoke:InitiateTransferShares", async ({ event, context }) => {
+  logEvent(event, context, "Spoke:InitiateTransferShares");
+  const {
+    centrifugeId: toCentrifugeId,
+    poolId,
+    scId: tokenId,
+    sender,
+    destinationAddress,
+   amount,
+  } = event.args;
+
+  const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
+
+  const [fromAccount, toAccount] = await Promise.all([
+    AccountService.getOrInit(context, {address: sender.substring(0, 42) as `0x${string}`}, event.block),
+    AccountService.getOrInit(context, {address: destinationAddress.substring(0, 42) as `0x${string}`}, event.block),
+  ]) as [AccountService, AccountService];
+
+  const { address: fromAccountAddress } = fromAccount.read();
+  const { address: toAccountAddress } = toAccount.read();
+
+  const transferData = {
+    poolId,
+    tokenId,
+    tokenAmount: amount,
+    txHash: event.transaction.hash,
+    centrifugeId: fromCentrifugeId,
+    fromAccount: fromAccountAddress,
+    toAccount: toAccountAddress,
+    fromCentrifugeId: fromCentrifugeId,
+    toCentrifugeId: toCentrifugeId.toString(),
+  } as const;
+
+  await Promise.all([
+    InvestorTransactionService.transferOut(context, {
+      ...transferData,
+      account: fromAccountAddress,
+    }, event.block),
+    InvestorTransactionService.transferIn(context, {
+      ...transferData,
+      account: toAccountAddress,
+    }, event.block),
+  ]);
 });

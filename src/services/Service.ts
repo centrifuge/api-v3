@@ -31,6 +31,7 @@ export class Service<T extends OnchainTable> {
   /** Current data instance of the table row */
   protected data: T["$inferSelect"] & DefaultColumns;
 
+
   /**
    * Creates a new Service instance.
    *
