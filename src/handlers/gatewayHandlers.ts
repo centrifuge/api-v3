@@ -12,13 +12,12 @@ import {
   getPayloadId,
   extractMessagesFromPayload,
 } from "../services/CrosschainPayloadService";
-import { keccak256 } from "viem";
+import { AdapterParticipationService } from "../services/AdapterParticipationService";
 
 ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
   logEvent(event, context, "Gateway:PrepareMessage");
   const { centrifugeId: toCentrifugeId, poolId, message } = event.args;
   const messageBuffer = Buffer.from(message.substring(2), "hex");
-  const messageHash = keccak256(messageBuffer);
   const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0));
   const messagePayload = messageBuffer.subarray(1);
 
@@ -46,10 +45,10 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
       poolId: poolId || null,
       fromCentrifugeId,
       toCentrifugeId: toCentrifugeId.toString(),
-      messageHash,
       messageType: messageType,
       rawData,
       data: data,
+      status: "AwaitingBatchDelivery",
     },
     event.block
   )) as CrosschainMessageService | null;
@@ -58,7 +57,6 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
 ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
   logEvent(event, context, "Gateway:UnderpaidBatch");
   const { centrifugeId: toCentrifugeId, batch } = event.args;
-  
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const payloadId = getPayloadId(
@@ -67,11 +65,14 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
     batch
   );
 
+  const payloadIndex = await CrosschainPayloadService.count(context, {
+    id: payloadId,
+  });
+
   const poolIdSet = new Set<bigint>();
   const messages = extractMessagesFromPayload(batch);
   for (const message of messages) {
     const messageBuffer = Buffer.from(message.substring(2), "hex");
-    const messageHash = keccak256(messageBuffer);
     const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0));
     const messagePayload = messageBuffer.subarray(1);
 
@@ -80,7 +81,7 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
       toCentrifugeId.toString(),
       message
     );
-    const messageCount = await CrosschainMessageService.count(context, {
+    const messageIndex = await CrosschainMessageService.count(context, {
       id: messageId,
     });
 
@@ -97,83 +98,101 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
     const poolId = "poolId" in data ? BigInt(data.poolId!) : null;
     if (poolId) poolIdSet.add(poolId);
 
-    const _crosschainMessage = (await CrosschainMessageService.insert(context, {
-      id: messageId,
-      index: messageCount,
-      poolId,
-      fromCentrifugeId,
-      toCentrifugeId: toCentrifugeId.toString(),
-      messageHash,
-      messageType: messageType,
-      rawData,
-      data: data,
-    }, event.block)) as CrosschainMessageService | null;
+    const _crosschainMessage = (await CrosschainMessageService.insert(
+      context,
+      {
+        id: messageId,
+        index: messageIndex,
+        poolId,
+        fromCentrifugeId,
+        toCentrifugeId: toCentrifugeId.toString(),
+        messageType: messageType,
+        rawData,
+        data: data,
+        status: "Unsent",
+        payloadId,
+        payloadIndex
+      },
+      event.block
+    )) as CrosschainMessageService | null;
   }
+
   const poolIds = Array.from(poolIdSet);
   if (poolIds.length > 1) {
     console.error(`Multiple poolIds found for payloadId ${payloadId}`);
     return;
   }
-
   const poolId = Array.from(poolIdSet).pop() ?? null;
-  const _crosschainPayload = (await CrosschainPayloadService.insert(context, {
-    id: payloadId,
-    poolId,
-    toCentrifugeId: toCentrifugeId.toString(),
-    fromCentrifugeId: fromCentrifugeId,
-    status: "Underpaid",
-  }, event.block)) as CrosschainPayloadService;
+  
+  const crosschainPayload = (await CrosschainPayloadService.insert(
+    context,
+    {
+      id: payloadId,
+      index: payloadIndex,
+      poolId,
+      toCentrifugeId: toCentrifugeId.toString(),
+      fromCentrifugeId: fromCentrifugeId,
+      status: "Underpaid",
+    },
+    event.block
+  )) as CrosschainPayloadService | null;
+  if (!crosschainPayload) console.error("Failed to initialize crosschain payload ");
 });
 
 ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
   logEvent(event, context, "Gateway:RepayBatch");
   const { centrifugeId: toCentrifugeId, batch } = event.args;
-  
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
-
   const payloadId = getPayloadId(
     fromCentrifugeId,
     toCentrifugeId.toString(),
     batch
   );
 
-  const crosschainPayload = (await CrosschainPayloadService.get(context, {
-    id: payloadId,
-    fromCentrifugeId: fromCentrifugeId,
-    toCentrifugeId: toCentrifugeId.toString(),
-  })) as CrosschainPayloadService;
+  const crosschainPayload =
+    (await CrosschainPayloadService.getUnderpaidFromQueue(
+      context,
+      payloadId
+    )) as CrosschainPayloadService | null;
   if (!crosschainPayload) {
     console.error(
-      `CrosschainPayload not found for payloadId ${payloadId} fromCentrifugeId ${fromCentrifugeId} toCentrifugeId ${toCentrifugeId}`
+      `CrosschainPayload not found for payloadId ${payloadId}`
     );
     return;
+  };
+  const { index: payloadIndex } = crosschainPayload.read();
+  const crosschainMessages = await CrosschainMessageService.query(context, {
+    payloadId: payloadId,
+    payloadIndex: payloadIndex,
+    status: "Unsent",
+  }) as CrosschainMessageService[];
+  const crosschainMessageSaves = []
+  for (const crosschainMessage of crosschainMessages) {
+    crosschainMessage.awaitingBatchDelivery();
+    crosschainMessageSaves.push(crosschainMessage.save(event.block));
   }
-  crosschainPayload.setStatus("InProgress");
-  await crosschainPayload.save(event.block);
+  await Promise.all(crosschainMessageSaves);
 });
 
 ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
   // RECEIVING CHAIN
   logEvent(event, context, "Gateway:ExecuteMessage");
   const { centrifugeId: fromCentrifugeId, message } = event.args;
-  
-  const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
+  const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
   const messageId = getMessageId(
     fromCentrifugeId.toString(),
     toCentrifugeId,
     message
   );
 
-  const crosschainMessage = await CrosschainMessageService.getMessageFromQueue(
+  const crosschainMessage = await CrosschainMessageService.getFromAwaitingBatchDeliveryQueue(
     context,
-    messageId,
-    fromCentrifugeId.toString(),
-    toCentrifugeId
+    messageId
   );
   if (!crosschainMessage) {
     console.error(
-      `CrosschainMessage not found for messageId ${messageId} fromCentrifugeId ${fromCentrifugeId} toCentrifugeId ${toCentrifugeId}`
+      `CrosschainMessage not found in AwaitingBatchDelivery queue for messageId ${messageId}`
     );
     return;
   }
@@ -187,28 +206,26 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
     return;
   }
 
-  const crosschainPayload = (await CrosschainPayloadService.get(context, {
-    id: payloadId,
-    fromCentrifugeId: fromCentrifugeId.toString(),
-    toCentrifugeId: toCentrifugeId,
-  })) as CrosschainPayloadService | null;
+  const crosschainPayload =
+    (await CrosschainPayloadService.getDeliveredFromQueue(
+      context,
+      payloadId
+    )) as CrosschainPayloadService | null;
   if (!crosschainPayload) {
-    console.error("CrosschainPayload not found");
+    console.error(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
     return;
   }
-  const { status } = crosschainPayload.read();
-  if (status === "Delivered") return;
-  const countFailedPayloadMessages = await CrosschainMessageService.count(
-    context,
-    {
-      payloadId,
-      fromCentrifugeId: fromCentrifugeId.toString(),
-      toCentrifugeId: toCentrifugeId,
-      status: "Failed",
-    }
-  );
-  if (countFailedPayloadMessages > 0) return;
-  crosschainPayload.delivered(event);
+  const { status, index: payloadIndex } = crosschainPayload.read();
+  if (status === "PartiallyFailed") return;
+  
+  const countPayloadMessages = await CrosschainMessageService.countPayloadMessages(context, payloadId, payloadIndex);
+  const countPayloadExecutedMessages = await CrosschainMessageService.countPayloadExecutedMessages(context, payloadId, payloadIndex);
+  if (countPayloadExecutedMessages < countPayloadMessages) return;
+
+  const handledAdapterProofs = await AdapterParticipationService.countHandledAdapterProofs(context, payloadId, payloadIndex);
+  if (handledAdapterProofs === 0) return;
+
+  crosschainPayload.completed(event);
   await crosschainPayload.save(event.block);
 });
 
@@ -216,7 +233,7 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
   // RECEIVING CHAIN
   logEvent(event, context, "Gateway:FailMessage");
   const { centrifugeId: fromCentrifugeId, message } = event.args;
-  
+
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const messageId = getMessageId(
@@ -225,35 +242,32 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
     message
   );
 
-  const crosschainMessage = await CrosschainMessageService.getMessageFromQueue(
+  const crosschainMessage = await CrosschainMessageService.getFromAwaitingBatchDeliveryQueue(
     context,
-    messageId,
-    fromCentrifugeId.toString(),
-    toCentrifugeId
+    messageId
   );
   if (!crosschainMessage) {
     console.error(
-      `CrosschainMessage not found for messageId ${messageId} fromCentrifugeId ${fromCentrifugeId} toCentrifugeId ${toCentrifugeId}`
+      `CrosschainMessage not found in AwaitingBatchDelivery queue for messageId ${messageId}`
     );
     return;
   }
-  crosschainMessage.setStatus("Failed");
+  crosschainMessage.setStatus('Failed');
   await crosschainMessage.save(event.block);
 
-  const { payloadId, status } = crosschainMessage.read();
+  const { payloadId } = crosschainMessage.read();
   if (!payloadId) throw new Error("Payload ID is required");
 
-  const crosschainPayload = (await CrosschainPayloadService.get(context, {
-    id: payloadId,
-    fromCentrifugeId: fromCentrifugeId.toString(),
-    toCentrifugeId,
-  })) as CrosschainPayloadService;
-  if (!crosschainPayload)
-    throw new Error(
-      `CrosschainPayload not found for payloadId ${payloadId} fromCentrifugeId ${fromCentrifugeId} toCentrifugeId ${toCentrifugeId}`
-    );
-  // @ts-ignore
-  if (status === "PartiallyFailed") return;
+  const crosschainPayload =
+    (await CrosschainPayloadService.getDeliveredFromQueue(
+      context,
+      payloadId
+    )) as CrosschainPayloadService | null;
+  if (!crosschainPayload) {
+    console.error(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
+    return;
+  }
+
   crosschainPayload.setStatus("PartiallyFailed");
   await crosschainPayload.save(event.block);
 });
