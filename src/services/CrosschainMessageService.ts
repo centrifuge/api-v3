@@ -17,17 +17,15 @@ export class CrosschainMessageService extends mixinCommonStatics(
   "CrosschainMessage"
 ) {
   /**
-   * Gets the first message from the queue for a given message ID
+   * Gets the first message from the awaiting batch delivery queue for a given message ID
    * @param context - The database and client context
    * @param messageId - The ID of the message to get from the queue
    * @returns The first message from the queue or null if no message is found
    */
-  static async getMessageFromQueue(context: Context, messageId: `0x${string}`, fromCentrifugeId: string, toCentrifugeId: string) {
+  static async getFromAwaitingBatchDeliveryQueue(context: Context, messageId: `0x${string}`) {
     const crosschainMessages = (await CrosschainMessageService.query(context, {
       id: messageId,
-      status_not: "Executed",
-      fromCentrifugeId,
-      toCentrifugeId,
+      status: "AwaitingBatchDelivery",
       _sort: [{ field: "index", direction: "asc" }],
     })) as CrosschainMessageService[];
     if (crosschainMessages.length === 0) return null;
@@ -38,17 +36,75 @@ export class CrosschainMessageService extends mixinCommonStatics(
    * Counts the number of failed messages for a given message ID
    * @param context - The database and client context
    * @param messageId - The ID of the message to count failed messages for
-   * @param fromCentrifugeId - The ID of the from centrifuge
-   * @param toCentrifugeId - The ID of the to centrifuge
    * @returns The number of failed messages
    */
-  static async countPayloadFailedMessages(context: Context, payloadId: `0x${string}`, fromCentrifugeId: string, toCentrifugeId: string) {
+  static async countPayloadFailedMessages(context: Context, payloadId: `0x${string}`, payloadIndex: number) {
     return await CrosschainMessageService.count(context, {
       payloadId,
-      status: "Failed",
-      fromCentrifugeId,
-      toCentrifugeId,
+      payloadIndex,
+      status: "Failed"
     });
+  }
+
+  /**
+   * Counts the number of executed messages for a given payload ID
+   * @param context - The database and client context
+   * @param payloadId - The ID of the payload to count executed messages for
+   * @returns The number of executed messages
+   */
+  static async countPayloadExecutedMessages(context: Context, payloadId: `0x${string}`, payloadIndex: number) {
+    return await CrosschainMessageService.count(context, {
+      payloadId,
+      payloadIndex,
+      status: "Executed"
+    });
+  }
+
+  /**
+   * Counts the number of messages for a given payload ID
+   * @param context - The database and client context
+   * @param payloadId - The ID of the payload to count messages for
+   * @returns The number of messages
+   */
+  static async countPayloadMessages(context: Context, payloadId: `0x${string}`, payloadIndex: number) {
+    return await CrosschainMessageService.count(context, {
+      payloadId,
+      payloadIndex,
+    });
+  }
+
+  /**
+   * Links outstanding messages to a payload
+   * @param context - The database and client context
+   * @param event - The event that links the messages to the payload
+   * @param messageIds - The IDs of the messages to link to the payload
+   * @param payloadId - The ID of the payload to link the messages to
+   * @param payloadIndex - The index of the payload to link the messages to
+   */
+  static async linkMessagesToPayload(context: Context, event: Event, messageIds: `0x${string}`[], payloadId: `0x${string}`, payloadIndex: number) {
+    const crosschainMessageSaves = [];
+    const poolIdSet = new Set<bigint>();
+    for (const messageId of messageIds) {
+      const crosschainMessages = (await CrosschainMessageService.query(context, {
+        id: messageId,
+        payloadId: null,
+        payloadIndex: null,
+        _sort: [{ field: "index", direction: "asc" }],
+      })) as CrosschainMessageService[];
+      if (crosschainMessages.length === 0) {
+        console.error(`CrosschainMessage with id ${messageId} not found`);
+        continue;
+      }
+      const crosschainMessage = crosschainMessages.shift()!;
+      const { poolId } = crosschainMessage.read();
+      crosschainMessage.setPayloadId(payloadId, payloadIndex);
+      crosschainMessageSaves.push(crosschainMessage.save(event.block));
+      if (poolId) poolIdSet.add(poolId);
+    }
+    await Promise.all(crosschainMessageSaves);
+    const poolIds = Array.from(poolIdSet);
+    if (poolIds.length > 1) throw new Error("Multiple pools found among messages");
+    return poolIds.pop() ?? null;
   }
 
   /**
@@ -64,10 +120,12 @@ export class CrosschainMessageService extends mixinCommonStatics(
   /**
    * Sets the payload ID for the CrosschainMessage
    * @param payloadId - The hex string payload ID to set
+   * @param payloadIndex - The index of the payload to set
    * @returns The CrosschainMessageService instance for chaining
    */
-  public setPayloadId(payloadId: `0x${string}`) {
+  public setPayloadId(payloadId: `0x${string}`, payloadIndex: number) {
     this.data.payloadId = payloadId;
+    this.data.payloadIndex = payloadIndex;
     return this;
   }
 
@@ -81,6 +139,16 @@ export class CrosschainMessageService extends mixinCommonStatics(
     this.data.status = "Executed";
     this.data.executedAt = new Date(Number(event.block.timestamp) * 1000);
     this.data.executedAtBlock = Number(event.block.number);
+    return this;
+  }
+
+  /**
+   * Marks the CrosschainMessage as awaiting batch delivery.
+   *
+   * @returns {CrosschainMessageService} Returns the current instance for method chaining
+   */
+  public awaitingBatchDelivery() {
+    this.data.status = "AwaitingBatchDelivery";
     return this;
   }
 }

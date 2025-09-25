@@ -1,5 +1,5 @@
 import type { Context, Event } from "ponder:registry";
-import { eq, and, count, isNull, not, asc, desc } from "drizzle-orm";
+import { eq, and, count, isNull, not, asc, desc, inArray } from "drizzle-orm";
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
 import { expandInlineObject, serviceLog } from "../helpers/logger";
 
@@ -382,6 +382,8 @@ type ExtendedQuery<T> = {
 } & {
   [P in keyof T as `${string & P}_not`]: T[P];
 } & {
+  [P in keyof T as `${string & P}_in`]: T[P][];
+} & {
   _sort?: Array<{
     field: keyof T;
     direction: "asc" | "desc";
@@ -408,6 +410,8 @@ function queryToFilter<T extends OnchainTable>(
     if (value === null) return isNull(table[column as keyof T]);
     if (column.endsWith("_not"))
       return not(eq(table[column.slice(0, -4) as keyof T], value));
+    if (column.endsWith("_in"))
+      return inArray(table[column.slice(0, -3) as keyof T], value);
     return eq(table[column as keyof T], value);
   });
   if (queries.length >= 1) {

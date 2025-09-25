@@ -17,7 +17,7 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
   logEvent(event, context, "MultiAdapter:SendPayload");
   const {
     centrifugeId: toCentrifugeId,
-    payload,
+    payload: payloadData,
     payloadId,
     adapter,
     // adapterData,
@@ -26,55 +26,51 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
 
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const messages = extractMessagesFromPayload(payload);
+  const messages = extractMessagesFromPayload(payloadData);
   const messageIds = messages.map((message) =>
     getMessageId(fromCentrifugeId, toCentrifugeId.toString(), message)
   );
 
-  const poolIdSet = new Set<bigint>();
-  const crosschainMessageSaves: Promise<CrosschainMessageService>[] = [];
-
-  for (const messageId of messageIds) {
-    const crosschainMessages = (await CrosschainMessageService.query(context, {
-      id: messageId,
-      payloadId: null,
-      _sort: [{ field: "index", direction: "asc" }],
-    })) as CrosschainMessageService[];
-    if (crosschainMessages.length === 0) {
-      console.error(`CrosschainMessage with id ${messageId} not found`);
-      continue;
-    }
-    const crosschainMessage = crosschainMessages.shift()!;
-    const { poolId } = crosschainMessage.read();
-    crosschainMessage.setPayloadId(payloadId);
-    crosschainMessageSaves.push(crosschainMessage.save(event.block));
-    if (poolId) poolIdSet.add(poolId);
-  }
-
-  if (poolIdSet.size > 1) {
-    console.error("Multiple pools found");
-    return;
-  }
-  const poolId = Array.from(poolIdSet).pop() ?? null;
-
-  const crosschainPayload = (await CrosschainPayloadService.insert(
+  let payloadIndex: number;
+  let payload = (await CrosschainPayloadService.getUnderpaidFromQueue(
     context,
-    {
-      id: payloadId,
-      poolId,
-      toCentrifugeId: toCentrifugeId.toString(),
-      fromCentrifugeId: fromCentrifugeId,
-      status: "InProgress",
-    },
-    event.block
+    payloadId
   )) as CrosschainPayloadService | null;
-  if (!crosschainPayload)
-    console.error("Failed to initialize crosschain payload");
+  if (payload) {
+    const { index } = payload.read();
+    payloadIndex = index;
+    payload.setStatus("InTransit");
+    await payload.save(event.block);
+  } else {
+    payloadIndex = await CrosschainPayloadService.count(context, {
+      id: payloadId,
+    });
+    const poolId = await CrosschainMessageService.linkMessagesToPayload(
+      context,
+      event,
+      messageIds,
+      payloadId,
+      payloadIndex
+    );
+    payload = (await CrosschainPayloadService.insert(
+      context,
+      {
+        id: payloadId,
+        index: payloadIndex,
+        status: "InTransit",
+        toCentrifugeId: toCentrifugeId.toString(),
+        fromCentrifugeId: fromCentrifugeId,
+        poolId,
+      },
+      event.block
+    )) as CrosschainPayloadService;
+  }
 
   const adapterParticipation = (await AdapterParticipationService.insert(
     context,
     {
       payloadId,
+      payloadIndex,
       adapterId: adapter,
       centrifugeId: fromCentrifugeId,
       fromCentrifugeId: fromCentrifugeId,
@@ -97,10 +93,21 @@ ponder.on("MultiAdapter:SendProof", async ({ event, context }) => {
 
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
+  const payload = (await CrosschainPayloadService.getInTransitFromQueue(
+    context,
+    payloadId
+  )) as CrosschainPayloadService | null;
+  if (!payload) {
+    console.error("CrosschainPayload not found");
+    return;
+  }
+  const { index: payloadIndex } = payload.read();
+
   const _adapterParticipation = (await AdapterParticipationService.insert(
     context,
     {
       payloadId,
+      payloadIndex,
       adapterId: adapter,
       centrifugeId: fromCentrifugeId,
       fromCentrifugeId: fromCentrifugeId.toString(),
@@ -128,23 +135,25 @@ ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const crosschainPayload = (await CrosschainPayloadService.get(context, {
-    id: payloadId,
-    toCentrifugeId: toCentrifugeId,
-    fromCentrifugeId: fromCentrifugeId.toString(),
-  })) as CrosschainPayloadService | null;
-  if (!crosschainPayload) {
-    console.error("CrosschainPayload not found");
+  const payload =
+    (await CrosschainPayloadService.getInTransitFromQueue(
+      context,
+      payloadId
+    )) as CrosschainPayloadService | null;
+  if (!payload) {
+    console.error(`CrosschainPayload ${payloadId} not found`);
     return;
   }
-  const { status } = crosschainPayload.read();
-  if (status === "InProgress") crosschainPayload.delivered(event);
-  await crosschainPayload.save(event.block);
 
+  payload.delivered(event);
+  await payload.save(event.block);
+
+  const { index: payloadIndex } = payload.read();
   const _adapterParticipation = (await AdapterParticipationService.insert(
     context,
     {
       payloadId,
+      payloadIndex,
       adapterId: adapter,
       centrifugeId: toCentrifugeId.toString(),
       fromCentrifugeId: fromCentrifugeId.toString(),
@@ -157,27 +166,29 @@ ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
     },
     event.block
   )) as AdapterParticipationService;
-
-  const handleCounts = await AdapterParticipationService.count(context, {
-    payloadId,
-    side: "HANDLE",
-  });
-  if (handleCounts >= 2) {
-    crosschainPayload.setStatus("Delivered");
-    await crosschainPayload.save(event.block);
-  }
 });
 
 ponder.on("MultiAdapter:HandleProof", async ({ event, context }) => {
   logEvent(event, context, "MultiAdapter:HandleProof"); //RECEIVING CHAIN
   const { payloadId, adapter, centrifugeId: fromCentrifugeId } = event.args;
-  
+
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
+  const crosschainPayload =
+    (await CrosschainPayloadService.getDeliveredFromQueue(
+      context,
+      payloadId
+    )) as CrosschainPayloadService | null;
+  if (!crosschainPayload) {
+    console.error(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
+    return;
+  }
+  const { index: payloadIndex } = crosschainPayload.read();
 
   const _adapterParticipation = (await AdapterParticipationService.insert(
     context,
     {
       payloadId,
+      payloadIndex,
       adapterId: adapter,
       centrifugeId: toCentrifugeId.toString(),
       fromCentrifugeId: fromCentrifugeId.toString(),
@@ -191,22 +202,15 @@ ponder.on("MultiAdapter:HandleProof", async ({ event, context }) => {
     event.block
   )) as AdapterParticipationService;
 
-  const handleCounts = await AdapterParticipationService.count(context, {
-    payloadId,
-    side: "HANDLE",
-  });
+  const handledAdapterProofs = await AdapterParticipationService.countHandledAdapterProofs(context, payloadId, payloadIndex);
+  const countPayloadMessages = await CrosschainMessageService.countPayloadMessages(context, payloadId, payloadIndex);
+  const countPayloadExecutedMessages = await CrosschainMessageService.countPayloadExecutedMessages(context, payloadId, payloadIndex);
 
-  if (handleCounts >= 2) {
-    const crosschainPayload = (await CrosschainPayloadService.get(context, {
-      id: payloadId,
-    })) as CrosschainPayloadService | null;
-    if (!crosschainPayload) {
-      console.error(`CrosschainPayload for payloadId ${payloadId} not found`);
-      return;
-    }
-    crosschainPayload.setStatus("Delivered");
-    await crosschainPayload.save(event.block);
-  }
+  if (handledAdapterProofs === 0) return;
+  if (countPayloadExecutedMessages < countPayloadMessages) return;
+
+  crosschainPayload.completed(event);
+  await crosschainPayload.save(event.block);
 });
 
 ponder.on(
@@ -230,8 +234,9 @@ ponder.on(
     for (const adapter of adapters) {
       const contracts = Object.entries(currentChain.contracts);
       const [contractName = null] =
-        contracts.find(([_, contractAddress]) => contractAddress.toLowerCase() === adapter) ??
-        [];
+        contracts.find(
+          ([_, contractAddress]) => contractAddress.toLowerCase() === adapter
+        ) ?? [];
       const firstPart = contractName
         ? contractName.split(/(?=[A-Z])/)[0]
         : null;

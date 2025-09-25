@@ -9,7 +9,9 @@ import { currentContractNames } from "./ponder.config";
 
 type PgColumnsFunction = Extract<Parameters<typeof onchainTable>[1], Function>;
 type PgColumnsBuilders = Parameters<PgColumnsFunction>[0];
-type PgColumn<T extends keyof PgColumnsBuilders> = ReturnType<PgColumnsBuilders[T]>;
+type PgColumn<T extends keyof PgColumnsBuilders> = ReturnType<
+  PgColumnsBuilders[T]
+>;
 
 const BlockchainColumns = (t: PgColumnsBuilders) => ({
   id: t.text().notNull(),
@@ -44,14 +46,14 @@ export const BlockchainRelations = relations(Blockchain, ({ many }) => ({
   escrows: many(Escrow, { relationName: "escrows" }),
 }));
 
-
-const currentContractFields = (t: PgColumnsBuilders) => Object.fromEntries(currentContractNames.map((contract) => ([
-  contract, t.hex(),
-]))) as Record<typeof currentContractNames[number], PgColumn<"hex">>;
+const currentContractFields = (t: PgColumnsBuilders) =>
+  Object.fromEntries(
+    currentContractNames.map((contract) => [contract, t.hex()])
+  ) as Record<(typeof currentContractNames)[number], PgColumn<"hex">>;
 const DeploymentColumns = (t: PgColumnsBuilders) => ({
   chainId: t.text().notNull(),
   centrifugeId: t.text().notNull(),
-  ...(currentContractFields(t)),
+  ...currentContractFields(t),
 });
 
 export const Deployment = onchainTable(
@@ -77,7 +79,7 @@ const PoolColumns = (t: PgColumnsBuilders) => ({
   currency: t.bigint(),
   metadata: t.text(),
   name: t.text(),
-  ...(defaultColumns(t)),
+  ...defaultColumns(t),
 });
 export const Pool = onchainTable("pool", PoolColumns, (t) => ({
   id: primaryKey({ columns: [t.id] }),
@@ -98,7 +100,9 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
   snapshots: many(PoolSnapshot, { relationName: "snapshots" }),
   managers: many(PoolManager, { relationName: "managers" }),
   policies: many(Policy, { relationName: "policies" }),
-  merkleProofManagers: many(MerkleProofManager, { relationName: "merkleProofManagers" }),
+  merkleProofManagers: many(MerkleProofManager, {
+    relationName: "merkleProofManagers",
+  }),
 }));
 
 const TokenColumns = (t: PgColumnsBuilders) => ({
@@ -135,7 +139,9 @@ export const TokenRelations = relations(Token, ({ one, many }) => ({
   OutstandingInvests: many(OutstandingInvest, {
     relationName: "OutstandingInvests",
   }),
-  onOffRampManagers: many(OnOffRampManager, { relationName: "onOffRampManagers" }),
+  onOffRampManagers: many(OnOffRampManager, {
+    relationName: "onOffRampManagers",
+  }),
   onRampAssets: many(OnRampAsset, { relationName: "onRampAssets" }),
   offRampAddresses: many(OffRampAddress, { relationName: "offRampAddresses" }),
 }));
@@ -222,7 +228,7 @@ const InvestorTransactionColumns = (t: PgColumnsBuilders) => ({
   toAccount: t.hex(),
   fromCentrifugeId: t.text(),
   toCentrifugeId: t.text(),
-  ...(defaultColumns(t, false)),
+  ...defaultColumns(t, false),
 });
 export const InvestorTransaction = onchainTable(
   "investor_transaction",
@@ -259,29 +265,33 @@ const WhitelistedInvestorColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   isFrozen: t.boolean().notNull().default(false),
   validUntil: t.timestamp(),
-  ...(defaultColumns(t)),
-
+  ...defaultColumns(t),
 });
 
-export const WhitelistedInvestor = onchainTable("whitelisted_investor", WhitelistedInvestorColumns, (t) => ({
-  id: primaryKey({ columns: [t.tokenId, t.centrifugeId, t.accountAddress] }),
-  poolIdx: index().on(t.poolId),
-  tokenIdx: index().on(t.tokenId),
-  accountAddressIdx: index().on(t.accountAddress),
-  centrifugeIdIdx: index().on(t.centrifugeId),
-}));
-export const WhitelistedInvestorRelations = relations(WhitelistedInvestor, ({ one }) => ({
-  token: one(Token, {
-    fields: [WhitelistedInvestor.tokenId],
-    references: [Token.id],
-  }),
-  account: one(Account, {
-    fields: [WhitelistedInvestor.accountAddress],
-    references: [Account.address],
-  }),
-}));
-
-
+export const WhitelistedInvestor = onchainTable(
+  "whitelisted_investor",
+  WhitelistedInvestorColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.tokenId, t.centrifugeId, t.accountAddress] }),
+    poolIdx: index().on(t.poolId),
+    tokenIdx: index().on(t.tokenId),
+    accountAddressIdx: index().on(t.accountAddress),
+    centrifugeIdIdx: index().on(t.centrifugeId),
+  })
+);
+export const WhitelistedInvestorRelations = relations(
+  WhitelistedInvestor,
+  ({ one }) => ({
+    token: one(Token, {
+      fields: [WhitelistedInvestor.tokenId],
+      references: [Token.id],
+    }),
+    account: one(Account, {
+      fields: [WhitelistedInvestor.accountAddress],
+      references: [Account.address],
+    }),
+  })
+);
 
 const OutstandingInvestColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
@@ -329,7 +339,7 @@ const OutstandingRedeemColumns = (t: PgColumnsBuilders) => ({
   account: t.hex().notNull(),
 
   depositAmount: t.bigint().default(0n), // Amount that is deposited on Hub, share denomination
-  
+
   pendingAmount: t.bigint().default(0n), // Amount that is MAYBE in transit from Spoke to Hub, share denomination
   queuedAmount: t.bigint().default(0n), // Amount that is queued onchain for AFTER claim, technically needed, share denomination
 
@@ -408,7 +418,6 @@ export const InvestOrderRelations = relations(InvestOrder, ({ one }) => ({
   }),
 }));
 
-
 const RedeemOrderColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   tokenId: t.text().notNull(),
@@ -457,7 +466,6 @@ export const RedeemOrderRelations = relations(RedeemOrder, ({ one }) => ({
   }),
 }));
 
-
 const EpochOutstandingInvestColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   tokenId: t.text().notNull(),
@@ -480,17 +488,19 @@ export const EpochOutstandingInvest = onchainTable(
   })
 );
 
-export const EpochOutstandingInvestRelations = relations(EpochOutstandingInvest, ({ one }) => ({
-  token: one(Token, {
-    fields: [EpochOutstandingInvest.tokenId],
-    references: [Token.id],
-  }),
-  asset: one(Asset, {
-    fields: [EpochOutstandingInvest.assetId],
-    references: [Asset.id],
-  }),
-}));
-
+export const EpochOutstandingInvestRelations = relations(
+  EpochOutstandingInvest,
+  ({ one }) => ({
+    token: one(Token, {
+      fields: [EpochOutstandingInvest.tokenId],
+      references: [Token.id],
+    }),
+    asset: one(Asset, {
+      fields: [EpochOutstandingInvest.assetId],
+      references: [Asset.id],
+    }),
+  })
+);
 
 const EpochOutstandingRedeemColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
@@ -514,17 +524,19 @@ export const EpochOutstandingRedeem = onchainTable(
   })
 );
 
-export const EpochOutstandingRedeemRelations = relations(EpochOutstandingRedeem, ({ one }) => ({
-  token: one(Token, {
-    fields: [EpochOutstandingRedeem.tokenId],
-    references: [Token.id],
-  }),
-  asset: one(Asset, {
-    fields: [EpochOutstandingRedeem.assetId],
-    references: [Asset.id],
-  }),
-}));
-
+export const EpochOutstandingRedeemRelations = relations(
+  EpochOutstandingRedeem,
+  ({ one }) => ({
+    token: one(Token, {
+      fields: [EpochOutstandingRedeem.tokenId],
+      references: [Token.id],
+    }),
+    asset: one(Asset, {
+      fields: [EpochOutstandingRedeem.assetId],
+      references: [Asset.id],
+    }),
+  })
+);
 
 const EpochInvestOrderColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
@@ -558,17 +570,19 @@ export const EpochInvestOrder = onchainTable(
   })
 );
 
-export const EpochInvestOrderRelations = relations(EpochInvestOrder, ({ one }) => ({
-  token: one(Token, {
-    fields: [EpochInvestOrder.tokenId],
-    references: [Token.id],
-  }),
-  asset: one(Asset, {
-    fields: [EpochInvestOrder.assetId],
-    references: [Asset.id],
-  }),
-}));
-
+export const EpochInvestOrderRelations = relations(
+  EpochInvestOrder,
+  ({ one }) => ({
+    token: one(Token, {
+      fields: [EpochInvestOrder.tokenId],
+      references: [Token.id],
+    }),
+    asset: one(Asset, {
+      fields: [EpochInvestOrder.assetId],
+      references: [Asset.id],
+    }),
+  })
+);
 
 const EpochRedeemOrderColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
@@ -603,22 +617,24 @@ export const EpochRedeemOrder = onchainTable(
   })
 );
 
-export const EpochRedeemOrderRelations = relations(EpochRedeemOrder, ({ one }) => ({
-  token: one(Token, {
-    fields: [EpochRedeemOrder.tokenId],
-    references: [Token.id],
-  }),
-  asset: one(Asset, {
-    fields: [EpochRedeemOrder.assetId],
-    references: [Asset.id],
-  }),
-}));
-
+export const EpochRedeemOrderRelations = relations(
+  EpochRedeemOrder,
+  ({ one }) => ({
+    token: one(Token, {
+      fields: [EpochRedeemOrder.tokenId],
+      references: [Token.id],
+    }),
+    asset: one(Asset, {
+      fields: [EpochRedeemOrder.assetId],
+      references: [Asset.id],
+    }),
+  })
+);
 
 const AssetRegistrationColumns = (t: PgColumnsBuilders) => ({
   assetId: t.bigint().notNull(),
   centrifugeId: t.text().notNull(),
-  ...(defaultColumns(t)),
+  ...defaultColumns(t),
 });
 
 export const AssetRegistration = onchainTable(
@@ -650,7 +666,7 @@ const AssetColumns = (t: PgColumnsBuilders) => ({
   decimals: t.integer().notNull(),
   name: t.text(),
   symbol: t.text(),
-  ...(defaultColumns(t, false)),
+  ...defaultColumns(t, false),
 });
 
 export const Asset = onchainTable("asset", AssetColumns, (t) => ({
@@ -676,7 +692,7 @@ export const TokenInstanceColumns = (t: PgColumnsBuilders) => ({
   tokenPrice: t.bigint().default(0n),
   computedAt: t.timestamp(),
   totalIssuance: t.bigint().default(0n),
-  ...(defaultColumns(t)),
+  ...defaultColumns(t),
 });
 export const TokenInstance = onchainTable(
   "token_instance",
@@ -713,7 +729,7 @@ const HoldingColumns = (t: PgColumnsBuilders) => ({
   // Spoke side amounts and values
   assetQuantity: t.bigint().notNull().default(0n),
   totalValue: t.bigint().notNull().default(0n),
-  ...(defaultColumns(t, false)),
+  ...defaultColumns(t, false),
 });
 
 export const Holding = onchainTable("holding", HoldingColumns, (t) => ({
@@ -873,16 +889,19 @@ export const OnOffRampManager = onchainTable(
   })
 );
 
-export const OnOffRampManagerRelations = relations(OnOffRampManager, ({ one }) => ({
-  pool: one(Pool, {
-    fields: [OnOffRampManager.poolId],
-    references: [Pool.id],
-  }),
-  token: one(Token, {
-    fields: [OnOffRampManager.tokenId],
-    references: [Token.id],
-  }),
-}));
+export const OnOffRampManagerRelations = relations(
+  OnOffRampManager,
+  ({ one }) => ({
+    pool: one(Pool, {
+      fields: [OnOffRampManager.poolId],
+      references: [Pool.id],
+    }),
+    token: one(Token, {
+      fields: [OnOffRampManager.tokenId],
+      references: [Token.id],
+    }),
+  })
+);
 
 const OfframpRelayerColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
@@ -985,9 +1004,10 @@ export const PolicyRelations = relations(Policy, ({ one }) => ({
 
 export const CrosschainPayloadStatuses = [
   "Underpaid",
-  "InProgress",
+  "InTransit",
   "Delivered",
   "PartiallyFailed",
+  "Completed",
 ] as const;
 export const CrosschainPayloadStatus = onchainEnum(
   "x_chain_payload_status",
@@ -996,22 +1016,25 @@ export const CrosschainPayloadStatus = onchainEnum(
 
 const CrosschainPayloadColumns = (t: PgColumnsBuilders) => ({
   id: t.hex().notNull(),
+  index: t.integer().notNull().default(0),
   fromCentrifugeId: t.text().notNull(),
   toCentrifugeId: t.text().notNull(),
   poolId: t.bigint(),
-  status: CrosschainPayloadStatus("x_chain_payload_status")
-    .notNull()
-    .default("InProgress"),
+  status: CrosschainPayloadStatus("x_chain_payload_status").notNull(),
   deliveredAt: t.timestamp(),
   deliveredAtBlock: t.integer(),
-  ...(defaultColumns(t, false)),
+  completedAt: t.timestamp(),
+  completedAtBlock: t.integer(),
+  ...defaultColumns(t, false),
 });
 
 export const CrosschainPayload = onchainTable(
   "x_chain_payload",
   CrosschainPayloadColumns,
   (t) => ({
-    id: primaryKey({ columns: [t.id, t.fromCentrifugeId, t.toCentrifugeId] }),
+    id: primaryKey({ columns: [t.id, t.index] }),
+    idIdx: index().on(t.id),
+    indexIdx: index().on(t.index),
     poolIdx: index().on(t.id),
     fromCentrifugeIdIdx: index().on(t.fromCentrifugeId),
     toCentrifugeIdIdx: index().on(t.toCentrifugeId),
@@ -1043,6 +1066,7 @@ export const CrosschainPayloadRelations = relations(
 );
 
 export const CrosschainMessageStatuses = [
+  "Unsent",
   "AwaitingBatchDelivery",
   "Failed",
   "Executed",
@@ -1057,18 +1081,17 @@ const CrosschainMessageColumns = (t: PgColumnsBuilders) => ({
   index: t.integer().notNull().default(0),
   poolId: t.bigint(),
   payloadId: t.hex(),
+  payloadIndex: t.integer(),
   messageType: t.text().notNull(),
-  messageHash: t.hex().notNull(),
-  status: CrosschainMessageStatus("x_chain_message_status")
-    .notNull()
-    .default("AwaitingBatchDelivery"),
+  status: CrosschainMessageStatus("x_chain_message_status").notNull(),
   rawData: t.hex().notNull(),
   data: t.jsonb(),
   fromCentrifugeId: t.text().notNull(),
   toCentrifugeId: t.text().notNull(),
   executedAt: t.timestamp(),
   executedAtBlock: t.integer(),
-  ...(defaultColumns(t, false)),
+  executedTxHash: t.hex(),
+  ...defaultColumns(t, false),
 });
 
 export const CrosschainMessage = onchainTable(
@@ -1076,9 +1099,10 @@ export const CrosschainMessage = onchainTable(
   CrosschainMessageColumns,
   (t) => ({
     id: primaryKey({ columns: [t.id, t.index] }),
+    idIdx: index().on(t.id),
+    indexIdx: index().on(t.index),
     payloadIdx: index().on(t.payloadId),
     poolIdx: index().on(t.poolId),
-    idIdx: index().on(t.id),
   })
 );
 
@@ -1086,16 +1110,8 @@ export const CrosschainMessageRelations = relations(
   CrosschainMessage,
   ({ one }) => ({
     crosschainPayload: one(CrosschainPayload, {
-      fields: [
-        CrosschainMessage.payloadId,
-        CrosschainMessage.fromCentrifugeId,
-        CrosschainMessage.toCentrifugeId,
-      ],
-      references: [
-        CrosschainPayload.id,
-        CrosschainPayload.fromCentrifugeId,
-        CrosschainPayload.toCentrifugeId,
-      ],
+      fields: [CrosschainMessage.payloadId, CrosschainMessage.payloadIndex],
+      references: [CrosschainPayload.id, CrosschainPayload.index],
     }),
     pool: one(Pool, {
       fields: [CrosschainMessage.poolId],
@@ -1116,7 +1132,7 @@ const AdapterColumns = (t: PgColumnsBuilders) => ({
   address: t.hex().notNull(),
   centrifugeId: t.text().notNull(),
   name: t.text(),
-  ...(defaultColumns(t, false)),
+  ...defaultColumns(t, false),
 });
 
 export const Adapter = onchainTable("adapter", AdapterColumns, (t) => ({
@@ -1138,6 +1154,7 @@ export const AdapterParticipationSide = onchainEnum(
 
 const AdapterParticipationColumns = (t: PgColumnsBuilders) => ({
   payloadId: t.text().notNull(),
+  payloadIndex: t.integer().notNull(),
   adapterId: t.text().notNull(),
   centrifugeId: t.text().notNull(),
   fromCentrifugeId: t.text().notNull(),
@@ -1153,8 +1170,11 @@ export const AdapterParticipation = onchainTable(
   "adapter_participation",
   AdapterParticipationColumns,
   (t) => ({
-    id: primaryKey({ columns: [t.payloadId, t.adapterId, t.side, t.type] }),
+    id: primaryKey({
+      columns: [t.payloadId, t.payloadIndex, t.adapterId, t.side, t.type],
+    }),
     payloadIdIdx: index().on(t.payloadId),
+    payloadIndexIdx: index().on(t.payloadIndex),
     adapterIdIdx: index().on(t.adapterId),
     centrifugeIdIdx: index().on(t.centrifugeId),
     fromCentrifugeIdIdx: index().on(t.fromCentrifugeId),
@@ -1168,8 +1188,11 @@ export const AdapterParticipationRelations = relations(
   AdapterParticipation,
   ({ one }) => ({
     payload: one(CrosschainPayload, {
-      fields: [AdapterParticipation.payloadId],
-      references: [CrosschainPayload.id],
+      fields: [
+        AdapterParticipation.payloadId,
+        AdapterParticipation.payloadIndex,
+      ],
+      references: [CrosschainPayload.id, CrosschainPayload.index],
     }),
     adapter: one(Adapter, {
       fields: [
@@ -1246,7 +1269,7 @@ export const HoldingSnapshot = onchainTable(
 
 const AccountColumns = (t: PgColumnsBuilders) => ({
   address: t.hex().notNull(),
-  ...(defaultColumns(t, false)),
+  ...defaultColumns(t, false),
 });
 export const Account = onchainTable("account", AccountColumns, (t) => ({
   id: primaryKey({ columns: [t.address] }),
@@ -1260,7 +1283,7 @@ const TokenInstancePositionColumns = (t: PgColumnsBuilders) => ({
   accountAddress: t.hex().notNull(),
   balance: t.bigint().notNull().default(0n),
   isFrozen: t.boolean().notNull().default(false), //TODO: Deprecate this column
-  ...(defaultColumns(t)),
+  ...defaultColumns(t),
 });
 
 export const TokenInstancePosition = onchainTable(
@@ -1274,16 +1297,22 @@ export const TokenInstancePosition = onchainTable(
   })
 );
 
-export const TokenInstancePositionRelations = relations(TokenInstancePosition, ({ one }) => ({
-  tokenInstance: one(TokenInstance, {
-    fields: [TokenInstancePosition.tokenId, TokenInstancePosition.centrifugeId],
-    references: [TokenInstance.tokenId, TokenInstance.centrifugeId],
-  }),
-  account: one(Account, {
-    fields: [TokenInstancePosition.accountAddress],
-    references: [Account.address],
-  }),
-}));
+export const TokenInstancePositionRelations = relations(
+  TokenInstancePosition,
+  ({ one }) => ({
+    tokenInstance: one(TokenInstance, {
+      fields: [
+        TokenInstancePosition.tokenId,
+        TokenInstancePosition.centrifugeId,
+      ],
+      references: [TokenInstance.tokenId, TokenInstance.centrifugeId],
+    }),
+    account: one(Account, {
+      fields: [TokenInstancePosition.accountAddress],
+      references: [Account.address],
+    }),
+  })
+);
 
 const MerkleProofManagerColumns = (t: PgColumnsBuilders) => ({
   address: t.hex().notNull(),
@@ -1297,12 +1326,15 @@ export const MerkleProofManager = onchainTable(
     id: primaryKey({ columns: [t.address, t.centrifugeId] }),
   })
 );
-export const MerkleProofManagerRelations = relations(MerkleProofManager, ({ one }) => ({
-  pool: one(Pool, {
-    fields: [MerkleProofManager.poolId],
-    references: [Pool.id],
-  }),
-}));
+export const MerkleProofManagerRelations = relations(
+  MerkleProofManager,
+  ({ one }) => ({
+    pool: one(Pool, {
+      fields: [MerkleProofManager.poolId],
+      references: [Pool.id],
+    }),
+  })
+);
 
 /**
  * Creates a snapshot schema by selecting specific columns from a base table schema
@@ -1343,7 +1375,7 @@ function defaultColumns(t: PgColumnsBuilders, update = true) {
   const defauls: DefaultColumns = {
     createdAt: t.timestamp().notNull(),
     createdAtBlock: t.integer().notNull(),
-  }
+  };
   if (update) {
     defauls.updatedAt = t.timestamp().notNull();
     defauls.updatedAtBlock = t.integer().notNull();
@@ -1355,4 +1387,4 @@ type DefaultColumns = {
   createdAtBlock: PgColumn<"integer">;
   updatedAt?: PgColumn<"timestamp">;
   updatedAtBlock?: PgColumn<"integer">;
-}
+};
