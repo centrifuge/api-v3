@@ -33,6 +33,22 @@ export class CrosschainMessageService extends mixinCommonStatics(
   }
 
   /**
+   * Gets the first message from the awaiting batch delivery or failed queue for a given message ID
+   * @param context - The database and client context
+   * @param messageId - The ID of the message to get from the queue
+   * @returns The first message from the queue or null if no message is found
+   */
+  static async getFromAwaitingBatchDeliveryOrFailedQueue(context: Context, messageId: `0x${string}`) {
+    const crosschainMessages = (await CrosschainMessageService.query(context, {
+      id: messageId,
+      status_in: ["AwaitingBatchDelivery", "Failed"],
+      _sort: [{ field: "index", direction: "asc" }],
+    })) as CrosschainMessageService[];
+    if (crosschainMessages.length === 0) return null;
+    return crosschainMessages.shift()!;
+  }
+
+  /**
    * Counts the number of failed messages for a given message ID
    * @param context - The database and client context
    * @param messageId - The ID of the message to count failed messages for

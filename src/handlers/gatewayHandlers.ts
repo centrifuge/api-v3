@@ -186,7 +186,7 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
     message
   );
 
-  const crosschainMessage = await CrosschainMessageService.getFromAwaitingBatchDeliveryQueue(
+  const crosschainMessage = await CrosschainMessageService.getFromAwaitingBatchDeliveryOrFailedQueue(
     context,
     messageId
   );
@@ -207,7 +207,7 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
   }
 
   const crosschainPayload =
-    (await CrosschainPayloadService.getDeliveredFromQueue(
+    (await CrosschainPayloadService.getDeliveredOrPartiallyFailedFromQueue(
       context,
       payloadId
     )) as CrosschainPayloadService | null;
@@ -215,8 +215,7 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
     console.error(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
     return;
   }
-  const { status, index: payloadIndex } = crosschainPayload.read();
-  if (status === "PartiallyFailed") return;
+  const { index: payloadIndex } = crosschainPayload.read();
   
   const countPayloadMessages = await CrosschainMessageService.countPayloadMessages(context, payloadId, payloadIndex);
   const countPayloadExecutedMessages = await CrosschainMessageService.countPayloadExecutedMessages(context, payloadId, payloadIndex);
@@ -242,16 +241,20 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
     message
   );
 
-  const crosschainMessage = await CrosschainMessageService.getFromAwaitingBatchDeliveryQueue(
+  const crosschainMessage = await CrosschainMessageService.getFromAwaitingBatchDeliveryOrFailedQueue(
     context,
     messageId
   );
   if (!crosschainMessage) {
     console.error(
-      `CrosschainMessage not found in AwaitingBatchDelivery queue for messageId ${messageId}`
+      `CrosschainMessage not found in AwaitingBatchDelivery or Failed queue for messageId ${messageId}`
     );
     return;
   }
+
+  const { status } = crosschainMessage.read();
+  if (status === "Failed") return;
+
   crosschainMessage.setStatus('Failed');
   await crosschainMessage.save(event.block);
 
