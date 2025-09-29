@@ -23,4 +23,21 @@ export class AdapterParticipationService extends mixinCommonStatics(Service<type
       side: "HANDLE",
     });
   }
+
+  /**
+   * Checks if a payload is verified
+   * @param context - The database and client context
+   * @param payloadId - The ID of the payload to check
+   * @param payloadIndex - The index of the payload to check
+   * @returns True if the payload is verified, false otherwise
+   */
+  static async checkPayloadVerified(context: Context, payloadId: `0x${string}`, payloadIndex: number) {
+    const adapterParticipations = await this.query(context, {
+      payloadId,
+      payloadIndex,
+    }) as AdapterParticipationService[];
+    const countSentAdapterParticipations = adapterParticipations.filter(adapterParticipation => adapterParticipation.read().side === "SEND").length;
+    const countHandledAdapterParticipations = adapterParticipations.filter(adapterParticipation => adapterParticipation.read().side === "HANDLE").length;
+    return countSentAdapterParticipations === countHandledAdapterParticipations;
+  }
 }

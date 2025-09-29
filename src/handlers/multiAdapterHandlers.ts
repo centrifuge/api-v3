@@ -202,12 +202,11 @@ ponder.on("MultiAdapter:HandleProof", async ({ event, context }) => {
     event.block
   )) as AdapterParticipationService;
 
-  const handledAdapterProofs = await AdapterParticipationService.countHandledAdapterProofs(context, payloadId, payloadIndex);
-  const countPayloadMessages = await CrosschainMessageService.countPayloadMessages(context, payloadId, payloadIndex);
-  const countPayloadExecutedMessages = await CrosschainMessageService.countPayloadExecutedMessages(context, payloadId, payloadIndex);
+  const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(context, payloadId, payloadIndex);
+  if (!isPayloadVerified) return;
 
-  if (handledAdapterProofs === 0) return;
-  if (countPayloadExecutedMessages < countPayloadMessages) return;
+  const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(context, payloadId, payloadIndex);
+  if (!isPayloadFullyExecuted) return;
 
   crosschainPayload.completed(event);
   await crosschainPayload.save(event.block);

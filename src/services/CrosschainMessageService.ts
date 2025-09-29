@@ -22,7 +22,10 @@ export class CrosschainMessageService extends mixinCommonStatics(
    * @param messageId - The ID of the message to get from the queue
    * @returns The first message from the queue or null if no message is found
    */
-  static async getFromAwaitingBatchDeliveryQueue(context: Context, messageId: `0x${string}`) {
+  static async getFromAwaitingBatchDeliveryQueue(
+    context: Context,
+    messageId: `0x${string}`
+  ) {
     const crosschainMessages = (await CrosschainMessageService.query(context, {
       id: messageId,
       status: "AwaitingBatchDelivery",
@@ -38,7 +41,10 @@ export class CrosschainMessageService extends mixinCommonStatics(
    * @param messageId - The ID of the message to get from the queue
    * @returns The first message from the queue or null if no message is found
    */
-  static async getFromAwaitingBatchDeliveryOrFailedQueue(context: Context, messageId: `0x${string}`) {
+  static async getFromAwaitingBatchDeliveryOrFailedQueue(
+    context: Context,
+    messageId: `0x${string}`
+  ) {
     const crosschainMessages = (await CrosschainMessageService.query(context, {
       id: messageId,
       status_in: ["AwaitingBatchDelivery", "Failed"],
@@ -54,11 +60,15 @@ export class CrosschainMessageService extends mixinCommonStatics(
    * @param messageId - The ID of the message to count failed messages for
    * @returns The number of failed messages
    */
-  static async countPayloadFailedMessages(context: Context, payloadId: `0x${string}`, payloadIndex: number) {
+  static async countPayloadFailedMessages(
+    context: Context,
+    payloadId: `0x${string}`,
+    payloadIndex: number
+  ) {
     return await CrosschainMessageService.count(context, {
       payloadId,
       payloadIndex,
-      status: "Failed"
+      status: "Failed",
     });
   }
 
@@ -68,11 +78,15 @@ export class CrosschainMessageService extends mixinCommonStatics(
    * @param payloadId - The ID of the payload to count executed messages for
    * @returns The number of executed messages
    */
-  static async countPayloadExecutedMessages(context: Context, payloadId: `0x${string}`, payloadIndex: number) {
+  static async countPayloadExecutedMessages(
+    context: Context,
+    payloadId: `0x${string}`,
+    payloadIndex: number
+  ) {
     return await CrosschainMessageService.count(context, {
       payloadId,
       payloadIndex,
-      status: "Executed"
+      status: "Executed",
     });
   }
 
@@ -82,11 +96,36 @@ export class CrosschainMessageService extends mixinCommonStatics(
    * @param payloadId - The ID of the payload to count messages for
    * @returns The number of messages
    */
-  static async countPayloadMessages(context: Context, payloadId: `0x${string}`, payloadIndex: number) {
+  static async countPayloadMessages(
+    context: Context,
+    payloadId: `0x${string}`,
+    payloadIndex: number
+  ) {
     return await CrosschainMessageService.count(context, {
       payloadId,
       payloadIndex,
     });
+  }
+
+  /**
+   * Checks if a payload is fully executed
+   * @param context - The database and client context
+   * @param payloadId - The ID of the payload to check
+   * @param payloadIndex - The index of the payload to check
+   * @returns True if the payload is fully executed, false otherwise
+   */
+  static async checkPayloadFullyExecuted(
+    context: Context,
+    payloadId: `0x${string}`,
+    payloadIndex: number
+  ) {
+    const crosschaMassages = (await CrosschainMessageService.query(context, {
+      payloadId,
+      payloadIndex,
+    })) as CrosschainMessageService[];
+    return crosschaMassages.every(
+      (message) => message.read().status === "Executed"
+    );
   }
 
   /**
@@ -97,16 +136,25 @@ export class CrosschainMessageService extends mixinCommonStatics(
    * @param payloadId - The ID of the payload to link the messages to
    * @param payloadIndex - The index of the payload to link the messages to
    */
-  static async linkMessagesToPayload(context: Context, event: Event, messageIds: `0x${string}`[], payloadId: `0x${string}`, payloadIndex: number) {
+  static async linkMessagesToPayload(
+    context: Context,
+    event: Event,
+    messageIds: `0x${string}`[],
+    payloadId: `0x${string}`,
+    payloadIndex: number
+  ) {
     const crosschainMessageSaves = [];
     const poolIdSet = new Set<bigint>();
     for (const messageId of messageIds) {
-      const crosschainMessages = (await CrosschainMessageService.query(context, {
-        id: messageId,
-        payloadId: null,
-        payloadIndex: null,
-        _sort: [{ field: "index", direction: "asc" }],
-      })) as CrosschainMessageService[];
+      const crosschainMessages = (await CrosschainMessageService.query(
+        context,
+        {
+          id: messageId,
+          payloadId: null,
+          payloadIndex: null,
+          _sort: [{ field: "index", direction: "asc" }],
+        }
+      )) as CrosschainMessageService[];
       if (crosschainMessages.length === 0) {
         console.error(`CrosschainMessage with id ${messageId} not found`);
         continue;
@@ -119,7 +167,8 @@ export class CrosschainMessageService extends mixinCommonStatics(
     }
     await Promise.all(crosschainMessageSaves);
     const poolIds = Array.from(poolIdSet);
-    if (poolIds.length > 1) throw new Error("Multiple pools found among messages");
+    if (poolIds.length > 1)
+      throw new Error("Multiple pools found among messages");
     return poolIds.pop() ?? null;
   }
 
@@ -210,21 +259,28 @@ const CrosschainMessageType = {
   SetRequestManager: 73,
 } as const;
 
-type BufferDecoderEntry<T = unknown> = [decoder: (_m: Buffer<ArrayBuffer>) => T, length: number];
+type BufferDecoderEntry<T = unknown> = [
+  decoder: (_m: Buffer<ArrayBuffer>) => T,
+  length: number
+];
 
 const MessageDecoders = {
   uint8: [(m) => m.readUInt8(), 1],
   uint16: [(m) => m.readUInt16BE(), 2],
   uint64: [(m) => m.readBigUInt64BE().toString(), 8],
-  uint128: [(m) => {
-    const high = m.readBigUInt64BE(0);  // Bytes 0-7 (upper 64 bits)
-    const low = m.readBigUInt64BE(8);   // Bytes 8-15 (lower 64 bits)
-    return ((high << 64n) | low).toString();
-  }, 16],
-    uint256: [(m) => {
-      const highest = m.readBigUInt64BE(0);  // Bytes 0-7 (upper 64 bits)
-      const high = m.readBigUInt64BE(8);    // Bytes 8-15 (upper 64 bits)
-      const low = m.readBigUInt64BE(16);    // Bytes 16-23 (lower 64 bits)
+  uint128: [
+    (m) => {
+      const high = m.readBigUInt64BE(0); // Bytes 0-7 (upper 64 bits)
+      const low = m.readBigUInt64BE(8); // Bytes 8-15 (lower 64 bits)
+      return ((high << 64n) | low).toString();
+    },
+    16,
+  ],
+  uint256: [
+    (m) => {
+      const highest = m.readBigUInt64BE(0); // Bytes 0-7 (upper 64 bits)
+      const high = m.readBigUInt64BE(8); // Bytes 8-15 (upper 64 bits)
+      const low = m.readBigUInt64BE(16); // Bytes 16-23 (lower 64 bits)
       const lowest = m.readBigUInt64BE(24); // Bytes 24-31 (lower 64 bits)
       return (
         (highest << 192n) |
@@ -232,7 +288,9 @@ const MessageDecoders = {
         (low << 64n) |
         lowest
       ).toString();
-    }, 32],
+    },
+    32,
+  ],
   bytes16: [(m) => `0x${m.toString("hex").padEnd(32, "0")}`, 16],
   bytes32: [(m) => `0x${m.toString("hex").padEnd(64, "0")}`, 32],
   string: [(m) => m.toString("utf-8").replace(/\0+$/, ""), 0],
@@ -247,7 +305,9 @@ interface DecoderConfig {
 
 // Type mapping for decoder return types - derived from MessageDecoders
 type DecoderReturnTypes = {
-  [K in keyof typeof MessageDecoders]: ReturnType<(typeof MessageDecoders)[K][0]>
+  [K in keyof typeof MessageDecoders]: ReturnType<
+    (typeof MessageDecoders)[K][0]
+  >;
 };
 
 // Type that maps message type names to their decoded parameter types
@@ -285,7 +345,7 @@ const messageDecoders = {
   _Placeholder15: [],
   NotifyPool: [{ name: "poolId", decoder: "uint64" }],
   NotifyShareClass: [
-    { name: "poolId", decoder: "uint64"},
+    { name: "poolId", decoder: "uint64" },
     { name: "scId", decoder: "bytes16" },
     { name: "name", decoder: "string" },
     { name: "symbol", decoder: "bytes32" },
