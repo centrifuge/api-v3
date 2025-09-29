@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.0.0](https://github.com/centrifuge/api-v3/compare/v1.6.0...v2.0.0) (2025-09-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* redefine primary keys for crosschain payloads ([#139](https://github.com/centrifuge/api-v3/issues/139))
+
+### Features
+
+* redefine primary keys for crosschain payloads ([#139](https://github.com/centrifuge/api-v3/issues/139)) ([075d46b](https://github.com/centrifuge/api-v3/commit/075d46bf60b33b7fcc6959ec14bca8e66fddcbe3))
+* track transfers in investorTransactions ([#138](https://github.com/centrifuge/api-v3/issues/138)) ([a031e88](https://github.com/centrifuge/api-v3/commit/a031e8881f1e91b769ef124069be354c52b2527f))
+
+
+### Bug Fixes
+
+* crosschainMessages retries not correctly handled ([3628931](https://github.com/centrifuge/api-v3/commit/36289310fb773963fbc665278e8545bb2c1a2249))
+* investOrders contains wrong state ([#136](https://github.com/centrifuge/api-v3/issues/136)) ([6db9870](https://github.com/centrifuge/api-v3/commit/6db9870d2ea4e2d6c6f03e92f0f5bab1f69f26b6))
+* missing adapter names ([#134](https://github.com/centrifuge/api-v3/issues/134)) ([8f18438](https://github.com/centrifuge/api-v3/commit/8f184383629cc5848a3549599cbdbfe3f827238a))
+* missing payload completion on single adapter chains ([a0980eb](https://github.com/centrifuge/api-v3/commit/a0980eb645b2fd6591ca2216bb55c0bb2ec0e64b))
+* prefer arbitrum alchemy wss ([16e3a87](https://github.com/centrifuge/api-v3/commit/16e3a87942013e867485ffcf64b29ca008048eb8))
+
 ## [1.6.0](https://github.com/centrifuge/api-v3/compare/v1.5.1...v1.6.0) (2025-09-10)
 
 
