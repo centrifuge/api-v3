@@ -305,7 +305,7 @@ export function mixinCommonStatics<
  * @param table - The table to extract primary key names from
  * @returns Array of primary key field names
  */
-function getPrimaryKeysFieldNames<T extends OnchainTable>(table: T) {
+export function getPrimaryKeysFieldNames<T extends OnchainTable>(table: T) {
   const config = getTableConfig(table);
   const { primaryKeys, columns } = config;
   const directPkNames = columns
@@ -326,7 +326,7 @@ function getPrimaryKeysFieldNames<T extends OnchainTable>(table: T) {
  * @param data - The data object to extract primary key values from
  * @returns Object containing only the primary key fields and their values
  */
-function getPrimaryKeysFields<T extends OnchainTable>(
+export function getPrimaryKeysFields<T extends OnchainTable>(
   table: T,
   data: T["$inferSelect"]
 ) {
@@ -360,7 +360,7 @@ function pick<T, K extends keyof T>(obj: T, ...props: K[]): Pick<T, K> {
  * @returns Drizzle ORM filter condition for primary key matching
  * @throws {Error} When no primary keys are found for the table
  */
-function primaryKeyFilter<T extends OnchainTable>(
+export function primaryKeyFilter<T extends OnchainTable>(
   table: T,
   data: T["$inferSelect"]
 ) {

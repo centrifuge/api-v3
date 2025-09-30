@@ -12,6 +12,10 @@ import {
   AccountService,
 } from "../services";
 import { Erc20Abi } from "../../abis/Erc20Abi";
+import { PoolEscrowFactoryAbi } from "../../abis/PoolEscrowFactoryAbi";
+import { currentChains } from "../../ponder.config";
+import { snapshotter } from "../helpers/snapshotter";
+import { HoldingEscrowSnapshot } from "ponder:schema";
 
 ponder.on("Spoke:DeployVault", async ({ event, context }) => {
   logEvent(event, context, "Spoke:DeployVault");
@@ -85,11 +89,7 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
 
 ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
   logEvent(event, context, "Spoke:AddShareClass");
-  const {
-    poolId,
-    scId: tokenId,
-    token: tokenAddress,
-  } = event.args;
+  const { poolId, scId: tokenId, token: tokenAddress } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
@@ -191,25 +191,61 @@ ponder.on("Spoke:UpdateAssetPrice", async ({ event, context }) => {
   logEvent(event, context, "Spoke:UpdateAssetPrice");
 
   const {
-    //poolId: poolId,
-    //scId: tokenId,
+    poolId: poolId,
+    scId: tokenId,
     asset: assetAddress,
     price: assetPrice,
     //computedAt,
   } = event.args;
 
-  
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const holdingEscrows = (await HoldingEscrowService.query(context, {
-    centrifugeId,
-    assetAddress,
-  })) as HoldingEscrowService[];
-
-  for (const holdingEscrow of holdingEscrows) {
-    await holdingEscrow.setAssetPrice(assetPrice);
-    await holdingEscrow.save(event.block);
+  const chainId = context.chain.id;
+  if (typeof chainId !== "number") throw new Error("Chain ID not found");
+  const poolEscrowFactoryAddress = currentChains.find(
+    (chain) => chain.network.chainId === chainId
+  )?.contracts.poolEscrowFactory;
+  if (!poolEscrowFactoryAddress) {
+    console.error(`Pool Escrow Factory address not found for chain ${chainId}`);
+    return;
   }
+
+  const escrowAddress = await context.client.readContract({
+    abi: PoolEscrowFactoryAbi,
+    address: poolEscrowFactoryAddress,
+    functionName: "escrow",
+    args: [poolId],
+  });
+
+  const assetQuery = await AssetService.query(context, {
+    address: assetAddress,
+    centrifugeId,
+  });
+  if (assetQuery.length !== 1) {
+    console.error(`Asset not found for address ${assetAddress}`);
+    return;
+  }
+
+  const asset = assetQuery.pop();
+  const { id: assetId } = asset!.read();
+
+  const holdingEscrow = (await HoldingEscrowService.getOrInit(
+    context,
+    {
+      poolId,
+      tokenId,
+      centrifugeId,
+      assetAddress,
+      assetId,
+      escrowAddress,
+    },
+    event.block
+  )) as HoldingEscrowService;
+
+  await holdingEscrow.setAssetPrice(assetPrice);
+  await holdingEscrow.save(event.block);
+
+  await snapshotter(context, event, "Spoke:UpdateAssetPrice", [holdingEscrow], HoldingEscrowSnapshot);
 });
 
 ponder.on("Spoke:InitiateTransferShares", async ({ event, context }) => {
@@ -220,15 +256,23 @@ ponder.on("Spoke:InitiateTransferShares", async ({ event, context }) => {
     scId: tokenId,
     sender,
     destinationAddress,
-   amount,
+    amount,
   } = event.args;
 
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const [fromAccount, toAccount] = await Promise.all([
-    AccountService.getOrInit(context, {address: sender.substring(0, 42) as `0x${string}`}, event.block),
-    AccountService.getOrInit(context, {address: destinationAddress.substring(0, 42) as `0x${string}`}, event.block),
-  ]) as [AccountService, AccountService];
+  const [fromAccount, toAccount] = (await Promise.all([
+    AccountService.getOrInit(
+      context,
+      { address: sender.substring(0, 42) as `0x${string}` },
+      event.block
+    ),
+    AccountService.getOrInit(
+      context,
+      { address: destinationAddress.substring(0, 42) as `0x${string}` },
+      event.block
+    ),
+  ])) as [AccountService, AccountService];
 
   const { address: fromAccountAddress } = fromAccount.read();
   const { address: toAccountAddress } = toAccount.read();
@@ -246,13 +290,21 @@ ponder.on("Spoke:InitiateTransferShares", async ({ event, context }) => {
   } as const;
 
   await Promise.all([
-    InvestorTransactionService.transferOut(context, {
-      ...transferData,
-      account: fromAccountAddress,
-    }, event.block),
-    InvestorTransactionService.transferIn(context, {
-      ...transferData,
-      account: toAccountAddress,
-    }, event.block),
+    InvestorTransactionService.transferOut(
+      context,
+      {
+        ...transferData,
+        account: fromAccountAddress,
+      },
+      event.block
+    ),
+    InvestorTransactionService.transferIn(
+      context,
+      {
+        ...transferData,
+        account: toAccountAddress,
+      },
+      event.block
+    ),
   ]);
 });
