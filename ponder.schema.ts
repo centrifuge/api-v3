@@ -817,6 +817,7 @@ export const HoldingEscrowColumns = (t: PgColumnsBuilders) => ({
   assetAmount: t.bigint().default(0n),
   assetPrice: t.bigint().default(0n),
   escrowAddress: t.hex().notNull(),
+  ...defaultColumns(t, true),
 });
 export const HoldingEscrow = onchainTable(
   "holding_escrow",
@@ -1264,6 +1265,19 @@ export const HoldingSnapshot = onchainTable(
     id: primaryKey({
       columns: [t.tokenId, t.assetId, t.blockNumber, t.trigger],
     }),
+  })
+);
+
+export const HoldingEscrowSnapshot = onchainTable(
+  "holding_escrow_snapshot",
+  snapshotColumns(HoldingEscrowColumns, [
+    "tokenId",
+    "assetId",
+    "assetAmount",
+    "assetPrice",
+  ] as const),
+  (t) => ({
+    id: primaryKey({ columns: [t.tokenId, t.assetId, t.blockNumber, t.trigger] }),
   })
 );
 

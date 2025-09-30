@@ -69,6 +69,6 @@ export async function snapshotter<
       triggerTxHash: transaction?.hash,
       triggerChainId: chainId,
     };
-    await context.db.sql.insert(snapshotTable).values(snapshotData);
+    await context.db.sql.insert(snapshotTable).values(snapshotData).onConflictDoNothing();
   }
 }

@@ -1,11 +1,11 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
 import { Timekeeper } from "../helpers/timekeeper";
-import { BlockchainService, PoolService, TokenInstanceService, TokenService } from "../services";
-import { PoolSnapshot } from "ponder:schema";
+import { BlockchainService, HoldingEscrowService, PoolService, TokenInstanceService, TokenService } from "../services";
+import { PoolSnapshot, HoldingEscrowSnapshot, TokenInstanceSnapshot, TokenSnapshot } from "ponder:schema";
 import { snapshotter } from "../helpers/snapshotter";
 import { currentChains } from "../../ponder.config";
-import { TokenInstanceSnapshot, TokenSnapshot } from "ponder:schema";
+import {  } from "ponder:schema";
 
 const timekeeper = Timekeeper.start()
 
@@ -40,9 +40,15 @@ async function processBlock(args: Parameters<Parameters<typeof ponder.on>[1]>[0]
     centrifugeId
   }) as TokenInstanceService[];
 
+  const holdingEscrows = await HoldingEscrowService.query(context, {
+    centrifugeId,
+    assetAmount_not: 0n
+  }) as HoldingEscrowService[];
+
   await snapshotter(context, event, `${chainName}:NewPeriod`, pools, PoolSnapshot)
   await snapshotter(context, event, `${chainName}:NewPeriod`, tokens, TokenSnapshot)
   await snapshotter(context, event, `${chainName}:NewPeriod`, tokenInstances, TokenInstanceSnapshot)
+  await snapshotter(context, event, `${chainName}:NewPeriod`, holdingEscrows, HoldingEscrowSnapshot)
 }
 
 currentChains.forEach(chain => {

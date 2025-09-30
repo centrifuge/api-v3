@@ -8,6 +8,8 @@ import {
   HoldingEscrowService,
   PoolManagerService,
 } from "../services";
+import { snapshotter } from "../helpers/snapshotter";
+import { HoldingEscrowSnapshot } from "ponder:schema";
 
 ponder.on("BalanceSheet:NoteDeposit", async ({ event, context }) => {
   logEvent(event, context, "BalanceSheet:NoteDeposit");
@@ -55,6 +57,8 @@ ponder.on("BalanceSheet:NoteDeposit", async ({ event, context }) => {
   await holdingEscrow.increaseAssetAmount(amount);
   await holdingEscrow.setAssetPrice(pricePoolPerAsset);
   await holdingEscrow.save(event.block);
+
+  await snapshotter(context, event, "BalanceSheet:NoteDeposit", [holdingEscrow], HoldingEscrowSnapshot);
 });
 
 ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
@@ -104,6 +108,8 @@ ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
   await holdingEscrow.decreaseAssetAmount(amount);
   await holdingEscrow.setAssetPrice(pricePoolPerAsset);
   await holdingEscrow.save(event.block);
+
+  await snapshotter(context, event, "BalanceSheet:Withdraw", [holdingEscrow], HoldingEscrowSnapshot);
 });
 
 ponder.on("BalanceSheet:UpdateManager", async ({ event, context }) => {
