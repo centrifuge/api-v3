@@ -13,10 +13,12 @@ import {
   AssetService,
   PoolService,
   AccountService,
+  HoldingEscrowService,
 } from "../services";
 import { snapshotter } from "../helpers/snapshotter";
 import { TokenSnapshot } from "ponder:schema";
 import { EpochOutstandingRedeemService } from "../services/EpochOutstandingRedeemService";
+import { HoldingEscrowSnapshot } from "ponder:schema";
 
 // SHARE CLASS LIFECYCLE
 ponder.on(
@@ -263,6 +265,9 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
     saves.push(oo.save(event.block));
   }
   await Promise.all(saves);
+
+  const holdingEscrows = await HoldingEscrowService.query(context, { tokenId, assetAmount_not: 0n }) as HoldingEscrowService[];
+  await snapshotter(context, event, "ShareClassManager:ApproveDeposits", holdingEscrows, HoldingEscrowSnapshot);
 });
 
 ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
@@ -328,6 +333,9 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
     saves.push(oo.save(event.block));
   }
   await Promise.all(saves);
+
+  const holdingEscrows = await HoldingEscrowService.query(context, { tokenId, assetAmount_not: 0n }) as HoldingEscrowService[];
+  await snapshotter(context, event, "ShareClassManager:ApproveRedeems", holdingEscrows, HoldingEscrowSnapshot);
 });
 
 ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
