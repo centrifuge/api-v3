@@ -17,7 +17,7 @@ import { BalanceSheetAbi } from "./abis/BalanceSheetAbi";
 import { AsyncVaultAbi } from "./abis/AsyncVaultAbi";
 import { SyncDepositVaultAbi } from "./abis/SyncDepositVaultAbi";
 
-import { chains as _chains, endpoints, skipBlocks, startBlocks } from "./chains";
+import { chains as _chains, endpoints, skipBlocks, startBlocks, networks } from "./chains";
 import { PoolEscrowFactoryAbi } from "./abis/PoolEscrowFactoryAbi";
 import { PoolEscrowAbi } from "./abis/PoolEscrowAbi";
 import { OnOffRampManagerFactoryAbi } from "./abis/OnOffRampManagerFactoryAbi";
@@ -34,23 +34,24 @@ export const currentChains = _chains.filter((chain) =>
   selectedNetworks.includes(chain.network.chainId.toString())
 );
 export const currentContractNames = Array.from(new Set(currentChains.flatMap((chain) => Object.keys(chain.contracts)))) as (keyof (typeof currentChains)[number]["contracts"])[];
-type Networks = (typeof currentChains)[number]["network"]["network"];
+type Networks = typeof networks[keyof typeof networks];
+type Endpoints = typeof endpoints[keyof typeof endpoints];
 
 const chains = currentChains.reduce<Record<Networks, ChainConfig>>(
   (acc, network) => {
     const chainId = network.network.chainId
-    const networkName = network.network.network
+    const networkName = networks[chainId as keyof typeof networks]
     const chainEndpoints = endpoints[chainId];
     const envRpcEndpoints = process.env[`PONDER_RPC_URL_${chainId}`]?.split(",");
     const hasEnvRpcEndpoints = envRpcEndpoints!! && envRpcEndpoints.length > 0;
     const envWsEndpoint = process.env[`PONDER_WS_URL_${chainId}`];
     const hasEnvWsEndpoint = envWsEndpoint!!;
-    acc[networkName] = {
+    acc[networkName as Networks] = {
       id: chainId,
       rpc: hasEnvRpcEndpoints
         ? envRpcEndpoints
         : chainEndpoints.map(endpoint => `https://${endpoint}`),
-      ws: hasEnvWsEndpoint ? envWsEndpoint : `wss://${chainEndpoints[0]}`,
+      ws: hasEnvWsEndpoint ? envWsEndpoint : getWsEndpoint(chainEndpoints),
     };
     return acc;
   },
@@ -59,8 +60,10 @@ const chains = currentChains.reduce<Record<Networks, ChainConfig>>(
 
 const blocks = currentChains.reduce<Record<string, BlockConfig>>(
   (acc, network) => {
-    acc[network.network.network] = {
-      chain: network.network.network,
+    const chainId = network.network.chainId
+    const networkName = networks[chainId]
+    acc[networkName] = {
+      chain: networkName,
       startBlock: startBlocks[network.network.chainId],
       interval: skipBlocks[network.network.chainId],
     };
@@ -188,7 +191,9 @@ function getContractChain(
   factoryConfig?: Omit<Parameters<typeof factory>[0], "address">
 ): MultichainContractChain {
   return currentChains.reduce<MultichainContractChain>((acc, network) => {
-    acc[network.network.network] = {
+    const chainId = network.network.chainId
+    const networkName = networks[chainId]
+    acc[networkName] = {
       address: factoryConfig
         ? factory({
             ...factoryConfig,
@@ -199,4 +204,15 @@ function getContractChain(
     };
     return acc;
   }, {} as MultichainContractChain);
+}
+
+/**
+ * Gets a random websocket endpoint from a list of endpoints.
+ *
+ * @param chainEndpoints - The list of endpoints to get a random websocket endpoint from
+ * @returns A random websocket endpoint
+ */
+function getWsEndpoint(chainEndpoints: Endpoints) {
+  const randomEndpoint = chainEndpoints[Math.floor(Math.random() * chainEndpoints.length)]!;
+  return `wss://${randomEndpoint.replace('/rpc', '/ws')}`;
 }

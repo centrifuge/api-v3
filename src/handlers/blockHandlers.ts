@@ -5,7 +5,7 @@ import { BlockchainService, HoldingEscrowService, PoolService, TokenInstanceServ
 import { PoolSnapshot, HoldingEscrowSnapshot, TokenInstanceSnapshot, TokenSnapshot } from "ponder:schema";
 import { snapshotter } from "../helpers/snapshotter";
 import { currentChains } from "../../ponder.config";
-import {  } from "ponder:schema";
+import { networks } from "../../chains";
 
 const timekeeper = Timekeeper.start()
 
@@ -52,5 +52,7 @@ async function processBlock(args: Parameters<Parameters<typeof ponder.on>[1]>[0]
 }
 
 currentChains.forEach(chain => {
-  ponder.on(`${chain.network.network}:block`, processBlock);
+  const chainId = chain.network.chainId
+  const network = networks[chainId]
+  ponder.on(`${network}:block`, processBlock);
 })
