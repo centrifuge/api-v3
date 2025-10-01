@@ -3,7 +3,6 @@ export const chains = [
     network: {
       chainId: 11155111,
       environment: "testnet",
-      network: "ethereum",
       centrifugeId: 1,
       connectsTo: ["arbitrum-sepolia", "base-sepolia"],
     },
@@ -74,7 +73,6 @@ export const chains = [
     network: {
       chainId: 84532,
       environment: "testnet",
-      network: "base",
       centrifugeId: 2,
       catapultaNetwork: "baseSepolia",
       etherscanUrl: "https://api-sepolia.basescan.org/api",
@@ -148,7 +146,6 @@ export const chains = [
       chainId: 421614,
       environment: "testnet",
       centrifugeId: 3,
-      network: "arbitrum",
       catapultaNetwork: "arbitrumSepolia",
       connectsTo: ["sepolia", "base-sepolia"],
     },
@@ -213,7 +210,6 @@ export const chains = [
     network: {
       chainId: 42161,
       environment: "mainnet",
-      network: "arbitrum",
       centrifugeId: 3,
       connectsTo: ["ethereum"],
       safeAdmin: "0xa36caE0ACd40C6BbA61014282f6AE51c7807A433",
@@ -283,7 +279,6 @@ export const chains = [
       chainId: 43114,
       environment: "mainnet",
       centrifugeId: 5,
-      network: "avalanche",
       connectsTo: ["ethereum"],
       safeAdmin: "0xb6642fEd2221e177dD29581BB6d1959Bd1c54185",
     },
@@ -351,7 +346,6 @@ export const chains = [
     network: {
       chainId: 8453,
       environment: "mainnet",
-      network: "base",
       centrifugeId: 2,
       connectsTo: ["ethereum"],
       safeAdmin: "0x8b83962fB9dB346a20c95D98d4E312f17f4C0d9b",
@@ -420,7 +414,6 @@ export const chains = [
     network: {
       chainId: 1,
       environment: "mainnet",
-      network: "ethereum",
       centrifugeId: 1,
       connectsTo: ["arbitrum", "base", "plume", "avalanche"],
       safeAdmin: "0xD9D30ab47c0f096b0AA67e9B8B1624504a63e7FD",
@@ -483,7 +476,6 @@ export const chains = [
       chainId: 98866,
       environment: "mainnet",
       centrifugeId: 4,
-      network: "plume",
       connectsTo: ["ethereum"],
       safeAdmin: "0x2d442069f78561F817d92c94924D5EaddA9C5767",
     },
@@ -539,6 +531,74 @@ export const chains = [
       wormholeAdapter: "0x6b98679eEC5b5DE3A803Dc801B2f12aDdDCD39Ec",
     },
   },
+  {
+    network: {
+      chainId: 56,
+      environment: "mainnet",
+      centrifugeId: 6,
+      connectsTo: ["ethereum", "base", "arbitrum", "avalanche"],
+      safeAdmin: "0x57066D897cB9cDef21b9Ecd7CecdD1d39b6eE445",
+    },
+    adapters: {
+      wormhole: {
+        wormholeId: "4",
+        relayer: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
+        deploy: true,
+      },
+      axelar: {
+        axelarId: "binance",
+        gateway: "0x304acf330bbE08d1e512eefaa92F6a57871fD895",
+        gasService: "0x2d5d7d31F671F86C782533cc367F14109a082712",
+        deploy: true,
+      },
+    },
+    contracts: {
+      root: "0x7Ed48C31f2fdC40d37407cBaBf0870B2b688368f",
+      guardian: "0xFEE13c017693a4706391D516ACAbF6789D5c3157",
+      gasService: "0x295262f96186505Ce67c67B9d29e36ad1f9EAe88",
+      gateway: "0x51eA340B3fe9059B48f935D5A80e127d587B6f89",
+      multiAdapter: "0x457C91384C984b1659157160e8543adb12BC5317",
+      messageProcessor: "0xE994149c6D00Fe8708f843dc73973D1E7205530d",
+      messageDispatcher: "0x21AF0C29611CFAaFf9271C8a3F84F2bC31d59132",
+      poolEscrowFactory: "0xD166B3210edBeEdEa73c7b2e8aB64BDd30c980E9",
+      tokenRecoverer: "0x94269dBaBA605b63321221679df1356be0c00E63",
+      hubRegistry: "0x12044ef361Cc3446Cb7d36541C8411EE4e6f52cb",
+      accounting: "0xE999a426D92c30fEE4f074B3a53071A6e935419F",
+      holdings: "0x0261FA29b3F2784AF17874428b58d971b6652C47",
+      shareClassManager: "0xe88e712d60bfd23048Dbc677FEb44E2145F2cDf4",
+      hubHelpers: "0xA30D9E76a80675A719d835a74d09683AD2CB71EE",
+      hub: "0x9c8454A506263549f07c80698E276e3622077098",
+      identityValuation: "0x3b8FaE903a6511f9707A2f45747a0de3B747711f",
+      tokenFactory: "0xC8eDca090b772C48BcE5Ae14Eb7dd517cd70A32C",
+      spoke: "0xd30Da1d7F964E5f6C2D9fE2AAA97517F6B23FA2B",
+      balanceSheet: "0xBcC8D02d409e439D98453C0b1ffa398dFFb31fda",
+      contractUpdater: "0x8dD5a3d4e9ec54388dAd23B8a1f3B2159B2f2D85",
+      routerEscrow: "0xB86B6AE94E6d05AAc086665534A73fee557EE9F6",
+      globalEscrow: "0x43d51be0B6dE2199A2396bA604114d24383F91E9",
+      asyncRequestManager: "0xF06f89a1b6C601235729A689595571B7455dD433",
+      syncManager: "0x0D82d9fa76CFCd6F4cc59F053b2458665C6CE773",
+      asyncVaultFactory: "0xb47E57b4D477FF80c42dB8B02CB5cb1a74b5D20a",
+      syncDepositVaultFactory: "0x00E3c7EE9Bbc98B9Cb4Cc2c06fb211c1Bb199Ee5",
+      vaultRouter: "0xdbCcee499563D4AC2D3788DeD3acb14FB92B175D",
+      freezeOnlyHook: "0xBb7ABFB0E62dfb36e02CeeCDA59ADFD71f50c88e",
+      fullRestrictionsHook: "0xa2C98F0F76Da0C97039688CA6280d082942d0b48",
+      freelyTransferableHook: "0xbce8C1f411484C28a64f7A6e3fA63C56b6f3dDDE",
+      redemptionRestrictionsHook: "0xf0C36EFD5F6465D18B9679ee1407a3FC9A2955dD",
+      onOfframpManagerFactory: "0xcb084F79e8AE54e1373130F4F7119214FCe972a9",
+      merkleProofManagerFactory: "0xaBd3cDc17C15a9E7771876cE24aB10A8E722781d",
+      vaultDecoder: "0x72B188c37bD8Eb002d0D9c63CCd77F2Ff71d272e",
+      circleDecoder: "0x6fce63E718fED6E20bAa8179e313C24cbF2EDa24",
+      wormholeAdapter: "0x6b98679eEC5b5DE3A803Dc801B2f12aDdDCD39Ec",
+      axelarAdapter: "0x52271c9A29D0f97c350BBE32b3377CdD26026d0a",
+    },
+    deploymentInfo: {
+      "deploy:protocol": {
+        gitCommit: "56e3dfda",
+        timestamp: "2025-07-21T11:48:56Z",
+        version: "3",
+      },
+    },
+  },
 ] as const;
 
 export const endpoints = {
@@ -561,8 +621,10 @@ export const endpoints = {
     `eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `${process.env.QUICKNODE_API_NAME}.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
   ],
-  98866: [
-    `rpc.plume.org/${process.env.CONDUIT_API_KEY}`,
+  98866: [`rpc.plume.org/${process.env.CONDUIT_API_KEY}`],
+  56: [
+    `bnb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `${process.env.QUICKNODE_API_NAME}.bsc.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
   ],
 } as const;
 
@@ -575,6 +637,7 @@ export const startBlocks = {
   8453: 32901251,
   1: 22924235,
   98866: 564725,
+  56: 54800894,
 } as const;
 
 export const skipBlocks = {
@@ -586,4 +649,17 @@ export const skipBlocks = {
   8453: 1800,
   1: 300,
   98866: 9000,
+  56: 4800,
+} as const;
+
+export const networks = {
+  84532: "base",
+  421614: "arbitrum",
+  11155111: "ethereum",
+  42161: "arbitrum",
+  43114: "avalanche",
+  8453: "base",
+  1: "ethereum",
+  98866: "plume",
+  56: "binance",
 } as const;
