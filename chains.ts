@@ -631,9 +631,7 @@ export const endpoints = {
 export const startBlocks = {
   84532: 28165059,
   421614: 172002761,
-  11155111: process.env.PONDER_RPC_STARTING_BLOCK_11155111
-    ? parseInt(process.env.PONDER_RPC_STARTING_BLOCK_11155111)
-    : 8729941,
+  11155111: 8729941,
   42161: 357982308,
   43114: 65492900,
   8453: 32901251,
