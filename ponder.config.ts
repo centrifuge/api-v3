@@ -67,8 +67,8 @@ const blocks = currentChains.reduce<Record<string, BlockConfig>>(
       chain: networkName,
       startBlock: startingBlockOverride
         ? parseInt(startingBlockOverride)
-        : startBlocks[network.network.chainId],
-      interval: skipBlocks[network.network.chainId],
+        : startBlocks[chainId],
+      interval: skipBlocks[chainId],
     };
     return acc;
   },
@@ -196,6 +196,7 @@ function getContractChain(
   return currentChains.reduce<MultichainContractChain>((acc, network) => {
     const chainId = network.network.chainId
     const networkName = networks[chainId]
+    const startingBlockOverride = process.env[`PONDER_RPC_STARTING_BLOCK_${chainId}`];
     acc[networkName] = {
       address: factoryConfig
         ? factory({
@@ -203,7 +204,9 @@ function getContractChain(
             address: network.contracts[contractName],
           })
         : network.contracts[contractName],
-      startBlock: startBlocks[network.network.chainId],
+      startBlock: startingBlockOverride
+        ? parseInt(startingBlockOverride)
+        : startBlocks[chainId],
     };
     return acc;
   }, {} as MultichainContractChain);
