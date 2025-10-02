@@ -60,11 +60,14 @@ const chains = currentChains.reduce<Record<Networks, ChainConfig>>(
 
 const blocks = currentChains.reduce<Record<string, BlockConfig>>(
   (acc, network) => {
-    const chainId = network.network.chainId
-    const networkName = networks[chainId]
+    const chainId = network.network.chainId;
+    const networkName = networks[chainId];
+    const startingBlockOverride = process.env[`PONDER_RPC_STARTING_BLOCK_${chainId}`];
     acc[networkName] = {
       chain: networkName,
-      startBlock: startBlocks[network.network.chainId],
+      startBlock: startingBlockOverride
+        ? parseInt(startingBlockOverride)
+        : startBlocks[network.network.chainId],
       interval: skipBlocks[network.network.chainId],
     };
     return acc;
