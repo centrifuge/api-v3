@@ -190,13 +190,13 @@ type MultichainContractChain = Exclude<ContractConfig["chain"], string>;
  * @returns Chain configuration object with network-specific address and start block info
  */
 function getContractChain(
-  contractName: keyof (typeof currentChains)[number]["contracts"],
-  factoryConfig?: Omit<Parameters<typeof factory>[0], "address">
+  contractName: keyof (typeof currentChains)[number]['contracts'],
+  factoryConfig?: Omit<Parameters<typeof factory>[0], 'address'>
 ): MultichainContractChain {
   return currentChains.reduce<MultichainContractChain>((acc, network) => {
     const chainId = network.network.chainId
     const networkName = networks[chainId]
-    const startingBlockOverride = process.env[`PONDER_RPC_STARTING_BLOCK_${chainId}`];
+    const startingBlockOverride = process.env[`PONDER_RPC_STARTING_BLOCK_${chainId}`]
     acc[networkName] = {
       address: factoryConfig
         ? factory({
@@ -204,12 +204,10 @@ function getContractChain(
             address: network.contracts[contractName],
           })
         : network.contracts[contractName],
-      startBlock: startingBlockOverride
-        ? parseInt(startingBlockOverride)
-        : startBlocks[chainId],
-    };
-    return acc;
-  }, {} as MultichainContractChain);
+      startBlock: startingBlockOverride ? parseInt(startingBlockOverride) : startBlocks[network.network.chainId],
+    }
+    return acc
+  }, {} as MultichainContractChain)
 }
 
 /**
