@@ -1,10 +1,21 @@
 import type { Context, Event } from "ponder:registry";
-import { eq, and, count, isNull, not, asc, desc, inArray } from "drizzle-orm";
+import {
+  eq,
+  and,
+  count,
+  isNull,
+  not,
+  asc,
+  desc,
+  inArray,
+  lte,
+  gte,
+} from "drizzle-orm";
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
 import { expandInlineObject, serviceLog } from "../helpers/logger";
 
 /** Type alias for PostgreSQL table with columns */
-type OnchainTable = PgTableWithColumns<any>
+type OnchainTable = PgTableWithColumns<any>;
 
 type DefaultColumns = {
   updatedAt?: Date;
@@ -30,7 +41,6 @@ export class Service<T extends OnchainTable> {
   protected readonly client: Context["client"];
   /** Current data instance of the table row */
   protected data: T["$inferSelect"] & DefaultColumns;
-
 
   /**
    * Creates a new Service instance.
@@ -196,7 +206,10 @@ export function mixinCommonStatics<
           (
             await context.db.sql.insert(table).values(query).returning()
           ).pop() ?? null;
-        if (!entity) throw new Error(`Failed to initialise ${name}: ${expandInlineObject(query)}`);
+        if (!entity)
+          throw new Error(
+            `Failed to initialise ${name}: ${expandInlineObject(query)}`
+          );
       }
       return new this(table, name, context, entity);
     }
@@ -286,7 +299,10 @@ export function mixinCommonStatics<
      * @param query - Query criteria to filter records
      * @returns Promise that resolves to the count of matching records
      */
-    static async count(context: Context, query: Partial<T["$inferSelect"]>) {
+    static async count(
+      context: Context,
+      query: Partial<ExtendedQuery<T["$inferSelect"]>>
+    ) {
       const filter = queryToFilter(table, query);
       const result = await context.db.sql
         .select({ count: count() })
@@ -384,6 +400,10 @@ type ExtendedQuery<T> = {
 } & {
   [P in keyof T as `${string & P}_in`]: T[P][];
 } & {
+  [P in keyof T as `${string & P}_lte`]: T[P];
+} & {
+  [P in keyof T as `${string & P}_gte`]: T[P];
+} & {
   _sort?: Array<{
     field: keyof T;
     direction: "asc" | "desc";
@@ -412,6 +432,10 @@ function queryToFilter<T extends OnchainTable>(
       return not(eq(table[column.slice(0, -4) as keyof T], value));
     if (column.endsWith("_in"))
       return inArray(table[column.slice(0, -3) as keyof T], value);
+    if (column.endsWith("_lte"))
+      return lte(table[column.slice(0, -4) as keyof T], value);
+    if (column.endsWith("_gte"))
+      return gte(table[column.slice(0, -4) as keyof T], value);
     return eq(table[column as keyof T], value);
   });
   if (queries.length >= 1) {
@@ -423,39 +447,43 @@ function queryToFilter<T extends OnchainTable>(
 
 /**
  * Sets the default values for the data object based on the block for insert.
- * 
+ *
  * @template T - The PostgreSQL table type
  * @param data - The data object to set the defaults for
  * @param block - The block to set the defaults for
  * @returns The data object with the defaults set
  */
-function insertDefaults<T extends OnchainTable>(table: T, data: T["$inferInsert"] & DefaultColumns, block: Event["block"] | null) {
+function insertDefaults<T extends OnchainTable>(
+  table: T,
+  data: T["$inferInsert"] & DefaultColumns,
+  block: Event["block"] | null
+) {
   if (!block) return data;
   if ("createdAt" in table)
     data.createdAt = new Date(Number(block.timestamp) * 1000);
-  if ("createdAtBlock" in table)
-    data.createdAtBlock = Number(block.number);
+  if ("createdAtBlock" in table) data.createdAtBlock = Number(block.number);
   if ("updatedAt" in table)
     data.updatedAt = new Date(Number(block.timestamp) * 1000);
-  if ("updatedAtBlock" in table)
-    data.updatedAtBlock = Number(block.number);
+  if ("updatedAtBlock" in table) data.updatedAtBlock = Number(block.number);
   return data;
 }
 
-
 /**
  * Updates the default values for the data object based on the block.
- * 
+ *
  * @template T - The PostgreSQL table type
  * @param data - The data object to update the defaults for
  * @param block - The block to update the defaults for
  * @returns The data object with the defaults updated
  */
-function updateDefaults<T extends OnchainTable>(table: T, data: T["$inferInsert"] & DefaultColumns, block: Event["block"] | null) {
+function updateDefaults<T extends OnchainTable>(
+  table: T,
+  data: T["$inferInsert"] & DefaultColumns,
+  block: Event["block"] | null
+) {
   if (!block) return data;
   if ("updatedAt" in table)
     data.updatedAt = new Date(Number(block.timestamp) * 1000);
-  if ("updatedAtBlock" in table)
-    data.updatedAtBlock = Number(block.number);
+  if ("updatedAtBlock" in table) data.updatedAtBlock = Number(block.number);
   return data;
 }
