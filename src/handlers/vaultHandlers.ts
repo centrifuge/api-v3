@@ -4,6 +4,10 @@ import {
   AccountService,
   AssetService,
   BlockchainService,
+  EpochInvestOrderService,
+  EpochRedeemOrderService,
+  InvestOrderService,
+  RedeemOrderService,
   TokenInstancePositionService,
   TokenService,
 } from "../services";
@@ -168,7 +172,6 @@ ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-
   const vault = await VaultService.get(context, { id: vaultId, centrifugeId });
   if (!vault) throw new Error("Vault not found");
   const { poolId, tokenId, kind, assetAddress } = vault.read();
@@ -290,7 +293,7 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
   })) as AssetService[];
   const asset = assetQuery.pop();
   if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
-  const { decimals } = asset.read();
+  const { decimals, id: assetId } = asset.read();
   if (typeof decimals !== "number") throw new Error("Decimals is required");
 
   const invstorAccount = (await AccountService.getOrInit(
@@ -328,6 +331,61 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
         itData,
         event.block
       );
+      const blockTimestamp = new Date(Number(event.block.timestamp) * 1000);
+      const blockNumber = Number(event.block.number);
+      const investOrderIndex =
+        (await InvestOrderService.count(context, {
+          poolId,
+          tokenId,
+          account: investorAddress,
+          index_lte: 0,
+        })) * -1;
+      await InvestOrderService.insert(
+        context,
+        {
+          poolId,
+          tokenId,
+          assetId,
+          account: investorAddress,
+          index: investOrderIndex,
+          approvedAt: blockTimestamp,
+          approvedAtBlock: blockNumber,
+          approvedAssetsAmount: assets,
+          issuedAt: blockTimestamp,
+          issuedAtBlock: blockNumber,
+          issuedSharesAmount: shares,
+          issuedWithNavAssetPerShare: getSharePrice(shares, assets, decimals),
+          claimedAt: blockTimestamp,
+          claimedAtBlock: blockNumber,
+        },
+        event.block
+      );
+
+      const epochInvestIndex = (await EpochInvestOrderService.count(context, {
+        poolId,
+        tokenId,
+        assetId,
+        index_lte: 0,
+      })) * -1;
+      const _epochInvestOrder = (await EpochInvestOrderService.insert(
+        context,
+        {
+          poolId,
+          tokenId,
+          assetId,
+          index: epochInvestIndex,
+          approvedAt: blockTimestamp,
+          approvedAtBlock: blockNumber,
+          approvedAssetsAmount: assets,
+          approvedPoolAmount: assets,
+          approvedPercentageOfTotalPending: 100n * 10n ** BigInt(decimals),
+          issuedAt: blockTimestamp,
+          issuedAtBlock: blockNumber,
+          issuedSharesAmount: shares,
+          issuedWithNavAssetPerShare: getSharePrice(shares, assets, decimals),
+        },
+        event.block
+      )) as EpochInvestOrderService;
       break;
   }
 });
@@ -355,7 +413,7 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
   })) as AssetService[];
   const asset = assetQuery.pop();
   if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
-  const { decimals } = asset.read();
+  const { decimals, id: assetId } = asset.read();
   if (typeof decimals !== "number") throw new Error("Decimals is required");
 
   const token = await TokenService.get(context, { poolId, id: tokenId });
@@ -383,7 +441,63 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
 
   switch (kind) {
     case "Sync":
+      const blockTimestamp = new Date(Number(event.block.timestamp) * 1000);
+      const blockNumber = Number(event.block.number);
       await InvestorTransactionService.syncRedeem(context, itData, event.block);
+      const redeemOrderIndex =
+        (await RedeemOrderService.count(context, {
+          poolId,
+          tokenId,
+          account: investorAddress,
+          index_lte: 0,
+        })) * -1;
+      await RedeemOrderService.insert(
+        context,
+        {
+          poolId,
+          tokenId,
+          assetId,
+          account: investorAddress,
+          index: redeemOrderIndex,
+          approvedAt: blockTimestamp,
+          approvedAtBlock: blockNumber,
+          approvedSharesAmount: shares,
+          revokedAt: blockTimestamp,
+          revokedAtBlock: blockNumber,
+          revokedAssetsAmount: assets,
+          revokedPoolAmount: assets,
+          revokedWithNavAssetPerShare: getSharePrice(shares, assets, decimals),
+          claimedAt: blockTimestamp,
+          claimedAtBlock: blockNumber,
+        },
+        event.block
+      );
+
+      const epochRedeemIndex = (await EpochRedeemOrderService.count(context, {
+        poolId,
+        tokenId,
+        assetId,
+        index_lte: 0,
+      })) * -1;
+      (await EpochRedeemOrderService.insert(
+        context,
+        {
+          poolId,
+          tokenId,
+          assetId,
+          index: epochRedeemIndex,
+          approvedAt: blockTimestamp,
+          approvedAtBlock: blockNumber,
+          approvedSharesAmount: shares,
+          approvedPercentageOfTotalPending: 100n * 10n ** BigInt(decimals),
+          revokedAt: blockTimestamp,
+          revokedAtBlock: blockNumber,
+          revokedAssetsAmount: assets,
+          revokedWithNavAssetPerShare: getSharePrice(shares, assets, decimals),
+        },
+        event.block
+      )) as EpochRedeemOrderService;
+
       break;
     default:
       await InvestorTransactionService.claimRedeem(
