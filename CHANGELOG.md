@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.1.0](https://github.com/centrifuge/api-v3/compare/v2.0.0...v2.1.0) (2025-10-06)
+
+
+### Features
+
+* add bsc to indexer ([#143](https://github.com/centrifuge/api-v3/issues/143)) ([3f2f0d6](https://github.com/centrifuge/api-v3/commit/3f2f0d602330fe0df9c0cb62f1b118649693a0e1))
+* holding escrow snapshots upon redeem and deposit approvals for non zero asset holdings ([#142](https://github.com/centrifuge/api-v3/issues/142)) ([f502ca5](https://github.com/centrifuge/api-v3/commit/f502ca5666509652ddea0bd63806c13928bbac2f))
+* HoldingEscrow snapshots ([d487c6c](https://github.com/centrifuge/api-v3/commit/d487c6cc125f5a3aa5129fc20d6bb41709b14724))
+* track sync orders in epoch and investor orders ([#147](https://github.com/centrifuge/api-v3/issues/147)) ([a8e29d8](https://github.com/centrifuge/api-v3/commit/a8e29d85897497b16cdd6e95f302c1070e69eb9b))
+
+
+### Bug Fixes
+
+* holding escrow does not populate on UpdateAssetPrice ([#141](https://github.com/centrifuge/api-v3/issues/141)) ([d487c6c](https://github.com/centrifuge/api-v3/commit/d487c6cc125f5a3aa5129fc20d6bb41709b14724))
+* plume skip block parameter ([ae747fe](https://github.com/centrifuge/api-v3/commit/ae747feffb6b2355fb74babb6b1b540e5b1e73a9))
+
 ## [2.0.0](https://github.com/centrifuge/api-v3/compare/v1.6.0...v2.0.0) (2025-09-29)
 
 
