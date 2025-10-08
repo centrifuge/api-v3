@@ -107,6 +107,22 @@ export class OutstandingInvestService extends mixinCommonStatics(
   }
 
   /**
+   * Sets the cancel requested flag for the outstanding order.
+   *
+   * This method updates the cancel requested timestamp and block number for the order.
+   *
+   * @param block - The block that triggered the cancel requested
+   * @returns The service instance for method chaining
+   */
+  public cancelRequested(block: Event["block"]) {
+    serviceLog(
+      `Cancelling requested for outstanding invest ${this.data.tokenId}-${this.data.assetId}-${this.data.account} on block ${block.number} and timestamp ${block.timestamp}`
+    );
+    this.data.cancelRequestedAt = new Date(Number(block.timestamp) * 1000);
+    this.data.cancelRequestedAtBlock = Number(block.number);
+  }
+
+  /**
    * Clears the outstanding invest if the approved amount is 0 and the queued and pending amounts are 0.
    *
    * @returns The service instance for method chaining

@@ -189,7 +189,7 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
   const crosschainMessage = await CrosschainMessageService.getFromAwaitingBatchDeliveryOrFailedQueue(
     context,
     messageId
-  );
+  ) as CrosschainMessageService | null;
   if (!crosschainMessage) {
     console.error(
       `CrosschainMessage not found in AwaitingBatchDelivery queue for messageId ${messageId}`
@@ -243,7 +243,7 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
   const crosschainMessage = await CrosschainMessageService.getFromAwaitingBatchDeliveryOrFailedQueue(
     context,
     messageId
-  );
+  ) as CrosschainMessageService | null;
   if (!crosschainMessage) {
     console.error(
       `CrosschainMessage not found in AwaitingBatchDelivery or Failed queue for messageId ${messageId}`

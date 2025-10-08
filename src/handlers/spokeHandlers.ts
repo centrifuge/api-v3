@@ -217,17 +217,15 @@ ponder.on("Spoke:UpdateAssetPrice", async ({ event, context }) => {
     args: [poolId],
   });
 
-  const assetQuery = await AssetService.query(context, {
+  const asset = (await AssetService.getFirst(context, {
     address: assetAddress,
     centrifugeId,
-  });
-  if (assetQuery.length !== 1) {
+  })) as AssetService | null;
+  if (!asset) {
     console.error(`Asset not found for address ${assetAddress}`);
     return;
   }
-
-  const asset = assetQuery.pop();
-  const { id: assetId } = asset!.read();
+  const { id: assetId } = asset.read();
 
   const holdingEscrow = (await HoldingEscrowService.getOrInit(
     context,

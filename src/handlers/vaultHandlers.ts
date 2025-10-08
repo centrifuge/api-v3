@@ -73,11 +73,10 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
     },
     event.block
   );
-  const assetQuery = (await AssetService.query(context, {
+  const asset = (await AssetService.getFirst(context, {
     address: assetAddress,
     centrifugeId,
-  })) as AssetService[];
-  const asset = assetQuery.pop();
+  })) as AssetService | null;
   if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
   const { id: assetId } = asset.read();
 
@@ -140,11 +139,10 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
     event.block
   );
 
-  const assetQuery = (await AssetService.query(context, {
+  const asset = (await AssetService.getFirst(context, {
     address: assetAddress,
     centrifugeId,
-  })) as AssetService[];
-  const asset = assetQuery.pop();
+  })) as AssetService | null;
   if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
   const { id: assetId } = asset.read();
 
@@ -178,11 +176,10 @@ ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
 
   if (kind !== "Async") return;
 
-  const assetQuery = (await AssetService.query(context, {
+  const asset = (await AssetService.getFirst(context, {
     address: assetAddress,
     centrifugeId,
-  })) as AssetService[];
-  const asset = assetQuery.pop();
+  })) as AssetService | null;
   if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
   const { decimals } = asset.read();
   if (typeof decimals !== "number") throw new Error("Decimals is required");
@@ -229,11 +226,10 @@ ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
 
   if (kind === "Sync") return;
 
-  const assetQuery = (await AssetService.query(context, {
+  const asset = (await AssetService.getFirst(context, {
     address: assetAddress,
     centrifugeId,
-  })) as AssetService[];
-  const asset = assetQuery.pop();
+  })) as AssetService | null;
   if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
   const { decimals } = asset.read();
   if (typeof decimals !== "number") throw new Error("Decimals is required");
@@ -287,11 +283,10 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
   const token = await TokenService.get(context, { poolId, id: tokenId });
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
 
-  const assetQuery = (await AssetService.query(context, {
+  const asset = (await AssetService.getFirst(context, {
     address: assetAddress,
     centrifugeId,
-  })) as AssetService[];
-  const asset = assetQuery.pop();
+  })) as AssetService | null;
   if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
   const { decimals, id: assetId } = asset.read();
   if (typeof decimals !== "number") throw new Error("Decimals is required");
@@ -361,12 +356,13 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
         event.block
       );
 
-      const epochInvestIndex = (await EpochInvestOrderService.count(context, {
-        poolId,
-        tokenId,
-        assetId,
-        index_lte: 0,
-      })) * -1;
+      const epochInvestIndex =
+        (await EpochInvestOrderService.count(context, {
+          poolId,
+          tokenId,
+          assetId,
+          index_lte: 0,
+        })) * -1;
       const _epochInvestOrder = (await EpochInvestOrderService.insert(
         context,
         {
@@ -407,11 +403,10 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
   if (!vault) throw new Error("Vault not found");
   const { poolId, tokenId, kind, assetAddress } = vault.read();
 
-  const assetQuery = (await AssetService.query(context, {
+  const asset = (await AssetService.getFirst(context, {
     address: assetAddress,
     centrifugeId,
-  })) as AssetService[];
-  const asset = assetQuery.pop();
+  })) as AssetService | null;
   if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
   const { decimals, id: assetId } = asset.read();
   if (typeof decimals !== "number") throw new Error("Decimals is required");
@@ -473,12 +468,13 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
         event.block
       );
 
-      const epochRedeemIndex = (await EpochRedeemOrderService.count(context, {
-        poolId,
-        tokenId,
-        assetId,
-        index_lte: 0,
-      })) * -1;
+      const epochRedeemIndex =
+        (await EpochRedeemOrderService.count(context, {
+          poolId,
+          tokenId,
+          assetId,
+          index_lte: 0,
+        })) * -1;
       (await EpochRedeemOrderService.insert(
         context,
         {
@@ -507,6 +503,69 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
       );
       break;
   }
+});
+
+ponder.on("Vault:CancelDepositRequest", async ({ event, context }) => {
+  logEvent(event, context, "Vault:CancelDepositRequest");
+  const { controller: investorAddress } = event.args;
+  const vaultAddress = event.log.address;
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const vault = await VaultService.get(context, {
+    id: vaultAddress,
+    centrifugeId,
+  });
+  if (!vault) throw new Error("Vault not found");
+  const { tokenId, assetAddress } = vault.read();
+  const asset = await AssetService.getFirst(context, {
+    address: assetAddress,
+    centrifugeId,
+  });
+  if (!asset) throw new Error("Asset not found");
+  const { id: assetId } = asset.read();
+
+  const outstandingInvest = (await OutstandingInvestService.getFirst(context, {
+    tokenId,
+    account: investorAddress,
+    assetId,
+  })) as OutstandingInvestService | null;
+  if (!outstandingInvest) {
+    console.error(
+      `Outstanding invest not found for vault ${vaultAddress} token ${tokenId} account ${investorAddress} asset ${assetAddress}`
+    );
+    return;
+  }
+
+  await outstandingInvest.cancelRequested(event.block);
+  await outstandingInvest.save(event.block);
+});
+
+ponder.on("Vault:CancelDepositClaimable", async ({ event, context }) => {
+  logEvent(event, context, "Vault:CancelDepositClaimable");
+  const { controller: investorAddress, assets: _assets } = event.args;
+  const vaultAddress = event.log.address;
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const vault = await VaultService.get(context, {
+    id: vaultAddress,
+    centrifugeId,
+  });
+  if (!vault) throw new Error("Vault not found");
+  const { assetAddress, tokenId } = vault.read();
+  const asset = await AssetService.getFirst(context, {
+    address: assetAddress,
+    centrifugeId,
+  });
+  if (!asset) throw new Error("Asset not found");
+  const { id: assetId } = asset.read();
+
+  const outstandingInvest = (await OutstandingInvestService.getFirst(context, { tokenId, account: investorAddress, assetId })) as OutstandingInvestService | null;
+  if (!outstandingInvest) {
+    console.error(`Outstanding invest not found for vault ${vaultAddress} token ${tokenId} account ${investorAddress} asset ${assetAddress}`);
+    return;
+  }
+
+  
+
+  //TODO: Create Cancelled invest order and update outstanding invest
 });
 
 /**

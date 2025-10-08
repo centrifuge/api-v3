@@ -15,11 +15,10 @@ ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const tokenInstanceQuery = (await TokenInstanceService.query(context, {
+  const tokenInstance = (await TokenInstanceService.getFirst(context, {
     address: event.log.address,
     centrifugeId,
-  })) as TokenInstanceService[];
-  const tokenInstance = tokenInstanceQuery.pop();
+  })) as TokenInstanceService | null;
   if (!tokenInstance) {
     console.error("TokenInstance not found for ", event.log.address);
     return;

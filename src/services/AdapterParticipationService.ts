@@ -35,7 +35,7 @@ export class AdapterParticipationService extends mixinCommonStatics(Service<type
     const adapterParticipations = await this.query(context, {
       payloadId,
       payloadIndex,
-    }) as AdapterParticipationService[];
+    });
     const countSentAdapterParticipations = adapterParticipations.filter(adapterParticipation => adapterParticipation.read().side === "SEND").length;
     const countHandledAdapterParticipations = adapterParticipations.filter(adapterParticipation => adapterParticipation.read().side === "HANDLE").length;
     return countSentAdapterParticipations === countHandledAdapterParticipations;

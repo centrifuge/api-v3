@@ -25,21 +25,21 @@ ponder.on("BalanceSheet:NoteDeposit", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const assetQuery = (await AssetService.query(context, {
+  const asset = (await AssetService.getFirst(context, {
     address: assetAddress,
-  })) as AssetService[];
-  const asset = assetQuery.pop();
+  })) as AssetService | null;
   if (!asset) throw new Error("Asset not found");
   const { id: assetId } = asset.read();
 
-  const escrowQuery = await EscrowService.query(context, {
+  const escrow = await EscrowService.getFirst(context, {
     poolId,
     centrifugeId,
   });
-  if (escrowQuery.length !== 1)
-    throw new Error("Expecting 1 escrow for pool and centrifugeId");
-  const escrow = escrowQuery.pop();
-  const { address: escrowAddress } = escrow!.read();
+  if (!escrow) {
+    console.error(`Escrow not found for pool ${poolId} and centrifugeId ${centrifugeId}`);
+    return;
+  }
+  const { address: escrowAddress } = escrow.read();
 
   const holdingEscrow = (await HoldingEscrowService.getOrInit(
     context,
@@ -75,22 +75,21 @@ ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const assetQuery = (await AssetService.query(context, {
+  const asset = (await AssetService.getFirst(context, {
     address: assetAddress,
-  })) as AssetService[];
-
-  const asset = assetQuery.pop();
+  })) as AssetService | null;
   if (!asset) throw new Error("Asset not found");
   const { id: assetId } = asset.read();
 
-  const escrowQuery = await EscrowService.query(context, {
+  const escrow = await EscrowService.getFirst(context, {
     poolId,
     centrifugeId,
   });
-  if (escrowQuery.length !== 1)
-    throw new Error("Expecting 1 escrow for pool and centrifugeId");
-  const escrow = escrowQuery.pop();
-  const { address: escrowAddress } = escrow!.read();
+  if (!escrow) {
+    console.error(`Escrow not found for pool ${poolId} and centrifugeId ${centrifugeId}`);
+    return;
+  }
+  const { address: escrowAddress } = escrow.read();
 
   const holdingEscrow = (await HoldingEscrowService.getOrInit(
     context,

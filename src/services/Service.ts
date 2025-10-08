@@ -310,6 +310,22 @@ export function mixinCommonStatics<
         .where(filter);
       return result.pop()?.count ?? 0;
     }
+
+
+    /**
+     * Gets the first record matching the query criteria.
+     *
+     * @param context - Database and client context
+     * @param query - Query criteria to filter records
+     * @returns Promise that resolves to a service instance for the found record
+     */
+    static async getFirst(context: Context, query: Partial<ExtendedQuery<T["$inferSelect"]>>) {
+      serviceLog(`Getting first ${name}`, expandInlineObject(query));
+      const filter = queryToFilter(table, query);
+      const result = (await context.db.sql.select().from(table as OnchainTable).where(filter).limit(1));
+      serviceLog(`Found ${name}: `, expandInlineObject(result));
+      return result.length > 0 ? new this(table, name, context, result[0]) : null;
+    }
   };
 }
 

@@ -299,11 +299,18 @@ const OutstandingInvestColumns = (t: PgColumnsBuilders) => ({
   assetId: t.bigint().notNull(),
   account: t.hex().notNull(),
 
-  pendingAmount: t.bigint().default(0n), // Amount that is MAYBE in transit from Spoke to Hub, asset denomination
+  //Vault Fields
+  depositAmount: t.bigint().default(0n),
 
-  queuedAmount: t.bigint().default(0n), // Amount that is queued onchain for AFTER claim, technically needed, asset denomination
-  depositAmount: t.bigint().default(0n), // Amount that is deposited on Hub, asset denomination
+  //Hub Fields
+  pendingAmount: t.bigint().default(0n),
+  queuedAmount: t.bigint().default(0n),
 
+  //Cancel Requested Fields
+  cancelRequestedAt: t.timestamp(),
+  cancelRequestedAtBlock: t.integer(),
+
+  //Approved Fields
   approvedIndex: t.integer(),
   approvedAmount: t.bigint().default(0n), // Amount that is approved on Hub, asset denomination
   approvedAt: t.timestamp(),
@@ -338,10 +345,12 @@ const OutstandingRedeemColumns = (t: PgColumnsBuilders) => ({
   assetId: t.bigint().notNull(),
   account: t.hex().notNull(),
 
-  depositAmount: t.bigint().default(0n), // Amount that is deposited on Hub, share denomination
+  //Vault Fields
+  depositAmount: t.bigint().default(0n),
 
-  pendingAmount: t.bigint().default(0n), // Amount that is MAYBE in transit from Spoke to Hub, share denomination
-  queuedAmount: t.bigint().default(0n), // Amount that is queued onchain for AFTER claim, technically needed, share denomination
+  //Hub Fields
+  pendingAmount: t.bigint().default(0n),
+  queuedAmount: t.bigint().default(0n),
 
   approvedIndex: t.integer(),
   approvedAmount: t.bigint().default(0n), // Amount that is approved on Hub, share denomination
@@ -377,6 +386,11 @@ const InvestOrderColumns = (t: PgColumnsBuilders) => ({
   assetId: t.bigint().notNull(),
   account: t.hex().notNull(),
   index: t.integer().notNull(),
+
+  // Cancelled fields
+  cancelledAt: t.timestamp(),
+  cancelledAtBlock: t.integer(),
+  cancelledAssetsAmount: t.bigint().default(0n), // Asset denomination
 
   // Approved fields
   approvedAt: t.timestamp(),
