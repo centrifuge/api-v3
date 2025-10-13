@@ -57,6 +57,7 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
       {
         id: payloadId,
         index: payloadIndex,
+        rawData: payloadData,
         status: "InTransit",
         toCentrifugeId: toCentrifugeId.toString(),
         fromCentrifugeId: fromCentrifugeId,
