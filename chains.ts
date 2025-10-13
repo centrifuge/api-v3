@@ -602,9 +602,18 @@ export const chains = [
 ] as const;
 
 export const endpoints = {
-  84532: [`base-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`],
-  421614: [`arb-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`],
-  11155111: [`eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`],
+  84532: [
+    `base-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `${process.env.QUICKNODE_API_NAME}.base-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+  ],
+  421614: [
+    `arb-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `${process.env.QUICKNODE_API_NAME}.arbitrum-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+  ],
+  11155111: [
+    `eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `${process.env.QUICKNODE_API_NAME}.ethereum-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+  ],
   42161: [
     `arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `${process.env.QUICKNODE_API_NAME}.arbitrum-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,

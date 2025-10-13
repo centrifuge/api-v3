@@ -64,9 +64,14 @@ export function logEvent(event: Event, context: Context, name?: string) {
  *
  * @param obj - The object to log
  */
-export function expandInlineObject(obj: Record<string, any> | null) {
+export function expandInlineObject(obj: Record<string, any> | null): string {
   if (!obj) return "null";
-  return "{" + Object.entries(obj).map(([key, value]) => `${key}: ${value}`).join(", ") + "}";
+  return "{" + Object.entries(obj).map(([key, value]) => {
+    if (typeof value === "object") {
+      return `${key}: ${expandInlineObject(value)}`;
+    }
+    return `${key}: ${value}`;
+  }).join(", ") + "}";
 }
 
 /**
