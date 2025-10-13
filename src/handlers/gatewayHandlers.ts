@@ -130,6 +130,7 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
       id: payloadId,
       index: payloadIndex,
       poolId,
+      rawData: batch,
       toCentrifugeId: toCentrifugeId.toString(),
       fromCentrifugeId: fromCentrifugeId,
       status: "Underpaid",

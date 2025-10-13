@@ -1020,6 +1020,7 @@ const CrosschainPayloadColumns = (t: PgColumnsBuilders) => ({
   index: t.integer().notNull().default(0),
   fromCentrifugeId: t.text().notNull(),
   toCentrifugeId: t.text().notNull(),
+  rawData: t.hex().notNull(),
   poolId: t.bigint(),
   status: CrosschainPayloadStatus("x_chain_payload_status").notNull(),
   deliveredAt: t.timestamp(),
