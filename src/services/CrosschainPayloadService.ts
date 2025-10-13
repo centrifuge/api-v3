@@ -100,6 +100,22 @@ export class CrosschainPayloadService extends mixinCommonStatics(
   }
 
   /**
+   * Gets the first incomplete payload from the queue for a given payload ID
+   * @param context - The database and client context
+   * @param payloadId - The ID of the payload to get from the queue
+   * @returns The first incomplete payload from the queue or null if no payload is found
+   */
+  static async getIncompleteFromQueue(context: Context, payloadId: `0x${string}`) {
+    const crosschainPayloads = (await this.query(context, {
+      id: payloadId,
+      status_not: "Completed",
+      _sort: [{ field: "index", direction: "asc" }],
+    })) as CrosschainPayloadService[];
+    if (crosschainPayloads.length === 0) return null;
+    return crosschainPayloads.shift()!;
+  }
+
+  /**
    * Sets the status of the CrosschainPayload entity.
    * 
    * @param {CrosschainPayloadStatuses} status - The new status to set for the CrosschainPayload

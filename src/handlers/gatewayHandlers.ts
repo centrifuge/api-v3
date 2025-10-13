@@ -65,6 +65,15 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
     batch
   );
 
+  const alreadyInitialized = await CrosschainPayloadService.getUnderpaidFromQueue(
+    context,
+    payloadId
+  );
+  if (alreadyInitialized) {
+    logEvent(event, context, `UnderpaidBatch already initialized for payloadId ${payloadId}`);
+    return;
+  }
+
   const payloadIndex = await CrosschainPayloadService.count(context, {
     id: payloadId,
   });

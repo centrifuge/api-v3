@@ -90,7 +90,7 @@ ponder.on("MultiAdapter:SendProof", async ({ event, context }) => {
 
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const payload = (await CrosschainPayloadService.getInTransitFromQueue(
+  const payload = (await CrosschainPayloadService.getIncompleteFromQueue(
     context,
     payloadId
   )) as CrosschainPayloadService | null;
@@ -171,7 +171,7 @@ ponder.on("MultiAdapter:HandleProof", async ({ event, context }) => {
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
   const crosschainPayload =
-    (await CrosschainPayloadService.getDeliveredFromQueue(
+    (await CrosschainPayloadService.getIncompleteFromQueue(
       context,
       payloadId
     )) as CrosschainPayloadService | null;
