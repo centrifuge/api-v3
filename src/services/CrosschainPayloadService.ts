@@ -111,6 +111,16 @@ export class CrosschainPayloadService extends mixinCommonStatics(
   }
 
   /**
+   * Marks the CrosschainPayload as in transit.
+   * 
+   * @returns {CrosschainPayloadService} Returns the current instance for method chaining
+   */
+  public InTransit() {
+    this.data.status = "InTransit";
+    return this;
+  }
+
+  /**
    * Marks the CrosschainPayload as delivered.
    * 
    * @param {Event} event - The event that marks the CrosschainPayload as delivered

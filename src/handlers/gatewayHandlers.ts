@@ -173,6 +173,9 @@ ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
     crosschainMessageSaves.push(crosschainMessage.save(event.block));
   }
   await Promise.all(crosschainMessageSaves);
+
+  crosschainPayload.InTransit();
+  await crosschainPayload.save(event.block);
 });
 
 ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {

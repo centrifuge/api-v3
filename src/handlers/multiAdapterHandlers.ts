@@ -31,18 +31,13 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
     getMessageId(fromCentrifugeId, toCentrifugeId.toString(), message)
   );
 
-  let payloadIndex: number;
   let payload = (await CrosschainPayloadService.getUnderpaidFromQueue(
     context,
     payloadId
   )) as CrosschainPayloadService | null;
-  if (payload) {
-    const { index } = payload.read();
-    payloadIndex = index;
-    payload.setStatus("InTransit");
-    await payload.save(event.block);
-  } else {
-    payloadIndex = await CrosschainPayloadService.count(context, {
+  
+  if (!payload) {
+    const payloadIndex = await CrosschainPayloadService.count(context, {
       id: payloadId,
     });
     const poolId = await CrosschainMessageService.linkMessagesToPayload(
@@ -67,6 +62,7 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
     )) as CrosschainPayloadService;
   }
 
+  const { index: payloadIndex } = payload.read();
   const adapterParticipation = (await AdapterParticipationService.insert(
     context,
     {
