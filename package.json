@@ -14,31 +14,31 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@ponder/utils": "^0.2.13",
+    "@ponder/utils": "^0.2.14",
     "bn.js": "^5.2.2",
     "drizzle-orm": "~0.41.0",
-    "hono": "^4.9.9",
+    "hono": "^4.9.12",
     "node-fetch": "^3.3.2",
     "picocolors": "^1.1.1",
     "pino": "^8.21.0",
-    "pino-pretty": "^13.1.1",
-    "ponder": "^0.13.8",
+    "pino-pretty": "^13.1.2",
+    "ponder": "^0.13.14",
     "viem": "^2.37.11"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
     "@types/bn.js": "^5.2.0",
-    "@types/node": "^22.18.1",
+    "@types/node": "^22.18.10",
     "@typescript-eslint/eslint-plugin": "^8.43.0",
     "@typescript-eslint/parser": "^8.43.0",
     "eslint": "^8.57.1",
-    "eslint-config-ponder": "^0.12.22",
+    "eslint-config-ponder": "^0.12.26",
     "eslint-plugin-jsdoc": "^56.0.2",
     "eslint-plugin-unused-imports": "^4.2.0",
     "husky": "^9.1.7",
-    "tsx": "^4.20.5",
-    "typescript": "^5.9.2"
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=22"
