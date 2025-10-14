@@ -22,7 +22,7 @@
     "picocolors": "^1.1.1",
     "pino": "^8.21.0",
     "pino-pretty": "^13.1.2",
-    "ponder": "^0.13.14",
+    "ponder": "^0.14.0",
     "viem": "^2.37.11"
   },
   "devDependencies": {
@@ -30,10 +30,10 @@
     "@commitlint/config-conventional": "^19.8.1",
     "@types/bn.js": "^5.2.0",
     "@types/node": "^22.18.10",
-    "@typescript-eslint/eslint-plugin": "^8.43.0",
-    "@typescript-eslint/parser": "^8.43.0",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
     "eslint": "^8.57.1",
-    "eslint-config-ponder": "^0.12.26",
+    "eslint-config-ponder": "^0.14.0",
     "eslint-plugin-jsdoc": "^56.0.2",
     "eslint-plugin-unused-imports": "^4.2.0",
     "husky": "^9.1.7",

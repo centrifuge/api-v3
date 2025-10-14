@@ -13,6 +13,7 @@ import {
 } from "drizzle-orm";
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
 import { expandInlineObject, serviceLog } from "../helpers/logger";
+import { toCamelCase } from "drizzle-orm/casing";
 
 /** Type alias for PostgreSQL table with columns */
 type OnchainTable = PgTableWithColumns<any>;
@@ -266,9 +267,9 @@ export function mixinCommonStatics<
       serviceLog(`Querying ${name}`, expandInlineObject(query));
       const filter = queryToFilter(table, query);
 
-      const sqlQuery =
+      const results =
         query._sort && query._sort.length > 0
-          ? context.db.sql
+          ? await context.db.sql
               .select()
               .from(table as OnchainTable)
               .where(filter)
@@ -282,12 +283,11 @@ export function mixinCommonStatics<
                   }
                 )
               )
-          : context.db.sql
+          : await context.db.sql
               .select()
               .from(table as OnchainTable)
               .where(filter);
 
-      const results = await sqlQuery;
       serviceLog(`Found ${results.length} ${name}`);
       return results.map((result) => new this(table, name, context, result));
     }
@@ -326,9 +326,9 @@ export function getPrimaryKeysFieldNames<T extends OnchainTable>(table: T) {
   const { primaryKeys, columns } = config;
   const directPkNames = columns
     .filter((column) => column.primary)
-    .map((column) => column.name);
+    .map((column) => toCamelCase(column.name));
   const compositePkNames = primaryKeys.flatMap((pk) =>
-    pk.columns.map((col) => col.name)
+    pk.columns.map((col) => toCamelCase(col.name))
   );
   const primaryKeysFieldNames = [...directPkNames, ...compositePkNames];
   return primaryKeysFieldNames as (keyof T["$inferSelect"])[];
@@ -347,7 +347,8 @@ export function getPrimaryKeysFields<T extends OnchainTable>(
   data: T["$inferSelect"]
 ) {
   const primaryKeys = getPrimaryKeysFieldNames(table);
-  return pick(data, ...primaryKeys);
+  const pkFields = pick(data, ...primaryKeys);
+  return pkFields;
 }
 
 /**
