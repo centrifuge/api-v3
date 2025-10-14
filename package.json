@@ -22,7 +22,7 @@
     "picocolors": "^1.1.1",
     "pino": "^8.21.0",
     "pino-pretty": "^13.1.2",
-    "ponder": "^0.13.14",
+    "ponder": "^0.14.0",
     "viem": "^2.37.11"
   },
   "devDependencies": {
