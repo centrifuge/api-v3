@@ -50,6 +50,7 @@ ponder.on(
     const { poolId, scId: tokenId, index, name, symbol, salt } = event.args;
 
     const centrifugeId = await BlockchainService.getCentrifugeId(context);
+    const decimals = await getAssetDecimals(context, poolId);
 
     const _token = (await TokenService.upsert(
       context,
@@ -60,6 +61,7 @@ ponder.on(
         name,
         symbol,
         salt,
+        decimals,
         isActive: true,
         index,
       },
