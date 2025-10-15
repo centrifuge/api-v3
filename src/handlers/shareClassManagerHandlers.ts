@@ -1,4 +1,4 @@
-import { Context, ponder } from "ponder:registry";
+import { ponder } from "ponder:registry";
 import { expandInlineObject, logEvent, serviceLog } from "../helpers/logger";
 import {
   TokenService,
@@ -28,6 +28,10 @@ ponder.on(
     const { poolId, scId: tokenId, index } = event.args;
 
     const centrifugeId = await BlockchainService.getCentrifugeId(context);
+    const pool = (await PoolService.get(context, {
+      id: poolId,
+    })) as PoolService;
+    const { decimals } = pool.read();
 
     const _token = (await TokenService.upsert(
       context,
@@ -37,6 +41,7 @@ ponder.on(
         centrifugeId,
         isActive: true,
         index,
+        decimals,
       },
       event.block
     )) as TokenService;
@@ -50,6 +55,10 @@ ponder.on(
     const { poolId, scId: tokenId, index, name, symbol, salt } = event.args;
 
     const centrifugeId = await BlockchainService.getCentrifugeId(context);
+    const pool = (await PoolService.get(context, {
+      id: poolId,
+    })) as PoolService;
+    const { decimals } = pool.read();
 
     const _token = (await TokenService.upsert(
       context,
@@ -60,6 +69,7 @@ ponder.on(
         name,
         symbol,
         salt,
+        decimals,
         isActive: true,
         index,
       },
@@ -219,7 +229,7 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
     pendingAssetAmount,
   } = event.args;
 
-  const assetDecimals = await getAssetDecimals(context, depositAssetId);
+  const assetDecimals = await AssetService.getDecimals(context, depositAssetId);
   const approvedPercentage = computeApprovedPercentage(
     approvedAssetAmount,
     pendingAssetAmount,
@@ -289,7 +299,7 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
   const { currency } = pool.read();
   if (!currency) throw new Error("Currency is required");
 
-  const shareDecimals = await getAssetDecimals(context, currency);
+  const shareDecimals = await AssetService.getDecimals(context, currency);
   const approvedPercentage = computeApprovedPercentage(
     approvedShareAmount,
     pendingShareAmount,
@@ -369,7 +379,7 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
   );
   await epochInvestOrder.save(event.block);
 
-  const assetDecimals = await getAssetDecimals(context, depositAssetId);
+  const assetDecimals = await AssetService.getDecimals(context, depositAssetId);
   const outstandingInvests = (await OutstandingInvestService.query(context, {
     tokenId,
     assetId: depositAssetId,
@@ -461,7 +471,7 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
   );
   await epochRedeemOrder.save(event.block);
 
-  const shareDecimals = await getAssetDecimals(context, currency);
+  const shareDecimals = await AssetService.getDecimals(context, currency);
   const outstandingRedeems = (await OutstandingRedeemService.query(context, {
     tokenId,
     assetId: payoutAssetId,
@@ -634,21 +644,4 @@ function computeApprovedUserAmount(
   decimals: number
 ) {
   return (totalApprovedAmount * approvedPercentage) / 10n ** BigInt(decimals);
-}
-
-/**
- * Get the decimals of an asset.
- * @param context - The context.
- * @param assetId - The id of the asset.
- * @returns The decimals of the asset.
- */
-async function getAssetDecimals(context: Context, assetId: bigint) {
-  if (assetId < 1000n) return 18;
-  const asset = (await AssetService.get(context, {
-    id: assetId,
-  })) as AssetService;
-  if (!asset) throw new Error(`Asset not found for id ${assetId}`);
-  const { decimals } = asset.read();
-  if (typeof decimals !== "number") throw new Error("Decimals is required");
-  return decimals;
 }

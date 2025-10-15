@@ -77,6 +77,7 @@ const PoolColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   isActive: t.boolean().notNull().default(true),
   currency: t.bigint(),
+  decimals: t.integer(),
   metadata: t.text(),
   name: t.text(),
   ...defaultColumns(t),
@@ -111,6 +112,7 @@ const TokenColumns = (t: PgColumnsBuilders) => ({
   isActive: t.boolean().notNull().default(false),
   centrifugeId: t.text(),
   poolId: t.bigint().notNull(),
+  decimals: t.integer(),
   // Metadata fields
   name: t.text(),
   symbol: t.text(),
