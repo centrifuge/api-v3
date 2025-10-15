@@ -40,6 +40,19 @@ export const OnOffRampManagerAbi = [
   },
   {
     type: "function",
+    name: "contractUpdater",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     name: "deposit",
     inputs: [
       {
@@ -75,12 +88,17 @@ export const OnOffRampManagerAbi = [
         type: "address",
         internalType: "address",
       },
-    ],
-    outputs: [
       {
         name: "receiver",
         type: "address",
         internalType: "address",
+      },
+    ],
+    outputs: [
+      {
+        name: "isEnabled",
+        type: "bool",
+        internalType: "bool",
       },
     ],
     stateMutability: "view",
@@ -151,19 +169,6 @@ export const OnOffRampManagerAbi = [
   },
   {
     type: "function",
-    name: "spoke",
-    inputs: [],
-    outputs: [
-      {
-        name: "",
-        type: "address",
-        internalType: "address",
-      },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
     name: "supportsInterface",
     inputs: [
       {
@@ -191,7 +196,7 @@ export const OnOffRampManagerAbi = [
         internalType: "PoolId",
       },
       {
-        name: "",
+        name: "scId_",
         type: "bytes16",
         internalType: "ShareClassId",
       },
@@ -247,6 +252,12 @@ export const OnOffRampManagerAbi = [
         type: "address",
         indexed: false,
         internalType: "address",
+      },
+      {
+        name: "isEnabled",
+        type: "bool",
+        indexed: false,
+        internalType: "bool",
       },
     ],
     anonymous: false,
@@ -311,6 +322,11 @@ export const OnOffRampManagerAbi = [
   },
   {
     type: "error",
+    name: "InvalidShareClassId",
+    inputs: [],
+  },
+  {
+    type: "error",
     name: "NoCode",
     inputs: [],
   },
@@ -337,6 +353,11 @@ export const OnOffRampManagerAbi = [
   {
     type: "error",
     name: "UnknownMessageType",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "UnknownUpdateContractKind",
     inputs: [],
   },
   {
