@@ -77,6 +77,7 @@ const PoolColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   isActive: t.boolean().notNull().default(true),
   currency: t.bigint(),
+  decimals: t.integer(),
   metadata: t.text(),
   name: t.text(),
   ...defaultColumns(t),

@@ -1,3 +1,4 @@
+import { Context } from "ponder:registry";
 import { Asset } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
 
@@ -34,4 +35,20 @@ import { Service, mixinCommonStatics } from "./Service";
  * @see {@link Asset} Asset entity schema definition
  */
 export class AssetService extends mixinCommonStatics(Service<typeof Asset>, Asset, "Asset") {
+  /**
+ * Get the decimals of an asset.
+ * @param context - The context.
+ * @param assetId - The id of the asset.
+ * @returns The decimals of the asset.
+ */
+static async getDecimals(context: Context, assetId: bigint) {
+  if (assetId < 1000n) return 18;
+  const asset = (await this.get(context, {
+    id: assetId,
+  })) as AssetService;
+  if (!asset) throw new Error(`Asset not found for id ${assetId}`);
+  const { decimals } = asset.read();
+  if (typeof decimals !== "number") throw new Error("Decimals is required");
+  return decimals;
+}
 }

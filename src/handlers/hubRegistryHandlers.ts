@@ -18,6 +18,7 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
   const { poolId, currency, manager } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const decimals = await AssetService.getDecimals(context, currency);
 
   const _pool = (await PoolService.insert(
     context,
@@ -26,6 +27,7 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
       centrifugeId,
       currency,
       isActive: true,
+      decimals,
     },
     event.block
   )) as PoolService;
