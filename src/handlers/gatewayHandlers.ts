@@ -90,6 +90,15 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
       toCentrifugeId.toString(),
       message
     );
+
+    const pendingMessage = await CrosschainMessageService.getFromAwaitingBatchDeliveryQueue(context, messageId);
+    if (pendingMessage) {
+      logEvent(event, context, `Message ${messageId} already initialized in awaiting batch delivery queue`);
+      pendingMessage.setPayloadId(payloadId, payloadIndex);
+      await pendingMessage.save(event.block);
+      continue;
+    }
+
     const messageIndex = await CrosschainMessageService.count(context, {
       id: messageId,
     });
