@@ -49,6 +49,7 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
       rawData,
       data: data,
       status: "AwaitingBatchDelivery",
+      prepareTxHash: event.transaction.hash,
     },
     event.block
   )) as CrosschainMessageService | null;
@@ -129,7 +130,8 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
         data: data,
         status: "Unsent",
         payloadId,
-        payloadIndex
+        payloadIndex,
+        prepareTxHash: event.transaction.hash,
       },
       event.block
     )) as CrosschainMessageService | null;
