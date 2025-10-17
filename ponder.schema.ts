@@ -1013,7 +1013,7 @@ export const CrosschainPayloadStatuses = [
   "Completed",
 ] as const;
 export const CrosschainPayloadStatus = onchainEnum(
-  "x_chain_payload_status",
+  "crosschain_payload_status",
   CrosschainPayloadStatuses
 );
 
@@ -1024,7 +1024,7 @@ const CrosschainPayloadColumns = (t: PgColumnsBuilders) => ({
   toCentrifugeId: t.text().notNull(),
   rawData: t.hex().notNull(),
   poolId: t.bigint(),
-  status: CrosschainPayloadStatus("x_chain_payload_status").notNull(),
+  status: CrosschainPayloadStatus("crosschain_payload_status").notNull(),
   deliveredAt: t.timestamp(),
   deliveredAtBlock: t.integer(),
   completedAt: t.timestamp(),
@@ -1033,7 +1033,7 @@ const CrosschainPayloadColumns = (t: PgColumnsBuilders) => ({
 });
 
 export const CrosschainPayload = onchainTable(
-  "x_chain_payload",
+  "crosschain_payload",
   CrosschainPayloadColumns,
   (t) => ({
     id: primaryKey({ columns: [t.id, t.index] }),
@@ -1087,14 +1087,15 @@ const CrosschainMessageColumns = (t: PgColumnsBuilders) => ({
   payloadId: t.hex(),
   payloadIndex: t.integer(),
   messageType: t.text().notNull(),
-  status: CrosschainMessageStatus("x_chain_message_status").notNull(),
+  status: CrosschainMessageStatus("crosschain_message_status").notNull(),
   rawData: t.hex().notNull(),
   data: t.jsonb(),
   fromCentrifugeId: t.text().notNull(),
   toCentrifugeId: t.text().notNull(),
   executedAt: t.timestamp(),
   executedAtBlock: t.integer(),
-  executedTxHash: t.hex(),
+  prepareTxHash: t.hex().notNull(),
+  executeTxHash: t.hex(),
   ...defaultColumns(t, false),
 });
 
@@ -1280,7 +1281,9 @@ export const HoldingEscrowSnapshot = onchainTable(
     "assetPrice",
   ] as const),
   (t) => ({
-    id: primaryKey({ columns: [t.tokenId, t.assetId, t.blockNumber, t.trigger] }),
+    id: primaryKey({
+      columns: [t.tokenId, t.assetId, t.blockNumber, t.trigger],
+    }),
   })
 );
 
@@ -1388,20 +1391,29 @@ function snapshotColumns<
  * @param t - The PgColumnsBuilders instance
  * @returns A new column definition function with createdAt and updatedAt columns
  */
-function defaultColumns(t: PgColumnsBuilders, update = true) {
-  const defauls: DefaultColumns = {
-    createdAt: t.timestamp().notNull(),
-    createdAtBlock: t.integer().notNull(),
-  };
+function defaultColumns(t: PgColumnsBuilders, update = true): DefaultColumns {
   if (update) {
-    defauls.updatedAt = t.timestamp().notNull();
-    defauls.updatedAtBlock = t.integer().notNull();
+    return {
+      createdAt: t.timestamp().notNull(),
+      createdAtBlock: t.integer().notNull(),
+      updatedAt: t.timestamp().notNull(),
+      updatedAtBlock: t.integer().notNull(),
+    };
+  } else {
+    return {
+      createdAt: t.timestamp().notNull(),
+      createdAtBlock: t.integer().notNull(),
+    };
   }
-  return defauls;
 }
-type DefaultColumns = {
-  createdAt: PgColumn<"timestamp">;
-  createdAtBlock: PgColumn<"integer">;
-  updatedAt?: PgColumn<"timestamp">;
-  updatedAtBlock?: PgColumn<"integer">;
-};
+type DefaultColumns =
+  | {
+      createdAt: PgColumn<"timestamp">;
+      createdAtBlock: PgColumn<"integer">;
+      updatedAt: PgColumn<"timestamp">;
+      updatedAtBlock: PgColumn<"integer">;
+    }
+  | {
+      createdAt: PgColumn<"timestamp">;
+      createdAtBlock: PgColumn<"integer">;
+    };

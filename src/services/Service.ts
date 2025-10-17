@@ -266,28 +266,21 @@ export function mixinCommonStatics<
     ) {
       serviceLog(`Querying ${name}`, expandInlineObject(query));
       const filter = queryToFilter(table, query);
-
-      const results =
-        query._sort && query._sort.length > 0
-          ? await context.db.sql
-              .select()
-              .from(table as OnchainTable)
-              .where(filter)
-              .orderBy(
-                ...query._sort.map(
-                  (sort: { field: keyof T; direction: "asc" | "desc" }) => {
-                    const column = table[sort.field];
-                    return sort.direction === "asc"
-                      ? asc(column)
-                      : desc(column);
-                  }
-                )
-              )
-          : await context.db.sql
-              .select()
-              .from(table as OnchainTable)
-              .where(filter);
-
+      let q = context.db.sql
+        .select()
+        .from(table as OnchainTable)
+        .$dynamic();
+      if (filter) q = q.where(filter);
+      if (query._sort && query._sort.length > 0)
+        q = q.orderBy(
+          ...query._sort.map(
+            (sort: { field: keyof T; direction: "asc" | "desc" }) => {
+              const column = table[sort.field];
+              return sort.direction === "asc" ? asc(column) : desc(column);
+            }
+          )
+        );
+      const results = await q;
       serviceLog(`Found ${results.length} ${name}`);
       return results.map((result) => new this(table, name, context, result));
     }
@@ -304,11 +297,13 @@ export function mixinCommonStatics<
       query: Partial<ExtendedQuery<T["$inferSelect"]>>
     ) {
       const filter = queryToFilter(table, query);
-      const result = await context.db.sql
+      let q = context.db.sql
         .select({ count: count() })
         .from(table as OnchainTable)
-        .where(filter);
-      return result.pop()?.count ?? 0;
+        .$dynamic();
+      if (filter) q = q.where(filter);
+      const result = (await q).pop();
+      return result?.count ?? 0;
     }
   };
 }
@@ -439,7 +434,7 @@ function queryToFilter<T extends OnchainTable>(
       return gte(table[column.slice(0, -4) as keyof T], value);
     return eq(table[column as keyof T], value);
   });
-  if (queries.length >= 1) {
+  if (queries.length > 1) {
     return and(...queries);
   } else {
     return queries[0];
