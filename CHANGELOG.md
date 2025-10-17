@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.1.0](https://github.com/centrifuge/api-v3/compare/v2.0.0...v2.1.0) (2025-10-17)
+
+
+### Features
+
+* add bsc to indexer ([#143](https://github.com/centrifuge/api-v3/issues/143)) ([3f2f0d6](https://github.com/centrifuge/api-v3/commit/3f2f0d602330fe0df9c0cb62f1b118649693a0e1))
+* add decimals to token ([#163](https://github.com/centrifuge/api-v3/issues/163)) ([80e16ef](https://github.com/centrifuge/api-v3/commit/80e16ef24d21577b766add0ce1724236a8010924))
+* add message preparation and execution hash ([#166](https://github.com/centrifuge/api-v3/issues/166)) ([ba6b136](https://github.com/centrifuge/api-v3/commit/ba6b136b5e34d8c9b8515e3e7d6807ead9176157))
+* add rawData to payload for underpaid retry ([#149](https://github.com/centrifuge/api-v3/issues/149)) ([7727882](https://github.com/centrifuge/api-v3/commit/7727882a56a27169da26d7e1f73c825fa93c9c0f))
+* holding escrow snapshots upon redeem and deposit approvals for non zero asset holdings ([#142](https://github.com/centrifuge/api-v3/issues/142)) ([f502ca5](https://github.com/centrifuge/api-v3/commit/f502ca5666509652ddea0bd63806c13928bbac2f))
+* HoldingEscrow snapshots ([d487c6c](https://github.com/centrifuge/api-v3/commit/d487c6cc125f5a3aa5129fc20d6bb41709b14724))
+* track sync orders in epoch and investor orders ([#147](https://github.com/centrifuge/api-v3/issues/147)) ([a8e29d8](https://github.com/centrifuge/api-v3/commit/a8e29d85897497b16cdd6e95f302c1070e69eb9b))
+* upgrade to ponder 0.41 ([a2ce305](https://github.com/centrifuge/api-v3/commit/a2ce305b98544e1e2537ab9ef5eb3a320747595c))
+
+
+### Bug Fixes
+
+* handling of proofs and initialization of underpaids in crosschain messages ([221eb47](https://github.com/centrifuge/api-v3/commit/221eb47f035e26c647516b5146f8b77bc94a5338))
+* holding escrow does not populate on UpdateAssetPrice ([#141](https://github.com/centrifuge/api-v3/issues/141)) ([d487c6c](https://github.com/centrifuge/api-v3/commit/d487c6cc125f5a3aa5129fc20d6bb41709b14724))
+* plume skip block parameter ([ae747fe](https://github.com/centrifuge/api-v3/commit/ae747feffb6b2355fb74babb6b1b540e5b1e73a9))
+* repaid messages stuck as unsent ([#150](https://github.com/centrifuge/api-v3/issues/150)) ([2500708](https://github.com/centrifuge/api-v3/commit/250070873e46d9a3dbb1564e9a52fe80bc0d2f63))
+* underpaid batches should look for already prepared messages ([#165](https://github.com/centrifuge/api-v3/issues/165)) ([0e94269](https://github.com/centrifuge/api-v3/commit/0e94269b4da0fb39ce7173718f176496092f45ea))
+* updated OnOffRampManager ABI ([b9b8817](https://github.com/centrifuge/api-v3/commit/b9b8817e1b5c7df3609bf84cd3444abe7cde09e1))
+
 ## [2.0.0](https://github.com/centrifuge/api-v3/compare/v1.6.0...v2.0.0) (2025-09-29)
 
 
