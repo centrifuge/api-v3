@@ -57,6 +57,7 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
         toCentrifugeId: toCentrifugeId.toString(),
         fromCentrifugeId: fromCentrifugeId,
         poolId,
+        prepareTxHash: event.transaction.hash,
       },
       event.block
     )) as CrosschainPayloadService;

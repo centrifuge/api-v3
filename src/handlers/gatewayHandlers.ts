@@ -49,7 +49,6 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
       rawData,
       data: data,
       status: "AwaitingBatchDelivery",
-      prepareTxHash: event.transaction.hash,
     },
     event.block
   )) as CrosschainMessageService | null;
@@ -131,7 +130,6 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
         status: "Unsent",
         payloadId,
         payloadIndex,
-        prepareTxHash: event.transaction.hash,
       },
       event.block
     )) as CrosschainMessageService | null;
@@ -154,6 +152,7 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
       toCentrifugeId: toCentrifugeId.toString(),
       fromCentrifugeId: fromCentrifugeId,
       status: "Underpaid",
+      prepareTxHash: event.transaction.hash,
     },
     event.block
   )) as CrosschainPayloadService | null;
