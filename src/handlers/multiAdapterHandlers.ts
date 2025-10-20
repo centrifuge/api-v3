@@ -57,6 +57,7 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
         toCentrifugeId: toCentrifugeId.toString(),
         fromCentrifugeId: fromCentrifugeId,
         poolId,
+        prepareTxHash: event.transaction.hash,
       },
       event.block
     )) as CrosschainPayloadService;
@@ -142,9 +143,6 @@ ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
     return;
   }
 
-  payload.delivered(event);
-  await payload.save(event.block);
-
   const { index: payloadIndex } = payload.read();
   const _adapterParticipation = (await AdapterParticipationService.insert(
     context,
@@ -163,6 +161,18 @@ ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
     },
     event.block
   )) as AdapterParticipationService;
+
+  const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(context, payloadId, payloadIndex);
+  if (!isPayloadVerified) return;
+
+  payload.delivered(event);
+  await payload.save(event.block);
+
+  const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(context, payloadId, payloadIndex);
+  if (!isPayloadFullyExecuted) return;
+
+  payload.completed(event);
+  await payload.save(event.block);
 });
 
 ponder.on("MultiAdapter:HandleProof", async ({ event, context }) => {
@@ -201,6 +211,9 @@ ponder.on("MultiAdapter:HandleProof", async ({ event, context }) => {
 
   const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(context, payloadId, payloadIndex);
   if (!isPayloadVerified) return;
+
+  crosschainPayload.delivered(event);
+  await crosschainPayload.save(event.block);
 
   const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(context, payloadId, payloadIndex);
   if (!isPayloadFullyExecuted) return;

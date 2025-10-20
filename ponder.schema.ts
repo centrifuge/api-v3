@@ -1029,6 +1029,8 @@ const CrosschainPayloadColumns = (t: PgColumnsBuilders) => ({
   deliveredAtBlock: t.integer(),
   completedAt: t.timestamp(),
   completedAtBlock: t.integer(),
+  prepareTxHash: t.hex().notNull(),
+  deliveryTxHash: t.hex(),
   ...defaultColumns(t, false),
 });
 
@@ -1094,7 +1096,6 @@ const CrosschainMessageColumns = (t: PgColumnsBuilders) => ({
   toCentrifugeId: t.text().notNull(),
   executedAt: t.timestamp(),
   executedAtBlock: t.integer(),
-  prepareTxHash: t.hex().notNull(),
   executeTxHash: t.hex(),
   ...defaultColumns(t, false),
 });
