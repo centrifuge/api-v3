@@ -1030,6 +1030,7 @@ const CrosschainPayloadColumns = (t: PgColumnsBuilders) => ({
   completedAt: t.timestamp(),
   completedAtBlock: t.integer(),
   prepareTxHash: t.hex().notNull(),
+  deliveryTxHash: t.hex(),
   ...defaultColumns(t, false),
 });
 
