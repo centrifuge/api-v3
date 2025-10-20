@@ -240,11 +240,11 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
   }
   const { index: payloadIndex } = crosschainPayload.read();
 
-  const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(context, payloadId, payloadIndex);
-  if (!isPayloadFullyExecuted) return;
-
   const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(context, payloadId, payloadIndex);
   if (!isPayloadVerified) return;
+
+  const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(context, payloadId, payloadIndex);
+  if (!isPayloadFullyExecuted) return;
 
   crosschainPayload.completed(event);
   await crosschainPayload.save(event.block);
