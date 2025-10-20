@@ -12,7 +12,6 @@ import {
   getPayloadId,
   extractMessagesFromPayload,
 } from "../services/CrosschainPayloadService";
-import { AdapterParticipationService } from "../services/AdapterParticipationService";
 
 ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
   logEvent(event, context, "Gateway:PrepareMessage");
@@ -239,9 +238,6 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
     return;
   }
   const { index: payloadIndex } = crosschainPayload.read();
-
-  const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(context, payloadId, payloadIndex);
-  if (!isPayloadVerified) return;
 
   const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(context, payloadId, payloadIndex);
   if (!isPayloadFullyExecuted) return;
