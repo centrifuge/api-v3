@@ -249,15 +249,15 @@ const CrosschainMessageType = {
   ExecuteTransferShares: 73,
   UpdateRestriction: dynamicLengthDecoder(25),
   UpdateContract: dynamicLengthDecoder(57),
-  UpdateVault: 74,
-  UpdateBalanceSheetManager: 42,
-  UpdateHoldingAmount: 91,
-  UpdateShares: 59,
-  MaxAssetPriceAge: 49,
+  UpdateVault: 73,
+  UpdateBalanceSheetManager: 41,
+  UpdateHoldingAmount: 90,
+  UpdateShares: 58,
+  MaxAssetPriceAge: 48,
   MaxSharePriceAge: 33,
   Request: dynamicLengthDecoder(41),
   RequestCallback: dynamicLengthDecoder(41),
-  SetRequestManager: 73,
+  SetRequestManager: 72,
 } as const;
 
 type BufferDecoderEntry<T = unknown> = [
@@ -266,6 +266,7 @@ type BufferDecoderEntry<T = unknown> = [
 ];
 
 const MessageDecoders = {
+  bool: [(m) => m.readUInt8() !== 0, 1],
   uint8: [(m) => m.readUInt8(), 1],
   uint16: [(m) => m.readUInt16BE(), 2],
   uint64: [(m) => m.readBigUInt64BE().toString(), 8],
@@ -406,38 +407,45 @@ const messageDecoders = {
   UpdateVault: [
     { name: "poolId", decoder: "uint64" },
     { name: "scId", decoder: "bytes16" },
+    { name: "assetId", decoder: "uint128" },
+    { name: "vaultOrFactory", decoder: "bytes32" },
     { name: "kind", decoder: "uint8" },
-    { name: "target", decoder: "bytes32" },
-    { name: "payload", decoder: "bytes" }, // Dynamic length
   ],
   UpdateBalanceSheetManager: [
     { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "target", decoder: "bytes32" },
-    { name: "payload", decoder: "bytes" }, // Dynamic length
+    { name: "who", decoder: "bytes32" },
+    { name: "canManage", decoder: "bool" },
   ],
   UpdateHoldingAmount: [
     { name: "poolId", decoder: "uint64" },
     { name: "scId", decoder: "bytes16" },
     { name: "assetId", decoder: "uint128" },
     { name: "amount", decoder: "uint128" },
+    { name: "pricePerUnit", decoder: "uint128" },
     { name: "timestamp", decoder: "uint64" },
+    { name: "isIncrease", decoder: "bool" },
+    { name: "isSnapshot", decoder: "bool" },
+    { name: "nonce", decoder: "uint64" },
   ],
   UpdateShares: [
     { name: "poolId", decoder: "uint64" },
     { name: "scId", decoder: "bytes16" },
-    { name: "amount", decoder: "uint128" },
+    { name: "shares", decoder: "uint128" },
     { name: "timestamp", decoder: "uint64" },
+    { name: "isIssuance", decoder: "bool" },
+    { name: "isSnapshot", decoder: "bool" },
+    { name: "nonce", decoder: "uint64" },
   ],
   MaxAssetPriceAge: [
     { name: "poolId", decoder: "uint64" },
     { name: "scId", decoder: "bytes16" },
-    { name: "maxAge", decoder: "uint64" },
+    { name: "assetId", decoder: "uint128" },
+    { name: "maxPriceAge", decoder: "uint64" },
   ],
   MaxSharePriceAge: [
     { name: "poolId", decoder: "uint64" },
     { name: "scId", decoder: "bytes16" },
-    { name: "maxAge", decoder: "uint64" },
+    { name: "maxPriceAge", decoder: "uint64" },
   ],
   Request: [
     { name: "poolId", decoder: "uint64" },
@@ -454,8 +462,8 @@ const messageDecoders = {
   SetRequestManager: [
     { name: "poolId", decoder: "uint64" },
     { name: "scId", decoder: "bytes16" },
-    { name: "target", decoder: "bytes32" },
-    { name: "payload", decoder: "bytes" }, // Dynamic length
+    { name: "assetId", decoder: "uint128" },
+    { name: "manager", decoder: "bytes32" },
   ],
 } as const satisfies Record<
   keyof typeof CrosschainMessageType,
