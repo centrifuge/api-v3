@@ -249,15 +249,15 @@ const CrosschainMessageType = {
   ExecuteTransferShares: 73,
   UpdateRestriction: dynamicLengthDecoder(25),
   UpdateContract: dynamicLengthDecoder(57),
-  UpdateVault: 73,
-  UpdateBalanceSheetManager: 41,
-  UpdateHoldingAmount: 90,
-  UpdateShares: 58,
-  MaxAssetPriceAge: 48,
+  UpdateVault: 74,
+  UpdateBalanceSheetManager: 42,
+  UpdateHoldingAmount: 91,
+  UpdateShares: 59,
+  MaxAssetPriceAge: 49,
   MaxSharePriceAge: 33,
   Request: dynamicLengthDecoder(41),
   RequestCallback: dynamicLengthDecoder(41),
-  SetRequestManager: 72,
+  SetRequestManager: 73,
 } as const;
 
 type BufferDecoderEntry<T = unknown> = [

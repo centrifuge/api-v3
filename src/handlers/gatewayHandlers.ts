@@ -27,20 +27,16 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
     toCentrifugeId.toString(),
     message
   );
-  const messageCount = await CrosschainMessageService.count(context, {
-    id: messageId,
-  });
 
   const rawData = `0x${Buffer.from(
     messageBuffer.toString("hex")
   )}` as `0x${string}`;
   const data = decodeMessage(messageType, messagePayload);
 
-  const _crosschainMessage = (await CrosschainMessageService.insert(
+  await CrosschainMessageService.insert(
     context,
     {
       id: messageId,
-      index: messageCount,
       poolId: poolId || null,
       fromCentrifugeId,
       toCentrifugeId: toCentrifugeId.toString(),
@@ -50,7 +46,7 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
       status: "AwaitingBatchDelivery",
     },
     event.block
-  )) as CrosschainMessageService | null;
+  );
 });
 
 ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
@@ -64,12 +60,14 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
     batch
   );
 
-  const alreadyInitialized = await CrosschainPayloadService.getUnderpaidFromQueue(
-    context,
-    payloadId
-  );
+  const alreadyInitialized =
+    await CrosschainPayloadService.getUnderpaidFromQueue(context, payloadId);
   if (alreadyInitialized) {
-    logEvent(event, context, `UnderpaidBatch already initialized for payloadId ${payloadId}`);
+    logEvent(
+      event,
+      context,
+      `UnderpaidBatch already initialized for payloadId ${payloadId}`
+    );
     return;
   }
 
@@ -79,6 +77,7 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
 
   const poolIdSet = new Set<bigint>();
   const messages = extractMessagesFromPayload(batch);
+  let index = 0;
   for (const message of messages) {
     const messageBuffer = Buffer.from(message.substring(2), "hex");
     const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0));
@@ -90,17 +89,21 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
       message
     );
 
-    const pendingMessage = await CrosschainMessageService.getFromAwaitingBatchDeliveryQueue(context, messageId);
+    const pendingMessage =
+      await CrosschainMessageService.getFromAwaitingBatchDeliveryQueue(
+        context,
+        messageId
+      );
     if (pendingMessage) {
-      logEvent(event, context, `Message ${messageId} already initialized in awaiting batch delivery queue`);
+      logEvent(
+        event,
+        context,
+        `Message ${messageId} already initialized in awaiting batch delivery queue`
+      );
       pendingMessage.setPayloadId(payloadId, payloadIndex);
       await pendingMessage.save(event.block);
       continue;
     }
-
-    const messageIndex = await CrosschainMessageService.count(context, {
-      id: messageId,
-    });
 
     const rawData = `0x${Buffer.from(
       messageBuffer.toString("hex")
@@ -115,11 +118,11 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
     const poolId = "poolId" in data ? BigInt(data.poolId!) : null;
     if (poolId) poolIdSet.add(poolId);
 
-    const _crosschainMessage = (await CrosschainMessageService.insert(
+    await CrosschainMessageService.insert(
       context,
       {
         id: messageId,
-        index: messageIndex,
+        index,
         poolId,
         fromCentrifugeId,
         toCentrifugeId: toCentrifugeId.toString(),
@@ -131,7 +134,9 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
         payloadIndex,
       },
       event.block
-    )) as CrosschainMessageService | null;
+    );
+
+    index++;
   }
 
   const poolIds = Array.from(poolIdSet);
@@ -140,7 +145,7 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
     return;
   }
   const poolId = Array.from(poolIdSet).pop() ?? null;
-  
+
   const crosschainPayload = (await CrosschainPayloadService.insert(
     context,
     {
@@ -155,7 +160,8 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
     },
     event.block
   )) as CrosschainPayloadService | null;
-  if (!crosschainPayload) console.error("Failed to initialize crosschain payload ");
+  if (!crosschainPayload)
+    console.error("Failed to initialize crosschain payload ");
 });
 
 ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
@@ -174,18 +180,16 @@ ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
       payloadId
     )) as CrosschainPayloadService | null;
   if (!crosschainPayload) {
-    console.error(
-      `CrosschainPayload not found for payloadId ${payloadId}`
-    );
+    console.error(`CrosschainPayload not found for payloadId ${payloadId}`);
     return;
-  };
+  }
   const { index: payloadIndex } = crosschainPayload.read();
-  const crosschainMessages = await CrosschainMessageService.query(context, {
+  const crosschainMessages = (await CrosschainMessageService.query(context, {
     payloadId: payloadId,
     payloadIndex: payloadIndex,
     status: "Unsent",
-  }) as CrosschainMessageService[];
-  const crosschainMessageSaves = []
+  })) as CrosschainMessageService[];
+  const crosschainMessageSaves = [];
   for (const crosschainMessage of crosschainMessages) {
     crosschainMessage.awaitingBatchDelivery();
     crosschainMessageSaves.push(crosschainMessage.save(event.block));
@@ -208,10 +212,11 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
     message
   );
 
-  const crosschainMessage = await CrosschainMessageService.getFromAwaitingBatchDeliveryOrFailedQueue(
-    context,
-    messageId
-  );
+  const crosschainMessage =
+    await CrosschainMessageService.getFromAwaitingBatchDeliveryOrFailedQueue(
+      context,
+      messageId
+    );
   if (!crosschainMessage) {
     console.error(
       `CrosschainMessage not found in AwaitingBatchDelivery queue for messageId ${messageId}`
@@ -234,12 +239,19 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
       payloadId
     )) as CrosschainPayloadService | null;
   if (!crosschainPayload) {
-    console.error(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
+    console.error(
+      `CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`
+    );
     return;
   }
   const { index: payloadIndex } = crosschainPayload.read();
 
-  const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(context, payloadId, payloadIndex);
+  const isPayloadFullyExecuted =
+    await CrosschainMessageService.checkPayloadFullyExecuted(
+      context,
+      payloadId,
+      payloadIndex
+    );
   if (!isPayloadFullyExecuted) return;
 
   crosschainPayload.completed(event);
@@ -259,10 +271,11 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
     message
   );
 
-  const crosschainMessage = await CrosschainMessageService.getFromAwaitingBatchDeliveryOrFailedQueue(
-    context,
-    messageId
-  );
+  const crosschainMessage =
+    await CrosschainMessageService.getFromAwaitingBatchDeliveryOrFailedQueue(
+      context,
+      messageId
+    );
   if (!crosschainMessage) {
     console.error(
       `CrosschainMessage not found in AwaitingBatchDelivery or Failed queue for messageId ${messageId}`
@@ -273,7 +286,7 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
   const { status } = crosschainMessage.read();
   if (status === "Failed") return;
 
-  crosschainMessage.setStatus('Failed');
+  crosschainMessage.setStatus("Failed");
   await crosschainMessage.save(event.block);
 
   const { payloadId } = crosschainMessage.read();
@@ -285,7 +298,9 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
       payloadId
     )) as CrosschainPayloadService | null;
   if (!crosschainPayload) {
-    console.error(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
+    console.error(
+      `CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`
+    );
     return;
   }
 
