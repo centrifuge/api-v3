@@ -526,6 +526,203 @@ export function getMessageId(
   return messageId;
 }
 
+// ============================================================================
+// Payload Decoders (must be defined before decodeMessage uses them)
+// ============================================================================
+
+// Request Message Payload Types
+const RequestMessageType = {
+  Invalid: 0,
+  DepositRequest: 1,
+  RedeemRequest: 2,
+  CancelDepositRequest: 3,
+  CancelRedeemRequest: 4,
+} as const;
+
+type RequestMessageTypeKey = keyof typeof RequestMessageType;
+
+const requestMessageDecoders = {
+  Invalid: [],
+  DepositRequest: [
+    { name: "investor", decoder: "bytes32" },
+    { name: "amount", decoder: "uint128" },
+  ],
+  RedeemRequest: [
+    { name: "investor", decoder: "bytes32" },
+    { name: "amount", decoder: "uint128" },
+  ],
+  CancelDepositRequest: [
+    { name: "investor", decoder: "bytes32" },
+  ],
+  CancelRedeemRequest: [
+    { name: "investor", decoder: "bytes32" },
+  ],
+} as const satisfies Record<RequestMessageTypeKey, DecoderConfig[]>;
+
+type DecodedRequestMessageTypes = {
+  [K in keyof typeof requestMessageDecoders]: {
+    [P in (typeof requestMessageDecoders)[K][number] as P["name"]]: DecoderReturnTypes[P["decoder"]];
+  };
+};
+
+function getRequestMessageType(requestType: number): RequestMessageTypeKey {
+  return (Object.keys(RequestMessageType)[requestType] ?? "Invalid") as RequestMessageTypeKey;
+}
+
+function decodeRequestPayload(
+  payloadBuffer: Buffer<ArrayBuffer>
+): { type: RequestMessageTypeKey; data: DecodedRequestMessageTypes[RequestMessageTypeKey] } | null {
+  if (payloadBuffer.length < 3) return null; // Need at least 2 bytes for length + 1 for type
+  
+  // Skip the 2-byte length prefix
+  const requestType = payloadBuffer.readUInt8(2);
+  const requestTypeName = getRequestMessageType(requestType);
+  const messageSpec = requestMessageDecoders[requestTypeName];
+  if (!messageSpec) return null;
+
+  let offset = 3; // Skip length prefix (2 bytes) + type byte (1 byte)
+  const decodedData: any = {};
+  for (const spec of messageSpec) {
+    const [decoder, length] = MessageDecoders[spec.decoder];
+    if (!decoder) return null;
+    const value = decoder(payloadBuffer.subarray(offset, offset + length));
+    decodedData[spec.name] = value;
+    offset += length;
+  }
+  return { type: requestTypeName, data: decodedData };
+}
+
+// RequestCallback Message Payload Types
+const RequestCallbackMessageType = {
+  Invalid: 0,
+  ApprovedDeposits: 1,
+  IssuedShares: 2,
+  RevokedShares: 3,
+  FulfilledDepositRequest: 4,
+  FulfilledRedeemRequest: 5,
+} as const;
+
+type RequestCallbackMessageTypeKey = keyof typeof RequestCallbackMessageType;
+
+const requestCallbackMessageDecoders = {
+  Invalid: [],
+  ApprovedDeposits: [
+    { name: "assetAmount", decoder: "uint128" },
+    { name: "pricePoolPerAsset", decoder: "uint128" },
+  ],
+  IssuedShares: [
+    { name: "shareAmount", decoder: "uint128" },
+    { name: "pricePoolPerShare", decoder: "uint128" },
+  ],
+  RevokedShares: [
+    { name: "assetAmount", decoder: "uint128" },
+    { name: "shareAmount", decoder: "uint128" },
+    { name: "pricePoolPerShare", decoder: "uint128" },
+  ],
+  FulfilledDepositRequest: [
+    { name: "investor", decoder: "bytes32" },
+    { name: "fulfilledAssetAmount", decoder: "uint128" },
+    { name: "fulfilledShareAmount", decoder: "uint128" },
+    { name: "cancelledAssetAmount", decoder: "uint128" },
+  ],
+  FulfilledRedeemRequest: [
+    { name: "investor", decoder: "bytes32" },
+    { name: "fulfilledAssetAmount", decoder: "uint128" },
+    { name: "fulfilledShareAmount", decoder: "uint128" },
+    { name: "cancelledShareAmount", decoder: "uint128" },
+  ],
+} as const satisfies Record<RequestCallbackMessageTypeKey, DecoderConfig[]>;
+
+type DecodedRequestCallbackMessageTypes = {
+  [K in keyof typeof requestCallbackMessageDecoders]: {
+    [P in (typeof requestCallbackMessageDecoders)[K][number] as P["name"]]: DecoderReturnTypes[P["decoder"]];
+  };
+};
+
+function getRequestCallbackMessageType(callbackType: number): RequestCallbackMessageTypeKey {
+  return (Object.keys(RequestCallbackMessageType)[callbackType] ?? "Invalid") as RequestCallbackMessageTypeKey;
+}
+
+function decodeRequestCallbackPayload(
+  payloadBuffer: Buffer<ArrayBuffer>
+): { type: RequestCallbackMessageTypeKey; data: DecodedRequestCallbackMessageTypes[RequestCallbackMessageTypeKey] } | null {
+  if (payloadBuffer.length < 3) return null; // Need at least 2 bytes for length + 1 for type
+  
+  // Skip the 2-byte length prefix
+  const callbackType = payloadBuffer.readUInt8(2);
+  const callbackTypeName = getRequestCallbackMessageType(callbackType);
+  const messageSpec = requestCallbackMessageDecoders[callbackTypeName];
+  if (!messageSpec) return null;
+
+  let offset = 3; // Skip length prefix (2 bytes) + type byte (1 byte)
+  const decodedData: any = {};
+  for (const spec of messageSpec) {
+    const [decoder, length] = MessageDecoders[spec.decoder];
+    if (!decoder) return null;
+    const value = decoder(payloadBuffer.subarray(offset, offset + length));
+    decodedData[spec.name] = value;
+    offset += length;
+  }
+  return { type: callbackTypeName, data: decodedData };
+}
+
+// UpdateRestriction Message Payload Types
+const UpdateRestrictionMessageType = {
+  Invalid: 0,
+  Member: 1,
+  Freeze: 2,
+  Unfreeze: 3,
+} as const;
+
+type UpdateRestrictionMessageTypeKey = keyof typeof UpdateRestrictionMessageType;
+
+const updateRestrictionMessageDecoders = {
+  Invalid: [],
+  Member: [
+    { name: "user", decoder: "bytes32" },
+    { name: "validUntil", decoder: "uint64" },
+  ],
+  Freeze: [
+    { name: "user", decoder: "bytes32" },
+  ],
+  Unfreeze: [
+    { name: "user", decoder: "bytes32" },
+  ],
+} as const satisfies Record<UpdateRestrictionMessageTypeKey, DecoderConfig[]>;
+
+type DecodedUpdateRestrictionMessageTypes = {
+  [K in keyof typeof updateRestrictionMessageDecoders]: {
+    [P in (typeof updateRestrictionMessageDecoders)[K][number] as P["name"]]: DecoderReturnTypes[P["decoder"]];
+  };
+};
+
+function getUpdateRestrictionMessageType(restrictionType: number): UpdateRestrictionMessageTypeKey {
+  return (Object.keys(UpdateRestrictionMessageType)[restrictionType] ?? "Invalid") as UpdateRestrictionMessageTypeKey;
+}
+
+function decodeUpdateRestrictionPayload(
+  payloadBuffer: Buffer<ArrayBuffer>
+): { type: UpdateRestrictionMessageTypeKey; data: DecodedUpdateRestrictionMessageTypes[UpdateRestrictionMessageTypeKey] } | null {
+  if (payloadBuffer.length < 3) return null; // Need at least 2 bytes for length + 1 for type
+  
+  // Skip the 2-byte length prefix
+  const restrictionType = payloadBuffer.readUInt8(2);
+  const restrictionTypeName = getUpdateRestrictionMessageType(restrictionType);
+  const messageSpec = updateRestrictionMessageDecoders[restrictionTypeName];
+  if (!messageSpec) return null;
+
+  let offset = 3; // Skip length prefix (2 bytes) + type byte (1 byte)
+  const decodedData: any = {};
+  for (const spec of messageSpec) {
+    const [decoder, length] = MessageDecoders[spec.decoder];
+    if (!decoder) return null;
+    const value = decoder(payloadBuffer.subarray(offset, offset + length));
+    decodedData[spec.name] = value;
+    offset += length;
+  }
+  return { type: restrictionTypeName, data: decodedData };
+}
+
 /**
  * Decodes a cross-chain message into its parameters
  * @param messageType - The type of the message
@@ -544,15 +741,46 @@ export function decodeMessage<T extends keyof typeof messageDecoders>(
 
   let offset = 0;
   const decodedData: DecodedMessageTypes[T] = {} as DecodedMessageTypes[T];
-  for (const spec of messageSpec) {
+  for (let i = 0; i < messageSpec.length; i++) {
+    const spec = messageSpec[i];
+    if (!spec) continue;
+    
     const [decoder, length] = MessageDecoders[spec.decoder];
     if (!decoder) {
       console.error(`Invalid decoder: ${spec.decoder}`);
       return null;
     }
-    const value = decoder(messageBuffer.subarray(offset, offset + length));
+    // For dynamic length fields (length = 0) that are the last field, read all remaining bytes
+    const isLastField = i === messageSpec.length - 1;
+    const bytesToRead = (length === 0 && isLastField) ? messageBuffer.length - offset : length;
+    const value = decoder(messageBuffer.subarray(offset, offset + bytesToRead));
     (decodedData as any)[spec.name] = value;
-    offset += length;
+    offset += bytesToRead;
   }
+
+  // Decode nested payloads for specific message types
+  if (messageType === "Request" && "payload" in decodedData) {
+    const payloadHex = (decodedData as any).payload as string;
+    if (payloadHex && payloadHex !== "0x") {
+      const payloadBuffer = Buffer.from(payloadHex.substring(2), "hex");
+      const decodedPayload = decodeRequestPayload(payloadBuffer);
+      (decodedData as any).decodedPayload = decodedPayload;
+    }
+  } else if (messageType === "RequestCallback" && "payload" in decodedData) {
+    const payloadHex = (decodedData as any).payload as string;
+    if (payloadHex && payloadHex !== "0x") {
+      const payloadBuffer = Buffer.from(payloadHex.substring(2), "hex");
+      const decodedPayload = decodeRequestCallbackPayload(payloadBuffer);
+      (decodedData as any).decodedPayload = decodedPayload;
+    }
+  } else if (messageType === "UpdateRestriction" && "payload" in decodedData) {
+    const payloadHex = (decodedData as any).payload as string;
+    if (payloadHex && payloadHex !== "0x") {
+      const payloadBuffer = Buffer.from(payloadHex.substring(2), "hex");
+      const decodedPayload = decodeUpdateRestrictionPayload(payloadBuffer);
+      (decodedData as any).decodedPayload = decodedPayload;
+    }
+  }
+
   return decodedData;
 }
