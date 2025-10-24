@@ -183,6 +183,16 @@ export class CrosschainMessageService extends mixinCommonStatics(
   }
 
   /**
+   * Sets the fail reason of the CrosschainMessage
+   * @param failReason - The new fail reason to set.
+   * @returns The CrosschainMessageService instance for chaining
+   */
+  public setFailReason(failReason: `0x${string}`) {
+    this.data.failReason = failReason;
+    return this;
+  }
+
+  /**
    * Sets the payload ID for the CrosschainMessage
    * @param payloadId - The hex string payload ID to set
    * @param payloadIndex - The index of the payload to set

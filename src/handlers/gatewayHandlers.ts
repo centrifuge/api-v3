@@ -249,7 +249,7 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
 ponder.on("Gateway:FailMessage", async ({ event, context }) => {
   // RECEIVING CHAIN
   logEvent(event, context, "Gateway:FailMessage");
-  const { centrifugeId: fromCentrifugeId, message } = event.args;
+  const { centrifugeId: fromCentrifugeId, message, error } = event.args;
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
@@ -274,6 +274,7 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
   if (status === "Failed") return;
 
   crosschainMessage.setStatus('Failed');
+  crosschainMessage.setFailReason(error);
   await crosschainMessage.save(event.block);
 
   const { payloadId } = crosschainMessage.read();
