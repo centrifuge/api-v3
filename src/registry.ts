@@ -1,8 +1,8 @@
 /**
  * Registry loader that fetches configuration from IPFS
  * 
- * This module provides both sync and async access to the registry.
- * For sync access, call loadRegistrySync() before importing other modules.
+ * This module provides async access to the registry loaded from IPFS.
+ * The registry is cached after first load for subsequent calls.
  */
 
 interface RegistryChain {
@@ -122,76 +122,4 @@ export async function getAbi(contractName: string): Promise<any[]> {
 export async function getAllAbis(): Promise<RegistryAbis> {
   const registry = await loadRegistry();
   return registry.abis;
-}
-
-/**
- * Gets the cached registry synchronously.
- * Loads it synchronously if not already loaded (lazy loading).
- */
-export function getRegistrySync(): Registry {
-  if (!cachedRegistry) {
-    // Lazy load on first access
-    loadRegistrySync();
-  }
-  return cachedRegistry!;
-}
-
-/**
- * Gets chains synchronously from the cached registry
- */
-export function getChainsSync(): RegistryChain[] {
-  return Object.values(getRegistrySync().chains);
-}
-
-/**
- * Gets all ABIs synchronously from the cached registry
- */
-export function getAllAbisSync(): RegistryAbis {
-  return getRegistrySync().abis;
-}
-
-/**
- * Loads the registry synchronously using a simple busy-wait loop.
- * Called automatically by getRegistrySync() on first access (lazy loading).
- */
-export function loadRegistrySync(): Registry {
-  if (cachedRegistry) {
-    return cachedRegistry;
-  }
-
-  let done = false;
-  let result: Registry | null = null;
-  let error: Error | null = null;
-
-  // Trigger async load
-  loadRegistry()
-    .then((registry) => {
-      result = registry;
-      done = true;
-    })
-    .catch((err) => {
-      error = err;
-      done = true;
-    });
-
-  // Simple busy-wait loop (not ideal but necessary for sync loading)
-  const start = Date.now();
-  while (!done) {
-    if (Date.now() - start > 30000) {
-      throw new Error('Registry loading timed out after 30 seconds');
-    }
-    // Small delay to prevent tight CPU spin
-    const now = Date.now();
-    while (Date.now() - now < 10) { /* busy wait 10ms */ }
-  }
-
-  if (error) {
-    throw error;
-  }
-
-  if (!result) {
-    throw new Error('Failed to load registry');
-  }
-
-  return result;
 }
