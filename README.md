@@ -53,9 +53,9 @@ pnpm run codegen
 
 ### Configuration
 
-The indexer uses a dynamic registry system that loads chain and ABI configurations from IPFS:
+The indexer uses a dynamic registry system that loads chain and ABI configurations:
 
-- **REGISTRY_HASH**: Set this environment variable to specify the IPFS hash of the registry JSON file
+- **REGISTRY_HASH** (optional): Set this environment variable to specify the IPFS hash of the registry JSON file. If not set, defaults to `https://registry.centrifuge.io/`
 - **ENVIRONMENT**: Set to `mainnet` or `testnet` to select which chains to index (defaults to `mainnet`)
 
 

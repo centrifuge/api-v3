@@ -60,7 +60,11 @@ interface Registry {
 let cachedRegistry: Registry | null = null;
 
 /**
- * Fetches the registry from IPFS using the REGISTRY_HASH environment variable
+ * Fetches the registry from IPFS or the default URL
+ * If REGISTRY_HASH is set, uses IPFS. Otherwise, fetches from https://registry.centrifuge.io/
+ * 
+ * @returns Promise resolving to the registry data
+ * @throws Error if the registry cannot be fetched or parsed
  */
 export async function loadRegistry(): Promise<Registry> {
   if (cachedRegistry) {
@@ -68,11 +72,9 @@ export async function loadRegistry(): Promise<Registry> {
   }
 
   const registryHash = process.env.REGISTRY_HASH;
-  if (!registryHash) {
-    throw new Error("REGISTRY_HASH environment variable is not set");
-  }
-
-  const url = `https://centrifuge.mypinata.cloud/ipfs/${registryHash}`;
+  const url = registryHash 
+    ? `https://centrifuge.mypinata.cloud/ipfs/${registryHash}`
+    : 'https://registry.centrifuge.io/';
   
   console.log(`Fetching registry from ${url}...`);
   const response = await fetch(url);
