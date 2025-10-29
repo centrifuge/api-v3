@@ -5,7 +5,7 @@ import { BlockchainService, HoldingEscrowService, PoolService, TokenInstanceServ
 import { PoolSnapshot, HoldingEscrowSnapshot, TokenInstanceSnapshot, TokenSnapshot } from "ponder:schema";
 import { snapshotter } from "../helpers/snapshotter";
 import { currentChains } from "../../ponder.config";
-import { networks } from "../../chains";
+import { networks } from "../chains";
 
 const timekeeper = Timekeeper.start()
 

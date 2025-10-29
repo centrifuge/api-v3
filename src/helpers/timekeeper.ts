@@ -1,7 +1,7 @@
 import type { Context, Event } from "ponder:registry";
 import { BlockchainService } from "../services/BlockchainService";
 import { currentChains } from "../../ponder.config";
-import { networks } from "../../chains";
+import { networks } from "../chains";
 
 /** Interval in seconds for snapshot periods (24 hours) */
 const SNAPSHOT_INTERVAL_SECONDS = 60 * 60 * 24; // 1 day
