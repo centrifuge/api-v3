@@ -31,10 +31,8 @@ import {
 
 import { chains as _chains, endpoints, skipBlocks, startBlocks, networks } from "./src/chains";
 
-export const selectedNetworks = process.env.SELECTED_NETWORKS!.split(",");
-export const currentChains = _chains.filter((chain) =>
-  selectedNetworks.includes(chain.network.chainId.toString())
-);
+// All chains from the registry (filtered by ENVIRONMENT in registry.ts)
+export const currentChains = _chains;
 export const currentContractNames = Array.from(new Set(currentChains.flatMap((chain) => Object.keys(chain.contracts)))) as (keyof (typeof currentChains)[number]["contracts"])[];
 type Networks = typeof networks[keyof typeof networks];
 type Endpoints = typeof endpoints[keyof typeof endpoints];

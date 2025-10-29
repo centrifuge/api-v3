@@ -50,7 +50,10 @@ interface RegistryAbis {
 }
 
 interface Registry {
-  chains: Record<string, RegistryChain>;
+  chains: {
+    mainnet: Record<string, RegistryChain>;
+    testnet: Record<string, RegistryChain>;
+  };
   abis: RegistryAbis;
 }
 
@@ -84,22 +87,41 @@ export async function loadRegistry(): Promise<Registry> {
     throw new Error("Invalid registry: missing or invalid chains object");
   }
   
+  if (!registry.chains.mainnet || typeof registry.chains.mainnet !== "object") {
+    throw new Error("Invalid registry: missing or invalid chains.mainnet object");
+  }
+  
+  if (!registry.chains.testnet || typeof registry.chains.testnet !== "object") {
+    throw new Error("Invalid registry: missing or invalid chains.testnet object");
+  }
+  
   if (!registry.abis || typeof registry.abis !== "object") {
     throw new Error("Invalid registry: missing or invalid abis object");
   }
 
-  console.log(`✓ Registry loaded: ${Object.keys(registry.chains).length} chains, ${Object.keys(registry.abis).length} ABIs`);
+  const mainnetCount = Object.keys(registry.chains.mainnet).length;
+  const testnetCount = Object.keys(registry.chains.testnet).length;
+  console.log(`✓ Registry loaded: ${mainnetCount} mainnet chains, ${testnetCount} testnet chains, ${Object.keys(registry.abis).length} ABIs`);
   
   cachedRegistry = registry;
   return registry;
 }
 
 /**
- * Gets the chains from the registry as an array
+ * Gets the chains from the registry for the specified environment
  */
 export async function getChains(): Promise<RegistryChain[]> {
   const registry = await loadRegistry();
-  return Object.values(registry.chains);
+  const environment = process.env.ENVIRONMENT || "mainnet";
+  
+  if (environment !== "mainnet" && environment !== "testnet") {
+    throw new Error(`Invalid ENVIRONMENT: ${environment}. Must be 'mainnet' or 'testnet'`);
+  }
+  
+  const chains = registry.chains[environment];
+  console.log(`✓ Using ${environment} chains: ${Object.keys(chains).length} chains`);
+  
+  return Object.values(chains);
 }
 
 /**

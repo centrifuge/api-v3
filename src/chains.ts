@@ -27,15 +27,24 @@ export const endpoints: Record<number, string[]> = (() => {
       result[chainId] = [`rpc.plume.org/${process.env.CONDUIT_API_KEY}`];
     } else if (alchemyName && quicknodeName) {
       // Use registry-provided RPC names
-      // Avalanche needs special path suffix
-      const quicknodeUrl = chainId === 43114
-        ? `${process.env.QUICKNODE_API_NAME}.${quicknodeName}/${process.env.QUICKNODE_API_KEY}/ext/bc/C/rpc/`
-        : `${process.env.QUICKNODE_API_NAME}.${quicknodeName}/${process.env.QUICKNODE_API_KEY}`;
+      const endpoints: string[] = [];
       
-      result[chainId] = [
-        `${alchemyName}.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-        quicknodeUrl,
-      ];
+      // Add Alchemy endpoint
+      endpoints.push(`${alchemyName}.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`);
+      
+      // Add QuickNode endpoint with special handling for different chains
+      if (chainId === 43114) {
+        // Avalanche needs special path suffix
+        endpoints.push(`${process.env.QUICKNODE_API_NAME}.${quicknodeName}/${process.env.QUICKNODE_API_KEY}/ext/bc/C/rpc/`);
+      } else if (chainId === 1) {
+        // Ethereum mainnet - quicknodeName is just "quiknode.pro"
+        endpoints.push(`${process.env.QUICKNODE_API_NAME}.ethereum.${quicknodeName}/${process.env.QUICKNODE_API_KEY}`);
+      } else {
+        // Other chains have full domain in quicknodeName
+        endpoints.push(`${process.env.QUICKNODE_API_NAME}.${quicknodeName}/${process.env.QUICKNODE_API_KEY}`);
+      }
+      
+      result[chainId] = endpoints;
     } else {
       throw new Error(`Chain ${chainId} missing alchemyName or quicknodeName in registry`);
     }

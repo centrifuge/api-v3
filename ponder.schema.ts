@@ -18,6 +18,12 @@ const BlockchainColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   network: t.text().notNull(),
   lastPeriodStart: t.timestamp(),
+  chainId: t.integer(),
+  environment: t.text(),
+  name: t.text(),
+  explorer: t.text(),
+  alchemyName: t.text(),
+  quicknodeName: t.text(),
 });
 
 export const Blockchain = onchainTable(
