@@ -83,22 +83,6 @@ export async function loadRegistry(): Promise<Registry> {
 
   const registry = await response.json() as Registry;
   
-  if (!registry.chains || typeof registry.chains !== "object") {
-    throw new Error("Invalid registry: missing or invalid chains object");
-  }
-  
-  if (!registry.chains.mainnet || typeof registry.chains.mainnet !== "object") {
-    throw new Error("Invalid registry: missing or invalid chains.mainnet object");
-  }
-  
-  if (!registry.chains.testnet || typeof registry.chains.testnet !== "object") {
-    throw new Error("Invalid registry: missing or invalid chains.testnet object");
-  }
-  
-  if (!registry.abis || typeof registry.abis !== "object") {
-    throw new Error("Invalid registry: missing or invalid abis object");
-  }
-
   const mainnetCount = Object.keys(registry.chains.mainnet).length;
   const testnetCount = Object.keys(registry.chains.testnet).length;
   console.log(`✓ Registry loaded: ${mainnetCount} mainnet chains, ${testnetCount} testnet chains, ${Object.keys(registry.abis).length} ABIs`);

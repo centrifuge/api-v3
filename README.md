@@ -56,13 +56,9 @@ pnpm run codegen
 The indexer uses a dynamic registry system that loads chain and ABI configurations from IPFS:
 
 - **REGISTRY_HASH**: Set this environment variable to specify the IPFS hash of the registry JSON file
-- **SELECTED_NETWORKS**: Comma-separated list of chain IDs to index (e.g., `42161,8453,1` for Arbitrum, Base, and Ethereum mainnet)
+- **ENVIRONMENT**: Set to `mainnet` or `testnet` to select which chains to index (defaults to `mainnet`)
 
-The registry JSON contains:
-- `chains`: Array of chain configurations with contract addresses
-- `abis`: Object mapping contract names to their ABIs
 
-This replaces the need for hardcoded configurations in `chains.ts` and static ABI files in the `abis/` folder.
 
 ### Running the Indexer
 
