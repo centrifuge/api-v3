@@ -80,6 +80,7 @@ export class Timekeeper {
       explorer: chain.network.explorer,
       alchemyName: chain.network.alchemyName,
       quicknodeName: chain.network.quicknodeName,
+      icon: chain.network.icon,
     }, block)) as BlockchainService;
     const lastPeriodStart = blockchain.read().lastPeriodStart;
     if (!lastPeriodStart) blockchain.setLastPeriodStart(new Date(0));

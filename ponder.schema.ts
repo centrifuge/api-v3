@@ -24,6 +24,7 @@ const BlockchainColumns = (t: PgColumnsBuilders) => ({
   explorer: t.text(),
   alchemyName: t.text(),
   quicknodeName: t.text(),
+  icon: t.text(),
 });
 
 export const Blockchain = onchainTable(

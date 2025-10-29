@@ -14,6 +14,7 @@ interface RegistryChain {
     explorer?: string;
     alchemyName?: string;
     quicknodeName?: string;
+    icon?: string;
     catapultaNetwork?: string;
     etherscanUrl?: string;
     connectsTo?: string[];
