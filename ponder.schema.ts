@@ -92,7 +92,7 @@ export const Pool = onchainTable("pool", PoolColumns, (t) => ({
 }));
 
 export const PoolRelations = relations(Pool, ({ one, many }) => ({
-  hubBlockchain: one(Blockchain, {
+  blockchain: one(Blockchain, {
     fields: [Pool.centrifugeId],
     references: [Blockchain.centrifugeId],
   }),
