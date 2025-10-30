@@ -8,63 +8,11 @@
 import { writeFileSync } from 'fs'
 import { join } from 'path'
 import fetch from 'node-fetch'
+import type { RegistryChain, RegistryAbis, Registry } from '../src/registry.types'
 
 const REGISTRY_URL = process.env.REGISTRY_URL || 'https://registry.centrifuge.io/'
 const REGISTRY_HASH = process.env.REGISTRY_HASH
 const OUTPUT_FILE = join(process.cwd(), 'src', 'registry.generated.ts')
-
-interface RegistryChain {
-  network: {
-    chainId: number;
-    environment: string;
-    centrifugeId: number;
-    name?: string;
-    explorer?: string;
-    alchemyName?: string;
-    quicknodeName?: string;
-    icon?: string;
-    catapultaNetwork?: string;
-    etherscanUrl?: string;
-    connectsTo?: string[];
-    safeAdmin?: string;
-  };
-  adapters: {
-    wormhole?: {
-      wormholeId: string;
-      relayer: string;
-      deploy: boolean;
-    };
-    axelar?: {
-      axelarId: string;
-      gateway: string | null;
-      gasService: string | null;
-      deploy: boolean;
-    };
-    layerZero?: {
-      endpoint: string;
-      layerZeroEid: number;
-      deploy: boolean;
-    };
-  };
-  contracts: Record<string, string>;
-  deploymentInfo?: Record<string, {
-    gitCommit: string;
-    timestamp: string;
-    version: string;
-  }>;
-}
-
-interface RegistryAbis {
-  [contractName: string]: any[];
-}
-
-interface Registry {
-  chains: {
-    mainnet: Record<string, RegistryChain>;
-    testnet: Record<string, RegistryChain>;
-  };
-  abis: RegistryAbis;
-}
 
 /**
  * Fetches the registry from the configured URL
@@ -96,58 +44,7 @@ function generateTypeScriptFile(registry: Registry): string {
  * Generated at: ${new Date().toISOString()}
  */
 
-export interface RegistryChain {
-  network: {
-    chainId: number;
-    environment: string;
-    centrifugeId: number;
-    name?: string;
-    explorer?: string;
-    alchemyName?: string;
-    quicknodeName?: string;
-    icon?: string;
-    catapultaNetwork?: string;
-    etherscanUrl?: string;
-    connectsTo?: string[];
-    safeAdmin?: string;
-  };
-  adapters: {
-    wormhole?: {
-      wormholeId: string;
-      relayer: string;
-      deploy: boolean;
-    };
-    axelar?: {
-      axelarId: string;
-      gateway: string | null;
-      gasService: string | null;
-      deploy: boolean;
-    };
-    layerZero?: {
-      endpoint: string;
-      layerZeroEid: number;
-      deploy: boolean;
-    };
-  };
-  contracts: Record<string, string>;
-  deploymentInfo?: Record<string, {
-    gitCommit: string;
-    timestamp: string;
-    version: string;
-  }>;
-}
-
-export interface RegistryAbis {
-  [contractName: string]: any[];
-}
-
-export interface Registry {
-  chains: {
-    mainnet: Record<string, RegistryChain>;
-    testnet: Record<string, RegistryChain>;
-  };
-  abis: RegistryAbis;
-}
+import type { Registry } from './registry.types'
 
 export const registry: Registry = ${JSON.stringify(registry, null, 2)} as const
 `
