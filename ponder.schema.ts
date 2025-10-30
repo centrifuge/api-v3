@@ -37,7 +37,10 @@ export const Blockchain = onchainTable(
 );
 
 export const BlockchainRelations = relations(Blockchain, ({ many }) => ({
-  pools: many(Pool, { relationName: "pools" }),
+  hubPools: many(Pool, { relationName: "pools" }),
+  spokePools: many(PoolSpokeBlockchain, {
+    relationName: "poolSpokeBlockchains",
+  }),
   tokens: many(Token, { relationName: "tokens" }),
   tokenInstances: many(TokenInstance, { relationName: "tokenInstances" }),
   vaults: many(Vault, { relationName: "vaults" }),
@@ -100,6 +103,9 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
     fields: [Pool.centrifugeId],
     references: [Blockchain.centrifugeId],
   }),
+  spokeBlockchains: many(PoolSpokeBlockchain, {
+    relationName: "poolSpokeBlockchains",
+  }),
   asset: one(Asset, {
     fields: [Pool.currency],
     references: [Asset.id],
@@ -112,6 +118,36 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
     relationName: "merkleProofManagers",
   }),
 }));
+
+const PoolSpokeBlockchainColumns = (t: PgColumnsBuilders) => ({
+  poolId: t.bigint().notNull(),
+  centrifugeId: t.text().notNull(),
+  ...defaultColumns(t, false),
+});
+
+export const PoolSpokeBlockchain = onchainTable(
+  "pool_spoke_blockchain",
+  PoolSpokeBlockchainColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.poolId, t.centrifugeId] }),
+    poolIdx: index().on(t.poolId),
+    centrifugeIdIdx: index().on(t.centrifugeId),
+  })
+);
+
+export const PoolSpokeBlockchainRelations = relations(
+  PoolSpokeBlockchain,
+  ({ one }) => ({
+    pool: one(Pool, {
+      fields: [PoolSpokeBlockchain.poolId],
+      references: [Pool.id],
+    }),
+    blockchain: one(Blockchain, {
+      fields: [PoolSpokeBlockchain.centrifugeId],
+      references: [Blockchain.centrifugeId],
+    }),
+  })
+);
 
 const TokenColumns = (t: PgColumnsBuilders) => ({
   id: t.text().notNull(),

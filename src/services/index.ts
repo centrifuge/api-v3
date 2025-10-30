@@ -20,6 +20,7 @@ export * from "./HoldingAccountService";
 export * from "./DeploymentService";
 export * from "./EpochOutstandingInvestService";
 export * from "./PoolManagerService";
+export * from "./PoolSpokeBlockchainService";
 export * from "./OnRampAssetService";
 export * from "./OffRampAddressService";
 export * from "./PolicyService";

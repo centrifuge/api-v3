@@ -1,6 +1,21 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
 import { WhitelistedInvestorService, TokenService } from "../services";
+import { PoolSpokeBlockchainService } from "../services/PoolSpokeBlockchainService";
+
+ponder.on("Hub:NotifyPool", async ({ event, context }) => {
+  logEvent(event, context, "Hub:NotifyPool");
+  const { poolId, centrifugeId } = event.args;
+
+  await PoolSpokeBlockchainService.getOrInit(
+    context,
+    {
+      poolId,
+      centrifugeId: centrifugeId.toString(),
+    },
+    event.block
+  );
+});
 
 ponder.on("Hub:UpdateRestriction", async ({ event, context }) => {
   logEvent(event, context, "Hub:UpdateRestriction");
