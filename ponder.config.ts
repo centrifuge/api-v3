@@ -212,8 +212,9 @@ function getContractChain(
     }
     
     const contractAddress = network.contracts[contractName];
+    // Skip chains that don't have this contract instead of throwing an error
     if (!contractAddress) {
-      throw new Error(`Contract ${String(contractName)} not found on chain ${chainId}`);
+      return acc;
     }
     
     const startingBlockOverride = process.env[`PONDER_RPC_STARTING_BLOCK_${chainId}`];

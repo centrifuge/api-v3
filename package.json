@@ -11,6 +11,7 @@
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc",
     "schema": "tsx graphqlToPonderSchema.ts",
+    "update-registry": "tsx scripts/fetch-registry.ts",
     "prepare": "husky"
   },
   "dependencies": {
@@ -30,8 +31,8 @@
     "@commitlint/config-conventional": "^19.8.1",
     "@types/bn.js": "^5.2.0",
     "@types/node": "^22.18.10",
-    "@typescript-eslint/eslint-plugin": "^6.21.0",
-    "@typescript-eslint/parser": "^6.21.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
     "eslint": "^8.57.1",
     "eslint-config-ponder": "^0.14.0",
     "eslint-plugin-jsdoc": "^56.0.2",

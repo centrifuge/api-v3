@@ -1,8 +1,8 @@
 /**
- * Dynamic ABI exports from IPFS registry
+ * Dynamic ABI exports from compile-time generated registry
  * 
  * This module replaces the static ABI files in the abis/ folder
- * All ABIs are now loaded from the IPFS registry at startup.
+ * All ABIs are now loaded from the registry data that was fetched at build time.
  * 
  * Note: We export with "Abi" suffix for backwards compatibility,
  * but the registry stores them without the suffix.
@@ -10,8 +10,8 @@
 
 import { getAllAbis } from "./registry";
 
-// Load ABIs using top-level await
-const _abis = await getAllAbis();
+// Load ABIs synchronously from the generated registry file
+const _abis = getAllAbis();
 
 // Helper to validate and return ABI
 function validateAbi(name: string): any[] {

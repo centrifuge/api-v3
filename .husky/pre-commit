@@ -1,1 +1,3 @@
 pnpm lint;
+# TODO: Re-enable typecheck once Ponder type generation is fixed for TypeScript 5.9
+# pnpm typecheck;

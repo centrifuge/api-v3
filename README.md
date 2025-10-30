@@ -48,15 +48,38 @@ pnpm install --frozen-lockfile
 cp .env.example .env.local
 # Edit .env with your settings (RPC endpoint and API key)
 
+# Fetch the registry data at build time
+pnpm run update-registry
+
+# Generate Ponder schema
 pnpm run codegen
 ```
 
 ### Configuration
 
-The indexer uses a dynamic registry system that loads chain and ABI configurations:
+The indexer uses a compile-time registry system that loads chain and ABI configurations:
 
-- **REGISTRY_HASH** (optional): Set this environment variable to specify the IPFS hash of the registry JSON file. If not set, defaults to `https://registry.centrifuge.io/`
+- **REGISTRY_HASH** (optional): Set this environment variable before running `pnpm run update-registry` to specify the IPFS hash of the registry JSON file. If not set, defaults to `https://registry.centrifuge.io/`
 - **ENVIRONMENT**: Set to `mainnet` or `testnet` to select which chains to index (defaults to `mainnet`)
+
+### Updating Registry Data
+
+The registry data (chains and ABIs) is fetched at build time, not at runtime. This ensures:
+- Full TypeScript typing support
+- No runtime network dependencies
+- Indexer can start reliably even with network issues
+
+To update the registry data:
+
+```bash
+# Fetch latest registry from default URL
+pnpm run update-registry
+
+# Or fetch from a specific IPFS hash
+REGISTRY_HASH=<ipfs-hash> pnpm run update-registry
+```
+
+This generates `src/registry.generated.ts` which contains all chain configurations and ABIs with full type safety.
 
 
 

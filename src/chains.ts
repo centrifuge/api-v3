@@ -1,14 +1,14 @@
 /**
- * Chains configuration loaded from IPFS registry
+ * Chains configuration loaded from compile-time generated registry
  * 
- * This module loads chain configurations dynamically from an IPFS-hosted registry
- * specified by the REGISTRY_HASH environment variable.
+ * This module loads chain configurations from the registry data that was
+ * fetched at build time using `pnpm update-registry`.
  */
 
 import { getChains } from "./registry";
 
-// Load chains using top-level await
-const _chains = await getChains();
+// Load chains synchronously from the generated registry file
+const _chains = getChains();
 
 export const chains = _chains;
 
