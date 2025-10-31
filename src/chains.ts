@@ -1,60 +1,51 @@
-/**
- * Chains configuration loaded from compile-time generated registry
- * 
- * This module loads chain configurations from the registry data that was
- * fetched at build time using `pnpm update-registry`.
- */
+import registry from "./registry.generated";
 
-import { getChains } from "./registry";
+type Registry = typeof registry;
+type Networks = keyof Registry["chains"];
+type Chain = Registry["chains"][Networks][keyof Registry["chains"][Networks]];
 
-// Load chains synchronously from the generated registry file
-const _chains = getChains();
+const { ENVIRONMENT = "mainnet" } = process.env;
+if (ENVIRONMENT !in Object.keys(registry.chains)) throw new Error("ENVIRONMENT must be a valid network");
+export let chains: Chain[] = Object.values(registry.chains[ENVIRONMENT as Networks]);
 
-export const chains = _chains;
 
-// Build the endpoints mapping from loaded chains
-export const endpoints: Record<number, string[]> = (() => {
-  const result: Record<number, string[]> = {};
-  
-  for (const chain of _chains) {
-    const chainId = chain.network.chainId;
-    const alchemyName = chain.network.alchemyName;
-    const quicknodeName = chain.network.quicknodeName;
-    
-    // Handle special cases
-    if (chainId === 98866) {
-      // Plume uses Conduit
-      result[chainId] = [`rpc.plume.org/${process.env.CONDUIT_API_KEY}`];
-    } else if (alchemyName && quicknodeName) {
-      // Use registry-provided RPC names
-      const endpoints: string[] = [];
-      
-      // Add Alchemy endpoint
-      endpoints.push(`${alchemyName}.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`);
-      
-      // Add QuickNode endpoint with special handling for different chains
-      if (chainId === 43114) {
-        // Avalanche needs special path suffix
-        endpoints.push(`${process.env.QUICKNODE_API_NAME}.${quicknodeName}/${process.env.QUICKNODE_API_KEY}/ext/bc/C/rpc/`);
-      } else if (chainId === 1) {
-        // Ethereum mainnet - quicknodeName is just "quiknode.pro"
-        endpoints.push(`${process.env.QUICKNODE_API_NAME}.ethereum.${quicknodeName}/${process.env.QUICKNODE_API_KEY}`);
-      } else {
-        // Other chains have full domain in quicknodeName
-        endpoints.push(`${process.env.QUICKNODE_API_NAME}.${quicknodeName}/${process.env.QUICKNODE_API_KEY}`);
-      }
-      
-      result[chainId] = endpoints;
-    } else {
-      throw new Error(`Chain ${chainId} missing alchemyName or quicknodeName in registry`);
-    }
-  }
-  
-  return result;
-})();
+export const endpoints = {
+  84532: [
+    `base-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `${process.env.QUICKNODE_API_NAME}.base-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+  ],
+  421614: [
+    `arb-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `${process.env.QUICKNODE_API_NAME}.arbitrum-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+  ],
+  11155111: [
+    `eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `${process.env.QUICKNODE_API_NAME}.ethereum-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+  ],
+  42161: [
+    `arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `${process.env.QUICKNODE_API_NAME}.arbitrum-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+  ],
+  43114: [
+    `avax-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `${process.env.QUICKNODE_API_NAME}.avalanche-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/ext/bc/C/rpc/`,
+  ],
+  8453: [
+    `base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `${process.env.QUICKNODE_API_NAME}.base-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+  ],
+  1: [
+    `eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `${process.env.QUICKNODE_API_NAME}.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+  ],
+  98866: [`rpc.plume.org/${process.env.CONDUIT_API_KEY}`],
+  56: [
+    `bnb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `${process.env.QUICKNODE_API_NAME}.bsc.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+  ],
+} as const;
 
-// Default start blocks - these should be overridden via PONDER_RPC_STARTING_BLOCK_{chainId} env vars
-export const startBlocks: Record<number, number> = {
+export const startBlocks = {
   84532: 28165059,
   421614: 172002761,
   11155111: 8729941,
@@ -64,10 +55,9 @@ export const startBlocks: Record<number, number> = {
   1: 22924235,
   98866: 564725,
   56: 54800894,
-};
+} as const;
 
-// Skip blocks (polling interval in blocks)
-export const skipBlocks: Record<number, number> = {
+export const skipBlocks = {
   84532: 1800,
   421614: 14230,
   11155111: 300,
@@ -77,10 +67,9 @@ export const skipBlocks: Record<number, number> = {
   1: 300,
   98866: 9000,
   56: 4800,
-};
+} as const;
 
-// Network names by chain ID
-export const networks: Record<number, string> = {
+export const networks = {
   84532: "base",
   421614: "arbitrum",
   11155111: "ethereum",
@@ -90,4 +79,4 @@ export const networks: Record<number, string> = {
   1: "ethereum",
   98866: "plume",
   56: "binance",
-};
+} as const;
