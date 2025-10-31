@@ -7,12 +7,17 @@
 
 import { writeFileSync } from "fs";
 import { join } from "path";
+import dotenv from "dotenv";
 import fetch from "node-fetch";
 import { AbiItem } from "viem";
 
-const REGISTRY_URL =
-  process.env.REGISTRY_URL || "https://registry.centrifuge.io/";
-const REGISTRY_HASH = process.env.REGISTRY_HASH;
+dotenv.config({ path: [".env.local", ".env"] });
+
+const {
+  REGISTRY_URL = "https://registry.centrifuge.io/",
+  REGISTRY_HASH = "QmXBSZwnFdPMZjpn8K5sFpGQxuvpdabCLAeivWoJbLThfM",
+} = process.env;
+
 const OUTPUT_FILE = join(process.cwd(), "src", "registry.generated.ts");
 
 interface Registry {

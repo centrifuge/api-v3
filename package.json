@@ -17,6 +17,7 @@
   "dependencies": {
     "@ponder/utils": "^0.2.14",
     "bn.js": "^5.2.2",
+    "dotenv": "^17.2.3",
     "drizzle-orm": "~0.41.0",
     "hono": "^4.9.12",
     "node-fetch": "^3.3.2",

@@ -30,6 +30,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 FROM base
 ENV NODE_ENV=production DATABASE_SCHEMA=app
 COPY --from=prod-deps --chown=node:node /app/node_modules /app/node_modules
+RUN pnpm update-registry
 EXPOSE 8000
 USER node
 CMD ["start", "--port", "8000"]
