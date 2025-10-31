@@ -575,10 +575,20 @@ type DecodedRequestMessageTypes = {
   };
 };
 
+/**
+ * Get the request message type name from a numeric request type
+ * @param requestType - The numeric request type from the message
+ * @returns The corresponding request message type key
+ */
 function getRequestMessageType(requestType: number): RequestMessageTypeKey {
   return (Object.keys(RequestMessageType)[requestType] ?? "Invalid") as RequestMessageTypeKey;
 }
 
+/**
+ * Decode a request message payload buffer
+ * @param payloadBuffer - The buffer containing the request message payload
+ * @returns An object with the decoded request type and data, or null if decoding fails
+ */
 function decodeRequestPayload(
   payloadBuffer: Buffer<ArrayBuffer>
 ): { type: RequestMessageTypeKey; data: DecodedRequestMessageTypes[RequestMessageTypeKey] } | null {
@@ -649,10 +659,20 @@ type DecodedRequestCallbackMessageTypes = {
   };
 };
 
+/**
+ * Get the request callback message type name from a numeric callback type
+ * @param callbackType - The numeric callback type from the message
+ * @returns The corresponding request callback message type key
+ */
 function getRequestCallbackMessageType(callbackType: number): RequestCallbackMessageTypeKey {
   return (Object.keys(RequestCallbackMessageType)[callbackType] ?? "Invalid") as RequestCallbackMessageTypeKey;
 }
 
+/**
+ * Decode a request callback message payload buffer
+ * @param payloadBuffer - The buffer containing the request callback message payload
+ * @returns An object with the decoded callback type and data, or null if decoding fails
+ */
 function decodeRequestCallbackPayload(
   payloadBuffer: Buffer<ArrayBuffer>
 ): { type: RequestCallbackMessageTypeKey; data: DecodedRequestCallbackMessageTypes[RequestCallbackMessageTypeKey] } | null {
@@ -706,10 +726,20 @@ type DecodedUpdateRestrictionMessageTypes = {
   };
 };
 
+/**
+ * Get the update restriction message type name from a numeric restriction type
+ * @param restrictionType - The numeric restriction type from the message
+ * @returns The corresponding update restriction message type key
+ */
 function getUpdateRestrictionMessageType(restrictionType: number): UpdateRestrictionMessageTypeKey {
   return (Object.keys(UpdateRestrictionMessageType)[restrictionType] ?? "Invalid") as UpdateRestrictionMessageTypeKey;
 }
 
+/**
+ * Decode an update restriction message payload buffer
+ * @param payloadBuffer - The buffer containing the update restriction message payload
+ * @returns An object with the decoded restriction type and data, or null if decoding fails
+ */
 function decodeUpdateRestrictionPayload(
   payloadBuffer: Buffer<ArrayBuffer>
 ): { type: UpdateRestrictionMessageTypeKey; data: DecodedUpdateRestrictionMessageTypes[UpdateRestrictionMessageTypeKey] } | null {

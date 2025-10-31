@@ -6,33 +6,13 @@ import {
   ChainConfig,
   ContractConfig,
 } from "ponder";
+
 import { getAbiItem } from "viem";
+import { HubRegistryAbi, ShareClassManagerAbi, SpokeAbi, AsyncVaultAbi, SyncDepositVaultAbi, MessageDispatcherAbi, HoldingsAbi, BalanceSheetAbi, PoolEscrowFactoryAbi, PoolEscrowAbi, OnOfframpManagerFactoryAbi, OnOfframpManagerAbi, MerkleProofManagerFactoryAbi, MerkleProofManagerAbi, GatewayAbi, MultiAdapterAbi, ERC20Abi, HubAbi } from "./src/abis";
+import { chains as _chains, endpoints, skipBlocks, startBlocks, networks } from "./src/chains";
 
-import { HubRegistryAbi } from "./abis/HubRegistryAbi";
-import { SpokeAbi } from "./abis/SpokeAbi";
-import { ShareClassManagerAbi } from "./abis/ShareClassManagerAbi";
-import { MessageDispatcherAbi } from "./abis/MessageDispatcherAbi";
-import { HoldingsAbi } from "./abis/HoldingsAbi";
-import { BalanceSheetAbi } from "./abis/BalanceSheetAbi";
-import { AsyncVaultAbi } from "./abis/AsyncVaultAbi";
-import { SyncDepositVaultAbi } from "./abis/SyncDepositVaultAbi";
-
-import { chains as _chains, endpoints, skipBlocks, startBlocks, networks } from "./chains";
-import { PoolEscrowFactoryAbi } from "./abis/PoolEscrowFactoryAbi";
-import { PoolEscrowAbi } from "./abis/PoolEscrowAbi";
-import { OnOffRampManagerFactoryAbi } from "./abis/OnOffRampManagerFactoryAbi";
-import { OnOffRampManagerAbi } from "./abis/OnOffRampManagerAbi";
-import { MerkleProofManagerFactoryAbi } from "./abis/MerkleProofManagerFactoryAbi";
-import { MerkleProofManagerAbi } from "./abis/MerkleProofManagerAbi";
-import { GatewayAbi } from "./abis/GatewayAbi";
-import { MultiAdapterAbi } from "./abis/MultiAdapterAbi";
-import { Erc20Abi } from "./abis/Erc20Abi";
-import { HubAbi } from "./abis/HubAbi";
-
-export const selectedNetworks = process.env.SELECTED_NETWORKS!.split(",");
-export const currentChains = _chains.filter((chain) =>
-  selectedNetworks.includes(chain.network.chainId.toString())
-);
+// All chains from the registry (filtered by ENVIRONMENT in registry.ts)
+export const currentChains = _chains;
 export const currentContractNames = Array.from(new Set(currentChains.flatMap((chain) => Object.keys(chain.contracts)))) as (keyof (typeof currentChains)[number]["contracts"])[];
 type Networks = typeof networks[keyof typeof networks];
 type Endpoints = typeof endpoints[keyof typeof endpoints];
@@ -46,6 +26,11 @@ const chains = currentChains.reduce<Record<Networks, ChainConfig>>(
     const hasEnvRpcEndpoints = envRpcEndpoints!! && envRpcEndpoints.length > 0;
     const envWsEndpoint = process.env[`PONDER_WS_URL_${chainId}`];
     const hasEnvWsEndpoint = envWsEndpoint!!;
+    
+    if (!chainEndpoints) {
+      throw new Error(`No RPC endpoints configured for chain ${chainId}`);
+    }
+    
     acc[networkName as Networks] = {
       id: chainId,
       rpc: hasEnvRpcEndpoints
@@ -62,6 +47,11 @@ const blocks = currentChains.reduce<Record<string, BlockConfig>>(
   (acc, network) => {
     const chainId = network.network.chainId;
     const networkName = networks[chainId];
+    
+    if (!networkName) {
+      throw new Error(`No network name configured for chain ${chainId}`);
+    }
+    
     const startingBlockOverride = process.env[`PONDER_RPC_STARTING_BLOCK_${chainId}`];
     acc[networkName] = {
       chain: networkName,
@@ -126,14 +116,14 @@ const config = {
       chain: getContractChain("poolEscrowFactory"),
     },
     OnOffRampManagerFactory: {
-      abi: OnOffRampManagerFactoryAbi,
+      abi: OnOfframpManagerFactoryAbi,
       chain: getContractChain("onOfframpManagerFactory"),
     },
     OnOffRampManager: {
-      abi: OnOffRampManagerAbi,
+      abi: OnOfframpManagerAbi,
       chain: getContractChain("onOfframpManagerFactory", {
         event: getAbiItem({
-          abi: OnOffRampManagerFactoryAbi,
+          abi: OnOfframpManagerFactoryAbi,
           name: "DeployOnOfframpManager",
         }),
         parameter: "manager",
@@ -162,7 +152,7 @@ const config = {
       chain: getContractChain("multiAdapter"),
     },
     TokenInstance: {
-      abi: Erc20Abi,
+      abi: ERC20Abi,
       chain: getContractChain("spoke", {
         event: getAbiItem({
           abi: SpokeAbi,
@@ -196,14 +186,25 @@ function getContractChain(
   return currentChains.reduce<MultichainContractChain>((acc, network) => {
     const chainId = network.network.chainId
     const networkName = networks[chainId]
+    
+    if (!networkName) {
+      throw new Error(`No network name configured for chain ${chainId}`);
+    }
+    
+    const contractAddress = network.contracts[contractName];
+    // Skip chains that don't have this contract instead of throwing an error
+    if (!contractAddress) {
+      return acc;
+    }
+    
     const startingBlockOverride = process.env[`PONDER_RPC_STARTING_BLOCK_${chainId}`];
     acc[networkName] = {
       address: factoryConfig
         ? factory({
             ...factoryConfig,
-            address: network.contracts[contractName],
+            address: contractAddress as `0x${string}`,
           })
-        : network.contracts[contractName],
+        : (contractAddress as `0x${string}`),
       startBlock: startingBlockOverride
         ? parseInt(startingBlockOverride)
         : startBlocks[chainId],

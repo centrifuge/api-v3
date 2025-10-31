@@ -1,7 +1,7 @@
 import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
 import { BlockchainService, MerkleProofManagerService, PolicyService } from "../services";
-import { MerkleProofManagerAbi } from "../../abis/MerkleProofManagerAbi";
+import { MerkleProofManagerAbi } from "../abis";
 
 ponder.on("MerkleProofManagerFactory:DeployMerkleProofManager", async ({ event, context }) => {
   logEvent(event, context, "MerkleProofManagerFactory:DeployMerkleProofManager");

@@ -11,6 +11,7 @@
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc",
     "schema": "tsx graphqlToPonderSchema.ts",
+    "update-registry": "tsx scripts/fetch-registry.ts",
     "prepare": "husky"
   },
   "dependencies": {
