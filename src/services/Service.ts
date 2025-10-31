@@ -1,5 +1,5 @@
 import type { Context, Event } from "ponder:registry";
-import { db as dbReadOnly } from "ponder:api";
+import schema from "ponder:schema";
 import {
   eq,
   and,
@@ -15,9 +15,11 @@ import {
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
 import { expandInlineObject, serviceLog } from "../helpers/logger";
 import { toCamelCase } from "drizzle-orm/casing";
+import { ReadonlyDrizzle } from "ponder";
 
 /** Type alias for PostgreSQL table with columns */
 type OnchainTable = PgTableWithColumns<any>;
+type ReadOnlyContext = { db: ReadonlyDrizzle<typeof schema> };
 
 type DefaultColumns = {
   updatedAt?: Date;
@@ -38,7 +40,7 @@ export class Service<T extends OnchainTable> {
   /** Human-readable name for the service entity */
   protected readonly name: string;
   /** Database context for SQL operations */
-  protected readonly db: Context["db"]["sql"] | typeof dbReadOnly;
+  protected readonly db: Context['db']['sql'] | ReadOnlyContext['db'];
   /** Client context for additional operations */
   protected readonly client: Context["client"] | null;
   /** Current data instance of the table row */
@@ -55,11 +57,11 @@ export class Service<T extends OnchainTable> {
   constructor(
     table: T,
     name: string,
-    context: Context | null,
+    context: Context | ReadOnlyContext,
     data: T["$inferInsert"] & DefaultColumns
   ) {
-    this.db = context ? context.db.sql : dbReadOnly;
-    this.client = context ? context.client : null;
+    this.db = ('sql' in context.db) ? context.db.sql : context.db;
+    this.client = 'client' in context ? context.client : null;
     this.table = table;
     this.name = name;
     this.data = data;
@@ -172,10 +174,10 @@ export function mixinCommonStatics<
      * @throws {Error} When no record matches the query criteria
      */
     static async get(
-      context: Context | null,
+      context: Context | ReadOnlyContext,
       query: Partial<NonNullable<T["$inferInsert"]>>
     ) {
-      const db = context ? context.db.sql : dbReadOnly;
+      const db = ('sql' in context.db) ? context.db.sql : context.db;
       serviceLog("get", name, expandInlineObject(query));
       const [entity] = await db
         .select()
@@ -259,10 +261,10 @@ export function mixinCommonStatics<
      * @returns Promise that resolves to an array of service instances
      */
     static async query(
-      context: Context | null,
+      context: Context | ReadOnlyContext,
       query: Partial<ExtendedQuery<T["$inferSelect"]>>
     ) {
-      const db = context ? context.db.sql : dbReadOnly;
+      const db = ('sql' in context.db) ? context.db.sql : context.db;
       serviceLog(`Querying ${name}`, expandInlineObject(query));
       const filter = queryToFilter(table, query);
       let q = db
@@ -292,10 +294,10 @@ export function mixinCommonStatics<
      * @returns Promise that resolves to the count of matching records
      */
     static async count(
-      context: Context | null,
+      context: Context | ReadOnlyContext,
       query: Partial<ExtendedQuery<T["$inferSelect"]>>
     ) {
-      const db = context ? context.db.sql : dbReadOnly;
+      const db = ('sql' in context.db) ? context.db.sql : context.db;
       const filter = queryToFilter(table, query);
       let q = db
         .select({ count: count() })
