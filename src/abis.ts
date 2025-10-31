@@ -1,43 +1,41 @@
+import registry from "./registry.generated";
+type Registry = typeof registry;
+type Abis = Registry["abis"];
+type AbiName = keyof Abis;
+type AbiItem<T extends AbiName> = Abis[T];
+type AbiExport<T extends AbiName> = { [K in T as `${K}Abi`]: AbiItem<K> };
+
+const { abis } = registry;
+
 /**
- * Dynamic ABI exports from compile-time generated registry
- * 
- * This module replaces the static ABI files in the abis/ folder
- * All ABIs are now loaded from the registry data that was fetched at build time.
- * 
- * Note: We export with "Abi" suffix for backwards compatibility,
- * but the registry stores them without the suffix.
+ * Loads the ABIs from the registry and returns them as an object with the ABI name as the key.
+ * @param abis - The ABIs to load from the registry.
+ * @returns An object with the ABI name as the key and the ABI as the value.
  */
-
-import { getAllAbis } from "./registry";
-
-// Load ABIs synchronously from the generated registry file
-const _abis = getAllAbis();
-
-// Helper to validate and return ABI
-function validateAbi(name: string): any[] {
-  const abi = _abis[name];
-  if (!abi) {
-    throw new Error(`ABI not found in registry: ${name}`);
-  }
-  return abi;
+function loadAbisFromRegistry(abis: Abis): AbiExport<AbiName> {
+  const abiNames = Object.keys(abis) as AbiName[];
+  const abiEntries = abiNames.map((name) => [`${name}Abi`, abis[name]]);
+  return Object.fromEntries(abiEntries);
 }
 
-// Export all ABIs with Abi suffix (registry names + "Abi")
-export const HubRegistryAbi = validateAbi("HubRegistry");
-export const SpokeAbi = validateAbi("Spoke");
-export const ShareClassManagerAbi = validateAbi("ShareClassManager");
-export const MessageDispatcherAbi = validateAbi("MessageDispatcher");
-export const HoldingsAbi = validateAbi("Holdings");
-export const BalanceSheetAbi = validateAbi("BalanceSheet");
-export const AsyncVaultAbi = validateAbi("AsyncVault");
-export const SyncDepositVaultAbi = validateAbi("SyncDepositVault");
-export const PoolEscrowFactoryAbi = validateAbi("PoolEscrowFactory");
-export const PoolEscrowAbi = validateAbi("PoolEscrow");
-export const OnOfframpManagerFactoryAbi = validateAbi("OnOfframpManagerFactory");
-export const OnOfframpManagerAbi = validateAbi("OnOfframpManager");
-export const MerkleProofManagerFactoryAbi = validateAbi("MerkleProofManagerFactory");
-export const MerkleProofManagerAbi = validateAbi("MerkleProofManager");
-export const GatewayAbi = validateAbi("Gateway");
-export const MultiAdapterAbi = validateAbi("MultiAdapter");
-export const ERC20Abi = validateAbi("ERC20");
-export const HubAbi = validateAbi("Hub");
+export const {
+  HubRegistryAbi,
+  ShareClassManagerAbi,
+  SpokeAbi,
+  AsyncVaultAbi,
+  SyncDepositVaultAbi,
+  MessageDispatcherAbi,
+  HoldingsAbi,
+  BalanceSheetAbi,
+  PoolEscrowFactoryAbi,
+  PoolEscrowAbi,
+  OnOfframpManagerFactoryAbi,
+  OnOfframpManagerAbi,
+  MerkleProofManagerFactoryAbi,
+  MerkleProofManagerAbi,
+  GatewayAbi,
+  MultiAdapterAbi,
+  ERC20Abi,
+  HubAbi,
+  // Add additional keys as needed from your registry
+} = loadAbisFromRegistry(abis);

@@ -6,29 +6,9 @@ import {
   ChainConfig,
   ContractConfig,
 } from "ponder";
+
 import { getAbiItem } from "viem";
-
-import {
-  HubRegistryAbi,
-  SpokeAbi,
-  ShareClassManagerAbi,
-  MessageDispatcherAbi,
-  HoldingsAbi,
-  BalanceSheetAbi,
-  AsyncVaultAbi,
-  SyncDepositVaultAbi,
-  PoolEscrowFactoryAbi,
-  PoolEscrowAbi,
-  OnOfframpManagerFactoryAbi,
-  OnOfframpManagerAbi,
-  MerkleProofManagerFactoryAbi,
-  MerkleProofManagerAbi,
-  GatewayAbi,
-  MultiAdapterAbi,
-  ERC20Abi,
-  HubAbi,
-} from "./src/abis";
-
+import { HubRegistryAbi, ShareClassManagerAbi, SpokeAbi, AsyncVaultAbi, SyncDepositVaultAbi, MessageDispatcherAbi, HoldingsAbi, BalanceSheetAbi, PoolEscrowFactoryAbi, PoolEscrowAbi, OnOfframpManagerFactoryAbi, OnOfframpManagerAbi, MerkleProofManagerFactoryAbi, MerkleProofManagerAbi, GatewayAbi, MultiAdapterAbi, ERC20Abi, HubAbi } from "./src/abis";
 import { chains as _chains, endpoints, skipBlocks, startBlocks, networks } from "./src/chains";
 
 // All chains from the registry (filtered by ENVIRONMENT in registry.ts)
