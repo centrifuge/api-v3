@@ -1,8 +1,9 @@
-import { db } from "ponder:api";
 import schema from "ponder:schema";
+import { db } from "ponder:api";
 import { Hono } from "hono";
 import { graphql } from "ponder";
 import { TokenInstanceService, TokenService } from "../services";
+import { BN } from "bn.js";
 
 const app = new Hono();
 const context = { db };
@@ -38,7 +39,16 @@ app.get("/tokens/:address/price", async (c) => {
   
   const { tokenPrice } = token.read();
   if (tokenPrice === null) return c.json({ error: "Token price not set" }, 404);
-  return c.json({ result: tokenPrice.toString() });
+
+  // Format price as decimal string (18 decimals)
+  const divisor = new BN(10).pow(new BN(18));
+  const priceBN = new BN(tokenPrice.toString());
+  const integerPart = priceBN.div(divisor).toString();
+  const remainder = priceBN.mod(divisor).toString().padStart(18, '0');
+  const formattedPrice = `${integerPart}.${remainder}`;
+  
+  return c.json({ result: formattedPrice });
+
 });
 
 export default app;
