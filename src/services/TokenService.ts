@@ -1,9 +1,6 @@
-import { Token, TokenInstance } from "ponder:schema";
+import { Token } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
-import { eq } from "ponder";
-import type { Context } from "ponder:registry";
-import type { ReadonlyDrizzle } from "ponder";
-import type schema from "ponder:schema";
+
 
 /**
  * Service class for managing Token entities.
@@ -101,35 +98,5 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
     this.data.totalIssuance -= tokenAmount;
     console.info(`Decreased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`);
     return this;
-  }
-
-  /**
-   * Gets a Token by TokenInstance address.
-   * First queries TokenInstance by address, then retrieves the associated Token.
-   *
-   * @param {Context["db"]} db - The database context
-   * @param {string} address - The TokenInstance address (hex string)
-   * @returns {Promise<typeof Token.$inferSelect | null>} The Token entity or null if not found
-   */
-  static async getTokenByInstanceAddress(db: ReadonlyDrizzle<typeof schema> | Context["db"], address: `0x${string}`) {
-    // Handle both ReadonlyDrizzle (API) and Db (indexing) contexts
-    const drizzle = "sql" in db ? db.sql : db;
-    
-    // First, get the TokenInstance by address
-    const tokenInstance = await drizzle
-      .select({ tokenId: TokenInstance.tokenId })
-      .from(TokenInstance)
-      .where(eq(TokenInstance.address, address));
-
-    if (tokenInstance.length === 0) return null;
-
-    // Then, get the Token using the tokenId
-    const token = await drizzle
-      .select()
-      .from(Token)
-      .where(eq(Token.id, tokenInstance[0]!.tokenId));
-
-    if (token.length === 0) return null;
-    return token[0]!;
   }
 }
