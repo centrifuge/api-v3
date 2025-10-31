@@ -1,4 +1,5 @@
 import type { Context, Event } from "ponder:registry";
+import schema from "ponder:schema";
 import {
   eq,
   and,
@@ -14,9 +15,11 @@ import {
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
 import { expandInlineObject, serviceLog } from "../helpers/logger";
 import { toCamelCase } from "drizzle-orm/casing";
+import { ReadonlyDrizzle } from "ponder";
 
 /** Type alias for PostgreSQL table with columns */
 type OnchainTable = PgTableWithColumns<any>;
+type ReadOnlyContext = { db: ReadonlyDrizzle<typeof schema> };
 
 type DefaultColumns = {
   updatedAt?: Date;
@@ -37,9 +40,9 @@ export class Service<T extends OnchainTable> {
   /** Human-readable name for the service entity */
   protected readonly name: string;
   /** Database context for SQL operations */
-  protected readonly db: Context["db"];
+  protected readonly db: Context['db']['sql'] | ReadOnlyContext['db'];
   /** Client context for additional operations */
-  protected readonly client: Context["client"];
+  protected readonly client: Context["client"] | null;
   /** Current data instance of the table row */
   protected data: T["$inferSelect"] & DefaultColumns;
 
@@ -54,11 +57,11 @@ export class Service<T extends OnchainTable> {
   constructor(
     table: T,
     name: string,
-    context: Context,
+    context: Context | ReadOnlyContext,
     data: T["$inferInsert"] & DefaultColumns
   ) {
-    this.db = context.db;
-    this.client = context.client;
+    this.db = ('sql' in context.db) ? context.db.sql : context.db;
+    this.client = 'client' in context ? context.client : null;
     this.table = table;
     this.name = name;
     this.data = data;
@@ -81,12 +84,13 @@ export class Service<T extends OnchainTable> {
    * @throws {Error} When the update operation fails
    */
   public async save(block: Event["block"] | null) {
+    if (!("insert" in this.db)) throw new Error(`Read only database`);
     updateDefaults(this.table, this.data, block);
     serviceLog(`Saving ${this.name}`, expandInlineObject(this.data));
     const pkFilter = primaryKeyFilter(this.table, this.data);
     const update =
       (
-        await this.db.sql
+        await this.db
           .update(this.table)
           .set(this.data)
           .where(pkFilter)
@@ -105,9 +109,10 @@ export class Service<T extends OnchainTable> {
    * @throws {Error} When there's no data to delete or deletion fails
    */
   public async delete() {
+    if (!("delete" in this.db)) throw new Error(`Read only database`);
     serviceLog(`Deleting ${this.name}`, expandInlineObject(this.data));
     if (!this.data) throw new Error(`No data to delete for ${this.table}`);
-    await this.db.sql
+    await this.db
       .delete(this.table)
       .where(primaryKeyFilter(this.table, this.data));
     return this;
@@ -150,15 +155,12 @@ export function mixinCommonStatics<
       block: Event["block"] | null
     ) {
       insertDefaults(table, data, block);
+      const [insert] = await context.db.sql
+        .insert(table as OnchainTable)
+        .values(data)
+        .onConflictDoNothing()
+        .returning();
       serviceLog(`Inserting ${name}`, expandInlineObject(data));
-      const insert =
-        (
-          await context.db.sql
-            .insert(table)
-            .values(data)
-            .onConflictDoNothing()
-            .returning()
-        ).pop() ?? null;
       if (!insert) return null;
       return new this(table, name, context, insert);
     }
@@ -172,15 +174,18 @@ export function mixinCommonStatics<
      * @throws {Error} When no record matches the query criteria
      */
     static async get(
-      context: Context,
+      context: Context | ReadOnlyContext,
       query: Partial<NonNullable<T["$inferInsert"]>>
     ) {
+      const db = ('sql' in context.db) ? context.db.sql : context.db;
       serviceLog("get", name, expandInlineObject(query));
-      const entity = await context.db.find(table as any, query);
+      const [entity] = await db
+        .select()
+        .from(table as OnchainTable)
+        .where(queryToFilter(table, query))
+        .limit(1);
+      if (!entity) return null;
       serviceLog(`Found ${name}: `, expandInlineObject(entity));
-      if (!entity) {
-        return null;
-      }
       return new this(table, name, context, entity);
     }
 
@@ -203,10 +208,12 @@ export function mixinCommonStatics<
       if (!entity) {
         insertDefaults(table, query, block);
         serviceLog(`Initialising ${name}: `, expandInlineObject(query));
-        entity =
-          (
-            await context.db.sql.insert(table).values(query).returning()
-          ).pop() ?? null;
+        const [insert] = await context.db.sql
+          .insert(table as OnchainTable)
+          .values(query)
+          .onConflictDoNothing()
+          .returning();
+        entity = insert ?? null;
         if (!entity)
           throw new Error(
             `Failed to initialise ${name}: ${expandInlineObject(query)}`
@@ -230,21 +237,14 @@ export function mixinCommonStatics<
     ) {
       insertDefaults(table, query, block);
       serviceLog("upsert", name, expandInlineObject(query));
-      const entity =
-        (
-          await context.db.sql
-            .insert(table)
-            .values(query)
-            .onConflictDoUpdate({
-              target: getPrimaryKeysFieldNames(table).map((key) => table[key]),
-              set: {
-                ...query,
-                createdAt: undefined,
-                createdAtBlock: undefined,
-              },
-            })
-            .returning()
-        ).pop() ?? null;
+      const [entity] = await context.db.sql
+        .insert(table as OnchainTable)
+        .values(query)
+        .onConflictDoUpdate({
+          target: getPrimaryKeysFieldNames(table).map((key) => table[key]),
+          set: { ...query, createdAt: undefined, createdAtBlock: undefined },
+        })
+        .returning();
 
       if (!entity) {
         console.error(`Failed to upsert ${name}: ${expandInlineObject(query)}`);
@@ -261,12 +261,13 @@ export function mixinCommonStatics<
      * @returns Promise that resolves to an array of service instances
      */
     static async query(
-      context: Context,
+      context: Context | ReadOnlyContext,
       query: Partial<ExtendedQuery<T["$inferSelect"]>>
     ) {
+      const db = ('sql' in context.db) ? context.db.sql : context.db;
       serviceLog(`Querying ${name}`, expandInlineObject(query));
       const filter = queryToFilter(table, query);
-      let q = context.db.sql
+      let q = db
         .select()
         .from(table as OnchainTable)
         .$dynamic();
@@ -293,16 +294,17 @@ export function mixinCommonStatics<
      * @returns Promise that resolves to the count of matching records
      */
     static async count(
-      context: Context,
+      context: Context | ReadOnlyContext,
       query: Partial<ExtendedQuery<T["$inferSelect"]>>
     ) {
+      const db = ('sql' in context.db) ? context.db.sql : context.db;
       const filter = queryToFilter(table, query);
-      let q = context.db.sql
+      let q = db
         .select({ count: count() })
         .from(table as OnchainTable)
         .$dynamic();
       if (filter) q = q.where(filter);
-      const result = (await q).pop();
+      const [result] = await q;
       return result?.count ?? 0;
     }
   };

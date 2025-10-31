@@ -1,17 +1,18 @@
 import { Token } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
 
+
 /**
  * Service class for managing Token entities.
  * Provides methods for activating/deactivating tokens, setting metadata,
  * managing token prices, and controlling total supply.
- * 
+ *
  * @extends {mixinCommonStatics<Service<typeof Token>, Token, "Token">}
  */
 export class TokenService extends mixinCommonStatics(Service<typeof Token>, Token, "Token") {
   /**
    * Activates the token by setting its isActive property to true.
-   * 
+   *
    * @returns {TokenService} The current TokenService instance for method chaining
    */
   public activate() {
@@ -22,10 +23,10 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
 
   /**
    * Deactivates the token by setting its isActive property to false.
-   * 
+   *
    * @returns {TokenService} The current TokenService instance for method chaining
    */
-  public deactivate() { 
+  public deactivate() {
     console.info(`Deactivating shareClass ${this.data.id}`);
     this.data.isActive = false;
     return this;
@@ -33,7 +34,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
 
   /**
    * Sets the index value for the token.
-   * 
+   *
    * @param {number} index - The index value to set for the token
    * @returns {TokenService} The current TokenService instance for method chaining
    */
@@ -45,7 +46,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
 
   /**
    * Sets the metadata for the token including name, symbol, and optional salt.
-   * 
+   *
    * @param {string} name - The name of the token
    * @param {string} symbol - The symbol/ticker of the token
    * @param {`0x${string}`} [salt] - Optional salt value as a hex string (0x-prefixed)
@@ -61,7 +62,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
 
   /**
    * Sets the token price in wei (as bigint).
-   * 
+   *
    * @param {bigint} price - The token price in wei
    * @returns {TokenService} The current TokenService instance for method chaining
    */
@@ -73,7 +74,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
 
   /**
    * Increases the totalIssuance of tokens by the specified amount.
-   * 
+   *
    * @param {bigint} tokenAmount - The amount of tokens to add to the totalIssuance
    * @returns {TokenService} The current TokenService instance for method chaining
    * @throws {Error} When totalIssuance is null (not initialized)
@@ -87,7 +88,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
 
   /**
    * Decreases the totalIssuance of tokens by the specified amount.
-   * 
+   *
    * @param {bigint} tokenAmount - The amount of tokens to subtract from the totalIssuance
    * @returns {TokenService} The current TokenService instance for method chaining
    * @throws {Error} When totalIssuance is null (not initialized)

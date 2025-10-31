@@ -23,6 +23,11 @@ EOF
 RUN chmod a+x /usr/bin/docker-entrypoint
 ENTRYPOINT ["/usr/bin/docker-entrypoint"]
 
+FROM base AS dev-deps
+USER node
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm update-registry
+
 FROM base AS prod-deps
 USER node
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --prod --ignore-scripts
@@ -30,7 +35,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 FROM base
 ENV NODE_ENV=production DATABASE_SCHEMA=app
 COPY --from=prod-deps --chown=node:node /app/node_modules /app/node_modules
-RUN pnpm update-registry
+COPY --from=dev-deps --chown=node:node /app/src/registry.generated.ts /app/src/registry.generated.ts
 EXPOSE 8000
 USER node
 CMD ["start", "--port", "8000"]
