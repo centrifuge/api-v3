@@ -11,8 +11,7 @@ import {
   InvestorTransactionService,
   AccountService,
 } from "../services";
-import { Erc20Abi } from "../../abis/Erc20Abi";
-import { PoolEscrowFactoryAbi } from "../../abis/PoolEscrowFactoryAbi";
+import { ERC20Abi, PoolEscrowFactoryAbi } from "../abis";
 import { currentChains } from "../../ponder.config";
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
@@ -94,7 +93,7 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const totalSupply = await context.client.readContract({
-    abi: Erc20Abi,
+    abi: ERC20Abi,
     address: tokenAddress,
     functionName: "totalSupply",
     args: [],
