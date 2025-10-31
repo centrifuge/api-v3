@@ -4,10 +4,17 @@ type Registry = typeof registry;
 type Networks = keyof Registry["chains"];
 type Chain = Registry["chains"][Networks][keyof Registry["chains"][Networks]];
 
-const { ENVIRONMENT = "mainnet" } = process.env;
+const { ENVIRONMENT = "mainnet", SELECTED_NETWORKS } = process.env;
 if (ENVIRONMENT !in Object.keys(registry.chains)) throw new Error("ENVIRONMENT must be a valid network");
-export let chains: Chain[] = Object.values(registry.chains[ENVIRONMENT as Networks]);
 
+let chains: Chain[] = Object.values(registry.chains[ENVIRONMENT as Networks]);
+if (SELECTED_NETWORKS) {
+  const selectedNetworks = SELECTED_NETWORKS.split(",");
+  const availableChains = chains.map(chain => chain.network.chainId.toString());
+  if (!selectedNetworks.every(network => availableChains.includes(network))) throw new Error("SELECTED_NETWORKS must be contain valid networks");
+  chains = chains.filter(chain => selectedNetworks.includes(chain.network.chainId.toString()));
+}
+export { chains };
 
 export const endpoints = {
   84532: [
