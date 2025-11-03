@@ -74,4 +74,27 @@ export class TokenInstanceService extends mixinCommonStatics(Service<typeof Toke
     this.data.computedAt = computedAt;
     return this;
   }
+
+  /**
+   * Sets the total issuance amount for the current token instance.
+   * 
+   * @param tokenAmount - The amount to set as the total issuance
+   * @returns The service instance for method chaining
+   */
+  public setTotalIssuance(tokenAmount: bigint) {
+    this.data.totalIssuance = tokenAmount;
+    serviceLog(`Set totalIssuance for token ${this.data.centrifugeId}-${this.data.tokenId} to ${this.data.totalIssuance}`);
+    return this;
+  }
+
+  /**
+   * Activates the token instance by setting its isActive property to true.
+   * 
+   * @returns The service instance for method chaining
+   */
+  public activate() {
+    serviceLog(`Activating token instance ${this.data.centrifugeId}-${this.data.tokenId}`);
+    this.data.isActive = true;
+    return this;
+  }
 }

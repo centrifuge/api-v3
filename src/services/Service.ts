@@ -182,7 +182,7 @@ export function mixinCommonStatics<
       const [entity] = await db
         .select()
         .from(table as OnchainTable)
-        .where(queryToFilter(table, query))
+        .where(queryToFilter(table, query as Partial<ExtendedQuery<T["$inferInsert"]>>))
         .limit(1);
       if (!entity) return null;
       serviceLog(`Found ${name}: `, expandInlineObject(entity));

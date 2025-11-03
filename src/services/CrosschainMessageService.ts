@@ -271,7 +271,7 @@ const CrosschainMessageType = {
 } as const;
 
 type BufferDecoderEntry<T = unknown> = [
-  decoder: (_m: Buffer<ArrayBuffer>) => T,
+  decoder: (_m: Buffer) => T,
   length: number
 ];
 
@@ -590,7 +590,7 @@ function getRequestMessageType(requestType: number): RequestMessageTypeKey {
  * @returns An object with the decoded request type and data, or null if decoding fails
  */
 function decodeRequestPayload(
-  payloadBuffer: Buffer<ArrayBuffer>
+  payloadBuffer: Buffer
 ): { type: RequestMessageTypeKey; data: DecodedRequestMessageTypes[RequestMessageTypeKey] } | null {
   if (payloadBuffer.length < 3) return null; // Need at least 2 bytes for length + 1 for type
   
@@ -674,7 +674,7 @@ function getRequestCallbackMessageType(callbackType: number): RequestCallbackMes
  * @returns An object with the decoded callback type and data, or null if decoding fails
  */
 function decodeRequestCallbackPayload(
-  payloadBuffer: Buffer<ArrayBuffer>
+  payloadBuffer: Buffer
 ): { type: RequestCallbackMessageTypeKey; data: DecodedRequestCallbackMessageTypes[RequestCallbackMessageTypeKey] } | null {
   if (payloadBuffer.length < 3) return null; // Need at least 2 bytes for length + 1 for type
   
@@ -741,7 +741,7 @@ function getUpdateRestrictionMessageType(restrictionType: number): UpdateRestric
  * @returns An object with the decoded restriction type and data, or null if decoding fails
  */
 function decodeUpdateRestrictionPayload(
-  payloadBuffer: Buffer<ArrayBuffer>
+  payloadBuffer: Buffer
 ): { type: UpdateRestrictionMessageTypeKey; data: DecodedUpdateRestrictionMessageTypes[UpdateRestrictionMessageTypeKey] } | null {
   if (payloadBuffer.length < 3) return null; // Need at least 2 bytes for length + 1 for type
   
@@ -771,7 +771,7 @@ function decodeUpdateRestrictionPayload(
  */
 export function decodeMessage<T extends keyof typeof messageDecoders>(
   messageType: T,
-  messageBuffer: Buffer<ArrayBuffer>
+  messageBuffer: Buffer
 ): DecodedMessageTypes[T] | null {
   const messageSpec = messageDecoders[messageType];
   if (!messageSpec) {
