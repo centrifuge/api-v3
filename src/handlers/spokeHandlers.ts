@@ -130,11 +130,9 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
     event.block
   )) as TokenService;
 
-  // Adjust token total issuance based on the change
-  if (prevInstanceIssuance > totalSupply) {
-    token.decreaseTotalIssuance(prevInstanceIssuance - totalSupply);
-  } else if (totalSupply > prevInstanceIssuance) {
-    token.increaseTotalIssuance(totalSupply - prevInstanceIssuance);
+  // Only increase token total issuance if this is a new token instance
+  if (prevInstanceIssuance === 0n) {
+    token.increaseTotalIssuance(totalSupply);
   }
 
   await token.save(event.block);
