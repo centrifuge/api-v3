@@ -101,18 +101,26 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
 
   console.log(`Initial totalIssuance for token ${tokenId} is ${totalSupply}`);
 
-  const _tokenInstance = (await TokenInstanceService.getOrInit(
+  // Get the existing token instance
+  const tokenInstance = (await TokenInstanceService.getOrInit(
     context,
     {
       address: tokenAddress,
       tokenId,
       centrifugeId,
-      isActive: true,
-      totalIssuance: totalSupply,
     },
     event.block
   )) as TokenInstanceService;
 
+  // Store previous issuance
+  const prevInstanceIssuance = tokenInstance.read().totalIssuance ?? 0n;
+
+  // Set token instance properties
+  tokenInstance.setTotalIssuance(totalSupply);
+  tokenInstance.activate();
+  await tokenInstance.save(event.block);
+
+  // Get or create token
   const token = (await TokenService.getOrInit(
     context,
     {
@@ -121,7 +129,14 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
     },
     event.block
   )) as TokenService;
-  token.increaseTotalIssuance(totalSupply);
+
+  // Adjust token total issuance based on the change
+  if (prevInstanceIssuance > totalSupply) {
+    token.decreaseTotalIssuance(prevInstanceIssuance - totalSupply);
+  } else if (totalSupply > prevInstanceIssuance) {
+    token.increaseTotalIssuance(totalSupply - prevInstanceIssuance);
+  }
+
   await token.save(event.block);
 });
 
