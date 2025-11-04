@@ -3,7 +3,7 @@ import { db } from "ponder:api";
 import { Hono } from "hono";
 import { graphql } from "ponder";
 import { TokenInstanceService, TokenService } from "../services";
-import { BN } from "bn.js";
+import { formatBigIntToDecimal } from "../helpers/formatter";
 
 const app = new Hono();
 const context = { db };
@@ -21,10 +21,13 @@ app.get("/tokens/:address/total-issuance", async (c) => {
   const token = await TokenService.get(context, { id: tokenId });
   if (!token) return c.json({ error: "Token not found" }, 404);
 
-  const { totalIssuance } = token.read();
+  const { totalIssuance, decimals } = token.read();
   if (totalIssuance === null)
     return c.json({ error: "Total issuance not set" }, 404);
-  return c.json({ result: totalIssuance.toString() });
+  if (decimals === null)
+    return c.json({ error: "Token decimals not set" }, 404);
+  c.header("Content-Type", "application/json; charset=utf-8");
+  return c.json({ result: formatBigIntToDecimal(totalIssuance, decimals) });
 });
 
 app.get("/tokens/:address/price", async (c) => {
@@ -39,16 +42,9 @@ app.get("/tokens/:address/price", async (c) => {
   
   const { tokenPrice } = token.read();
   if (tokenPrice === null) return c.json({ error: "Token price not set" }, 404);
-
-  // Format price as decimal string (18 decimals)
-  const divisor = new BN(10).pow(new BN(18));
-  const priceBN = new BN(tokenPrice.toString());
-  const integerPart = priceBN.div(divisor).toString();
-  const remainder = priceBN.mod(divisor).toString().padStart(18, '0');
-  const formattedPrice = `${integerPart}.${remainder}`;
   
-  return c.json({ result: formattedPrice });
-
+  c.header("Content-Type", "application/json; charset=utf-8");
+  return c.json({ result: formatBigIntToDecimal(tokenPrice) });
 });
 
 export default app;
