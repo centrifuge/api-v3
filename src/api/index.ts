@@ -15,7 +15,8 @@ app.get("/tokens/:address/total-issuance", async (c) => {
   const address = c.req.param("address") as `0x${string}`;
 
   const tokenInstance = await TokenInstanceService.get(context, { address });
-  if (!tokenInstance) return c.json({ error: "TokenInstance address not found" }, 404);
+  if (!tokenInstance)
+    return c.json({ error: "TokenInstance address not found" }, 404);
   const { tokenId } = tokenInstance.read();
 
   const token = await TokenService.get(context, { id: tokenId });
@@ -26,8 +27,7 @@ app.get("/tokens/:address/total-issuance", async (c) => {
     return c.json({ error: "Total issuance not set" }, 404);
   if (decimals === null)
     return c.json({ error: "Token decimals not set" }, 404);
-  c.header("Content-Type", "application/json; charset=utf-8");
-  return c.json({ result: formatBigIntToDecimal(totalIssuance, decimals) });
+  return c.json({ result: formatBigIntToDecimal(totalIssuance, decimals) }, 200);
 });
 
 app.get("/tokens/:address/price", async (c) => {
@@ -39,12 +39,11 @@ app.get("/tokens/:address/price", async (c) => {
 
   const token = await TokenService.get(context, { id: tokenId });
   if (!token) return c.json({ error: "Token not found" }, 404);
-  
+
   const { tokenPrice } = token.read();
   if (tokenPrice === null) return c.json({ error: "Token price not set" }, 404);
-  
-  c.header("Content-Type", "application/json; charset=utf-8");
-  return c.json({ result: formatBigIntToDecimal(tokenPrice) });
+
+  return c.json({ result: formatBigIntToDecimal(tokenPrice) }, 200);
 });
 
 export default app;
