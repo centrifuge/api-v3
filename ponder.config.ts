@@ -17,6 +17,7 @@ export const currentContractNames = Array.from(new Set(currentChains.flatMap((ch
 type Networks = typeof networks[keyof typeof networks];
 type Endpoints = typeof endpoints[keyof typeof endpoints];
 
+
 const chains = currentChains.reduce<Record<Networks, ChainConfig>>(
   (acc, network) => {
     const chainId = network.network.chainId
