@@ -92,6 +92,9 @@ app.get("/transactions/:txHash", async (c) => {
     });
   }
   
+  // Set explorer link to centrifugescan.io
+  const explorerLink = `https://centrifugescan.io/tx/${payload.prepareTxHash}`;
+  
   // Map CrosschainPayload status to transaction status
   let status: string;
   let substatus: string;
@@ -125,7 +128,7 @@ app.get("/transactions/:txHash", async (c) => {
       substatus,
       sourceTx: payload.prepareTxHash,
       destinationTx: payload.deliveryTxHash || null,
-      explorerLink: null // Could be constructed from fromCentrifugeId and blockchain explorer URLs
+      explorerLink
     }
   });
 });
