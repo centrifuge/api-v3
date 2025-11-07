@@ -1,7 +1,7 @@
 import schema from "ponder:schema";
 import { db } from "ponder:api";
 import { Hono } from "hono";
-import { graphql } from "ponder";
+import { graphql, client } from "ponder";
 import { TokenInstanceService, TokenService } from "../services";
 import { formatBigIntToDecimal } from "../helpers/formatter";
 
@@ -9,6 +9,7 @@ const app = new Hono();
 const context = { db };
 
 app.use("/", graphql({ db, schema }));
+app.use("/sql/*", client({ db, schema })); 
 app.use("/graphql", graphql({ db, schema }));
 
 const jsonDefaultHeaders = {
