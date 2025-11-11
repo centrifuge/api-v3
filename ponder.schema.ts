@@ -273,6 +273,7 @@ const InvestorTransactionColumns = (t: PgColumnsBuilders) => ({
   toAccount: t.hex(),
   fromCentrifugeId: t.text(),
   toCentrifugeId: t.text(),
+  currencyAssetId: t.bigint(),
   ...defaultColumns(t, false),
 });
 export const InvestorTransaction = onchainTable(
@@ -299,6 +300,10 @@ export const InvestorTransactionRelations = relations(
     token: one(Token, {
       fields: [InvestorTransaction.tokenId],
       references: [Token.id],
+    }),
+    currencyAsset: one(Asset, {
+      fields: [InvestorTransaction.currencyAssetId],
+      references: [Asset.id],
     }),
   })
 );

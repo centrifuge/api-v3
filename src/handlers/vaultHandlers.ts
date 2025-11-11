@@ -36,6 +36,7 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   if (!vault) throw new Error("Vault not found");
 
   const { poolId, tokenId, assetAddress } = vault.read();
+
   const token = await TokenService.get(context, {
     poolId: poolId,
     id: tokenId,
@@ -61,6 +62,13 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
     event.block
   )) as TokenInstancePositionService;
 
+  const asset = (await AssetService.get(context, {
+    address: assetAddress,
+    centrifugeId,
+  })) as AssetService;
+  if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
+  const { id: assetId } = asset.read();
+
   const _it = await InvestorTransactionService.updateDepositRequest(
     context,
     {
@@ -70,16 +78,10 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
       currencyAmount: assets,
       txHash: event.transaction.hash,
       centrifugeId,
+      currencyAssetId: assetId,
     },
     event.block
   );
-  const assetQuery = (await AssetService.query(context, {
-    address: assetAddress,
-    centrifugeId,
-  })) as AssetService[];
-  const asset = assetQuery.pop();
-  if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
-  const { id: assetId } = asset.read();
 
   const OutstandingInvest = (await OutstandingInvestService.getOrInit(
     context,
@@ -127,6 +129,13 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
   )) as AccountService;
   const { address: investorAddress } = invstorAccount.read();
 
+  const asset = (await AssetService.get(context, {
+    address: assetAddress,
+    centrifugeId,
+  })) as AssetService;
+  if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
+  const { id: assetId } = asset.read();
+
   const _it = await InvestorTransactionService.updateRedeemRequest(
     context,
     {
@@ -136,17 +145,10 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
       tokenAmount: shares,
       txHash: event.transaction.hash,
       centrifugeId,
+      currencyAssetId: assetId,
     },
     event.block
   );
-
-  const assetQuery = (await AssetService.query(context, {
-    address: assetAddress,
-    centrifugeId,
-  })) as AssetService[];
-  const asset = assetQuery.pop();
-  if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
-  const { id: assetId } = asset.read();
 
   const OutstandingRedeem = (await OutstandingRedeemService.getOrInit(
     context,
@@ -178,13 +180,12 @@ ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
 
   if (kind !== "Async") return;
 
-  const assetQuery = (await AssetService.query(context, {
+  const asset = (await AssetService.get(context, {
     address: assetAddress,
     centrifugeId,
-  })) as AssetService[];
-  const asset = assetQuery.pop();
+  })) as AssetService;
   if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
-  const { decimals } = asset.read();
+  const { decimals, id: assetId } = asset.read();
   if (typeof decimals !== "number") throw new Error("Decimals is required");
 
   const token = await TokenService.get(context, { poolId, id: tokenId });
@@ -210,6 +211,7 @@ ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
       tokenPrice: getSharePrice(shares, assets, decimals),
       txHash: event.transaction.hash,
       centrifugeId,
+      currencyAssetId: assetId,
     },
     event.block
   );
@@ -229,13 +231,12 @@ ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
 
   if (kind === "Sync") return;
 
-  const assetQuery = (await AssetService.query(context, {
+  const asset = (await AssetService.get(context, {
     address: assetAddress,
     centrifugeId,
-  })) as AssetService[];
-  const asset = assetQuery.pop();
+  })) as AssetService;
   if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
-  const { decimals } = asset.read();
+  const { decimals, id: assetId } = asset.read();
   if (typeof decimals !== "number") throw new Error("Decimals is required");
 
   const token = await TokenService.get(context, { poolId, id: tokenId });
@@ -261,6 +262,7 @@ ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
       tokenPrice: getSharePrice(shares, assets, decimals),
       txHash: event.transaction.hash,
       centrifugeId,
+      currencyAssetId: assetId,
     },
     event.block
   );
@@ -269,8 +271,6 @@ ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
 ponder.on("Vault:Deposit", async ({ event, context }) => {
   logEvent(event, context, "Vault:Deposit");
   const {
-    //controller: investorAddress,
-    //sender: investorAddress,
     owner,
     assets,
     shares,
@@ -287,11 +287,10 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
   const token = await TokenService.get(context, { poolId, id: tokenId });
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
 
-  const assetQuery = (await AssetService.query(context, {
+  const asset = (await AssetService.get(context, {
     address: assetAddress,
     centrifugeId,
-  })) as AssetService[];
-  const asset = assetQuery.pop();
+  })) as AssetService;
   if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
   const { decimals, id: assetId } = asset.read();
   if (typeof decimals !== "number") throw new Error("Decimals is required");
@@ -315,6 +314,7 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
     tokenPrice: getSharePrice(shares, assets, decimals),
     txHash: event.transaction.hash,
     centrifugeId,
+    currencyAssetId: assetId,
   };
 
   switch (kind) {
@@ -393,7 +393,6 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
 ponder.on("Vault:Withdraw", async ({ event, context }) => {
   logEvent(event, context, "Vault:Withdraw");
   const {
-    //controller: investorAddress,
     owner,
     assets,
     shares,
@@ -407,11 +406,10 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
   if (!vault) throw new Error("Vault not found");
   const { poolId, tokenId, kind, assetAddress } = vault.read();
 
-  const assetQuery = (await AssetService.query(context, {
+  const asset = (await AssetService.get(context, {
     address: assetAddress,
     centrifugeId,
-  })) as AssetService[];
-  const asset = assetQuery.pop();
+  })) as AssetService;
   if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
   const { decimals, id: assetId } = asset.read();
   if (typeof decimals !== "number") throw new Error("Decimals is required");
@@ -437,6 +435,7 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
     tokenPrice: getSharePrice(shares, assets, decimals),
     txHash: event.transaction.hash,
     centrifugeId,
+    currencyAssetId: assetId,
   };
 
   switch (kind) {
