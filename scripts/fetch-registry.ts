@@ -128,3 +128,37 @@ main()
     console.error("Error fetching registry:", error);
     process.exit(1);
   });
+
+interface _DetailedRegistry {
+  network: string, // mainnet, testnet, ...
+  version: {
+    releaseTag: string | null; // git tag only if released
+    branch: string | null; // git branch only if not released
+    commit: string; // git commit sha1
+  };
+  chains: {
+    [chainId: string]: {
+      network: {
+        /* SAME AS CURRENT */
+      };
+      adapters: {
+        [adapterName: string]: {
+          deploy: boolean;
+          deployAt: string; // timestamp in ISO format
+          deployAtBlock: number; // block number of deployment
+          [key: string]: unknown,
+        };
+      };
+      contracts: {
+        /* SAME AS CURRENT */
+      };
+      deployment: {
+        deployedAt: string; // timestamp in ISO format
+        deployedAtBlock: number; // block number of deployment
+      };
+    };
+  };
+  abis: {
+    [abiName: string]: AbiItem[];
+  };
+}
