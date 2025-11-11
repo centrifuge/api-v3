@@ -483,7 +483,7 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
   const redeemOrderSaves: Promise<RedeemOrderService>[] = [];
   for (const outstandingRedeem of outstandingRedeems) {
     serviceLog(`Processing ShareClassManager:RevokeShares for outstanding redeem with index ${epochIndex}`, expandInlineObject(outstandingRedeem.read()));
-    const { approvedIndex, account, approvedAt, approvedAtBlock } = outstandingRedeem.read();
+    const { approvedIndex, account, approvedAt, approvedAtBlock, approvedAmount } = outstandingRedeem.read();
     const redeemOrder = (await RedeemOrderService.getOrInit(
       context,
       {
@@ -494,6 +494,7 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
         account,
         approvedAt,
         approvedAtBlock,
+        approvedSharesAmount: approvedAmount,
       },
       event.block
     )) as RedeemOrderService;
