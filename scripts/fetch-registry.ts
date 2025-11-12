@@ -15,7 +15,7 @@ dotenv.config({ path: [".env.local", ".env"] });
 
 const {
   REGISTRY_URL = "https://registry.centrifuge.io/",
-  REGISTRY_HASH = "QmXBSZwnFdPMZjpn8K5sFpGQxuvpdabCLAeivWoJbLThfM",
+  REGISTRY_HASH = "QmRSFDjCevk41FB8Dw3DTZFhLo2AFBv8k3AmbBaf7JZq9w",
 } = process.env;
 
 const OUTPUT_FILE = join(process.cwd(), "src", "registry.generated.ts");
