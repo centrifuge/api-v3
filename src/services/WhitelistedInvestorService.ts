@@ -14,7 +14,7 @@ export class WhitelistedInvestorService extends mixinCommonStatics(Service<typeo
   /**
    * Freezes the investor whitelist record.
    * 
-   * @returns {InvestorWhitelistService} The current service instance for method chaining
+   * @returns {WhitelistedInvestorService} The current service instance for method chaining
    */
   public freeze() {
     this.data.isFrozen = true;
@@ -24,7 +24,7 @@ export class WhitelistedInvestorService extends mixinCommonStatics(Service<typeo
   /**
    * Unfreezes the investor whitelist record.
    * 
-   * @returns {InvestorWhitelistService} The current service instance for method chaining
+   * @returns {WhitelistedInvestorService} The current service instance for method chaining
    */
   public unfreeze() {
     this.data.isFrozen = false;
@@ -35,7 +35,7 @@ export class WhitelistedInvestorService extends mixinCommonStatics(Service<typeo
    * Sets the valid until date for the investor whitelist record.
    * 
    * @param validUntil - The date until which the investor whitelist record is valid
-   * @returns {InvestorWhitelistService} The current service instance for method chaining
+   * @returns {WhitelistedInvestorService} The current service instance for method chaining
    */
   public setValidUntil(validUntil: Date | null) {
     this.data.validUntil = validUntil;
