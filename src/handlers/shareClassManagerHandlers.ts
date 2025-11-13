@@ -264,7 +264,10 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
   })) as OutstandingInvestService[];
 
   for (const oo of oos) {
-    serviceLog(`Processing ShareClassManager:ApproveDeposits for outstanding invest with index ${epochIndex}`, expandInlineObject(oo.read()));
+    serviceLog(
+      `Processing ShareClassManager:ApproveDeposits for outstanding invest with index ${epochIndex}`,
+      expandInlineObject(oo.read())
+    );
     const { pendingAmount } = oo.read();
     const approvedUserAssetAmount = computeApprovedUserAmount(
       pendingAmount!,
@@ -276,8 +279,17 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
   }
   await Promise.all(saves);
 
-  const holdingEscrows = await HoldingEscrowService.query(context, { tokenId, assetAmount_not: 0n }) as HoldingEscrowService[];
-  await snapshotter(context, event, "ShareClassManager:ApproveDeposits", holdingEscrows, HoldingEscrowSnapshot);
+  const holdingEscrows = (await HoldingEscrowService.query(context, {
+    tokenId,
+    assetAmount_not: 0n,
+  })) as HoldingEscrowService[];
+  await snapshotter(
+    context,
+    event,
+    "ShareClassManager:ApproveDeposits",
+    holdingEscrows,
+    HoldingEscrowSnapshot
+  );
 });
 
 ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
@@ -332,7 +344,10 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
     approvedAtBlock: null,
   })) as OutstandingRedeemService[];
   for (const oo of oos) {
-    serviceLog(`Processing ShareClassManager:ApproveRedeems for outstanding redeem with index ${epochIndex}`, expandInlineObject(oo.read()));
+    serviceLog(
+      `Processing ShareClassManager:ApproveRedeems for outstanding redeem with index ${epochIndex}`,
+      expandInlineObject(oo.read())
+    );
     const { pendingAmount } = oo.read();
     const approvedUserShareAmount = computeApprovedUserAmount(
       pendingAmount!,
@@ -344,8 +359,17 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
   }
   await Promise.all(saves);
 
-  const holdingEscrows = await HoldingEscrowService.query(context, { tokenId, assetAmount_not: 0n }) as HoldingEscrowService[];
-  await snapshotter(context, event, "ShareClassManager:ApproveRedeems", holdingEscrows, HoldingEscrowSnapshot);
+  const holdingEscrows = (await HoldingEscrowService.query(context, {
+    tokenId,
+    assetAmount_not: 0n,
+  })) as HoldingEscrowService[];
+  await snapshotter(
+    context,
+    event,
+    "ShareClassManager:ApproveRedeems",
+    holdingEscrows,
+    HoldingEscrowSnapshot
+  );
 });
 
 ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
@@ -390,7 +414,10 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
   const outstandingInvestSaves: Promise<OutstandingInvestService>[] = [];
   const investOrderSaves: Promise<InvestOrderService>[] = [];
   for (const outstandingInvest of outstandingInvests) {
-    serviceLog(`Processing ShareClassManager:IssueShares for outstanding invest with index ${epochIndex}`, expandInlineObject(outstandingInvest.read()));
+    serviceLog(
+      `Processing ShareClassManager:IssueShares for outstanding invest with index ${epochIndex}`,
+      expandInlineObject(outstandingInvest.read())
+    );
     const {
       poolId,
       tokenId,
@@ -482,8 +509,17 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
   const outstandingRedeemSaves: Promise<OutstandingRedeemService>[] = [];
   const redeemOrderSaves: Promise<RedeemOrderService>[] = [];
   for (const outstandingRedeem of outstandingRedeems) {
-    serviceLog(`Processing ShareClassManager:RevokeShares for outstanding redeem with index ${epochIndex}`, expandInlineObject(outstandingRedeem.read()));
-    const { approvedIndex, account, approvedAt, approvedAtBlock, approvedAmount } = outstandingRedeem.read();
+    serviceLog(
+      `Processing ShareClassManager:RevokeShares for outstanding redeem with index ${epochIndex}`,
+      expandInlineObject(outstandingRedeem.read())
+    );
+    const {
+      approvedIndex,
+      account,
+      approvedAt,
+      approvedAtBlock,
+      approvedAmount,
+    } = outstandingRedeem.read();
     const redeemOrder = (await RedeemOrderService.getOrInit(
       context,
       {
