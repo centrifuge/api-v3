@@ -185,11 +185,13 @@ ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
     centrifugeId,
   })) as AssetService;
   if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
-  const { decimals, id: assetId } = asset.read();
-  if (typeof decimals !== "number") throw new Error("Decimals is required");
+  const { decimals: assetDecimals, id: assetId } = asset.read();
+  if (typeof assetDecimals !== "number") throw new Error("Asset decimals is required");
 
   const token = await TokenService.get(context, { poolId, id: tokenId });
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
+  const { decimals: shareDecimals } = token.read();
+  if (typeof shareDecimals !== "number") throw new Error("Share decimals is required");
 
   const invstorAccount = (await AccountService.getOrInit(
     context,
@@ -208,7 +210,7 @@ ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
       account: investorAddress,
       tokenAmount: shares,
       currencyAmount: assets,
-      tokenPrice: getSharePrice(shares, assets, decimals),
+      tokenPrice: getSharePrice(assets, shares, assetDecimals, shareDecimals),
       txHash: event.transaction.hash,
       centrifugeId,
       currencyAssetId: assetId,
@@ -236,11 +238,13 @@ ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
     centrifugeId,
   })) as AssetService;
   if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
-  const { decimals, id: assetId } = asset.read();
-  if (typeof decimals !== "number") throw new Error("Decimals is required");
+  const { decimals: assetDecimals, id: assetId } = asset.read();
+  if (typeof assetDecimals !== "number") throw new Error("Asset decimals is required");
 
   const token = await TokenService.get(context, { poolId, id: tokenId });
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
+  const { decimals: shareDecimals } = token.read();
+  if (typeof shareDecimals !== "number") throw new Error("Share decimals is required");
 
   const invstorAccount = (await AccountService.getOrInit(
     context,
@@ -259,7 +263,7 @@ ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
       account: investorAddress,
       tokenAmount: shares,
       currencyAmount: assets,
-      tokenPrice: getSharePrice(shares, assets, decimals),
+      tokenPrice: getSharePrice(assets, shares, assetDecimals, shareDecimals),
       txHash: event.transaction.hash,
       centrifugeId,
       currencyAssetId: assetId,
@@ -270,11 +274,7 @@ ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
 
 ponder.on("Vault:Deposit", async ({ event, context }) => {
   logEvent(event, context, "Vault:Deposit");
-  const {
-    owner,
-    assets,
-    shares,
-  } = event.args;
+  const { owner, assets, shares } = event.args;
   const vaultId = event.log.address;
   if (!vaultId) throw new Error(`Vault id not found in event`);
 
@@ -286,14 +286,15 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
 
   const token = await TokenService.get(context, { poolId, id: tokenId });
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
-
+  const { decimals: shareDecimals } = token.read();
+  if (typeof shareDecimals !== "number") throw new Error("Share decimals is required");
   const asset = (await AssetService.get(context, {
     address: assetAddress,
     centrifugeId,
   })) as AssetService;
   if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
-  const { decimals, id: assetId } = asset.read();
-  if (typeof decimals !== "number") throw new Error("Decimals is required");
+  const { decimals: assetDecimals, id: assetId } = asset.read();
+  if (typeof assetDecimals !== "number") throw new Error("Asset decimals is required");
 
   const invstorAccount = (await AccountService.getOrInit(
     context,
@@ -311,7 +312,7 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
     account: investorAddress,
     tokenAmount: shares,
     currencyAmount: assets,
-    tokenPrice: getSharePrice(shares, assets, decimals),
+    tokenPrice: getSharePrice(assets, shares, assetDecimals, shareDecimals),
     txHash: event.transaction.hash,
     centrifugeId,
     currencyAssetId: assetId,
@@ -354,19 +355,20 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
           issuedAt: blockTimestamp,
           issuedAtBlock: blockNumber,
           issuedSharesAmount: shares,
-          issuedWithNavAssetPerShare: getSharePrice(shares, assets, decimals),
+          issuedWithNavAssetPerShare: getSharePrice(assets, shares, assetDecimals, shareDecimals),
           claimedAt: blockTimestamp,
           claimedAtBlock: blockNumber,
         },
         event.block
       );
 
-      const epochInvestIndex = (await EpochInvestOrderService.count(context, {
-        poolId,
-        tokenId,
-        assetId,
-        index_lte: 0,
-      })) * -1;
+      const epochInvestIndex =
+        (await EpochInvestOrderService.count(context, {
+          poolId,
+          tokenId,
+          assetId,
+          index_lte: 0,
+        })) * -1;
       const _epochInvestOrder = (await EpochInvestOrderService.insert(
         context,
         {
@@ -378,11 +380,11 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
           approvedAtBlock: blockNumber,
           approvedAssetsAmount: assets,
           approvedPoolAmount: assets,
-          approvedPercentageOfTotalPending: 100n * 10n ** BigInt(decimals),
+          approvedPercentageOfTotalPending: 100n * 10n ** BigInt(assetDecimals),
           issuedAt: blockTimestamp,
           issuedAtBlock: blockNumber,
           issuedSharesAmount: shares,
-          issuedWithNavAssetPerShare: getSharePrice(shares, assets, decimals),
+          issuedWithNavAssetPerShare: getSharePrice(assets, shares, assetDecimals, shareDecimals),
         },
         event.block
       )) as EpochInvestOrderService;
@@ -392,11 +394,7 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
 
 ponder.on("Vault:Withdraw", async ({ event, context }) => {
   logEvent(event, context, "Vault:Withdraw");
-  const {
-    owner,
-    assets,
-    shares,
-  } = event.args;
+  const { owner, assets, shares } = event.args;
   const vaultId = event.log.address;
   if (!vaultId) throw new Error(`Vault id not found in event`);
 
@@ -411,12 +409,13 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
     centrifugeId,
   })) as AssetService;
   if (!asset) throw new Error(`Asset not found for address ${assetAddress}`);
-  const { decimals, id: assetId } = asset.read();
-  if (typeof decimals !== "number") throw new Error("Decimals is required");
+  const { decimals: assetDecimals, id: assetId } = asset.read();
+  if (typeof assetDecimals !== "number") throw new Error("Asset decimals is required");
 
   const token = await TokenService.get(context, { poolId, id: tokenId });
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
-
+  const { decimals: shareDecimals } = token.read();
+  if (typeof shareDecimals !== "number") throw new Error("Share decimals is required");
   const invstorAccount = (await AccountService.getOrInit(
     context,
     {
@@ -432,7 +431,7 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
     account: investorAddress,
     tokenAmount: shares,
     currencyAmount: assets,
-    tokenPrice: getSharePrice(shares, assets, decimals),
+    tokenPrice: getSharePrice(assets, shares, assetDecimals, shareDecimals),
     txHash: event.transaction.hash,
     centrifugeId,
     currencyAssetId: assetId,
@@ -465,19 +464,20 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
           revokedAtBlock: blockNumber,
           revokedAssetsAmount: assets,
           revokedPoolAmount: assets,
-          revokedWithNavAssetPerShare: getSharePrice(shares, assets, decimals),
+          revokedWithNavAssetPerShare: getSharePrice(assets, shares, assetDecimals, shareDecimals),
           claimedAt: blockTimestamp,
           claimedAtBlock: blockNumber,
         },
         event.block
       );
 
-      const epochRedeemIndex = (await EpochRedeemOrderService.count(context, {
-        poolId,
-        tokenId,
-        assetId,
-        index_lte: 0,
-      })) * -1;
+      const epochRedeemIndex =
+        (await EpochRedeemOrderService.count(context, {
+          poolId,
+          tokenId,
+          assetId,
+          index_lte: 0,
+        })) * -1;
       (await EpochRedeemOrderService.insert(
         context,
         {
@@ -488,11 +488,11 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
           approvedAt: blockTimestamp,
           approvedAtBlock: blockNumber,
           approvedSharesAmount: shares,
-          approvedPercentageOfTotalPending: 100n * 10n ** BigInt(decimals),
+          approvedPercentageOfTotalPending: 100n * 10n ** BigInt(shareDecimals),
           revokedAt: blockTimestamp,
           revokedAtBlock: blockNumber,
           revokedAssetsAmount: assets,
-          revokedWithNavAssetPerShare: getSharePrice(shares, assets, decimals),
+          revokedWithNavAssetPerShare: getSharePrice(assets, shares, assetDecimals, shareDecimals),
         },
         event.block
       )) as EpochRedeemOrderService;
@@ -516,10 +516,14 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
  * @returns The price of the token in terms of currency
  */
 function getSharePrice(
-  sharesAmount: bigint,
   assetsAmount: bigint,
-  assetDecimals: number
+  sharesAmount: bigint,
+  assetDecimals: number,
+  shareDecimals: number
 ) {
-  if (assetsAmount === 0n) return null;
-  return (sharesAmount * 10n ** BigInt(assetDecimals)) / assetsAmount;
+  if (sharesAmount === 0n) return null;
+  return (
+    (assetsAmount * 10n ** BigInt(18 - assetDecimals + shareDecimals)) /
+    sharesAmount
+  );
 }
