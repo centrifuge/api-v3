@@ -43,9 +43,9 @@ export class RedeemOrderService extends mixinCommonStatics(
     this.data.revokedAt = new Date(Number(block.timestamp) * 1000);
     this.data.revokedAtBlock = Number(block.number);
     this.data.revokedAssetsAmount =
-      (this.data.approvedSharesAmount! * navAssetPerShare) / 10n ** BigInt(shareDecimals);
+      (this.data.approvedSharesAmount! * navAssetPerShare) / 10n ** 18n;
     this.data.revokedPoolAmount =
-      (this.data.approvedSharesAmount! * navPoolPerShare) / 10n ** BigInt(shareDecimals);
+      (this.data.approvedSharesAmount! * navPoolPerShare) / 10n ** 18n;
     this.data.revokedWithNavAssetPerShare = navAssetPerShare;
     this.data.revokedWithNavPoolPerShare = navPoolPerShare;
     return this;

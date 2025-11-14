@@ -39,7 +39,7 @@ export class InvestOrderService extends mixinCommonStatics(
     this.data.issuedSharesAmount =
       this.data.approvedAssetsAmount! *
       navAssetPerShare /
-      10n ** BigInt(assetDecimals);
+      10n ** 18n;
     this.data.issuedWithNavAssetPerShare = navAssetPerShare;
     this.data.issuedWithNavPoolPerShare = navPoolPerShare;
     return this;
