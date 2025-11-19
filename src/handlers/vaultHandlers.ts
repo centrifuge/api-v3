@@ -9,11 +9,13 @@ import {
   InvestOrderService,
   RedeemOrderService,
   TokenInstancePositionService,
+  TokenInstanceService,
   TokenService,
 } from "../services";
 import { InvestorTransactionService, VaultService } from "../services";
 import { OutstandingInvestService } from "../services";
 import { OutstandingRedeemService } from "../services";
+import { initialisePosition } from "../services/TokenInstancePositionService";
 
 ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   logEvent(event, context, "Vault:DepositRequest");
@@ -35,7 +37,7 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   })) as VaultService;
   if (!vault) throw new Error("Vault not found");
 
-  const { poolId, tokenId, assetAddress } = vault.read();
+  const { poolId, tokenId, assetAddress} = vault.read();
 
   const token = await TokenService.get(context, {
     poolId: poolId,
@@ -52,6 +54,13 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   )) as AccountService;
   const { address: investorAddress } = invstorAccount.read();
 
+  const tokenInstance = (await TokenInstanceService.get(context, {
+    tokenId,
+    centrifugeId,
+  })) as TokenInstanceService;
+  if (!tokenInstance) throw new Error(`TokenInstance not found for vault ${vaultId}`);
+  const { address: tokenAddress } = tokenInstance.read();
+
   const _tokenInstancePosition = (await TokenInstancePositionService.getOrInit(
     context,
     {
@@ -59,7 +68,8 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
       centrifugeId,
       accountAddress: investorAddress,
     },
-    event.block
+    event.block,
+    async (tokenInstancePosition) => await initialisePosition(context, tokenAddress, tokenInstancePosition)
   )) as TokenInstancePositionService;
 
   const asset = (await AssetService.get(context, {

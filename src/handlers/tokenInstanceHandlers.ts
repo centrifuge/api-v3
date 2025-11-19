@@ -8,15 +8,17 @@ import {
   TokenService,
   InvestorTransactionService,
 } from "../services";
+import { initialisePosition } from "../services/TokenInstancePositionService";
 
 ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
   logEvent(event, context, "TokenInstance:Transfer");
   const { from, to, value: amount } = event.args;
+  const { address: tokenAddress } = event.log;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const tokenInstanceQuery = (await TokenInstanceService.query(context, {
-    address: event.log.address,
+    address: tokenAddress,
     centrifugeId,
   })) as TokenInstanceService[];
   const tokenInstance = tokenInstanceQuery.pop();
@@ -57,9 +59,11 @@ ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
         centrifugeId,
         accountAddress: from,
       },
-      event.block
+      event.block,
+      async (tokenInstancePosition) => await initialisePosition(context, tokenAddress, tokenInstancePosition)
     )) as TokenInstancePositionService;
-    fromPosition.subBalance(amount);
+    const { createdAtBlock } = fromPosition.read();
+    if(createdAtBlock < event.block.number) fromPosition.subBalance(amount);
     await fromPosition.save(event.block);
   }
 
@@ -71,9 +75,11 @@ ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
         centrifugeId,
         accountAddress: to,
       },
-      event.block
+      event.block,
+      async (tokenInstancePosition) => await initialisePosition(context, tokenAddress, tokenInstancePosition)
     )) as TokenInstancePositionService;
-    toPosition.addBalance(amount);
+    const { createdAtBlock } = toPosition.read();
+    if(createdAtBlock < event.block.number) toPosition.addBalance(amount);
     await toPosition.save(event.block);
   }
 
@@ -100,7 +106,7 @@ ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
   }
 
   // Handle transfers
-  if (fromAccount && toAccount) {
+  if (!!fromAccount && !!toAccount) {
     const token = await TokenService.get(context, { id: tokenId });
     if (!token) {
       console.error("Token not found for ", tokenId);
