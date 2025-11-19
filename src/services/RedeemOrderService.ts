@@ -33,19 +33,20 @@ export class RedeemOrderService extends mixinCommonStatics(
   public revokeShares(
     navAssetPerShare: bigint,
     navPoolPerShare: bigint,
-    tokenDecimals: number,
+    shareDecimals: number,
     assetDecimals: number,
     block: Event["block"]
   ) {
     serviceLog(
-      `Revoking shares for ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare} shareDecimals: ${tokenDecimals} on block ${block.number} and timestamp ${block.timestamp}`
+      `Revoking shares for ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare} shareDecimals: ${shareDecimals} on block ${block.number} and timestamp ${block.timestamp}`
     );
-    const poolDecimals = tokenDecimals;
+    const poolDecimals = shareDecimals;
     if (this.data.revokedAt) throw new Error("Shares already revoked");
+    if (this.data.approvedSharesAmount === null) throw new Error("No shares approved");
     this.data.revokedAt = new Date(Number(block.timestamp) * 1000);
     this.data.revokedAtBlock = Number(block.number);
-    this.data.revokedAssetsAmount = (this.data.approvedSharesAmount! * navAssetPerShare) / 10n ** BigInt(18 + tokenDecimals - assetDecimals);
-    this.data.revokedPoolAmount = (this.data.approvedSharesAmount! * navPoolPerShare) / 10n ** BigInt(18 + tokenDecimals - poolDecimals);
+    this.data.revokedAssetsAmount = (this.data.approvedSharesAmount * navAssetPerShare) / 10n ** BigInt(18 + shareDecimals - assetDecimals);
+    this.data.revokedPoolAmount = (this.data.approvedSharesAmount * navPoolPerShare) / 10n ** BigInt(18 + shareDecimals - poolDecimals);
     this.data.revokedWithNavAssetPerShare = navAssetPerShare;
     this.data.revokedWithNavPoolPerShare = navPoolPerShare;
     return this;

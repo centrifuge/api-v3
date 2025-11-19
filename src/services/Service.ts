@@ -40,7 +40,7 @@ export class Service<T extends OnchainTable> {
   /** Human-readable name for the service entity */
   protected readonly name: string;
   /** Database context for SQL operations */
-  protected readonly db: Context['db']['sql'] | ReadOnlyContext['db'];
+  protected readonly db: Context["db"]["sql"] | ReadOnlyContext["db"];
   /** Client context for additional operations */
   protected readonly client: Context["client"] | null;
   /** Current data instance of the table row */
@@ -60,8 +60,8 @@ export class Service<T extends OnchainTable> {
     context: Context | ReadOnlyContext,
     data: T["$inferInsert"] & DefaultColumns
   ) {
-    this.db = ('sql' in context.db) ? context.db.sql : context.db;
-    this.client = 'client' in context ? context.client : null;
+    this.db = "sql" in context.db ? context.db.sql : context.db;
+    this.client = "client" in context ? context.client : null;
     this.table = table;
     this.name = name;
     this.data = data;
@@ -177,12 +177,17 @@ export function mixinCommonStatics<
       context: Context | ReadOnlyContext,
       query: Partial<NonNullable<T["$inferInsert"]>>
     ) {
-      const db = ('sql' in context.db) ? context.db.sql : context.db;
+      const db = "sql" in context.db ? context.db.sql : context.db;
       serviceLog("get", name, expandInlineObject(query));
       const [entity] = await db
         .select()
         .from(table as OnchainTable)
-        .where(queryToFilter(table, query as Partial<ExtendedQuery<T["$inferInsert"]>>))
+        .where(
+          queryToFilter(
+            table,
+            query as Partial<ExtendedQuery<T["$inferInsert"]>>
+          )
+        )
         .limit(1);
       if (!entity) return null;
       serviceLog(`Found ${name}: `, expandInlineObject(entity));
@@ -200,13 +205,18 @@ export function mixinCommonStatics<
     static async getOrInit(
       context: Context,
       query: T["$inferInsert"] & DefaultColumns,
-      block: Event["block"] | null
+      block: Event["block"] | null,
+      onInit?: (entity: T["$inferSelect"] & DefaultColumns) => Promise<void>
     ) {
       serviceLog("getOrInit", name, expandInlineObject(query));
       let entity = await context.db.find(table as any, query);
       serviceLog(`Found ${name}: `, expandInlineObject(entity));
       if (!entity) {
         insertDefaults(table, query, block);
+        if (onInit) {
+          serviceLog(`Executing onInit for ${name}`);
+          await onInit(query);
+        }
         serviceLog(`Initialising ${name}: `, expandInlineObject(query));
         const [insert] = await context.db.sql
           .insert(table as OnchainTable)
@@ -264,7 +274,7 @@ export function mixinCommonStatics<
       context: Context | ReadOnlyContext,
       query: Partial<ExtendedQuery<T["$inferSelect"]>>
     ) {
-      const db = ('sql' in context.db) ? context.db.sql : context.db;
+      const db = "sql" in context.db ? context.db.sql : context.db;
       serviceLog(`Querying ${name}`, expandInlineObject(query));
       const filter = queryToFilter(table, query);
       let q = db
@@ -297,7 +307,7 @@ export function mixinCommonStatics<
       context: Context | ReadOnlyContext,
       query: Partial<ExtendedQuery<T["$inferSelect"]>>
     ) {
-      const db = ('sql' in context.db) ? context.db.sql : context.db;
+      const db = "sql" in context.db ? context.db.sql : context.db;
       const filter = queryToFilter(table, query);
       let q = db
         .select({ count: count() })
