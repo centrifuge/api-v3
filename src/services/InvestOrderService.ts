@@ -27,19 +27,17 @@ export class InvestOrderService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public issueShares(
-    navAssetPerShare: bigint,
-    navPoolPerShare: bigint,
+    navAssetPerShare: bigint, // 18 decimals
+    navPoolPerShare: bigint, // 18 decimals
     assetDecimals: number,
+    shareDecimals: number,
     block: Event["block"]
   ) {
     serviceLog(`Issuing shares for investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare}`);
     if (this.data.issuedAt) throw new Error("Shares already issued");
     this.data.issuedAt = new Date(Number(block.timestamp) * 1000);
     this.data.issuedAtBlock = Number(block.number);
-    this.data.issuedSharesAmount =
-      this.data.approvedAssetsAmount! *
-      navAssetPerShare /
-      10n ** 18n;
+    this.data.issuedSharesAmount = this.data.approvedAssetsAmount! * navAssetPerShare / 10n ** BigInt(18 + assetDecimals - shareDecimals);
     this.data.issuedWithNavAssetPerShare = navAssetPerShare;
     this.data.issuedWithNavPoolPerShare = navPoolPerShare;
     return this;
