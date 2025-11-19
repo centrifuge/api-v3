@@ -1,18 +1,23 @@
-import registry from "./registry.generated";
+import registry from "../generated";
 
-type Registry = typeof registry;
-type Networks = keyof Registry["chains"];
-type Chain = Registry["chains"][Networks][keyof Registry["chains"][Networks]];
+type RegistryVersions = keyof typeof registry;
+type Registry = (typeof registry)[RegistryVersions];
+//type Networks = keyof Registry['chains'];
+type Chain = Registry["chains"][keyof Registry["chains"]];
 
-const { ENVIRONMENT = "mainnet", SELECTED_NETWORKS } = process.env;
-if (ENVIRONMENT !in Object.keys(registry.chains)) throw new Error("ENVIRONMENT must be a valid network");
+const { _ENVIRONMENT = "mainnet", SELECTED_NETWORKS } = process.env;
 
-let chains: Chain[] = Object.values(registry.chains[ENVIRONMENT as Networks]);
+let chains: Chain[] = Object.values(registry.v3.chains);
 if (SELECTED_NETWORKS) {
   const selectedNetworks = SELECTED_NETWORKS.split(",");
-  const availableChains = chains.map(chain => chain.network.chainId.toString());
-  if (!selectedNetworks.every(network => availableChains.includes(network))) throw new Error("SELECTED_NETWORKS must be contain valid networks");
-  chains = chains.filter(chain => selectedNetworks.includes(chain.network.chainId.toString()));
+  const availableChains = chains.map((chain) =>
+    chain.network.chainId.toString()
+  );
+  if (!selectedNetworks.every((network) => availableChains.includes(network)))
+    throw new Error("SELECTED_NETWORKS must be contain valid networks");
+  chains = chains.filter((chain) =>
+    selectedNetworks.includes(chain.network.chainId.toString())
+  );
 }
 export { chains };
 
@@ -52,17 +57,17 @@ export const endpoints = {
   ],
 } as const;
 
-export const startBlocks = {
-  84532: 28165059,
-  421614: 172002761,
-  11155111: 8729941,
-  42161: 357982308,
-  43114: 65492900,
-  8453: 32901251,
-  1: 22924235,
-  98866: 564725,
-  56: 54800894,
-} as const;
+// export const startBlocks = {
+//   84532: 28165059,
+//   421614: 172002761,
+//   11155111: 8729941,
+//   42161: 357982308,
+//   43114: 65492900,
+//   8453: 32901251,
+//   1: 22924235,
+//   98866: 564725,
+//   56: 54800894,
+// } as const;
 
 export const skipBlocks = {
   84532: 1800,

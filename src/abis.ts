@@ -1,11 +1,11 @@
-import registry from "./registry.generated";
+import registry from "../generated";
 type Registry = typeof registry;
-type Abis = Registry["abis"];
+type Abis = Registry["v3"]["abis"];
 type AbiName = keyof Abis;
 type AbiItem<T extends AbiName> = Abis[T];
 type AbiExport<T extends AbiName> = { [K in T as `${K}Abi`]: AbiItem<K> };
 
-const { abis } = registry;
+const { v3: { abis } } = registry;
 
 /**
  * Loads the ABIs from the registry and returns them as an object with the ABI name as the key.

@@ -12,8 +12,8 @@
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc",
     "schema": "tsx graphqlToPonderSchema.ts",
-    "update-registry": "tsx scripts/fetch-registry.ts",
-    "prepare": "husky"
+    "prepare": "husky",
+    "update-registry": "echo 'Skipping registry update' || tsx scripts/fetch-registry.ts"
   },
   "dependencies": {
     "@ponder/utils": "^0.2.16",
