@@ -31,7 +31,7 @@ ponder.on(
     const pool = (await PoolService.get(context, {
       id: poolId,
     })) as PoolService;
-    const { decimals } = pool.read();
+    const { decimals: poolDecimals } = pool.read();
 
     const _token = (await TokenService.upsert(
       context,
@@ -41,7 +41,7 @@ ponder.on(
         centrifugeId,
         isActive: true,
         index,
-        decimals,
+        decimals: poolDecimals,
       },
       event.block
     )) as TokenService;
@@ -58,7 +58,7 @@ ponder.on(
     const pool = (await PoolService.get(context, {
       id: poolId,
     })) as PoolService;
-    const { decimals } = pool.read();
+    const { decimals: poolDecimals } = pool.read();
 
     const _token = (await TokenService.upsert(
       context,
@@ -69,7 +69,7 @@ ponder.on(
         name,
         symbol,
         salt,
-        decimals,
+        decimals: poolDecimals,
         isActive: true,
         index,
       },
@@ -230,10 +230,12 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
   } = event.args;
 
   const assetDecimals = await AssetService.getDecimals(context, depositAssetId);
+  if (!assetDecimals)
+    throw new Error(`Asset decimals not found for id ${depositAssetId}`);
+
   const approvedPercentage = computeApprovedPercentage(
     approvedAssetAmount,
-    pendingAssetAmount,
-    assetDecimals
+    pendingAssetAmount
   );
 
   const _epochInvestOrder = (await EpochInvestOrderService.insert(
@@ -271,8 +273,7 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
     const { pendingAmount } = oo.read();
     const approvedUserAssetAmount = computeApprovedUserAmount(
       pendingAmount!,
-      approvedPercentage,
-      assetDecimals
+      approvedPercentage
     );
     oo.approveInvest(approvedUserAssetAmount, epochIndex, event.block);
     saves.push(oo.save(event.block));
@@ -311,11 +312,9 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
   const { currency } = pool.read();
   if (!currency) throw new Error("Currency is required");
 
-  const shareDecimals = await AssetService.getDecimals(context, currency);
   const approvedPercentage = computeApprovedPercentage(
     approvedShareAmount,
-    pendingShareAmount,
-    shareDecimals
+    pendingShareAmount
   );
 
   const _epochRedeemOrder = (await EpochRedeemOrderService.insert(
@@ -351,8 +350,7 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
     const { pendingAmount } = oo.read();
     const approvedUserShareAmount = computeApprovedUserAmount(
       pendingAmount!,
-      approvedPercentage,
-      shareDecimals
+      approvedPercentage
     );
     oo.approveRedeem(approvedUserShareAmount, epochIndex, event.block);
     saves.push(oo.save(event.block));
@@ -404,6 +402,13 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
   await epochInvestOrder.save(event.block);
 
   const assetDecimals = await AssetService.getDecimals(context, depositAssetId);
+  if (!assetDecimals)
+    throw new Error(`Asset decimals not found for id ${depositAssetId}`);
+
+  const tokenDecimals = await TokenService.getDecimals(context, tokenId);
+  if (!tokenDecimals)
+    throw new Error(`Token decimals not found for id ${tokenId}`);
+
   const outstandingInvests = (await OutstandingInvestService.query(context, {
     tokenId,
     assetId: depositAssetId,
@@ -446,6 +451,7 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
       navAssetPerShare,
       navPoolPerShare,
       assetDecimals,
+      tokenDecimals,
       event.block
     );
     investOrderSaves.push(investOrder.save(event.block));
@@ -474,8 +480,8 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
     id: poolId,
   })) as PoolService;
   if (!pool) throw new Error(`Pool not found for id ${poolId}`);
-  const { currency } = pool.read();
-  if (!currency) throw new Error("Currency is required");
+  const { currency: poolCurrency } = pool.read();
+  if (!poolCurrency) throw new Error("Pool currency is required");
 
   const epochRedeemOrder = (await EpochRedeemOrderService.get(context, {
     tokenId,
@@ -498,13 +504,20 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
   );
   await epochRedeemOrder.save(event.block);
 
-  const shareDecimals = await AssetService.getDecimals(context, currency);
   const outstandingRedeems = (await OutstandingRedeemService.query(context, {
     tokenId,
     assetId: payoutAssetId,
     approvedAmount_not: 0n,
     approvedIndex: epochIndex,
   })) as OutstandingRedeemService[];
+
+  const tokenDecimals = await TokenService.getDecimals(context, tokenId);
+  if (!tokenDecimals)
+    throw new Error(`Token decimals not found for id ${tokenId}`);
+
+  const assetDecimals = await AssetService.getDecimals(context, payoutAssetId);
+  if (!assetDecimals)
+    throw new Error(`Asset decimals not found for id ${payoutAssetId}`);
 
   const outstandingRedeemSaves: Promise<OutstandingRedeemService>[] = [];
   const redeemOrderSaves: Promise<RedeemOrderService>[] = [];
@@ -537,7 +550,8 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
     redeemOrder.revokeShares(
       navAssetPerShare,
       navPoolPerShare,
-      shareDecimals,
+      tokenDecimals,
+      assetDecimals,
       event.block
     );
     outstandingRedeemSaves.push(outstandingRedeem.clear(event.block));
@@ -655,30 +669,24 @@ ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
  * Compute the percentage of the approved amount that is approved.
  * @param approveAmount - The amount of the approved amount.
  * @param pendingAmount - The amount of the pending amount.
- * @param decimals - The decimals of the asset.
- * @returns The percentage of the approved amount that is approved.
+ * @returns The percentage of the approved amount that is approved with 18 decimals.
  */
 function computeApprovedPercentage(
   approveAmount: bigint,
-  pendingAmount: bigint,
-  decimals: number
+  pendingAmount: bigint
 ) {
-  return (
-    (approveAmount * 10n ** BigInt(decimals)) / (approveAmount + pendingAmount)
-  );
+  return (approveAmount * 10n ** 18n) / (approveAmount + pendingAmount);
 }
 
 /**
  * Compute the approved user amount.
  * @param totalApprovedAmount - The total approved amount.
  * @param approvedPercentage - The percentage of the approved amount that is approved.
- * @param decimals - The decimals of the asset.
  * @returns The approved user amount.
  */
 function computeApprovedUserAmount(
   totalApprovedAmount: bigint,
-  approvedPercentage: bigint,
-  decimals: number
+  approvedPercentage: bigint
 ) {
-  return (totalApprovedAmount * approvedPercentage) / 10n ** BigInt(decimals);
+  return (totalApprovedAmount * approvedPercentage) / 10n ** 18n;
 }

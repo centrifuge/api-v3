@@ -1,4 +1,5 @@
 import { Token } from "ponder:schema";
+import { Context } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 
 
@@ -10,6 +11,19 @@ import { Service, mixinCommonStatics } from "./Service";
  * @extends {mixinCommonStatics<Service<typeof Token>, Token, "Token">}
  */
 export class TokenService extends mixinCommonStatics(Service<typeof Token>, Token, "Token") {
+
+  /**
+   * Get the decimals of a token.
+   * @param context - The context.
+   * @param tokenId - The id of the token.
+   * @returns The decimals of the token.
+   */
+  static async getDecimals(context: Context, tokenId: string) {
+    const token = (await this.get(context, { id: tokenId })) as TokenService;
+    if (!token) return undefined;
+    const { decimals } = token.read();
+    return decimals;
+  }
   /**
    * Activates the token by setting its isActive property to true.
    *
