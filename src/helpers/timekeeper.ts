@@ -62,7 +62,7 @@ export class Timekeeper {
    */
   public async init(context: Context, block: Event["block"]): Promise<Timekeeper> {
     const chainId = context.chain.id;
-    console.log("Initializing timekeeper for chainId", chainId);
+    process.stdout.write(`Initializing timekeeper for chainId ${chainId}\n`);
     if (typeof chainId !== "number") throw new Error("Chain ID is required");
     const chain = currentChains.find(
       (network) => network.network.chainId === chainId

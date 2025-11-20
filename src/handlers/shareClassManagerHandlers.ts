@@ -388,7 +388,7 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
     index: epochIndex,
   })) as EpochInvestOrderService | null;
   if (!epochInvestOrder) {
-    console.log(
+    console.error(
       `EpochInvestOrder not found for token ${tokenId} asset ${depositAssetId} index ${epochIndex}`
     );
     return;
@@ -489,7 +489,7 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
     index: epochIndex,
   })) as EpochRedeemOrderService | null;
   if (!epochRedeemOrder) {
-    console.log(
+    console.error(
       `EpochRedeemOrder not found for token ${tokenId} asset ${payoutAssetId} index ${epochIndex}`
     );
     return;
@@ -619,7 +619,7 @@ ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
     index: epochIndex,
   })) as InvestOrderService;
   if (!investOrder) {
-    console.log(
+    console.error(
       `Invest order ${tokenId}-${assetId}-${investorAddress}-${epochIndex} not found`
     );
     return;
@@ -657,7 +657,7 @@ ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
     index: epochIndex,
   })) as RedeemOrderService;
   if (!redeemOrder) {
-    console.log(
+    console.error(
       `Redeem order ${tokenId}-${assetId}-${investorAddress}-${epochIndex} not found`
     );
     return;
