@@ -24,8 +24,8 @@ const chains = currentChains.reduce<Record<Networks, ChainConfig>>(
     const chainEndpoints = endpoints[chainId];
     const envRpcEndpoints = process.env[`PONDER_RPC_URL_${chainId}`]?.split(",");
     const hasEnvRpcEndpoints = envRpcEndpoints!! && envRpcEndpoints.length > 0;
-    const envWsEndpoint = process.env[`PONDER_WS_URL_${chainId}`];
-    const hasEnvWsEndpoint = envWsEndpoint!!;
+    //const envWsEndpoint = process.env[`PONDER_WS_URL_${chainId}`];
+    //const hasEnvWsEndpoint = envWsEndpoint!!;
     
     if (!chainEndpoints) {
       throw new Error(`No RPC endpoints configured for chain ${chainId}`);
@@ -36,9 +36,9 @@ const chains = currentChains.reduce<Record<Networks, ChainConfig>>(
       rpc: hasEnvRpcEndpoints
         ? envRpcEndpoints
         : chainEndpoints.map(endpoint => `https://${endpoint}`),
-      ws: hasEnvWsEndpoint ? envWsEndpoint : getWsEndpoint(chainEndpoints),
+      //ws: hasEnvWsEndpoint ? envWsEndpoint : getWsEndpoint(chainEndpoints),
     };
-    if(chainId === 98866) acc[networkName as Networks]["ws"] = undefined;
+    //if(chainId === 98866) acc[networkName as Networks]["ws"] = undefined;
     return acc;
   },
   {} as Record<Networks, ChainConfig>
@@ -220,7 +220,7 @@ function getContractChain(
  * @param chainEndpoints - The list of endpoints to get a random websocket endpoint from
  * @returns A random websocket endpoint
  */
-function getWsEndpoint(chainEndpoints: Endpoints) {
+export function getWsEndpoint(chainEndpoints: Endpoints) {
   const randomEndpoint = chainEndpoints[Math.floor(Math.random() * chainEndpoints.length)]!;
   return `wss://${randomEndpoint.replace('/rpc', '/ws')}`;
 }
