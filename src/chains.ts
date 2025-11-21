@@ -7,7 +7,8 @@ type Chain = Registry["chains"][keyof Registry["chains"]];
 
 const { _ENVIRONMENT = "mainnet", SELECTED_NETWORKS } = process.env;
 
-let chains: Chain[] = Object.values(registry.v3.chains);
+let chains: Chain[] = Object.values(registry.v3_1.chains);
+
 if (SELECTED_NETWORKS) {
   const selectedNetworks = SELECTED_NETWORKS.split(",");
   const availableChains = chains.map((chain) =>
@@ -56,18 +57,6 @@ export const endpoints = {
     `${process.env.QUICKNODE_API_NAME}.bsc.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
   ],
 } as const;
-
-// export const startBlocks = {
-//   84532: 28165059,
-//   421614: 172002761,
-//   11155111: 8729941,
-//   42161: 357982308,
-//   43114: 65492900,
-//   8453: 32901251,
-//   1: 22924235,
-//   98866: 564725,
-//   56: 54800894,
-// } as const;
 
 export const skipBlocks = {
   84532: 1800,

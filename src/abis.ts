@@ -1,41 +1,28 @@
 import registry from "../generated";
-type Registry = typeof registry;
-type Abis = Registry["v3"]["abis"];
-type AbiName = keyof Abis;
-type AbiItem<T extends AbiName> = Abis[T];
-type AbiExport<T extends AbiName> = { [K in T as `${K}Abi`]: AbiItem<K> };
+export type Registry = typeof registry;
+export type RegistryVersions = keyof Registry;
+export type Abis<V extends RegistryVersions> = Registry[V]["abis"];
+export type AbiName<V extends RegistryVersions> = Extract<keyof Abis<V>, string>;
+export type AbiItem<V extends RegistryVersions, T extends AbiName<V>> = Abis<V>[T];
+export type AbiExport<V extends RegistryVersions, T extends AbiName<V>> = {
+  [K in T as `${K & string}Abi`]: AbiItem<V, K>
+};
+export type AbiExports = { [K in RegistryVersions]: AbiExport<K, AbiName<K>> };
 
-const { v3: { abis } } = registry;
+export default loadAbisFromRegistry(registry);
 
 /**
  * Loads the ABIs from the registry and returns them as an object with the ABI name as the key.
  * @param abis - The ABIs to load from the registry.
  * @returns An object with the ABI name as the key and the ABI as the value.
  */
-function loadAbisFromRegistry(abis: Abis): AbiExport<AbiName> {
-  const abiNames = Object.keys(abis) as AbiName[];
-  const abiEntries = abiNames.map((name) => [`${name}Abi`, abis[name]]);
-  return Object.fromEntries(abiEntries);
+function loadAbisFromRegistry(registry: Registry): AbiExports {
+  const versions = Object.keys(registry) as RegistryVersions[];
+  const abis = versions.map((version) => {
+    const abis = registry[version as RegistryVersions]["abis"];
+    const abiNames = Object.keys(abis) as AbiName<RegistryVersions>[];
+    const abiEntries = abiNames.map((name) => [`${name}Abi`, abis[name]]);
+    return abiEntries;
+  })
+  return Object.fromEntries(abis) as AbiExports;
 }
-
-export const {
-  HubRegistryAbi,
-  ShareClassManagerAbi,
-  SpokeAbi,
-  AsyncVaultAbi,
-  SyncDepositVaultAbi,
-  MessageDispatcherAbi,
-  HoldingsAbi,
-  BalanceSheetAbi,
-  PoolEscrowFactoryAbi,
-  PoolEscrowAbi,
-  OnOfframpManagerFactoryAbi,
-  OnOfframpManagerAbi,
-  MerkleProofManagerFactoryAbi,
-  MerkleProofManagerAbi,
-  GatewayAbi,
-  MultiAdapterAbi,
-  ERC20Abi,
-  HubAbi,
-  // Add additional keys as needed from your registry
-} = loadAbisFromRegistry(abis);
