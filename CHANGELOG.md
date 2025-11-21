@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.2.0](https://github.com/centrifuge/api-v3/compare/v2.1.0...v2.2.0) (2025-11-21)
+
+
+### Features
+
+* improved logging ([594683d](https://github.com/centrifuge/api-v3/commit/594683d2fadccf73ef401d588a925a92198d3a8e))
+* optimized prod logging ([fc31e52](https://github.com/centrifuge/api-v3/commit/fc31e5259d88e9cdbcf478130d3df314ee8e6341))
+
+
+### Bug Fixes
+
+* investor and redeem orders precision fix ([#188](https://github.com/centrifuge/api-v3/issues/188)) ([16a8615](https://github.com/centrifuge/api-v3/commit/16a8615038ca09c3b43f311c16229ee37e228f02))
+* issue and revoke conversions ([1435215](https://github.com/centrifuge/api-v3/commit/1435215565fd2412d4401049fe1ee7c28e36ad67))
+* negative tokenInstance balance ([#190](https://github.com/centrifuge/api-v3/issues/190)) ([1435215](https://github.com/centrifuge/api-v3/commit/1435215565fd2412d4401049fe1ee7c28e36ad67))
+
 ## [2.1.0](https://github.com/centrifuge/api-v3/compare/v2.0.0...v2.1.0) (2025-11-18)
 
 
