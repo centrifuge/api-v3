@@ -24,7 +24,7 @@ import { HoldingEscrowSnapshot } from "ponder:schema";
 ponder.on(
   "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index)",
   async ({ event, context }) => {
-    logEvent(event, context, "ShareClassManager:AddShareClassShort");
+    logEvent(event, context, "ShareClassManagerV3:AddShareClassShort");
     const { poolId, scId: tokenId, index } = event.args;
 
     const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -51,7 +51,7 @@ ponder.on(
 ponder.on(
   "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index, string name, string symbol, bytes32 salt)",
   async ({ event, context }) => {
-    logEvent(event, context, "ShareClassManager:AddShareClassLong");
+    logEvent(event, context, "ShareClassManagerV3:AddShareClassLong");
     const { poolId, scId: tokenId, index, name, symbol, salt } = event.args;
 
     const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -79,8 +79,8 @@ ponder.on(
 );
 
 // INVESTOR TRANSACTIONS
-ponder.on("ShareClassManager:UpdateMetadata", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:UpdatedMetadata");
+ponder.on("ShareClassManagerV3:UpdateMetadata", async ({ event, context }) => {
+  logEvent(event, context, "ShareClassManagerV3:UpdatedMetadata");
   const { poolId, scId: tokenId, name, symbol } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -99,9 +99,9 @@ ponder.on("ShareClassManager:UpdateMetadata", async ({ event, context }) => {
 });
 
 ponder.on(
-  "ShareClassManager:UpdateDepositRequest",
+  "ShareClassManagerV3:UpdateDepositRequest",
   async ({ event, context }) => {
-    logEvent(event, context, "ShareClassManager:UpdateDepositRequest");
+    logEvent(event, context, "ShareClassManagerV3:UpdateDepositRequest");
     const chainId = context.chain.id;
     if (typeof chainId !== "number") throw new Error("Chain ID is required");
 
@@ -159,9 +159,9 @@ ponder.on(
 );
 
 ponder.on(
-  "ShareClassManager:UpdateRedeemRequest",
+  "ShareClassManagerV3:UpdateRedeemRequest",
   async ({ event, context }) => {
-    logEvent(event, context, "ShareClassManager:UpdateRedeemRequest");
+    logEvent(event, context, "ShareClassManagerV3:UpdateRedeemRequest");
     const chainId = context.chain.id;
     if (typeof chainId !== "number") throw new Error("Chain ID is required");
     const {
@@ -217,8 +217,8 @@ ponder.on(
   }
 );
 
-ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:ApproveDeposits");
+ponder.on("ShareClassManagerV3:ApproveDeposits", async ({ event, context }) => {
+  logEvent(event, context, "ShareClassManagerV3:ApproveDeposits");
   const {
     poolId,
     scId: tokenId,
@@ -287,14 +287,14 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
   await snapshotter(
     context,
     event,
-    "ShareClassManager:ApproveDeposits",
+    "ShareClassManagerV3:ApproveDeposits",
     holdingEscrows,
     HoldingEscrowSnapshot
   );
 });
 
-ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:ApproveRedeems");
+ponder.on("ShareClassManagerV3:ApproveRedeems", async ({ event, context }) => {
+  logEvent(event, context, "ShareClassManagerV3:ApproveRedeems");
   const {
     poolId,
     scId: tokenId,
@@ -364,14 +364,14 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
   await snapshotter(
     context,
     event,
-    "ShareClassManager:ApproveRedeems",
+    "ShareClassManagerV3:ApproveRedeems",
     holdingEscrows,
     HoldingEscrowSnapshot
   );
 });
 
-ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:IssueShares");
+ponder.on("ShareClassManagerV3:IssueShares", async ({ event, context }) => {
+  logEvent(event, context, "ShareClassManagerV3:IssueShares");
   const {
     //poolId,
     scId: tokenId,
@@ -462,8 +462,8 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
   await Promise.all(outstandingInvestSaves);
 });
 
-ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:RevokeShares");
+ponder.on("ShareClassManagerV3:RevokeShares", async ({ event, context }) => {
+  logEvent(event, context, "ShareClassManagerV3:RevokeShares");
   const {
     poolId,
     scId: tokenId,
@@ -560,8 +560,8 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
   await Promise.all([...outstandingRedeemSaves, ...redeemOrderSaves]);
 });
 
-ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:UpdateShareClass");
+ponder.on("ShareClassManagerV3:UpdateShareClass", async ({ event, context }) => {
+  logEvent(event, context, "ShareClassManagerV3:UpdateShareClass");
   const { poolId, scId: tokenId, navPoolPerShare: tokenPrice } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -581,14 +581,14 @@ ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
   await snapshotter(
     context,
     event,
-    "ShareClassManager:UpdateShareClass",
+    "ShareClassManagerV3:UpdateShareClass",
     [token],
     TokenSnapshot
   );
 });
 
-ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:ClaimDeposit");
+ponder.on("ShareClassManagerV3:ClaimDeposit", async ({ event, context }) => {
+  logEvent(event, context, "ShareClassManagerV3:ClaimDeposit");
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const {
@@ -627,8 +627,8 @@ ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
   await investOrder.claimDeposit(event.block).save(event.block);
 });
 
-ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:ClaimRedeem");
+ponder.on("ShareClassManagerV3:ClaimRedeem", async ({ event, context }) => {
+  logEvent(event, context, "ShareClassManagerV3:ClaimRedeem");
   const {
     //poolId,
     scId: tokenId,

@@ -4,8 +4,7 @@ import { Timekeeper } from "../helpers/timekeeper";
 import { BlockchainService, HoldingEscrowService, PoolService, TokenInstanceService, TokenService } from "../services";
 import { PoolSnapshot, HoldingEscrowSnapshot, TokenInstanceSnapshot, TokenSnapshot } from "ponder:schema";
 import { snapshotter } from "../helpers/snapshotter";
-import { currentChains } from "../../ponder.config";
-import { networks } from "../chains";
+import { RegistryChains, networkNames } from "../chains";
 
 const timekeeper = Timekeeper.start()
 
@@ -51,8 +50,8 @@ async function processBlock(args: Parameters<Parameters<typeof ponder.on>[1]>[0]
   await snapshotter(context, event, `${chainName}:NewPeriod`, holdingEscrows, HoldingEscrowSnapshot)
 }
 
-currentChains.forEach(chain => {
+RegistryChains.forEach(chain => {
   const chainId = chain.network.chainId
-  const network = networks[chainId]
+  const network = networkNames[chainId]
   ponder.on(`${network}:block`, processBlock);
 })

@@ -17,8 +17,8 @@ import { OutstandingInvestService } from "../services";
 import { OutstandingRedeemService } from "../services";
 import { initialisePosition } from "../services/TokenInstancePositionService";
 
-ponder.on("Vault:DepositRequest", async ({ event, context }) => {
-  logEvent(event, context, "Vault:DepositRequest");
+ponder.on("VaultV3:DepositRequest", async ({ event, context }) => {
+  logEvent(event, context, "VaultV3:DepositRequest");
   const {
     controller,
     // owner,
@@ -109,8 +109,8 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
     .saveOrClear(event.block);
 });
 
-ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
-  logEvent(event, context, "Vault:RedeemRequest");
+ponder.on("VaultV3:RedeemRequest", async ({ event, context }) => {
+  logEvent(event, context, "VaultV3:RedeemRequest");
   const {
     controller,
     // owner,
@@ -176,8 +176,8 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
     .saveOrClear(event.block);
 });
 
-ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
-  logEvent(event, context, "Vault:DepositClaimable");
+ponder.on("VaultV3:DepositClaimable", async ({ event, context }) => {
+  logEvent(event, context, "VaultV3:DepositClaimable");
   const { controller, assets, shares } = event.args;
   const vaultId = event.log.address;
   if (!vaultId) throw new Error(`Vault id not found in event`);
@@ -229,8 +229,8 @@ ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
   );
 });
 
-ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
-  logEvent(event, context, "Vault:RedeemClaimable");
+ponder.on("VaultV3:RedeemClaimable", async ({ event, context }) => {
+  logEvent(event, context, "VaultV3:RedeemClaimable");
   const { controller, assets, shares } = event.args;
   const vaultId = event.log.address;
   if (!vaultId) throw new Error(`Vault id not found in event`);
@@ -282,8 +282,8 @@ ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
   );
 });
 
-ponder.on("Vault:Deposit", async ({ event, context }) => {
-  logEvent(event, context, "Vault:Deposit");
+ponder.on("VaultV3:Deposit", async ({ event, context }) => {
+  logEvent(event, context, "VaultV3:Deposit");
   const { owner, assets, shares } = event.args;
   const vaultId = event.log.address;
   if (!vaultId) throw new Error(`Vault id not found in event`);
@@ -402,8 +402,8 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
   }
 });
 
-ponder.on("Vault:Withdraw", async ({ event, context }) => {
-  logEvent(event, context, "Vault:Withdraw");
+ponder.on("VaultV3:Withdraw", async ({ event, context }) => {
+  logEvent(event, context, "VaultV3:Withdraw");
   const { owner, assets, shares } = event.args;
   const vaultId = event.log.address;
   if (!vaultId) throw new Error(`Vault id not found in event`);

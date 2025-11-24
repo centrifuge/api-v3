@@ -13,8 +13,8 @@ import {
   extractMessagesFromPayload,
 } from "../services/CrosschainPayloadService";
 
-ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
-  logEvent(event, context, "Gateway:PrepareMessage");
+ponder.on("GatewayV3:PrepareMessage", async ({ event, context }) => {
+  logEvent(event, context, "GatewayV3:PrepareMessage");
   const { centrifugeId: toCentrifugeId, poolId, message } = event.args;
   const messageBuffer = Buffer.from(message.substring(2), "hex");
   const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0));
@@ -53,8 +53,8 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
   )) as CrosschainMessageService | null;
 });
 
-ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
-  logEvent(event, context, "Gateway:UnderpaidBatch");
+ponder.on("GatewayV3:UnderpaidBatch", async ({ event, context }) => {
+  logEvent(event, context, "GatewayV3:UnderpaidBatch");
   const { centrifugeId: toCentrifugeId, batch } = event.args;
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
@@ -158,8 +158,8 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
   if (!crosschainPayload) console.error("Failed to initialize crosschain payload ");
 });
 
-ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
-  logEvent(event, context, "Gateway:RepayBatch");
+ponder.on("GatewayV3:RepayBatch", async ({ event, context }) => {
+  logEvent(event, context, "GatewayV3:RepayBatch");
   const { centrifugeId: toCentrifugeId, batch } = event.args;
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
   const payloadId = getPayloadId(
@@ -196,9 +196,9 @@ ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
   await crosschainPayload.save(event.block);
 });
 
-ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
+ponder.on("GatewayV3:ExecuteMessage", async ({ event, context }) => {
   // RECEIVING CHAIN
-  logEvent(event, context, "Gateway:ExecuteMessage");
+  logEvent(event, context, "GatewayV3:ExecuteMessage");
   const { centrifugeId: fromCentrifugeId, message } = event.args;
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -246,9 +246,9 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
   await crosschainPayload.save(event.block);
 });
 
-ponder.on("Gateway:FailMessage", async ({ event, context }) => {
+ponder.on("GatewayV3:FailMessage", async ({ event, context }) => {
   // RECEIVING CHAIN
-  logEvent(event, context, "Gateway:FailMessage");
+  logEvent(event, context, "GatewayV3:FailMessage");
   const { centrifugeId: fromCentrifugeId, message, error } = event.args;
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);

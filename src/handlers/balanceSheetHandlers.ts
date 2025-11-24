@@ -11,8 +11,8 @@ import {
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
 
-ponder.on("BalanceSheet:NoteDeposit", async ({ event, context }) => {
-  logEvent(event, context, "BalanceSheet:NoteDeposit");
+ponder.on("BalanceSheetV3:NoteDeposit", async ({ event, context }) => {
+  logEvent(event, context, "BalanceSheetV3:NoteDeposit");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const {
@@ -58,11 +58,11 @@ ponder.on("BalanceSheet:NoteDeposit", async ({ event, context }) => {
   await holdingEscrow.setAssetPrice(pricePoolPerAsset);
   await holdingEscrow.save(event.block);
 
-  await snapshotter(context, event, "BalanceSheet:NoteDeposit", [holdingEscrow], HoldingEscrowSnapshot);
+  await snapshotter(context, event, "BalanceSheetV3:NoteDeposit", [holdingEscrow], HoldingEscrowSnapshot);
 });
 
-ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
-  logEvent(event, context, "BalanceSheet:Withdraw");
+ponder.on("BalanceSheetV3:Withdraw(uint64 indexed poolId, bytes16 indexed scId, address asset, uint256 tokenId, address receiver, uint128 amount, uint128 pricePoolPerAsset)", async ({ event, context }) => {
+  logEvent(event, context, "BalanceSheetV3:Withdraw");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const {
@@ -109,15 +109,15 @@ ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
   await holdingEscrow.setAssetPrice(pricePoolPerAsset);
   await holdingEscrow.save(event.block);
 
-  await snapshotter(context, event, "BalanceSheet:Withdraw", [holdingEscrow], HoldingEscrowSnapshot);
+  await snapshotter(context, event, "BalanceSheetV3:Withdraw(uint64 indexed poolId, bytes16 indexed scId, address asset, uint256 tokenId, address receiver, uint128 amount, uint128 pricePoolPerAsset)", [holdingEscrow], HoldingEscrowSnapshot);
 });
 
-ponder.on("BalanceSheet:UpdateManager", async ({ event, context }) => {
-  logEvent(event, context, "BalanceSheet:UpdateManager");
+ponder.on("BalanceSheetV3:UpdateManager(uint64 indexed poolId, address indexed manager, bool canManage)", async ({ event, context }) => {
+  logEvent(event, context, "BalanceSheetV3:UpdateManager");
   
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const { who: manager, poolId, canManage } = event.args;
+  const { manager, poolId, canManage } = event.args;
 
   const account = (await AccountService.getOrInit(
     context,

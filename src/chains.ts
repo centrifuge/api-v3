@@ -1,26 +1,63 @@
-import registry from "../generated";
+import { type ChainConfig } from "ponder";
+import registries from "../generated";
 
-type RegistryVersions = keyof typeof registry;
-type Registry = (typeof registry)[RegistryVersions];
-//type Networks = keyof Registry['chains'];
-type Chain = Registry["chains"][keyof Registry["chains"]];
+export type RegistryVersions = keyof typeof registries;
+export type Registry<V extends RegistryVersions> = (typeof registries)[V];
+export type RegistryChains<V extends RegistryVersions> = Registry<V>["chains"];
+export type RegistryChainsKeys<V extends RegistryVersions> = keyof RegistryChains<V>;
+export type RegistryChainsValues<V extends RegistryVersions> = RegistryChains<V>[RegistryChainsKeys<V>];
+type ChainsConfig<V extends RegistryVersions> = Record<NetworkNames<V>, ChainConfig>;
 
-const { _ENVIRONMENT = "mainnet", SELECTED_NETWORKS } = process.env;
+export const networkNames = {
+  "84532": "base",
+  "421614": "arbitrum",
+  "11155111": "ethereum",
+  "42161": "arbitrum",
+  "43114": "avalanche",
+  "8453": "base",
+  "1": "ethereum",
+  "98866": "plume",
+  "56": "binance",
+} as const;
 
-let chains: Chain[] = Object.values(registry.v3_1.chains);
+// Optimized: Pre-compute the union type to avoid complex conditional type evaluation
+type AllNetworkNames = (typeof networkNames)[keyof typeof networkNames];
+export type NetworkNames<V extends RegistryVersions> = Extract<
+  AllNetworkNames,
+  RegistryChainsKeys<V> extends keyof typeof networkNames
+    ? (typeof networkNames)[RegistryChainsKeys<V>]
+    : never
+>;
+ 
+// Load and deduplicate the registry chains
+let loadedChains: RegistryChainsValues<RegistryVersions>[] = Array.from(
+  Object.values(registries)
+    .flatMap((registry: Registry<RegistryVersions>) => Object.values(registry.chains))
+    .reduce((map: Map<number, RegistryChainsValues<RegistryVersions>>, chain: RegistryChainsValues<RegistryVersions>) => {
+      const chainId = chain.network.chainId;
+      const current = map.get(chainId);
+      // Compare deployedAtBlock as numbers (parseInt), select the lowest
+      if (
+        !current ||
+        chain.deployment.deployedAtBlock < current.deployment.deployedAtBlock
+      ) {
+        map.set(chainId, chain);
+      }
+      return map;
+    }, new Map<number, RegistryChainsValues<RegistryVersions>>()).values()
+) as RegistryChainsValues<RegistryVersions>[];
 
-if (SELECTED_NETWORKS) {
-  const selectedNetworks = SELECTED_NETWORKS.split(",");
-  const availableChains = chains.map((chain) =>
-    chain.network.chainId.toString()
-  );
-  if (!selectedNetworks.every((network) => availableChains.includes(network)))
-    throw new Error("SELECTED_NETWORKS must be contain valid networks");
-  chains = chains.filter((chain) =>
-    selectedNetworks.includes(chain.network.chainId.toString())
+// Filter out selected chains if SELECTED_NETWORKS is set
+const { SELECTED_NETWORKS } = process.env;
+const selectedChainIds = SELECTED_NETWORKS?.split(",");
+
+if (selectedChainIds) {
+  loadedChains = loadedChains.filter((chain) =>
+    selectedChainIds.includes(chain.network.chainId.toString())
   );
 }
-export { chains };
+
+export { loadedChains as RegistryChains };
 
 export const endpoints = {
   84532: [
@@ -56,7 +93,32 @@ export const endpoints = {
     `bnb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `${process.env.QUICKNODE_API_NAME}.bsc.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
   ],
-} as const;
+};
+
+// Package loadedChains into a ChainConfig object for ponder to consume
+const chains = Object.fromEntries(
+  loadedChains.map((chain) => {
+    const chainId = chain.network.chainId;
+    const networkName = networkNames[chainId.toString() as keyof typeof networkNames];
+    return [
+      networkName,
+      {
+        id: chain.network.chainId,
+        rpc: endpoints[chainId as keyof typeof endpoints],
+      },
+    ] as [NetworkNames<RegistryVersions>, ChainConfig];
+  })
+) as ChainsConfig<RegistryVersions>;
+
+export { chains };
+
+type BlocksConfig = {
+  [N in NetworkNames<RegistryVersions> as `${N}:block`]: {
+    startBlock: number;
+    interval: number;
+    chain: N;
+  };
+};
 
 export const skipBlocks = {
   84532: 1800,
@@ -68,16 +130,21 @@ export const skipBlocks = {
   1: 300,
   98866: 9000,
   56: 4800,
-} as const;
+};
 
-export const networks = {
-  84532: "base",
-  421614: "arbitrum",
-  11155111: "ethereum",
-  42161: "arbitrum",
-  43114: "avalanche",
-  8453: "base",
-  1: "ethereum",
-  98866: "plume",
-  56: "binance",
-} as const;
+const blocks = Object.fromEntries(
+  loadedChains.map((chain) => {
+    const chainId = chain.network.chainId
+    const networkName = networkNames[chainId.toString() as keyof typeof networkNames] ;
+    return [
+      `${networkName}:block`,
+      {
+        startBlock: chain.deployment.deployedAtBlock,
+        interval: skipBlocks[chainId as keyof typeof skipBlocks],
+        chain: networkName,
+      },
+    ];
+  })
+) as BlocksConfig;
+
+export { blocks };

@@ -3,8 +3,8 @@ import { logEvent } from "../helpers/logger";
 import { WhitelistedInvestorService, TokenService } from "../services";
 import { PoolSpokeBlockchainService } from "../services/PoolSpokeBlockchainService";
 
-ponder.on("Hub:NotifyPool", async ({ event, context }) => {
-  logEvent(event, context, "Hub:NotifyPool");
+ponder.on("HubV3:NotifyPool", async ({ event, context }) => {
+  logEvent(event, context, "HubV3:NotifyPool");
   const { poolId, centrifugeId } = event.args;
 
   await PoolSpokeBlockchainService.getOrInit(
@@ -17,8 +17,8 @@ ponder.on("Hub:NotifyPool", async ({ event, context }) => {
   );
 });
 
-ponder.on("Hub:UpdateRestriction", async ({ event, context }) => {
-  logEvent(event, context, "Hub:UpdateRestriction");
+ponder.on("HubV3:UpdateRestriction", async ({ event, context }) => {
+  logEvent(event, context, "HubV3:UpdateRestriction");
   const {
     centrifugeId: spokeCentrifugeId,
     scId: tokenId,

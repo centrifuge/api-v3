@@ -11,6 +11,9 @@
     "codegen": "ponder codegen",
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc",
+    "typecheck:watch": "tsc -w",
+    "tsgo": "tsgo",
+    "tsgo:watch": "tsgo -w",
     "schema": "tsx graphqlToPonderSchema.ts",
     "prepare": "husky",
     "update-registry": "echo 'Skipping registry update' || tsx scripts/fetch-registry.ts"
@@ -35,6 +38,7 @@
     "@types/node": "^22.19.1",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
+    "@typescript/native-preview": "7.0.0-dev.20251124.1",
     "eslint": "^8.57.1",
     "eslint-config-ponder": "^0.14.13",
     "eslint-plugin-jsdoc": "^56.1.2",

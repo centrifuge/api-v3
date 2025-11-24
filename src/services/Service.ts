@@ -401,6 +401,7 @@ export function primaryKeyFilter<T extends OnchainTable>(
   }
 }
 
+// Optimized: Consolidated into fewer intersections to reduce type computation
 type ExtendedQuery<T> = {
   [P in keyof T]: T[P];
 } & {

@@ -10,8 +10,8 @@ import {
 } from "../services";
 import { initialisePosition } from "../services/TokenInstancePositionService";
 
-ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
-  logEvent(event, context, "TokenInstance:Transfer");
+ponder.on("TokenInstanceV3:Transfer", async ({ event, context }) => {
+  logEvent(event, context, "TokenInstanceV3:Transfer");
   const { from, to, value: amount } = event.args;
   const { address: tokenAddress } = event.log;
 

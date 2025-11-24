@@ -10,9 +10,9 @@ import { logEvent } from "../helpers/logger";
 import { OnRampAssetService } from "../services";
 
 ponder.on(
-  "OnOffRampManagerFactory:DeployOnOfframpManager",
+  "OnOffRampManagerFactoryV3:DeployOnOfframpManager",
   async ({ event, context }) => {
-    logEvent(event, context, "OnOffRampManagerFactory:DeployOnOfframpManager");
+    logEvent(event, context, "OnOffRampManagerFactoryV3:DeployOnOfframpManager");
     const { poolId, scId: tokenId, manager } = event.args;
     
     const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -33,8 +33,8 @@ ponder.on(
   }
 );
 
-ponder.on("OnOffRampManager:UpdateRelayer", async ({ event, context }) => {
-  logEvent(event, context, "OnOffRampManager:UpdateRelayer");
+ponder.on("OnOffRampManagerV3:UpdateRelayer", async ({ event, context }) => {
+  logEvent(event, context, "OnOffRampManagerV3:UpdateRelayer");
   const { relayer, isEnabled } = event.args;
   const manager = event.log.address;
 
@@ -64,8 +64,8 @@ ponder.on("OnOffRampManager:UpdateRelayer", async ({ event, context }) => {
   if (!offRampRelayer) console.error("Failed to upsert OffRampRelayer");
 });
 
-ponder.on("OnOffRampManager:UpdateOnramp", async ({ event, context }) => {
-  logEvent(event, context, "OnOffRampManager:UpdateOnramp");
+ponder.on("OnOffRampManagerV3:UpdateOnramp", async ({ event, context }) => {
+  logEvent(event, context, "OnOffRampManagerV3:UpdateOnramp");
   const manager = event.log.address;
   const { asset, isEnabled } = event.args;
 
@@ -96,8 +96,8 @@ ponder.on("OnOffRampManager:UpdateOnramp", async ({ event, context }) => {
   if (!onRampAsset) console.error("Failed to upsert OnRampAsset");
 });
 
-ponder.on("OnOffRampManager:UpdateOfframp", async ({ event, context }) => {
-  logEvent(event, context, "OnOffRampManager:UpdateOfframp");
+ponder.on("OnOffRampManagerV3:UpdateOfframp", async ({ event, context }) => {
+  logEvent(event, context, "OnOffRampManagerV3:UpdateOfframp");
   const { asset, receiver } = event.args;
   const manager = event.log.address;
 
