@@ -10,7 +10,7 @@ import {
   extractMessagesFromPayload,
 } from "../services/CrosschainPayloadService";
 import { AdapterService } from "../services/AdapterService";
-import { currentChains } from "../../ponder.config";
+import { RegistryChains } from "../chains";
 import { AdapterParticipationService } from "../services/AdapterParticipationService";
 
 ponder.on("MultiAdapterV3:SendPayload", async ({ event, context }) => {
@@ -223,14 +223,14 @@ ponder.on("MultiAdapterV3:HandleProof", async ({ event, context }) => {
 });
 
 ponder.on(
-  "MultiAdapter:File(bytes32 indexed what, uint16 centrifugeId, address[] adapters)",
+  "MultiAdapterV3:File(bytes32 indexed what, uint16 centrifugeId, address[] adapters)",
   async ({ event, context }) => {
     logEvent(event, context, "MultiAdapterV3:File2");
 
     const chainId = context.chain.id;
     if (typeof chainId !== "number") throw new Error("Chain ID is required");
 
-    const currentChain = currentChains.find(
+    const currentChain = RegistryChains.find(
       (chain) => chain.network.chainId === chainId
     );
     if (!currentChain) throw new Error("Chain not found");

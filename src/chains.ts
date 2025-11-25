@@ -61,37 +61,37 @@ export { loadedChains as RegistryChains };
 
 export const endpoints = {
   84532: [
-    `base-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-    `${process.env.QUICKNODE_API_NAME}.base-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://base-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `https://${process.env.QUICKNODE_API_NAME}.base-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
   ],
   421614: [
-    `arb-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-    `${process.env.QUICKNODE_API_NAME}.arbitrum-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://arb-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `https://${process.env.QUICKNODE_API_NAME}.arbitrum-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
   ],
   11155111: [
-    `eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-    `${process.env.QUICKNODE_API_NAME}.ethereum-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `https://${process.env.QUICKNODE_API_NAME}.ethereum-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
   ],
   42161: [
-    `arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-    `${process.env.QUICKNODE_API_NAME}.arbitrum-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `https://${process.env.QUICKNODE_API_NAME}.arbitrum-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
   ],
   43114: [
-    `avax-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-    `${process.env.QUICKNODE_API_NAME}.avalanche-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/ext/bc/C/rpc/`,
+    `https://avax-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `https://${process.env.QUICKNODE_API_NAME}.avalanche-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/ext/bc/C/rpc/`,
   ],
   8453: [
-    `base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-    `${process.env.QUICKNODE_API_NAME}.base-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `https://${process.env.QUICKNODE_API_NAME}.base-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
   ],
   1: [
-    `eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-    `${process.env.QUICKNODE_API_NAME}.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `https://${process.env.QUICKNODE_API_NAME}.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
   ],
-  98866: [`rpc.plume.org/${process.env.CONDUIT_API_KEY}`],
+  98866: [`https://rpc.plume.org/${process.env.CONDUIT_API_KEY}`],
   56: [
-    `bnb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-    `${process.env.QUICKNODE_API_NAME}.bsc.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://bnb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `https://${process.env.QUICKNODE_API_NAME}.bsc.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
   ],
 };
 
@@ -113,7 +113,7 @@ const chains = Object.fromEntries(
 export { chains };
 
 type BlocksConfig = {
-  [N in NetworkNames<RegistryVersions> as `${N}:block`]: {
+  [N in NetworkNames<RegistryVersions> as `${N}`]: {
     startBlock: number;
     interval: number;
     chain: N;
@@ -121,15 +121,15 @@ type BlocksConfig = {
 };
 
 export const skipBlocks = {
-  84532: 1800,
-  421614: 14230,
-  11155111: 300,
-  42161: 14230,
-  43114: 1800,
-  8453: 1800,
-  1: 300,
-  98866: 9000,
-  56: 4800,
+  "84532": 1800,
+  "421614": 14230,
+  "11155111": 300,
+  "42161": 14230,
+  "43114": 1800,
+  "8453": 1800,
+  "1": 300,
+  "98866": 9000,
+  "56": 4800,
 };
 
 const blocks = Object.fromEntries(
@@ -137,10 +137,10 @@ const blocks = Object.fromEntries(
     const chainId = chain.network.chainId
     const networkName = networkNames[chainId.toString() as keyof typeof networkNames] ;
     return [
-      `${networkName}:block`,
+      networkName,
       {
         startBlock: chain.deployment.deployedAtBlock,
-        interval: skipBlocks[chainId as keyof typeof skipBlocks],
+        interval: skipBlocks[chainId.toString() as keyof typeof skipBlocks],
         chain: networkName,
       },
     ];
@@ -148,3 +148,24 @@ const blocks = Object.fromEntries(
 ) as BlocksConfig;
 
 export { blocks };
+
+/**
+ * Gets the contract names for a given registry version.
+ * @param registryVersion - The registry version to get the contract names for.
+ * @returns The contract names for the given registry version.
+ */
+export function getContractNames<V extends RegistryVersions>(registryVersion: V): string[] {
+  return Array.from(new Set((Object.values(registries[registryVersion].chains).flatMap((chain) => Object.keys(chain.contracts)))));
+}
+
+export const explorerUrls = {
+  "84532": "https://sepolia.basescan.org",
+  "421614": "https://sepolia.arbiscan.io",
+  "11155111": "https://sepolia.etherscan.io",
+  "42161": "https://arbiscan.io",
+  "43114": "https://snowtrace.io",
+  "8453": "https://basescan.org",
+  "1": "https://etherscan.io",
+  "98866": "https://explorer.plume.org",
+  "56": "https://bscscan.com",
+};

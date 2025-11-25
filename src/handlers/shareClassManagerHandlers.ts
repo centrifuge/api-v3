@@ -22,7 +22,7 @@ import { HoldingEscrowSnapshot } from "ponder:schema";
 
 // SHARE CLASS LIFECYCLE
 ponder.on(
-  "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index)",
+  "ShareClassManagerV3:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index)",
   async ({ event, context }) => {
     logEvent(event, context, "ShareClassManagerV3:AddShareClassShort");
     const { poolId, scId: tokenId, index } = event.args;
@@ -49,7 +49,7 @@ ponder.on(
 );
 
 ponder.on(
-  "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index, string name, string symbol, bytes32 salt)",
+  "ShareClassManagerV3:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index, string name, string symbol, bytes32 salt)",
   async ({ event, context }) => {
     logEvent(event, context, "ShareClassManagerV3:AddShareClassLong");
     const { poolId, scId: tokenId, index, name, symbol, salt } = event.args;

@@ -11,8 +11,9 @@ import {
   InvestorTransactionService,
   AccountService,
 } from "../services";
-import { ERC20Abi, PoolEscrowFactoryAbi } from "../contracts";
-import { currentChains } from "../../ponder.config";
+import { ERC20Abi } from "../../abis/ERC20";
+import { Abis } from "../contracts";
+import { RegistryChains } from "../chains";
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
 
@@ -36,7 +37,7 @@ ponder.on("SpokeV3:DeployVault", async ({ event, context }) => {
 
   const { client, contracts } = context;
   const manager = await client.readContract({
-    abi: contracts.Vault.abi,
+    abi: contracts.VaultV3.abi,
     address: vaultId,
     functionName: "manager",
     args: [],
@@ -212,7 +213,7 @@ ponder.on("SpokeV3:UpdateAssetPrice", async ({ event, context }) => {
 
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID not found");
-  const poolEscrowFactoryAddress = currentChains.find(
+  const poolEscrowFactoryAddress = RegistryChains.find(
     (chain) => chain.network.chainId === chainId
   )?.contracts.poolEscrowFactory;
   if (!poolEscrowFactoryAddress) {
@@ -221,7 +222,7 @@ ponder.on("SpokeV3:UpdateAssetPrice", async ({ event, context }) => {
   }
 
   const escrowAddress = await context.client.readContract({
-    abi: PoolEscrowFactoryAbi,
+    abi: Abis.v3.PoolEscrowFactory,
     address: poolEscrowFactoryAddress,
     functionName: "escrow",
     args: [poolId],

@@ -89,7 +89,7 @@ ponder.on("HubRegistryV3:NewAsset", async ({ event, context }) => {
   }
 });
 
-ponder.on("HubRegistryV3:UpdateManager(uint64 indexed poolId, address indexed manager, bool canManage)", async ({ event, context }) => {
+ponder.on("HubRegistryV3:UpdateManager", async ({ event, context }) => {
   logEvent(event, context, "HubRegistryV3:UpdateManager");
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);

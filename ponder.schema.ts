@@ -5,7 +5,7 @@ import {
   primaryKey,
   index,
 } from "ponder";
-import { contracts } from "./ponder.config";
+import { getContractNames } from "./src/chains";
 
 type PgColumnsFunction = Extract<Parameters<typeof onchainTable>[1], Function>;
 type PgColumnsBuilders = Parameters<PgColumnsFunction>[0];
@@ -57,9 +57,8 @@ export const BlockchainRelations = relations(Blockchain, ({ many }) => ({
 }));
 
 const currentContractFields = (t: PgColumnsBuilders) =>
-  Object.fromEntries(
-    contracts.map((contract) => [contract, t.hex()])
-  ) as Record<(typeof currentContractNames)[number], PgColumn<"hex">>;
+  Object.fromEntries(getContractNames("v3").map((contract) => [contract, t.hex()]));
+
 const DeploymentColumns = (t: PgColumnsBuilders) => ({
   chainId: t.text().notNull(),
   centrifugeId: t.text().notNull(),

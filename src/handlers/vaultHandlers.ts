@@ -282,7 +282,7 @@ ponder.on("VaultV3:RedeemClaimable", async ({ event, context }) => {
   );
 });
 
-ponder.on("VaultV3:Deposit", async ({ event, context }) => {
+ponder.on('VaultV3:Deposit', async ({ event, context }) => {
   logEvent(event, context, "VaultV3:Deposit");
   const { owner, assets, shares } = event.args;
   const vaultId = event.log.address;

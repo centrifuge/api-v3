@@ -10,7 +10,7 @@ import { logEvent } from "../helpers/logger";
 import { OnRampAssetService } from "../services";
 
 ponder.on(
-  "OnOffRampManagerFactoryV3:DeployOnOfframpManager",
+  "OnOfframpManagerFactoryV3:DeployOnOfframpManager",
   async ({ event, context }) => {
     logEvent(event, context, "OnOffRampManagerFactoryV3:DeployOnOfframpManager");
     const { poolId, scId: tokenId, manager } = event.args;
@@ -33,7 +33,7 @@ ponder.on(
   }
 );
 
-ponder.on("OnOffRampManagerV3:UpdateRelayer", async ({ event, context }) => {
+ponder.on("OnOfframpManagerV3:UpdateRelayer", async ({ event, context }) => {
   logEvent(event, context, "OnOffRampManagerV3:UpdateRelayer");
   const { relayer, isEnabled } = event.args;
   const manager = event.log.address;
@@ -64,7 +64,7 @@ ponder.on("OnOffRampManagerV3:UpdateRelayer", async ({ event, context }) => {
   if (!offRampRelayer) console.error("Failed to upsert OffRampRelayer");
 });
 
-ponder.on("OnOffRampManagerV3:UpdateOnramp", async ({ event, context }) => {
+ponder.on("OnOfframpManagerV3:UpdateOnramp", async ({ event, context }) => {
   logEvent(event, context, "OnOffRampManagerV3:UpdateOnramp");
   const manager = event.log.address;
   const { asset, isEnabled } = event.args;
@@ -96,7 +96,7 @@ ponder.on("OnOffRampManagerV3:UpdateOnramp", async ({ event, context }) => {
   if (!onRampAsset) console.error("Failed to upsert OnRampAsset");
 });
 
-ponder.on("OnOffRampManagerV3:UpdateOfframp", async ({ event, context }) => {
+ponder.on("OnOfframpManagerV3:UpdateOfframp", async ({ event, context }) => {
   logEvent(event, context, "OnOffRampManagerV3:UpdateOfframp");
   const { asset, receiver } = event.args;
   const manager = event.log.address;
