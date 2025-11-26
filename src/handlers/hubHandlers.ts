@@ -2,8 +2,11 @@ import { ponder } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
 import { WhitelistedInvestorService, TokenService } from "../services";
 import { PoolSpokeBlockchainService } from "../services/PoolSpokeBlockchainService";
+import { multiMapper } from "../helpers/eventMapper";
 
-ponder.on("HubV3:NotifyPool", async ({ event, context }) => {
+
+
+multiMapper("Hub:NotifyPool", async ({ event, context }) => {
   logEvent(event, context, "HubV3:NotifyPool");
   const { poolId, centrifugeId } = event.args;
 

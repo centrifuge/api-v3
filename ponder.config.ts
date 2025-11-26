@@ -2,10 +2,9 @@ import { createConfig } from "ponder";
 import { chains, blocks } from "./src/chains";
 import { decorateDeploymentContracts } from "./src/contracts";
 import { ERC20Abi } from "./abis/ERC20";
-import { inspect } from "util";
 
 
-export const contracts = decorateDeploymentContracts(
+export const contractsV3 = decorateDeploymentContracts(
   "v3",
   [
     "BalanceSheet",
@@ -65,36 +64,73 @@ export const contracts = decorateDeploymentContracts(
   } as const,
 );
 
-// const config = {
-//   ordering: "omnichain" as const,
-//   chains,
-//   blocks,
-//   contracts,
-// };
+export const contractsV3_1 = decorateDeploymentContracts(
+  "v3_1",
+  [
+    "BalanceSheet",
+    "Gateway",
+    "Holdings",
+    "HubRegistry",
+    "Hub",
+    "MerkleProofManagerFactory",
+    "MessageDispatcher",
+    "MultiAdapter",
+    "OnOfframpManagerFactory",
+    "PoolEscrowFactory",
+    "ShareClassManager",
+    "Spoke",
+  ] as const,
+  {
+    VaultV3_1: {
+      abi: ["SyncDepositVault", "AsyncVault"],
+      factory: {
+        abi: "Spoke",
+        eventName: "DeployVault",
+        eventParameter: "vault",
+      },
+    },
+    PoolEscrowV3_1: {
+      abi: "PoolEscrow",
+      factory: {
+        abi: "PoolEscrowFactory",
+        eventName: "DeployPoolEscrow",
+        eventParameter: "escrow",
+      },
+    },
+    OnOfframpManagerV3_1 : {
+      abi: "OnOfframpManager",
+      factory: {
+        abi: "OnOfframpManagerFactory",
+        eventName: "DeployOnOfframpManager",
+        eventParameter: "manager",
+      },
+    },
+    MerkleProofManagerV3_1 : {
+      abi: "MerkleProofManager",
+      factory: {
+        abi: "MerkleProofManagerFactory",
+        eventName: "DeployMerkleProofManager",
+        eventParameter: "manager",
+      },
+    },
+    TokenInstanceV3_1 : {
+      abi: ERC20Abi,
+      factory: {
+        abi: "Spoke",
+        eventName: "AddShareClass",
+        eventParameter: "token",
+      },
+    },
+  } as const,
+);
 
-// Enhanced console.log with deep serialization
-const deepLog = (label: string, obj: unknown, depth = 10) => {
-  console.log(
-    `${label}:`,
-    inspect(obj, {
-      depth,
-      colors: false,
-      showHidden: false,
-      compact: false,
-      maxArrayLength: null,
-      maxStringLength: null,
-      breakLength: 120,
-    })
-  );
-};
+export const contracts = {...contractsV3, ...contractsV3_1};
 
-deepLog("chains", chains);
-deepLog("contracts", contracts);
-deepLog("blocks", blocks);
-
-export default createConfig({
+const config = createConfig({
   ordering: "omnichain",
   chains,
   contracts,
   blocks,
 });
+
+export default config;
