@@ -1,9 +1,11 @@
-import { ponder } from "ponder:registry";
+import { multiMapper } from "../helpers/multiMapper";
 import { logEvent } from "../helpers/logger";
 import { WhitelistedInvestorService, TokenService } from "../services";
 import { PoolSpokeBlockchainService } from "../services/PoolSpokeBlockchainService";
 
-ponder.on("Hub:NotifyPool", async ({ event, context }) => {
+
+
+multiMapper("hub:NotifyPool", async ({ event, context }) => {
   logEvent(event, context, "Hub:NotifyPool");
   const { poolId, centrifugeId } = event.args;
 
@@ -17,7 +19,7 @@ ponder.on("Hub:NotifyPool", async ({ event, context }) => {
   );
 });
 
-ponder.on("Hub:UpdateRestriction", async ({ event, context }) => {
+multiMapper("hub:UpdateRestriction", async ({ event, context }) => {
   logEvent(event, context, "Hub:UpdateRestriction");
   const {
     centrifugeId: spokeCentrifugeId,

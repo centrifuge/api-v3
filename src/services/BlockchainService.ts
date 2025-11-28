@@ -1,12 +1,12 @@
 import { Blockchain } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
 import { Context } from "ponder:registry";
-import { currentChains } from "../../ponder.config";
+import { RegistryChains } from "../chains";
 
 
-type Network = typeof currentChains[number]["network"];
+type Network = typeof RegistryChains[number]["network"];
 type InMemoryChainId = { [K in Network["chainId"]]: Extract<Network, { chainId: K }>['centrifugeId']}
-const inMemoryChainId = Object.fromEntries(currentChains.map((chain) => [chain.network.chainId, chain.network.centrifugeId])) as InMemoryChainId
+const inMemoryChainId = Object.fromEntries(RegistryChains.map((chain) => [chain.network.chainId, chain.network.centrifugeId])) as InMemoryChainId
 
 /**
  * Service class for managing blockchain-related operations and data.

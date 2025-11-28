@@ -143,8 +143,8 @@ export class CrosschainPayloadService extends mixinCommonStatics(
    * @returns {CrosschainPayloadService} Returns the current instance for method chaining
    */
   public delivered(event: Event<
-      | 'MultiAdapter:HandlePayload' 
-      | 'MultiAdapter:HandleProof'
+      | 'multiAdapterV3:HandlePayload' 
+      | 'multiAdapterV3:HandleProof'
     >) {
     this.data.status = "Delivered";
     this.data.deliveredAt = new Date(Number(event.block.timestamp) * 1000);
@@ -160,9 +160,9 @@ export class CrosschainPayloadService extends mixinCommonStatics(
    * @returns {CrosschainPayloadService} Returns the current instance for method chaining
    */
   public completed(event: Event<
-      | 'MultiAdapter:HandleProof'
-      | 'Gateway:ExecuteMessage'
-      | 'MultiAdapter:HandlePayload'
+      | 'multiAdapterV3:HandleProof'
+      | 'gatewayV3:ExecuteMessage'
+      | 'multiAdapterV3:HandlePayload'
     >) {
     this.data.status = "Completed";
     this.data.completedAt = new Date(Number(event.block.timestamp) * 1000);
