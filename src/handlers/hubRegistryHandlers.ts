@@ -1,4 +1,4 @@
-import { ponder } from "ponder:registry";
+import { multiMapper } from "../helpers/multiMapper";
 import { PoolService } from "../services/PoolService";
 import { logEvent } from "../helpers/logger";
 import {
@@ -13,8 +13,8 @@ import { isoCurrencies } from "../helpers/isoCurrencies";
 
 const ipfsHashRegex = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[A-Za-z2-7]{58})$/;
 
-ponder.on("HubRegistryV3:NewPool", async ({ event, context }) => {
-  logEvent(event, context, "HubRegistryV3:NewPool");
+multiMapper("HubRegistry:NewPool", async ({ event, context }) => {
+  logEvent(event, context, "HubRegistry:NewPool");
   const { poolId, currency, manager } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -55,9 +55,9 @@ ponder.on("HubRegistryV3:NewPool", async ({ event, context }) => {
   await poolManager.save(event.block);
 });
 
-ponder.on("HubRegistryV3:NewAsset", async ({ event, context }) => {
+multiMapper("HubRegistry:NewAsset", async ({ event, context }) => {
   //Fires Second to complete
-  logEvent(event, context, "HubRegistryV3:NewAsset");
+  logEvent(event, context, "HubRegistry:NewAsset");
 
   const { assetId, decimals } = event.args;
 
@@ -89,8 +89,8 @@ ponder.on("HubRegistryV3:NewAsset", async ({ event, context }) => {
   }
 });
 
-ponder.on("HubRegistryV3:UpdateManager", async ({ event, context }) => {
-  logEvent(event, context, "HubRegistryV3:UpdateManager");
+multiMapper("HubRegistry:UpdateManager", async ({ event, context }) => {
+  logEvent(event, context, "HubRegistry:UpdateManager");
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
   const { manager, poolId, canManage } = event.args;
@@ -116,8 +116,8 @@ ponder.on("HubRegistryV3:UpdateManager", async ({ event, context }) => {
   await poolManager.save(event.block);
 });
 
-ponder.on("HubRegistryV3:SetMetadata", async ({ event, context }) => {
-  logEvent(event, context, "HubRegistryV3:SetMetadata");
+multiMapper("HubRegistry:SetMetadata", async ({ event, context }) => {
+  logEvent(event, context, "HubRegistry:SetMetadata");
 
 
   const { poolId, metadata: rawMetadata } = event.args;

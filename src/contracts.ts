@@ -1,7 +1,11 @@
 import { factory, mergeAbis } from "ponder";
 import { type Abi, getAbiItem } from "viem";
 import fullRegistry from "../generated";
-import type { RegistryVersions, Registry, NetworkNames } from "./chains";
+import type {
+  RegistryVersions,
+  Registry,
+  NetworkNames, 
+} from "./chains";
 import { networkNames } from "./chains";
 
 // ============================================================================
@@ -20,7 +24,9 @@ type Uncapitalized<S extends string> = S extends `${infer First}${infer Rest}`
 // ABI Types
 // ============================================================================
 
-export type Abis<V extends RegistryVersions> = Registry<V>["abis"];
+export type Abis<V extends RegistryVersions> = V extends RegistryVersions
+  ? Registry<V>["abis"]
+  : never;
 export type AbiName<V extends RegistryVersions> = keyof Abis<V> & string;
 export type AbiItem<
   V extends RegistryVersions,
@@ -339,7 +345,11 @@ export function decorateDeploymentContracts<
         factory: {
           abi: AbiName<V>;
           eventName: AbiEventName<V, AbiName<V>>;
-          eventParameter: AbiEventParameter<V, AbiName<V>, AbiEventName<V, AbiName<V>>>;
+          eventParameter: AbiEventParameter<
+            V,
+            AbiName<V>,
+            AbiEventName<V, AbiName<V>>
+          >;
         };
       };
 
@@ -432,8 +442,8 @@ export function decorateDeploymentContracts<
           chain: getContractChain(registryVersion, m.factory.abi, endBlock, {
             // Type assertion: event name is validated above to exist in factory ABI
             // Cast through unknown to satisfy type system while maintaining runtime safety
-            event: m.factory.eventName ,
-            parameter: m.factory.eventParameter ,
+            event: m.factory.eventName,
+            parameter: m.factory.eventParameter,
           }),
         },
       ];
@@ -459,42 +469,42 @@ function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
   registryVersion: V,
   abiName: N,
   endBlock?: number,
-  factoryConfig?: { event: AbiEventName<V, N>, parameter: AbiEventParameter<V, N, AbiEventName<V, N>>}
+  factoryConfig?: {
+    event: AbiEventName<V, N>;
+    parameter: AbiEventParameter<V, N, AbiEventName<V, N>>;
+  }
 ): ContractChain<V, N> {
   const abis = Abis[registryVersion];
   const registry = fullRegistry[registryVersion] as Registry<V>;
-  const chainEntries = Object.entries(registry.chains) as Entries<
-    typeof registry.chains
-  >;
+  const chainEntries = Object.entries(registry.chains) as Entries<typeof registry.chains>;
 
-  const chain = chainEntries.map(([chainId, chainValue]) => {
-    const chainName = networkNames[chainId];
-    const resolvedAddress = chainValue.contracts[
-      toContractCase(abiName) as keyof typeof chainValue.contracts
-    ] as `0x${string}`;
+  const chain = chainEntries.map(
+    ([chainId, chainValue]) => {
+      const chainName = networkNames[chainId as keyof typeof networkNames];
+      const resolvedAddress = chainValue.contracts[
+        toContractCase(abiName) as keyof typeof chainValue.contracts
+      ].address as `0x${string}`;
 
-    const address = factoryConfig
-      ? factory({
-        address: resolvedAddress,
-          event: getAbiItem({
-            abi: abis[abiName] as Abi,
-            name: factoryConfig.event as string,
-          }) as Parameters<typeof factory>[0]["event"],
-          parameter: factoryConfig.parameter,
-          
-        })
-      : resolvedAddress;
+      const address = factoryConfig
+        ? factory({
+            address: resolvedAddress,
+            event: getAbiItem({
+              abi: abis[abiName] as Abi,
+              name: factoryConfig.event as string,
+            }) as Parameters<typeof factory>[0]["event"],
+            parameter: factoryConfig.parameter,
+          })
+        : resolvedAddress;
 
-    if (!address) {
-      throw new Error(`Address for ${abiName} on ${chainName} not found`);
+      if (!address) {
+        throw new Error(`Address for ${abiName} on ${chainName} not found`);
+      }
+
+      const startBlock = chainValue.deployment.endBlock as number;
+
+      return [chainName, { address, startBlock, endBlock }];
     }
-
-    const startBlock = registry.chains[chainId]["deployment"][
-      "deployedAtBlock"
-    ] as number;
-
-    return [chainName, { address, startBlock, endBlock }];
-  });
+  );
 
   return Object.fromEntries(chain);
 }

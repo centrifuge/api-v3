@@ -7,13 +7,11 @@ ponder.on("HubRegistryV3:setup", async ({ context }) => {
     const chainId = context.chain.id;
     if (typeof chainId !== "number") throw new Error("Need a chain id.");
     const currentChain = RegistryChains.find(chain => chain.network.chainId === chainId);
-    if (!currentChain) 
-      throw new Error(`Chain ${chainId} not found`);
-    const network = currentChain.network;
-    const contracts = currentChain.contracts;
+    if (!currentChain) throw new Error(`Chain ${chainId} not found`);
+    const contracts = Object.fromEntries(Object.entries(currentChain.contracts).map(([key, value]) => [key, value.address] as [string, `0x${string}`]));
     const _deployment = await DeploymentService.insert(context, {
-      chainId: network.chainId.toString(),
-      centrifugeId: network.centrifugeId.toString(),
+      chainId: currentChain.network.chainId.toString(),
+      centrifugeId: currentChain.network.centrifugeId.toString(),
       ...contracts,
     }, null) as DeploymentService | null;
 

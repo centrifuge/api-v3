@@ -58,7 +58,7 @@ export function multiMapper<E extends UnversionedContractEvents>(
   
   // Register handlers for versioned events using string pattern matching
   // Pattern: <ContractName><Version>:<EventName>
-  // Validate against contract keys (strings) - only register if contract key exists
+  // Validate against contract keys (strings) - only register if contract key exists and event exists in ABI
   const registeredEvents: string[] = [];
   
   for (const version of versions) {
@@ -66,6 +66,18 @@ export function multiMapper<E extends UnversionedContractEvents>(
     
     // Verify contract key exists in contracts by checking the string key
     if (!(contractKey in contracts)) continue;
+    
+    // Get the contract and verify the event exists in its ABI
+    const contract = contracts[contractKey as keyof typeof contracts];
+    if (!contract || !contract.abi) continue;
+    
+    const abiArray = Array.isArray(contract.abi) ? contract.abi : [];
+    const eventExists = abiArray.some(
+      (item) => item.type === "event" && item.name === eventName
+    );
+    
+    // Skip if event doesn't exist in this version's ABI
+    if (!eventExists) continue;
     
     // Construct versioned event string pattern: <ContractName><Version>:<EventName>
     // Split by ":" to validate: first part should match contractKey, second part should match eventName

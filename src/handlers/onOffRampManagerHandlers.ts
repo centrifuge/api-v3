@@ -1,4 +1,4 @@
-import { ponder } from "ponder:registry";
+import { multiMapper } from "../helpers/multiMapper";
 import {
   AccountService,
   BlockchainService,
@@ -9,12 +9,12 @@ import {
 import { logEvent } from "../helpers/logger";
 import { OnRampAssetService } from "../services";
 
-ponder.on(
-  "OnOfframpManagerFactoryV3:DeployOnOfframpManager",
+multiMapper(
+  "OnOfframpManagerFactory:DeployOnOfframpManager",
   async ({ event, context }) => {
-    logEvent(event, context, "OnOffRampManagerFactoryV3:DeployOnOfframpManager");
+    logEvent(event, context, "OnOffRampManagerFactory:DeployOnOfframpManager");
     const { poolId, scId: tokenId, manager } = event.args;
-    
+
     const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
     const _onOffRampManager = (await OnOffRampManagerService.insert(
@@ -33,8 +33,8 @@ ponder.on(
   }
 );
 
-ponder.on("OnOfframpManagerV3:UpdateRelayer", async ({ event, context }) => {
-  logEvent(event, context, "OnOffRampManagerV3:UpdateRelayer");
+multiMapper("OnOfframpManager:UpdateRelayer", async ({ event, context }) => {
+  logEvent(event, context, "OnOffRampManager:UpdateRelayer");
   const { relayer, isEnabled } = event.args;
   const manager = event.log.address;
 
@@ -64,8 +64,8 @@ ponder.on("OnOfframpManagerV3:UpdateRelayer", async ({ event, context }) => {
   if (!offRampRelayer) console.error("Failed to upsert OffRampRelayer");
 });
 
-ponder.on("OnOfframpManagerV3:UpdateOnramp", async ({ event, context }) => {
-  logEvent(event, context, "OnOffRampManagerV3:UpdateOnramp");
+multiMapper("OnOfframpManager:UpdateOnramp", async ({ event, context }) => {
+  logEvent(event, context, "OnOffRampManager:UpdateOnramp");
   const manager = event.log.address;
   const { asset, isEnabled } = event.args;
 
@@ -96,8 +96,8 @@ ponder.on("OnOfframpManagerV3:UpdateOnramp", async ({ event, context }) => {
   if (!onRampAsset) console.error("Failed to upsert OnRampAsset");
 });
 
-ponder.on("OnOfframpManagerV3:UpdateOfframp", async ({ event, context }) => {
-  logEvent(event, context, "OnOffRampManagerV3:UpdateOfframp");
+multiMapper("OnOfframpManager:UpdateOfframp", async ({ event, context }) => {
+  logEvent(event, context, "OnOffRampManager:UpdateOfframp");
   const { asset, receiver } = event.args;
   const manager = event.log.address;
 

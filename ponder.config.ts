@@ -21,7 +21,7 @@ export const contractsV3 = decorateDeploymentContracts(
     "Spoke",
   ] as const,
   {
-    VaultV3: {
+    vaultV3: {
       abi: ["SyncDepositVault", "AsyncVault"],
       factory: {
         abi: "Spoke",
@@ -81,7 +81,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
     "Spoke",
   ] as const,
   {
-    VaultV3_1: {
+    vaultV3_1: {
       abi: ["SyncDepositVault", "AsyncVault"],
       factory: {
         abi: "Spoke",

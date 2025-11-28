@@ -1,6 +1,6 @@
 import type { Context, Event } from "ponder:registry";
 import { BlockchainService } from "../services/BlockchainService";
-import { RegistryChains, networkNames, explorerUrls } from "../chains";
+import { RegistryChains, networkNames, explorerUrls,RegistryChainsKeys,RegistryVersions } from "../chains";
 
 /** Interval in seconds for snapshot periods (24 hours) */
 const SNAPSHOT_INTERVAL_SECONDS = 60 * 60 * 24; // 1 day
@@ -62,19 +62,18 @@ export class Timekeeper {
   public async init(context: Context, block: Event["block"]): Promise<Timekeeper> {
     const chainId = context.chain.id;
     process.stdout.write(`Initializing timekeeper for chainId ${chainId}\n`);
-    if (typeof chainId !== "number") throw new Error("Chain ID is required");
     const chain = RegistryChains.find(
       (chain) => chain.network.chainId === chainId
     );
     if (!chain) throw new Error(`Chain ${chainId} not found in chains.ts`);
-    const networkName = networkNames[chainId.toString() as keyof typeof networkNames]
+    const networkName = networkNames[chainId.toString() as RegistryChainsKeys<RegistryVersions>]
     if (!networkName) throw new Error(`Network ${networkName} not found in chains.ts`);
     const blockchain = (await BlockchainService.getOrInit(context, {
       id: chainId.toString(),
       centrifugeId: chain.network.centrifugeId.toString(),
-      network: chain.network.environment,
+      network: networkName,
       chainId: chain.network.chainId,
-      environment: chain.network.environment,
+      environment: null, //TODO:Handle registry env
       name: networkName,
       explorer: explorerUrls[chainId.toString() as keyof typeof explorerUrls],
       //icon: chain.network.icon, //TODO: Add icons

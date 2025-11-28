@@ -1,4 +1,4 @@
-import { ponder } from "ponder:registry";
+import { multiMapper } from "../helpers/multiMapper";
 import { logEvent } from "../helpers/logger";
 import { BlockchainService } from "../services/BlockchainService";
 import {
@@ -13,8 +13,8 @@ import { AdapterService } from "../services/AdapterService";
 import { RegistryChains } from "../chains";
 import { AdapterParticipationService } from "../services/AdapterParticipationService";
 
-ponder.on("MultiAdapterV3:SendPayload", async ({ event, context }) => {
-  logEvent(event, context, "MultiAdapterV3:SendPayload");
+multiMapper("MultiAdapter:SendPayload", async ({ event, context }) => {
+  logEvent(event, context, "MultiAdapter:SendPayload");
   const {
     centrifugeId: toCentrifugeId,
     payload: payloadData,
@@ -85,8 +85,8 @@ ponder.on("MultiAdapterV3:SendPayload", async ({ event, context }) => {
     console.error("Failed to initialize adapter participation");
 });
 
-ponder.on("MultiAdapterV3:SendProof", async ({ event, context }) => {
-  logEvent(event, context, "MultiAdapterV3:SendProof");
+multiMapper("MultiAdapter:SendProof", async ({ event, context }) => {
+  logEvent(event, context, "MultiAdapter:SendProof");
   const { payloadId, adapter, centrifugeId: toCentrifugeId } = event.args;
 
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -120,9 +120,9 @@ ponder.on("MultiAdapterV3:SendProof", async ({ event, context }) => {
   )) as AdapterParticipationService;
 });
 
-ponder.on("MultiAdapterV3:HandlePayload", async ({ event, context }) => {
+multiMapper("MultiAdapter:HandlePayload", async ({ event, context }) => {
   // RECEIVING CHAIN
-  logEvent(event, context, "MultiAdapterV3:HandlePayload");
+  logEvent(event, context, "MultiAdapter:HandlePayload");
   const {
     payloadId,
     adapter,
@@ -175,8 +175,8 @@ ponder.on("MultiAdapterV3:HandlePayload", async ({ event, context }) => {
   await payload.save(event.block);
 });
 
-ponder.on("MultiAdapterV3:HandleProof", async ({ event, context }) => {
-  logEvent(event, context, "MultiAdapterV3:HandleProof"); //RECEIVING CHAIN
+multiMapper("MultiAdapter:HandleProof", async ({ event, context }) => {
+  logEvent(event, context, "MultiAdapter:HandleProof"); //RECEIVING CHAIN
   const { payloadId, adapter, centrifugeId: fromCentrifugeId } = event.args;
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -222,10 +222,10 @@ ponder.on("MultiAdapterV3:HandleProof", async ({ event, context }) => {
   await crosschainPayload.save(event.block);
 });
 
-ponder.on(
-  "MultiAdapterV3:File(bytes32 indexed what, uint16 centrifugeId, address[] adapters)",
+multiMapper(
+  "MultiAdapter:File(bytes32 indexed what, uint16 centrifugeId, address[] adapters)",
   async ({ event, context }) => {
-    logEvent(event, context, "MultiAdapterV3:File2");
+    logEvent(event, context, "MultiAdapter:File2");
 
     const chainId = context.chain.id;
     if (typeof chainId !== "number") throw new Error("Chain ID is required");

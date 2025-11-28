@@ -1,12 +1,38 @@
 import { type ChainConfig } from "ponder";
 import registries from "../generated";
 
+// ============================================================================
+// Registry Types
+// ============================================================================
+
 export type RegistryVersions = keyof typeof registries;
+
+// Registry type - when V is a union (e.g., "v3" | "v3_1"), this becomes a union
+// of registry types: Registry<"v3"> | Registry<"v3_1">
 export type Registry<V extends RegistryVersions> = (typeof registries)[V];
-export type RegistryChains<V extends RegistryVersions> = Registry<V>["chains"];
-export type RegistryChainsKeys<V extends RegistryVersions> = keyof RegistryChains<V>;
-export type RegistryChainsValues<V extends RegistryVersions> = RegistryChains<V>[RegistryChainsKeys<V>];
-type ChainsConfig<V extends RegistryVersions> = Record<NetworkNames<V>, ChainConfig>;
+
+// Root cause fix: When accessing properties on union types, TypeScript doesn't
+// automatically distribute. For example, (A | B)["prop"] doesn't become
+// A["prop"] | B["prop"]. We fix this by making all property accesses explicitly
+// distributive using the pattern: V extends RegistryVersions ? Registry<V>["prop"] : never
+// This ensures each union member is processed separately, then results are unioned.
+
+export type RegistryChains<V extends RegistryVersions> = V extends RegistryVersions
+  ? Registry<V>["chains"]
+  : never;
+
+export type RegistryChainsKeys<V extends RegistryVersions> = V extends RegistryVersions
+  ? keyof RegistryChains<V>
+  : never;
+
+export type RegistryChainsValues<V extends RegistryVersions> = V extends RegistryVersions
+  ? RegistryChains<V>[keyof RegistryChains<V>]
+  : never;
+
+type ChainsConfig<V extends RegistryVersions> = Record<
+  NetworkNames<V>,
+  ChainConfig
+>;
 
 export const networkNames = {
   "84532": "base",
@@ -20,31 +46,45 @@ export const networkNames = {
   "56": "binance",
 } as const;
 
-// Optimized: Pre-compute the union type to avoid complex conditional type evaluation
-type AllNetworkNames = (typeof networkNames)[keyof typeof networkNames];
-export type NetworkNames<V extends RegistryVersions> = Extract<
-  AllNetworkNames,
-  RegistryChainsKeys<V> extends keyof typeof networkNames
-    ? (typeof networkNames)[RegistryChainsKeys<V>]
-    : never
->;
- 
+// Extract network names from chain keys by mapping them through networkNames
+// This distributes over union types automatically
+type ExtractNetworkNamesFromKeys<Keys> = 
+  Keys extends keyof typeof networkNames 
+    ? (typeof networkNames)[Keys]
+    : never;
+
+export type NetworkNames<V extends RegistryVersions> = 
+  V extends RegistryVersions
+    ? ExtractNetworkNamesFromKeys<RegistryChainsKeys<V>>
+    : never;
+
 // Load and deduplicate the registry chains
 let loadedChains: RegistryChainsValues<RegistryVersions>[] = Array.from(
   Object.values(registries)
-    .flatMap((registry: Registry<RegistryVersions>) => Object.values(registry.chains))
-    .reduce((map: Map<number, RegistryChainsValues<RegistryVersions>>, chain: RegistryChainsValues<RegistryVersions>) => {
-      const chainId = chain.network.chainId;
-      const current = map.get(chainId);
-      // Compare deployedAtBlock as numbers (parseInt), select the lowest
-      if (
-        !current ||
-        chain.deployment.deployedAtBlock < current.deployment.deployedAtBlock
-      ) {
-        map.set(chainId, chain);
-      }
-      return map;
-    }, new Map<number, RegistryChainsValues<RegistryVersions>>()).values()
+    .flatMap((registry: Registry<RegistryVersions>) =>
+      Object.values(registry.chains)
+    )
+    .reduce(
+      (
+        map: Map<number, RegistryChainsValues<RegistryVersions>>,
+        chain: RegistryChainsValues<RegistryVersions>
+      ) => {
+        const chainId = chain.network.chainId;
+        const current = map.get(chainId);
+        // Compare deployedAtBlock as numbers (parseInt), select the lowest
+        if (
+          !current ||
+          (chain.deployment.endBlock &&
+            current.deployment.endBlock &&
+            chain.deployment.endBlock < current.deployment.endBlock)
+        ) {
+          map.set(chainId, chain);
+        }
+        return map;
+      },
+      new Map<number, RegistryChainsValues<RegistryVersions>>()
+    )
+    .values()
 ) as RegistryChainsValues<RegistryVersions>[];
 
 // Filter out selected chains if SELECTED_NETWORKS is set
@@ -99,7 +139,8 @@ export const endpoints = {
 const chains = Object.fromEntries(
   loadedChains.map((chain) => {
     const chainId = chain.network.chainId;
-    const networkName = networkNames[chainId.toString() as keyof typeof networkNames];
+    const networkName =
+      networkNames[chainId.toString() as keyof typeof networkNames];
     return [
       networkName,
       {
@@ -134,12 +175,13 @@ export const skipBlocks = {
 
 const blocks = Object.fromEntries(
   loadedChains.map((chain) => {
-    const chainId = chain.network.chainId
-    const networkName = networkNames[chainId.toString() as keyof typeof networkNames] ;
+    const chainId = chain.network.chainId;
+    const networkName =
+      networkNames[chainId.toString() as keyof typeof networkNames];
     return [
       networkName,
       {
-        startBlock: chain.deployment.deployedAtBlock,
+        startBlock: chain.deployment.endBlock,
         interval: skipBlocks[chainId.toString() as keyof typeof skipBlocks],
         chain: networkName,
       },
@@ -154,8 +196,16 @@ export { blocks };
  * @param registryVersion - The registry version to get the contract names for.
  * @returns The contract names for the given registry version.
  */
-export function getContractNames<V extends RegistryVersions>(registryVersion: V): string[] {
-  return Array.from(new Set((Object.values(registries[registryVersion].chains).flatMap((chain) => Object.keys(chain.contracts)))));
+export function getContractNames<V extends RegistryVersions>(
+  registryVersion: V
+): string[] {
+  return Array.from(
+    new Set(
+      Object.values(registries[registryVersion].chains).flatMap((chain) =>
+        Object.keys(chain.contracts)
+      )
+    )
+  );
 }
 
 export const explorerUrls = {

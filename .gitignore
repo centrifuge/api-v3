@@ -18,7 +18,6 @@ yarn-error.log*
 .env*.local
 
 # Ponder
-/generated/
 /.ponder/
 
 # Generated registry data

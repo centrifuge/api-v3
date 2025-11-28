@@ -1,4 +1,4 @@
-import { ponder } from "ponder:registry";
+import { multiMapper } from "../helpers/multiMapper";
 import { logEvent } from "../helpers/logger";
 import { VaultKinds } from "ponder:schema";
 import {
@@ -17,8 +17,8 @@ import { RegistryChains } from "../chains";
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
 
-ponder.on("SpokeV3:DeployVault", async ({ event, context }) => {
-  logEvent(event, context, "SpokeV3:DeployVault");
+multiMapper("Spoke:DeployVault", async ({ event, context }) => {
+  logEvent(event, context, "Spoke:DeployVault");
 
   const {
     poolId,
@@ -37,7 +37,7 @@ ponder.on("SpokeV3:DeployVault", async ({ event, context }) => {
 
   const { client, contracts } = context;
   const manager = await client.readContract({
-    abi: contracts.VaultV3.abi,
+    abi: contracts.vaultV3.abi,
     address: vaultId,
     functionName: "manager",
     args: [],
@@ -59,9 +59,9 @@ ponder.on("SpokeV3:DeployVault", async ({ event, context }) => {
   )) as VaultService | null;
 });
 
-ponder.on("SpokeV3:RegisterAsset", async ({ event, context }) => {
+multiMapper("Spoke:RegisterAsset", async ({ event, context }) => {
   //Fires first to request registration to HUB
-  logEvent(event, context, "SpokeV3:RegisterAsset");
+  logEvent(event, context, "Spoke:RegisterAsset");
   const {
     assetId,
     asset: assetAddress,
@@ -87,8 +87,8 @@ ponder.on("SpokeV3:RegisterAsset", async ({ event, context }) => {
   )) as AssetService | null;
 });
 
-ponder.on("SpokeV3:AddShareClass", async ({ event, context }) => {
-  logEvent(event, context, "SpokeV3:AddShareClass");
+multiMapper("Spoke:AddShareClass", async ({ event, context }) => {
+  logEvent(event, context, "Spoke:AddShareClass");
   const { poolId, scId: tokenId, token: tokenAddress } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -137,8 +137,8 @@ ponder.on("SpokeV3:AddShareClass", async ({ event, context }) => {
   await token.save(event.block);
 });
 
-ponder.on("SpokeV3:LinkVault", async ({ event, context }) => {
-  logEvent(event, context, "SpokeV3:LinkVault");
+multiMapper("Spoke:LinkVault", async ({ event, context }) => {
+  logEvent(event, context, "Spoke:LinkVault");
   const {
     //poolId: poolId,
     //scId: tokenId,
@@ -158,8 +158,8 @@ ponder.on("SpokeV3:LinkVault", async ({ event, context }) => {
   await vault.save(event.block);
 });
 
-ponder.on("SpokeV3:UnlinkVault", async ({ event, context }) => {
-  logEvent(event, context, "SpokeV3:UnlinkVault");
+multiMapper("Spoke:UnlinkVault", async ({ event, context }) => {
+  logEvent(event, context, "Spoke:UnlinkVault");
   const { vault: vaultId } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -173,8 +173,8 @@ ponder.on("SpokeV3:UnlinkVault", async ({ event, context }) => {
   await vault.save(event.block);
 });
 
-ponder.on("SpokeV3:UpdateSharePrice", async ({ event, context }) => {
-  logEvent(event, context, "SpokeV3:PriceUpdate");
+multiMapper("Spoke:UpdateSharePrice", async ({ event, context }) => {
+  logEvent(event, context, "Spoke:PriceUpdate");
   const {
     //poolId,
     scId: tokenId,
@@ -198,8 +198,8 @@ ponder.on("SpokeV3:UpdateSharePrice", async ({ event, context }) => {
   await tokenInstance.save(event.block);
 });
 
-ponder.on("SpokeV3:UpdateAssetPrice", async ({ event, context }) => {
-  logEvent(event, context, "SpokeV3:UpdateAssetPrice");
+multiMapper("Spoke:UpdateAssetPrice", async ({ event, context }) => {
+  logEvent(event, context, "Spoke:UpdateAssetPrice");
 
   const {
     poolId: poolId,
@@ -223,7 +223,7 @@ ponder.on("SpokeV3:UpdateAssetPrice", async ({ event, context }) => {
 
   const escrowAddress = await context.client.readContract({
     abi: Abis.v3.PoolEscrowFactory,
-    address: poolEscrowFactoryAddress,
+    address: poolEscrowFactoryAddress.address,
     functionName: "escrow",
     args: [poolId],
   });
@@ -259,8 +259,8 @@ ponder.on("SpokeV3:UpdateAssetPrice", async ({ event, context }) => {
   await snapshotter(context, event, "SpokeV3:UpdateAssetPrice", [holdingEscrow], HoldingEscrowSnapshot);
 });
 
-ponder.on("SpokeV3:InitiateTransferShares", async ({ event, context }) => {
-  logEvent(event, context, "SpokeV3:InitiateTransferShares");
+multiMapper("Spoke:InitiateTransferShares", async ({ event, context }) => {
+  logEvent(event, context, "Spoke:InitiateTransferShares");
   const {
     centrifugeId: toCentrifugeId,
     poolId,

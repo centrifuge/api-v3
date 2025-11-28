@@ -1,4 +1,4 @@
-import { ponder } from "ponder:registry";
+import { multiMapper } from "../helpers/multiMapper";
 import { logEvent } from "../helpers/logger";
 import {
   BlockchainService,
@@ -7,13 +7,13 @@ import {
 } from "../services";
 import { Abis } from "../contracts";
 
-ponder.on(
-  "MerkleProofManagerFactoryV3:DeployMerkleProofManager",
+multiMapper(
+  "MerkleProofManagerFactory:DeployMerkleProofManager",
   async ({ event, context }) => {
     logEvent(
       event,
       context,
-      "MerkleProofManagerFactoryV3:DeployMerkleProofManager"
+      "MerkleProofManagerFactory:DeployMerkleProofManager"
     );
     const { poolId, manager } = event.args;
     const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -33,8 +33,8 @@ ponder.on(
   }
 );
 
-ponder.on("MerkleProofManagerV3:UpdatePolicy", async ({ event, context }) => {
-  logEvent(event, context, "MerkleProofManagerV3:UpdatePolicy");
+multiMapper("MerkleProofManager:UpdatePolicy", async ({ event, context }) => {
+  logEvent(event, context, "MerkleProofManager:UpdatePolicy");
   const { strategist, newRoot } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
