@@ -6,7 +6,7 @@ import { HoldingAccountTypes, HoldingSnapshot } from "ponder:schema";
 import { BlockchainService } from "../services/BlockchainService";
 import { snapshotter } from "../helpers/snapshotter";
 
-multiMapper("Holdings:Initialize", async ({ event, context }) => {
+multiMapper("holdings:Initialize", async ({ event, context }) => {
   logEvent(event, context, "Holdings:Create");
   const [_poolId, shareClassId, assetId, _valuation, isLiability, accounts] =
     event.args;
@@ -42,7 +42,7 @@ multiMapper("Holdings:Initialize", async ({ event, context }) => {
   }
 });
 
-multiMapper("Holdings:Increase", async ({ event, context }) => {
+multiMapper("holdings:Increase", async ({ event, context }) => {
   logEvent(event, context, "Holdings:Increase");
   const [_poolId, _scId, assetId, _pricePoolPerAsset, amount, increasedValue] =
     event.args;
@@ -62,10 +62,10 @@ multiMapper("Holdings:Increase", async ({ event, context }) => {
   await holding.increase(amount, increasedValue);
   await holding.save(event.block);
 
-  await snapshotter(context, event, "HoldingsV3:Increase", [holding], HoldingSnapshot);
+  await snapshotter(context, event, "holdingsV3:Increase", [holding], HoldingSnapshot);
 });
 
-multiMapper("Holdings:Decrease", async ({ event, context }) => {
+multiMapper("holdings:Decrease", async ({ event, context }) => {
   logEvent(event, context, "Holdings:Decrease");
   
   const [_poolId, _scId, assetId, _pricePoolPerAsset, amount, decreasedValue] =
@@ -89,7 +89,7 @@ multiMapper("Holdings:Decrease", async ({ event, context }) => {
   await holding.save(event.block);
 });
 
-multiMapper("Holdings:Update", async ({ event, context }) => {
+multiMapper("holdings:Update", async ({ event, context }) => {
   logEvent(event, context, "Holdings:Update");
   
   const {
@@ -116,10 +116,10 @@ multiMapper("Holdings:Update", async ({ event, context }) => {
   await holding.update(isPositive, diffValue);
   await holding.save(event.block);
 
-  await snapshotter(context, event, "HoldingsV3:Update", [holding], HoldingSnapshot);
+  await snapshotter(context, event, "holdingsV3:Update", [holding], HoldingSnapshot);
 });
 
-multiMapper("Holdings:UpdateValuation", async ({ event, context }) => {
+multiMapper("holdings:UpdateValuation", async ({ event, context }) => {
   logEvent(event, context, "Holdings:UpdateValuation");
   const {
     poolId: _poolId,
@@ -143,5 +143,5 @@ multiMapper("Holdings:UpdateValuation", async ({ event, context }) => {
   await holding.setValuation(valuation);
   await holding.save(event.block);
 
-  await snapshotter(context, event, "HoldingsV3:UpdateValuation", [holding], HoldingSnapshot);
+  await snapshotter(context, event, "holdingsV3:UpdateValuation", [holding], HoldingSnapshot);
 });

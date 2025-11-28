@@ -10,8 +10,8 @@ import {
 } from "../services";
 import { initialisePosition } from "../services/TokenInstancePositionService";
 
-multiMapper("TokenInstance:Transfer", async ({ event, context }) => {
-  logEvent(event, context, "TokenInstance:Transfer");
+multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
+  logEvent(event, context, "tokenInstance:Transfer");
   const { from, to, value: amount } = event.args;
   const { address: tokenAddress } = event.log;
 

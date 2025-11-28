@@ -14,7 +14,7 @@ import {
   extractMessagesFromPayload,
 } from "../services/CrosschainPayloadService";
 
-multiMapper("Gateway:PrepareMessage", async ({ event, context }) => {
+multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
   logEvent(event, context, "Gateway:PrepareMessage");
   const { centrifugeId: toCentrifugeId, poolId, message } = event.args;
   const messageBuffer = Buffer.from(message.substring(2), "hex");
@@ -54,7 +54,7 @@ multiMapper("Gateway:PrepareMessage", async ({ event, context }) => {
   )) as CrosschainMessageService | null;
 });
 
-multiMapper("Gateway:UnderpaidBatch", async ({ event, context }) => {
+multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
   logEvent(event, context, "Gateway:UnderpaidBatch");
   const { centrifugeId: toCentrifugeId, batch } = event.args;
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -159,7 +159,7 @@ multiMapper("Gateway:UnderpaidBatch", async ({ event, context }) => {
   if (!crosschainPayload) console.error("Failed to initialize crosschain payload ");
 });
 
-multiMapper("Gateway:RepayBatch", async ({ event, context }) => {
+multiMapper("gateway:RepayBatch", async ({ event, context }) => {
   logEvent(event, context, "Gateway:RepayBatch");
   const { centrifugeId: toCentrifugeId, batch } = event.args;
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -197,7 +197,7 @@ multiMapper("Gateway:RepayBatch", async ({ event, context }) => {
   await crosschainPayload.save(event.block);
 });
 
-multiMapper("Gateway:ExecuteMessage", async ({ event, context }) => {
+multiMapper("gateway:ExecuteMessage", async ({ event, context }) => {
   // RECEIVING CHAIN
   logEvent(event, context, "Gateway:ExecuteMessage");
   const { centrifugeId: fromCentrifugeId, message } = event.args;
@@ -247,7 +247,7 @@ multiMapper("Gateway:ExecuteMessage", async ({ event, context }) => {
   await crosschainPayload.save(event.block);
 });
 
-multiMapper("Gateway:FailMessage", async ({ event, context }) => {
+multiMapper("gateway:FailMessage", async ({ event, context }) => {
   // RECEIVING CHAIN
   logEvent(event, context, "Gateway:FailMessage");
   const { centrifugeId: fromCentrifugeId, message, error } = event.args;

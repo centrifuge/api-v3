@@ -3,7 +3,7 @@ import { RegistryChains } from "../chains";
 import { DeploymentService, WhitelistedInvestorService } from "../services";
 import { V2_POOLS, MAX_UINT64_DATE, V2_MIGRATION_BLOCK, V2_MIGRATION_TIMESTAMP } from "../config";
 
-ponder.on("HubRegistryV3:setup", async ({ context }) => {
+ponder.on("hubRegistryV3:setup", async ({ context }) => {
     const chainId = context.chain.id;
     if (typeof chainId !== "number") throw new Error("Need a chain id.");
     const currentChain = RegistryChains.find(chain => chain.network.chainId === chainId);

@@ -13,7 +13,7 @@ import { AdapterService } from "../services/AdapterService";
 import { RegistryChains } from "../chains";
 import { AdapterParticipationService } from "../services/AdapterParticipationService";
 
-multiMapper("MultiAdapter:SendPayload", async ({ event, context }) => {
+multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
   logEvent(event, context, "MultiAdapter:SendPayload");
   const {
     centrifugeId: toCentrifugeId,
@@ -85,7 +85,7 @@ multiMapper("MultiAdapter:SendPayload", async ({ event, context }) => {
     console.error("Failed to initialize adapter participation");
 });
 
-multiMapper("MultiAdapter:SendProof", async ({ event, context }) => {
+multiMapper("multiAdapter:SendProof", async ({ event, context }) => {
   logEvent(event, context, "MultiAdapter:SendProof");
   const { payloadId, adapter, centrifugeId: toCentrifugeId } = event.args;
 
@@ -120,9 +120,9 @@ multiMapper("MultiAdapter:SendProof", async ({ event, context }) => {
   )) as AdapterParticipationService;
 });
 
-multiMapper("MultiAdapter:HandlePayload", async ({ event, context }) => {
+multiMapper("multiAdapter:HandlePayload", async ({ event, context }) => {
   // RECEIVING CHAIN
-  logEvent(event, context, "MultiAdapter:HandlePayload");
+  logEvent(event, context, "multiAdapter:HandlePayload");
   const {
     payloadId,
     adapter,
@@ -175,7 +175,7 @@ multiMapper("MultiAdapter:HandlePayload", async ({ event, context }) => {
   await payload.save(event.block);
 });
 
-multiMapper("MultiAdapter:HandleProof", async ({ event, context }) => {
+multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
   logEvent(event, context, "MultiAdapter:HandleProof"); //RECEIVING CHAIN
   const { payloadId, adapter, centrifugeId: fromCentrifugeId } = event.args;
 
@@ -223,7 +223,7 @@ multiMapper("MultiAdapter:HandleProof", async ({ event, context }) => {
 });
 
 multiMapper(
-  "MultiAdapter:File(bytes32 indexed what, uint16 centrifugeId, address[] adapters)",
+  "multiAdapter:File(bytes32 indexed what, uint16 centrifugeId, address[] adapters)",
   async ({ event, context }) => {
     logEvent(event, context, "MultiAdapter:File2");
 

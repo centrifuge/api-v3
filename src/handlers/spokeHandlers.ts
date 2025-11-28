@@ -17,8 +17,8 @@ import { RegistryChains } from "../chains";
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
 
-multiMapper("Spoke:DeployVault", async ({ event, context }) => {
-  logEvent(event, context, "Spoke:DeployVault");
+multiMapper("spoke:DeployVault", async ({ event, context }) => {
+  logEvent(event, context, "spoke:DeployVault");
 
   const {
     poolId,
@@ -59,9 +59,9 @@ multiMapper("Spoke:DeployVault", async ({ event, context }) => {
   )) as VaultService | null;
 });
 
-multiMapper("Spoke:RegisterAsset", async ({ event, context }) => {
+multiMapper("spoke:RegisterAsset", async ({ event, context }) => {
   //Fires first to request registration to HUB
-  logEvent(event, context, "Spoke:RegisterAsset");
+  logEvent(event, context, "spoke:RegisterAsset");
   const {
     assetId,
     asset: assetAddress,
@@ -87,8 +87,8 @@ multiMapper("Spoke:RegisterAsset", async ({ event, context }) => {
   )) as AssetService | null;
 });
 
-multiMapper("Spoke:AddShareClass", async ({ event, context }) => {
-  logEvent(event, context, "Spoke:AddShareClass");
+multiMapper("spoke:AddShareClass", async ({ event, context }) => {
+  logEvent(event, context, "spoke:AddShareClass");
   const { poolId, scId: tokenId, token: tokenAddress } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -137,8 +137,8 @@ multiMapper("Spoke:AddShareClass", async ({ event, context }) => {
   await token.save(event.block);
 });
 
-multiMapper("Spoke:LinkVault", async ({ event, context }) => {
-  logEvent(event, context, "Spoke:LinkVault");
+multiMapper("spoke:LinkVault", async ({ event, context }) => {
+  logEvent(event, context, "spoke:LinkVault");
   const {
     //poolId: poolId,
     //scId: tokenId,
@@ -158,8 +158,8 @@ multiMapper("Spoke:LinkVault", async ({ event, context }) => {
   await vault.save(event.block);
 });
 
-multiMapper("Spoke:UnlinkVault", async ({ event, context }) => {
-  logEvent(event, context, "Spoke:UnlinkVault");
+multiMapper("spoke:UnlinkVault", async ({ event, context }) => {
+  logEvent(event, context, "spoke:UnlinkVault");
   const { vault: vaultId } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -173,8 +173,8 @@ multiMapper("Spoke:UnlinkVault", async ({ event, context }) => {
   await vault.save(event.block);
 });
 
-multiMapper("Spoke:UpdateSharePrice", async ({ event, context }) => {
-  logEvent(event, context, "Spoke:PriceUpdate");
+multiMapper("spoke:UpdateSharePrice", async ({ event, context }) => {
+  logEvent(event, context, "spoke:PriceUpdate");
   const {
     //poolId,
     scId: tokenId,
@@ -198,8 +198,8 @@ multiMapper("Spoke:UpdateSharePrice", async ({ event, context }) => {
   await tokenInstance.save(event.block);
 });
 
-multiMapper("Spoke:UpdateAssetPrice", async ({ event, context }) => {
-  logEvent(event, context, "Spoke:UpdateAssetPrice");
+multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
+  logEvent(event, context, "spoke:UpdateAssetPrice");
 
   const {
     poolId: poolId,
@@ -256,11 +256,11 @@ multiMapper("Spoke:UpdateAssetPrice", async ({ event, context }) => {
   await holdingEscrow.setAssetPrice(assetPrice);
   await holdingEscrow.save(event.block);
 
-  await snapshotter(context, event, "SpokeV3:UpdateAssetPrice", [holdingEscrow], HoldingEscrowSnapshot);
+  await snapshotter(context, event, "spokeV3:UpdateAssetPrice", [holdingEscrow], HoldingEscrowSnapshot);
 });
 
-multiMapper("Spoke:InitiateTransferShares", async ({ event, context }) => {
-  logEvent(event, context, "Spoke:InitiateTransferShares");
+multiMapper("spoke:InitiateTransferShares", async ({ event, context }) => {
+  logEvent(event, context, "spoke:InitiateTransferShares");
   const {
     centrifugeId: toCentrifugeId,
     poolId,

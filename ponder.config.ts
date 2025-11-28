@@ -29,7 +29,7 @@ export const contractsV3 = decorateDeploymentContracts(
         eventParameter: "vault",
       },
     },
-    PoolEscrowV3: {
+    poolEscrowV3: {
       abi: "PoolEscrow",
       factory: {
         abi: "PoolEscrowFactory",
@@ -37,7 +37,7 @@ export const contractsV3 = decorateDeploymentContracts(
         eventParameter: "escrow",
       },
     },
-    OnOfframpManagerV3 : {
+    onOfframpManagerV3 : {
       abi: "OnOfframpManager",
       factory: {
         abi: "OnOfframpManagerFactory",
@@ -45,7 +45,7 @@ export const contractsV3 = decorateDeploymentContracts(
         eventParameter: "manager",
       },
     },
-    MerkleProofManagerV3 : {
+    merkleProofManagerV3 : {
       abi: "MerkleProofManager",
       factory: {
         abi: "MerkleProofManagerFactory",
@@ -53,7 +53,7 @@ export const contractsV3 = decorateDeploymentContracts(
         eventParameter: "manager",
       },
     },
-    TokenInstanceV3 : {
+    tokenInstanceV3 : {
       abi: ERC20Abi,
       factory: {
         abi: "Spoke",
@@ -89,7 +89,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
         eventParameter: "vault",
       },
     },
-    PoolEscrowV3_1: {
+    poolEscrowV3_1: {
       abi: "PoolEscrow",
       factory: {
         abi: "PoolEscrowFactory",
@@ -97,7 +97,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
         eventParameter: "escrow",
       },
     },
-    OnOfframpManagerV3_1 : {
+    onOfframpManagerV3_1 : {
       abi: "OnOfframpManager",
       factory: {
         abi: "OnOfframpManagerFactory",
@@ -105,7 +105,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
         eventParameter: "manager",
       },
     },
-    MerkleProofManagerV3_1 : {
+    merkleProofManagerV3_1 : {
       abi: "MerkleProofManager",
       factory: {
         abi: "MerkleProofManagerFactory",
@@ -113,7 +113,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
         eventParameter: "manager",
       },
     },
-    TokenInstanceV3_1 : {
+    tokenInstanceV3_1 : {
       abi: ERC20Abi,
       factory: {
         abi: "Spoke",

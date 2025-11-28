@@ -13,8 +13,8 @@ import { isoCurrencies } from "../helpers/isoCurrencies";
 
 const ipfsHashRegex = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[A-Za-z2-7]{58})$/;
 
-multiMapper("HubRegistry:NewPool", async ({ event, context }) => {
-  logEvent(event, context, "HubRegistry:NewPool");
+multiMapper("hubRegistry:NewPool", async ({ event, context }) => {
+  logEvent(event, context, "hubRegistry:NewPool");
   const { poolId, currency, manager } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -55,7 +55,7 @@ multiMapper("HubRegistry:NewPool", async ({ event, context }) => {
   await poolManager.save(event.block);
 });
 
-multiMapper("HubRegistry:NewAsset", async ({ event, context }) => {
+multiMapper("hubRegistry:NewAsset", async ({ event, context }) => {
   //Fires Second to complete
   logEvent(event, context, "HubRegistry:NewAsset");
 
@@ -89,8 +89,8 @@ multiMapper("HubRegistry:NewAsset", async ({ event, context }) => {
   }
 });
 
-multiMapper("HubRegistry:UpdateManager", async ({ event, context }) => {
-  logEvent(event, context, "HubRegistry:UpdateManager");
+multiMapper("hubRegistry:UpdateManager", async ({ event, context }) => {
+  logEvent(event, context, "hubRegistry:UpdateManager");
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
   const { manager, poolId, canManage } = event.args;
@@ -116,8 +116,8 @@ multiMapper("HubRegistry:UpdateManager", async ({ event, context }) => {
   await poolManager.save(event.block);
 });
 
-multiMapper("HubRegistry:SetMetadata", async ({ event, context }) => {
-  logEvent(event, context, "HubRegistry:SetMetadata");
+multiMapper("hubRegistry:SetMetadata", async ({ event, context }) => {
+  logEvent(event, context, "hubRegistry:SetMetadata");
 
 
   const { poolId, metadata: rawMetadata } = event.args;

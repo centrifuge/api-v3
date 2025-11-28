@@ -10,7 +10,7 @@ import { logEvent } from "../helpers/logger";
 import { OnRampAssetService } from "../services";
 
 multiMapper(
-  "OnOfframpManagerFactory:DeployOnOfframpManager",
+  "onOfframpManagerFactory:DeployOnOfframpManager",
   async ({ event, context }) => {
     logEvent(event, context, "OnOffRampManagerFactory:DeployOnOfframpManager");
     const { poolId, scId: tokenId, manager } = event.args;
@@ -33,8 +33,8 @@ multiMapper(
   }
 );
 
-multiMapper("OnOfframpManager:UpdateRelayer", async ({ event, context }) => {
-  logEvent(event, context, "OnOffRampManager:UpdateRelayer");
+multiMapper("onOfframpManager:UpdateRelayer", async ({ event, context }) => {
+  logEvent(event, context, "onOffRampManager:UpdateRelayer");
   const { relayer, isEnabled } = event.args;
   const manager = event.log.address;
 
@@ -64,7 +64,7 @@ multiMapper("OnOfframpManager:UpdateRelayer", async ({ event, context }) => {
   if (!offRampRelayer) console.error("Failed to upsert OffRampRelayer");
 });
 
-multiMapper("OnOfframpManager:UpdateOnramp", async ({ event, context }) => {
+multiMapper("onOfframpManager:UpdateOnramp", async ({ event, context }) => {
   logEvent(event, context, "OnOffRampManager:UpdateOnramp");
   const manager = event.log.address;
   const { asset, isEnabled } = event.args;
@@ -96,8 +96,8 @@ multiMapper("OnOfframpManager:UpdateOnramp", async ({ event, context }) => {
   if (!onRampAsset) console.error("Failed to upsert OnRampAsset");
 });
 
-multiMapper("OnOfframpManager:UpdateOfframp", async ({ event, context }) => {
-  logEvent(event, context, "OnOffRampManager:UpdateOfframp");
+multiMapper("onOfframpManager:UpdateOfframp", async ({ event, context }) => {
+  logEvent(event, context, "onOffRampManager:UpdateOfframp");
   const { asset, receiver } = event.args;
   const manager = event.log.address;
 
@@ -108,7 +108,7 @@ multiMapper("OnOfframpManager:UpdateOfframp", async ({ event, context }) => {
     centrifugeId,
   })) as OnOffRampManagerService;
   if (!onOffRampManager) {
-    console.error("OnOffRampManager not found");
+    console.error("onOffRampManager not found");
     return;
   }
   const { poolId, tokenId } = onOffRampManager.read();

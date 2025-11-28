@@ -8,12 +8,12 @@ import {
 import { Abis } from "../contracts";
 
 multiMapper(
-  "MerkleProofManagerFactory:DeployMerkleProofManager",
+  "merkleProofManagerFactory:DeployMerkleProofManager",
   async ({ event, context }) => {
     logEvent(
       event,
       context,
-      "MerkleProofManagerFactory:DeployMerkleProofManager"
+      "merkleProofManagerFactory:DeployMerkleProofManager"
     );
     const { poolId, manager } = event.args;
     const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -33,8 +33,8 @@ multiMapper(
   }
 );
 
-multiMapper("MerkleProofManager:UpdatePolicy", async ({ event, context }) => {
-  logEvent(event, context, "MerkleProofManager:UpdatePolicy");
+multiMapper("merkleProofManager:UpdatePolicy", async ({ event, context }) => {
+  logEvent(event, context, "merkleProofManager:UpdatePolicy");
   const { strategist, newRoot } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);

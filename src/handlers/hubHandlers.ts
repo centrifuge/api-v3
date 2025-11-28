@@ -5,7 +5,7 @@ import { PoolSpokeBlockchainService } from "../services/PoolSpokeBlockchainServi
 
 
 
-multiMapper("Hub:NotifyPool", async ({ event, context }) => {
+multiMapper("hub:NotifyPool", async ({ event, context }) => {
   logEvent(event, context, "Hub:NotifyPool");
   const { poolId, centrifugeId } = event.args;
 
@@ -19,7 +19,7 @@ multiMapper("Hub:NotifyPool", async ({ event, context }) => {
   );
 });
 
-multiMapper("Hub:UpdateRestriction", async ({ event, context }) => {
+multiMapper("hub:UpdateRestriction", async ({ event, context }) => {
   logEvent(event, context, "Hub:UpdateRestriction");
   const {
     centrifugeId: spokeCentrifugeId,

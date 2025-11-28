@@ -11,7 +11,7 @@ import {
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
 
-multiMapper('BalanceSheet:NoteDeposit', async ({ event, context }) => {
+multiMapper('balanceSheet:NoteDeposit', async ({ event, context }) => {
   logEvent(event, context, "BalanceSheet:NoteDeposit");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
@@ -58,10 +58,10 @@ multiMapper('BalanceSheet:NoteDeposit', async ({ event, context }) => {
   await holdingEscrow.setAssetPrice(pricePoolPerAsset);
   await holdingEscrow.save(event.block);
 
-  await snapshotter(context, event, "BalanceSheetV3:NoteDeposit", [holdingEscrow], HoldingEscrowSnapshot);
+  await snapshotter(context, event, "balanceSheetV3:NoteDeposit", [holdingEscrow], HoldingEscrowSnapshot);
 });
 
-multiMapper("BalanceSheet:Withdraw", async ({ event, context }) => {
+multiMapper("balanceSheet:Withdraw", async ({ event, context }) => {
   logEvent(event, context, "BalanceSheet:Withdraw");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
@@ -109,11 +109,11 @@ multiMapper("BalanceSheet:Withdraw", async ({ event, context }) => {
   await holdingEscrow.setAssetPrice(pricePoolPerAsset);
   await holdingEscrow.save(event.block);
 
-  await snapshotter(context, event, "BalanceSheetV3:Withdraw", [holdingEscrow], HoldingEscrowSnapshot);
+  await snapshotter(context, event, "balanceSheetV3:Withdraw", [holdingEscrow], HoldingEscrowSnapshot);
 });
 
-multiMapper("BalanceSheet:UpdateManager", async ({ event, context }) => {
-  logEvent(event, context, "BalanceSheet:UpdateManager");
+multiMapper("balanceSheet:UpdateManager", async ({ event, context }) => {
+  logEvent(event, context, "balanceSheet:UpdateManager");
   
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 

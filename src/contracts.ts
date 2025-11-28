@@ -143,7 +143,7 @@ function loadAbisFromRegistry(): AbiExports {
 type ContractKeys<
   V extends RegistryVersions,
   N extends AbiName<V>
-> = `${N}${Uppercase<V>}`;
+> = `${Uncapitalized<N>}${Uppercase<V>}`;
 
 // ============================================================================
 // Factory Configuration Types
@@ -329,7 +329,7 @@ export function decorateDeploymentContracts<
     }
 
     return [
-      `${abiName}${registryVersion.toUpperCase()}`,
+      `${toContractCase(abiName)}${registryVersion.toUpperCase()}`,
       {
         abi,
         chain: getContractChain(registryVersion, abiName),

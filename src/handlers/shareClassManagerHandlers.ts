@@ -22,9 +22,9 @@ import { HoldingEscrowSnapshot } from "ponder:schema";
 
 // SHARE CLASS LIFECYCLE
 multiMapper(
-  "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index)",
+  "shareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index)",
   async ({ event, context }) => {
-    logEvent(event, context, "ShareClassManager:AddShareClassShort");
+    logEvent(event, context, "shareClassManager:AddShareClassShort");
     const { poolId, scId: tokenId, index } = event.args;
 
     const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -49,9 +49,9 @@ multiMapper(
 );
 
 multiMapper(
-  "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index, string name, string symbol, bytes32 salt)",
+  "shareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index, string name, string symbol, bytes32 salt)",
   async ({ event, context }) => {
-    logEvent(event, context, "ShareClassManager:AddShareClassLong");
+    logEvent(event, context, "shareClassManager:AddShareClassLong");
     const { poolId, scId: tokenId, index, name, symbol, salt } = event.args;
 
     const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -79,8 +79,8 @@ multiMapper(
 );
 
 // INVESTOR TRANSACTIONS
-multiMapper("ShareClassManager:UpdateMetadata", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:UpdatedMetadata");
+multiMapper("shareClassManager:UpdateMetadata", async ({ event, context }) => {
+  logEvent(event, context, "shareClassManager:UpdatedMetadata");
   const { poolId, scId: tokenId, name, symbol } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -99,9 +99,9 @@ multiMapper("ShareClassManager:UpdateMetadata", async ({ event, context }) => {
 });
 
 multiMapper(
-  "ShareClassManager:UpdateDepositRequest",
+  "shareClassManager:UpdateDepositRequest",
   async ({ event, context }) => {
-    logEvent(event, context, "ShareClassManager:UpdateDepositRequest");
+    logEvent(event, context, "shareClassManager:UpdateDepositRequest");
     const chainId = context.chain.id;
     if (typeof chainId !== "number") throw new Error("Chain ID is required");
 
@@ -159,9 +159,9 @@ multiMapper(
 );
 
 multiMapper(
-  "ShareClassManager:UpdateRedeemRequest",
+  "shareClassManager:UpdateRedeemRequest",
   async ({ event, context }) => {
-    logEvent(event, context, "ShareClassManager:UpdateRedeemRequest");
+    logEvent(event, context, "shareClassManager:UpdateRedeemRequest");
     const chainId = context.chain.id;
     if (typeof chainId !== "number") throw new Error("Chain ID is required");
     const {
@@ -217,8 +217,8 @@ multiMapper(
   }
 );
 
-multiMapper("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:ApproveDeposits");
+multiMapper("shareClassManager:ApproveDeposits", async ({ event, context }) => {
+  logEvent(event, context, "shareClassManager:ApproveDeposits");
   const {
     poolId,
     scId: tokenId,
@@ -287,14 +287,14 @@ multiMapper("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
   await snapshotter(
     context,
     event,
-    "ShareClassManagerV3:ApproveDeposits",
+    "shareClassManagerV3:ApproveDeposits",
     holdingEscrows,
     HoldingEscrowSnapshot
   );
 });
 
-multiMapper("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:ApproveRedeems");
+multiMapper("shareClassManager:ApproveRedeems", async ({ event, context }) => {
+  logEvent(event, context, "shareClassManager:ApproveRedeems");
   const {
     poolId,
     scId: tokenId,
@@ -364,13 +364,13 @@ multiMapper("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
   await snapshotter(
     context,
     event,
-    "ShareClassManagerV3:ApproveRedeems",
+    "shareClassManagerV3:ApproveRedeems",
     holdingEscrows,
     HoldingEscrowSnapshot
   );
 });
 
-multiMapper("ShareClassManager:IssueShares", async ({ event, context }) => {
+multiMapper("shareClassManager:IssueShares", async ({ event, context }) => {
   logEvent(event, context, "ShareClassManager:IssueShares");
   const {
     //poolId,
@@ -420,7 +420,7 @@ multiMapper("ShareClassManager:IssueShares", async ({ event, context }) => {
   const investOrderSaves: Promise<InvestOrderService>[] = [];
   for (const outstandingInvest of outstandingInvests) {
     serviceLog(
-      `Processing ShareClassManager:IssueShares for outstanding invest with index ${epochIndex}`,
+      `Processing shareClassManager:IssueShares for outstanding invest with index ${epochIndex}`,
       expandInlineObject(outstandingInvest.read())
     );
     const {
@@ -462,8 +462,8 @@ multiMapper("ShareClassManager:IssueShares", async ({ event, context }) => {
   await Promise.all(outstandingInvestSaves);
 });
 
-multiMapper("ShareClassManager:RevokeShares", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:RevokeShares");
+multiMapper("shareClassManager:RevokeShares", async ({ event, context }) => {
+  logEvent(event, context, "shareClassManager:RevokeShares");
   const {
     poolId,
     scId: tokenId,
@@ -560,8 +560,8 @@ multiMapper("ShareClassManager:RevokeShares", async ({ event, context }) => {
   await Promise.all([...outstandingRedeemSaves, ...redeemOrderSaves]);
 });
 
-multiMapper("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:UpdateShareClass");
+multiMapper("shareClassManager:UpdateShareClass", async ({ event, context }) => {
+  logEvent(event, context, "shareClassManager:UpdateShareClass");
   const { poolId, scId: tokenId, navPoolPerShare: tokenPrice } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -581,14 +581,14 @@ multiMapper("ShareClassManager:UpdateShareClass", async ({ event, context }) => 
   await snapshotter(
     context,
     event,
-    "ShareClassManagerV3:UpdateShareClass",
+    "shareClassManagerV3:UpdateShareClass",
     [token],
     TokenSnapshot
   );
 });
 
-multiMapper("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:ClaimDeposit");
+multiMapper("shareClassManager:ClaimDeposit", async ({ event, context }) => {
+  logEvent(event, context, "shareClassManager:ClaimDeposit");
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const {
@@ -627,8 +627,8 @@ multiMapper("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
   await investOrder.claimDeposit(event.block).save(event.block);
 });
 
-multiMapper("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:ClaimRedeem");
+multiMapper("shareClassManager:ClaimRedeem", async ({ event, context }) => {
+  logEvent(event, context, "shareClassManager:ClaimRedeem");
   const {
     //poolId,
     scId: tokenId,
