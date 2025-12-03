@@ -163,7 +163,6 @@ const TokenColumns = (t: PgColumnsBuilders) => ({
   // Metrics fields
   totalIssuance: t.bigint().default(0n),
   tokenPrice: t.bigint().default(0n),
-  ...defaultColumns(t, false),
 });
 export const Token = onchainTable("token", TokenColumns, (t) => ({
   id: primaryKey({ columns: [t.id] }),
@@ -717,7 +716,7 @@ const AssetColumns = (t: PgColumnsBuilders) => ({
   decimals: t.integer().notNull(),
   name: t.text(),
   symbol: t.text(),
-  ...defaultColumns(t),
+  ...defaultColumns(t, false),
 });
 
 export const Asset = onchainTable("asset", AssetColumns, (t) => ({
@@ -868,7 +867,7 @@ export const HoldingEscrowColumns = (t: PgColumnsBuilders) => ({
   assetAmount: t.bigint().default(0n),
   assetPrice: t.bigint().default(0n),
   escrowAddress: t.hex().notNull(),
-  ...defaultColumns(t, false),
+  ...defaultColumns(t, true),
 });
 export const HoldingEscrow = onchainTable(
   "holding_escrow",
@@ -1188,7 +1187,7 @@ const AdapterColumns = (t: PgColumnsBuilders) => ({
   address: t.hex().notNull(),
   centrifugeId: t.text().notNull(),
   name: t.text(),
-  ...defaultColumns(t),
+  ...defaultColumns(t, false),
 });
 
 export const Adapter = onchainTable("adapter", AdapterColumns, (t) => ({
