@@ -10,6 +10,7 @@ yarn-error.log*
 
 # Misc
 .DS_Store
+.idea/
 
 # Env files
 .env*.local

@@ -357,10 +357,10 @@ const OutstandingInvestColumns = (t: PgColumnsBuilders) => ({
   approvedIndex: t.integer(),
   approvedAmount: t.bigint().default(0n), // Amount that is approved on Hub, asset denomination
   approvedAt: t.timestamp(),
-  approvedAtBlock: t.integer(),
+  approvedAtTxHash: t.hex(),
 
   updatedAt: t.timestamp(),
-  updatedAtBlock: t.integer(),
+  updatedAtTxHash: t.hex(),
 });
 
 export const OutstandingInvest = onchainTable(
@@ -396,10 +396,10 @@ const OutstandingRedeemColumns = (t: PgColumnsBuilders) => ({
   approvedIndex: t.integer(),
   approvedAmount: t.bigint().default(0n), // Amount that is approved on Hub, share denomination
   approvedAt: t.timestamp(),
-  approvedAtBlock: t.integer(),
+  approvedAtTxHash: t.hex(),
 
   updatedAt: t.timestamp(),
-  updatedAtBlock: t.integer(),
+  updatedAtTxHash: t.hex(),
 });
 
 export const OutstandingRedeem = onchainTable(
@@ -430,7 +430,7 @@ const InvestOrderColumns = (t: PgColumnsBuilders) => ({
 
   // Approved fields
   approvedAt: t.timestamp(),
-  approvedAtBlock: t.integer(),
+  approvedAtTxHash: t.hex(),
   approvedAssetsAmount: t.bigint().default(0n), // Asset denomination
 
   // Issued fields
@@ -438,11 +438,11 @@ const InvestOrderColumns = (t: PgColumnsBuilders) => ({
   issuedWithNavPoolPerShare: t.bigint().default(0n),
   issuedWithNavAssetPerShare: t.bigint().default(0n),
   issuedAt: t.timestamp(),
-  issuedAtBlock: t.integer(),
+  issuedAtTxHash: t.hex(),
 
   // Claimed fields
   claimedAt: t.timestamp(), // Claim action on the Hub, NOT the Spoke side
-  claimedAtBlock: t.integer(),
+  claimedAtTxHash: t.hex(),
 });
 
 export const InvestOrder = onchainTable(
@@ -477,12 +477,12 @@ const RedeemOrderColumns = (t: PgColumnsBuilders) => ({
 
   // Approved fields
   approvedAt: t.timestamp(),
-  approvedAtBlock: t.integer(),
+  approvedAtTxHash: t.hex(),
   approvedSharesAmount: t.bigint().default(0n), // Share denomination
 
   // Revoked fields
   revokedAt: t.timestamp(),
-  revokedAtBlock: t.integer(),
+  revokedAtTxHash: t.hex(),
   revokedAssetsAmount: t.bigint().default(0n), // payout of assets for shares, in asset denomination, PER USER
   revokedPoolAmount: t.bigint().default(0n), // payout of assets for shares, in pool denomination, , PER USER
   revokedWithNavPoolPerShare: t.bigint().default(0n),
@@ -490,7 +490,7 @@ const RedeemOrderColumns = (t: PgColumnsBuilders) => ({
 
   // Claimed fields
   claimedAt: t.timestamp(), // Claim action on the Hub, NOT the Spoke side
-  claimedAtBlock: t.integer(),
+  claimedAtTxHash: t.hex(),
 });
 
 export const RedeemOrder = onchainTable(
@@ -524,7 +524,7 @@ const EpochOutstandingInvestColumns = (t: PgColumnsBuilders) => ({
   pendingAssetsAmount: t.bigint().default(0n),
 
   updatedAt: t.timestamp(),
-  updatedAtBlock: t.integer(),
+  updatedAtTxHash: t.hex(),
 });
 
 export const EpochOutstandingInvest = onchainTable(
@@ -560,7 +560,7 @@ const EpochOutstandingRedeemColumns = (t: PgColumnsBuilders) => ({
   pendingSharesAmount: t.bigint().default(0n),
 
   updatedAt: t.timestamp(),
-  updatedAtBlock: t.integer(),
+  updatedAtTxHash: t.hex(),
 });
 
 export const EpochOutstandingRedeem = onchainTable(
@@ -596,14 +596,14 @@ const EpochInvestOrderColumns = (t: PgColumnsBuilders) => ({
 
   // Approved fields
   approvedAt: t.timestamp(),
-  approvedAtBlock: t.integer(),
+  approvedAtTxHash: t.hex(),
   approvedAssetsAmount: t.bigint().default(0n), // asset denomination
   approvedPoolAmount: t.bigint().default(0n), // pool denomination
   approvedPercentageOfTotalPending: t.bigint().default(0n),
 
   // Closed fields
   issuedAt: t.timestamp(),
-  issuedAtBlock: t.integer(),
+  issuedAtTxHash: t.hex(),
   issuedSharesAmount: t.bigint().default(0n),
   issuedWithNavPoolPerShare: t.bigint().default(0n),
   issuedWithNavAssetPerShare: t.bigint().default(0n),
@@ -642,13 +642,13 @@ const EpochRedeemOrderColumns = (t: PgColumnsBuilders) => ({
 
   // Approved fields
   approvedAt: t.timestamp(),
-  approvedAtBlock: t.integer(),
+  approvedAtTxHash: t.hex(),
   approvedSharesAmount: t.bigint().default(0n), // asset denomination
   approvedPercentageOfTotalPending: t.bigint().default(0n), // percentage value as fixed point would be best
 
   // Closed fields
   revokedAt: t.timestamp(),
-  revokedAtBlock: t.integer(),
+  revokedAtTxHash: t.hex(),
   revokedSharesAmount: t.bigint().default(0n),
   revokedAssetsAmount: t.bigint().default(0n), // payout of assets for shares, in asset denomination
   revokedPoolAmount: t.bigint().default(0n), // payout of assets for shares, in pool denomination
@@ -1345,7 +1345,7 @@ export const Account = onchainTable("account", AccountColumns, (t) => ({
   id: primaryKey({ columns: [t.address] }),
   addressIdx: index().on(t.address),
 }));
-export const AccountRelations = relations(Account, ({}) => ({}));
+export const AccountRelations = relations(Account, ({ }) => ({}));
 
 const TokenInstancePositionColumns = (t: PgColumnsBuilders) => ({
   tokenId: t.text().notNull(),
@@ -1458,12 +1458,12 @@ function defaultColumns(t: PgColumnsBuilders, update = true): DefaultColumns {
 }
 type DefaultColumns =
   | {
-      createdAt: PgColumn<"timestamp">;
-      createdAtBlock: PgColumn<"integer">;
-      updatedAt: PgColumn<"timestamp">;
-      updatedAtBlock: PgColumn<"integer">;
-    }
+    createdAt: PgColumn<"timestamp">;
+    createdAtBlock: PgColumn<"integer">;
+    updatedAt: PgColumn<"timestamp">;
+    updatedAtBlock: PgColumn<"integer">;
+  }
   | {
-      createdAt: PgColumn<"timestamp">;
-      createdAtBlock: PgColumn<"integer">;
-    };
+    createdAt: PgColumn<"timestamp">;
+    createdAtBlock: PgColumn<"integer">;
+  };
