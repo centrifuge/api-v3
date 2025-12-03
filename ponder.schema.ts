@@ -122,7 +122,7 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
 const PoolSpokeBlockchainColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   centrifugeId: t.text().notNull(),
-  ...defaultColumns(t),
+  ...defaultColumns(t, false),
 });
 
 export const PoolSpokeBlockchain = onchainTable(
@@ -163,7 +163,7 @@ const TokenColumns = (t: PgColumnsBuilders) => ({
   // Metrics fields
   totalIssuance: t.bigint().default(0n),
   tokenPrice: t.bigint().default(0n),
-  ...defaultColumns(t),
+  ...defaultColumns(t, false),
 });
 export const Token = onchainTable("token", TokenColumns, (t) => ({
   id: primaryKey({ columns: [t.id] }),
@@ -275,7 +275,7 @@ const InvestorTransactionColumns = (t: PgColumnsBuilders) => ({
   fromCentrifugeId: t.text(),
   toCentrifugeId: t.text(),
   currencyAssetId: t.bigint(),
-  ...defaultColumns(t),
+  ...defaultColumns(t, false),
 });
 export const InvestorTransaction = onchainTable(
   "investor_transaction",
@@ -780,7 +780,7 @@ const HoldingColumns = (t: PgColumnsBuilders) => ({
   // Spoke side amounts and values
   assetQuantity: t.bigint().notNull().default(0n),
   totalValue: t.bigint().notNull().default(0n),
-  ...defaultColumns(t),
+  ...defaultColumns(t, false),
 });
 
 export const Holding = onchainTable("holding", HoldingColumns, (t) => ({
@@ -868,7 +868,7 @@ export const HoldingEscrowColumns = (t: PgColumnsBuilders) => ({
   assetAmount: t.bigint().default(0n),
   assetPrice: t.bigint().default(0n),
   escrowAddress: t.hex().notNull(),
-  ...defaultColumns(t),
+  ...defaultColumns(t, false),
 });
 export const HoldingEscrow = onchainTable(
   "holding_escrow",
@@ -1080,7 +1080,7 @@ const CrosschainPayloadColumns = (t: PgColumnsBuilders) => ({
   completedAtBlock: t.integer(),
   prepareTxHash: t.hex().notNull(),
   deliveryTxHash: t.hex(),
-  ...defaultColumns(t),
+  ...defaultColumns(t, false),
 });
 
 export const CrosschainPayload = onchainTable(
@@ -1147,7 +1147,7 @@ const CrosschainMessageColumns = (t: PgColumnsBuilders) => ({
   executedAt: t.timestamp(),
   executedAtBlock: t.integer(),
   executeTxHash: t.hex(),
-  ...defaultColumns(t),
+  ...defaultColumns(t, false),
 });
 
 export const CrosschainMessage = onchainTable(
@@ -1340,7 +1340,7 @@ export const HoldingEscrowSnapshot = onchainTable(
 
 const AccountColumns = (t: PgColumnsBuilders) => ({
   address: t.hex().notNull(),
-  ...defaultColumns(t),
+  ...defaultColumns(t, false),
 });
 export const Account = onchainTable("account", AccountColumns, (t) => ({
   id: primaryKey({ columns: [t.address] }),
@@ -1442,23 +1442,29 @@ function snapshotColumns<
  * @param t - The PgColumnsBuilders instance
  * @returns A new column definition function with createdAt and updatedAt columns
  */
-function defaultColumns(t: PgColumnsBuilders): DefaultColumns {
-  return {
-    createdAt: t.timestamp().notNull(),
-    createdAtBlock: t.integer().notNull(),
-    createdAtTxHash: t.hex().notNull(),
-    updatedAt: t.timestamp().notNull(),
-    updatedAtBlock: t.integer().notNull(),
-    updatedAtTxHash: t.hex().notNull(),
-    chainId: t.text().notNull(),
-  };
+function defaultColumns(t: PgColumnsBuilders, update = true): DefaultColumns {
+  if (update) {
+    return {
+      createdAt: t.timestamp().notNull(),
+      createdAtBlock: t.integer().notNull(),
+      updatedAt: t.timestamp().notNull(),
+      updatedAtBlock: t.integer().notNull(),
+    };
+  } else {
+    return {
+      createdAt: t.timestamp().notNull(),
+      createdAtBlock: t.integer().notNull(),
+    };
+  }
 }
-type DefaultColumns = {
-  createdAt: PgColumn<"timestamp">;
-  createdAtBlock: PgColumn<"integer">;
-  createdAtTxHash: PgColumn<"hex">;
-  updatedAt: PgColumn<"timestamp">;
-  updatedAtBlock: PgColumn<"integer">;
-  updatedAtTxHash: PgColumn<"hex">;
-  chainId: PgColumn<"text">;
-};
+type DefaultColumns =
+  | {
+    createdAt: PgColumn<"timestamp">;
+    createdAtBlock: PgColumn<"integer">;
+    updatedAt: PgColumn<"timestamp">;
+    updatedAtBlock: PgColumn<"integer">;
+  }
+  | {
+    createdAt: PgColumn<"timestamp">;
+    createdAtBlock: PgColumn<"integer">;
+  };
