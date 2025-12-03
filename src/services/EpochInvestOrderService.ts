@@ -18,15 +18,15 @@ export class EpochInvestOrderService extends mixinCommonStatics(
    * @param issuedSharesAmount - The amount of shares issued
    * @param issuedWithNavPoolPerShare - The NAV per share for the pool
    * @param issuedWithNavAssetPerShare - The NAV per share for the asset
-   * @param block - The block information
+   * @param event - The event information
    * @returns The service instance for method chaining
    */
-  public issuedShares(issuedSharesAmount: bigint, issuedWithNavPoolPerShare: bigint, issuedWithNavAssetPerShare: bigint, block: Event["block"]) {
+  public issuedShares(issuedSharesAmount: bigint, issuedWithNavPoolPerShare: bigint, issuedWithNavAssetPerShare: bigint, event: Event) {
     this.data.issuedSharesAmount = issuedSharesAmount;
     this.data.issuedWithNavPoolPerShare = issuedWithNavPoolPerShare;
     this.data.issuedWithNavAssetPerShare = issuedWithNavAssetPerShare;
-    this.data.issuedAt = new Date(Number(block.timestamp) * 1000);
-    this.data.issuedAtBlock = Number(block.number);
+    this.data.issuedAt = new Date(Number(event.block.timestamp) * 1000);
+    this.data.issuedAtTxHash = event.txHash;
     return this;
   }
 }

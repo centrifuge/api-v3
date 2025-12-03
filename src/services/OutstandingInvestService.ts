@@ -1,4 +1,4 @@
-import type { Event } from "ponder:registry";
+import { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { OutstandingInvest } from "ponder:schema";
 import { serviceLog } from "../helpers/logger";
@@ -25,7 +25,7 @@ export class OutstandingInvestService extends mixinCommonStatics(
   public decorateOutstandingOrder(event: Event) {
     serviceLog(`Decorating OutstandingInvest ${this.data.tokenId}-${this.data.assetId}-${this.data.account} with event block ${event.block.number} and timestamp ${event.block.timestamp}`);
     this.data.updatedAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.updatedAtBlock = Number(event.block.number);
+    this.data.updatedAtTxHash = event.txHash;
     return this;
   }
 
@@ -75,14 +75,14 @@ export class OutstandingInvestService extends mixinCommonStatics(
    * @param event - The event that triggered the approval
    * @returns The service instance for method chaining
    */
-  public approveInvest(approvedUserAssetAmount: bigint, approvedIndex: number, block: Event["block"]) {
+  public approveInvest(approvedUserAssetAmount: bigint, approvedIndex: number, event: Event) {
     serviceLog(
-      `Approving invest for outstandingInvest ${this.data.tokenId}-${this.data.assetId}-${this.data.account} for index ${approvedIndex} with approvedUserAssetAmount: ${approvedUserAssetAmount} on block ${block.number} and timestamp ${block.timestamp}`
+      `Approving invest for outstandingInvest ${this.data.tokenId}-${this.data.assetId}-${this.data.account} for index ${approvedIndex} with approvedUserAssetAmount: ${approvedUserAssetAmount} on block ${event.block.number} and timestamp ${event.block.timestamp}`
     );
     this.data.approvedIndex = approvedIndex;
     this.data.approvedAmount = approvedUserAssetAmount;
-    this.data.approvedAt = new Date(Number(block.timestamp) * 1000);
-    this.data.approvedAtBlock = Number(block.number);
+    this.data.approvedAt = new Date(Number(event.block.timestamp) * 1000);
+    this.data.approvedAtTxHash = event.txHash;
     return this;
   }
 

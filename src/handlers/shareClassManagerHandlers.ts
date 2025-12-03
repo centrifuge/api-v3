@@ -275,7 +275,7 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
       pendingAmount!,
       approvedPercentage
     );
-    oo.approveInvest(approvedUserAssetAmount, epochIndex, event.block);
+    oo.approveInvest(approvedUserAssetAmount, epochIndex, event);
     saves.push(oo.save(event.block));
   }
   await Promise.all(saves);
@@ -352,7 +352,7 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
       pendingAmount!,
       approvedPercentage
     );
-    oo.approveRedeem(approvedUserShareAmount, epochIndex, event.block);
+    oo.approveRedeem(approvedUserShareAmount, epochIndex, event);
     saves.push(oo.save(event.block));
   }
   await Promise.all(saves);
@@ -397,7 +397,7 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
     issuedShareAmount,
     navPoolPerShare,
     navAssetPerShare,
-    event.block
+    event
   );
   await epochInvestOrder.save(event.block);
 
@@ -452,7 +452,7 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
       navPoolPerShare,
       assetDecimals,
       tokenDecimals,
-      event.block
+      event
     );
     investOrderSaves.push(investOrder.save(event.block));
     outstandingInvestSaves.push(outstandingInvest.clear(event.block));
@@ -500,7 +500,7 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
     revokedPoolAmount,
     navPoolPerShare,
     navAssetPerShare,
-    event.block
+    event
   );
   await epochRedeemOrder.save(event.block);
 
@@ -552,7 +552,7 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
       navPoolPerShare,
       tokenDecimals,
       assetDecimals,
-      event.block
+      event
     );
     outstandingRedeemSaves.push(outstandingRedeem.clear(event.block));
     redeemOrderSaves.push(redeemOrder.save(event.block));
@@ -662,7 +662,7 @@ ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
     );
     return;
   }
-  await redeemOrder.claimRedeem(event.block).save(event.block);
+  await redeemOrder.claimRedeem(event).save(event.block);
 });
 
 /**

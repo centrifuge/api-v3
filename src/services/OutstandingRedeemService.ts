@@ -76,14 +76,14 @@ export class OutstandingRedeemService extends mixinCommonStatics(
    * @param event - The event that triggered the approval
    * @returns The service instance for method chaining
    */
-  public approveRedeem(approvedUserShareAmount: bigint, approvedIndex: number, block: Event["block"]) {
+  public approveRedeem(approvedUserShareAmount: bigint, approvedIndex: number, event: Event) {
     serviceLog(
-      `Approving redeem for outstandingRedeem ${this.data.tokenId}-${this.data.assetId}-${this.data.account} for index ${approvedIndex} with approvedUserShareAmount: ${approvedUserShareAmount} on block ${block.number} and timestamp ${block.timestamp}`
+      `Approving redeem for outstandingRedeem ${this.data.tokenId}-${this.data.assetId}-${this.data.account} for index ${approvedIndex} with approvedUserShareAmount: ${approvedUserShareAmount} on block ${event.block.number} and timestamp ${event.block.timestamp}`
     );
     this.data.approvedIndex = approvedIndex;
     this.data.approvedAmount = approvedUserShareAmount;
-    this.data.approvedAt = new Date(Number(block.timestamp) * 1000);
-    this.data.approvedAtBlock = Number(block.number);
+    this.data.approvedAt = new Date(Number(event.block.timestamp) * 1000);
+    this.data.approvedAtTxHash = event.txHash;
     return this;
   }
 

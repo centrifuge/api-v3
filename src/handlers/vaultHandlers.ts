@@ -37,7 +37,7 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
   })) as VaultService;
   if (!vault) throw new Error("Vault not found");
 
-  const { poolId, tokenId, assetAddress} = vault.read();
+  const { poolId, tokenId, assetAddress } = vault.read();
 
   const token = await TokenService.get(context, {
     poolId: poolId,
@@ -450,7 +450,7 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
   switch (kind) {
     case "Sync":
       const blockTimestamp = new Date(Number(event.block.timestamp) * 1000);
-      const blockNumber = Number(event.block.number);
+      const txHash = event.transaction.hash;
       await InvestorTransactionService.syncRedeem(context, itData, event.block);
       const redeemOrderIndex =
         (await RedeemOrderService.count(context, {
@@ -468,15 +468,15 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
           account: investorAddress,
           index: redeemOrderIndex,
           approvedAt: blockTimestamp,
-          approvedAtBlock: blockNumber,
+          approvedAtTxHash: txHash,
           approvedSharesAmount: shares,
           revokedAt: blockTimestamp,
-          revokedAtBlock: blockNumber,
+          revokedAtTxHash: txHash,
           revokedAssetsAmount: assets,
           revokedPoolAmount: assets,
           revokedWithNavAssetPerShare: getSharePrice(assets, shares, assetDecimals, shareDecimals),
           claimedAt: blockTimestamp,
-          claimedAtBlock: blockNumber,
+          claimedAtTxHash: txHash,
         },
         event.block
       );
@@ -496,11 +496,11 @@ ponder.on("Vault:Withdraw", async ({ event, context }) => {
           assetId,
           index: epochRedeemIndex,
           approvedAt: blockTimestamp,
-          approvedAtBlock: blockNumber,
+          approvedAtTxHash: txHash,
           approvedSharesAmount: shares,
           approvedPercentageOfTotalPending: 100n * 10n ** BigInt(shareDecimals),
           revokedAt: blockTimestamp,
-          revokedAtBlock: blockNumber,
+          revokedAtTxHash: txHash,
           revokedAssetsAmount: assets,
           revokedWithNavAssetPerShare: getSharePrice(assets, shares, assetDecimals, shareDecimals),
         },
