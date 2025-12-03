@@ -44,7 +44,7 @@ export class RedeemOrderService extends mixinCommonStatics(
     if (this.data.revokedAt) throw new Error("Shares already revoked");
     if (this.data.approvedSharesAmount === null) throw new Error("No shares approved");
     this.data.revokedAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.revokedAtTxHash = event.txHash;
+    this.data.revokedAtTxHash = event.transaction.hash;
     this.data.revokedAssetsAmount = (this.data.approvedSharesAmount * navAssetPerShare) / 10n ** BigInt(18 + shareDecimals - assetDecimals);
     this.data.revokedPoolAmount = (this.data.approvedSharesAmount * navPoolPerShare) / 10n ** BigInt(18 + shareDecimals - poolDecimals);
     this.data.revokedWithNavAssetPerShare = navAssetPerShare;
@@ -70,7 +70,7 @@ export class RedeemOrderService extends mixinCommonStatics(
     );
     if (this.data.claimedAt) throw new Error("Redeem already claimed");
     this.data.claimedAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.claimedAtTxHash = event.txHash;
+    this.data.claimedAtTxHash = event.transaction.hash;
     return this;
   }
 }

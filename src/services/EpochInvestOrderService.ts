@@ -26,7 +26,7 @@ export class EpochInvestOrderService extends mixinCommonStatics(
     this.data.issuedWithNavPoolPerShare = issuedWithNavPoolPerShare;
     this.data.issuedWithNavAssetPerShare = issuedWithNavAssetPerShare;
     this.data.issuedAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.issuedAtTxHash = event.txHash;
+    this.data.issuedAtTxHash = event.transaction.hash;
     return this;
   }
 }

@@ -30,7 +30,7 @@ export class EpochRedeemOrderService extends mixinCommonStatics(
     this.data.revokedWithNavPoolPerShare = revokedWithNavPoolPerShare;
     this.data.revokedWithNavAssetPerShare = revokedWithNavAssetPerShare;
     this.data.revokedAt = new Date(Number(block.timestamp) * 1000);
-    this.data.revokedAtTxHash = event.txHash;
+    this.data.revokedAtTxHash = event.transaction.hash;
     return this;
   }
 }

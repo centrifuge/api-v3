@@ -83,7 +83,7 @@ export class OutstandingRedeemService extends mixinCommonStatics(
     this.data.approvedIndex = approvedIndex;
     this.data.approvedAmount = approvedUserShareAmount;
     this.data.approvedAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.approvedAtTxHash = event.txHash;
+    this.data.approvedAtTxHash = event.transaction.hash;
     return this;
   }
 

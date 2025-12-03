@@ -25,7 +25,7 @@ export class OutstandingInvestService extends mixinCommonStatics(
   public decorateOutstandingOrder(event: Event) {
     serviceLog(`Decorating OutstandingInvest ${this.data.tokenId}-${this.data.assetId}-${this.data.account} with event block ${event.block.number} and timestamp ${event.block.timestamp}`);
     this.data.updatedAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.updatedAtTxHash = event.txHash;
+    this.data.updatedAtTxHash = event.transaction.hash;
     return this;
   }
 
@@ -82,7 +82,7 @@ export class OutstandingInvestService extends mixinCommonStatics(
     this.data.approvedIndex = approvedIndex;
     this.data.approvedAmount = approvedUserAssetAmount;
     this.data.approvedAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.approvedAtTxHash = event.txHash;
+    this.data.approvedAtTxHash = event.transaction.hash;
     return this;
   }
 

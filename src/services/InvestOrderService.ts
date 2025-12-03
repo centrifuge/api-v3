@@ -40,7 +40,7 @@ export class InvestOrderService extends mixinCommonStatics(
     if (this.data.issuedAt) throw new Error("Shares already issued");
     if (this.data.approvedAssetsAmount === null) throw new Error("No assets approved");
     this.data.issuedAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.issuedAtTxHash = event.txHash;
+    this.data.issuedAtTxHash = event.transaction.hash;
     this.data.issuedSharesAmount =
       (this.data.approvedAssetsAmount *
         10n ** BigInt(18 + shareDecimals - assetDecimals)) /
