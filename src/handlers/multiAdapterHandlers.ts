@@ -228,7 +228,6 @@ multiMapper(
     logEvent(event, context, "MultiAdapter:File2");
 
     const chainId = context.chain.id;
-    if (typeof chainId !== "number") throw new Error("Chain ID is required");
 
     const currentChain = RegistryChains.find(
       (chain) => chain.network.chainId === chainId
@@ -244,7 +243,7 @@ multiMapper(
       const contracts = Object.entries(currentChain.contracts);
       const [contractName = null] =
         contracts.find(
-          ([_, contractAddress]) => contractAddress.toLowerCase() === adapter
+          ([_, contractAddress]) => typeof contractAddress === 'string' && contractAddress.toLowerCase() === adapter
         ) ?? [];
       const firstPart = contractName
         ? contractName.split(/(?=[A-Z])/)[0]

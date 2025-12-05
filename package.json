@@ -16,7 +16,7 @@
     "tsgo:watch": "tsgo -w",
     "schema": "tsx graphqlToPonderSchema.ts",
     "prepare": "husky",
-    "update-registry": "echo 'Skipping registry update' || tsx scripts/fetch-registry.ts"
+    "update-registry": "node scripts/fetch-registry.mjs"
   },
   "dependencies": {
     "@ponder/utils": "^0.2.16",

@@ -64,8 +64,8 @@ export const contractsV3 = decorateDeploymentContracts(
   } as const,
 );
 
-export const contractsV3_1 = decorateDeploymentContracts(
-  "v3_1",
+export const contractsV3_1_12 = decorateDeploymentContracts(
+  "v3_1_12",
   [
     "BalanceSheet",
     "Gateway",
@@ -81,7 +81,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
     "Spoke",
   ] as const,
   {
-    vaultV3_1: {
+    vaultV3_1_12: {
       abi: ["SyncDepositVault", "AsyncVault"],
       factory: {
         abi: "Spoke",
@@ -89,7 +89,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
         eventParameter: "vault",
       },
     },
-    poolEscrowV3_1: {
+    poolEscrowV3_1_12: {
       abi: "PoolEscrow",
       factory: {
         abi: "PoolEscrowFactory",
@@ -97,7 +97,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
         eventParameter: "escrow",
       },
     },
-    onOfframpManagerV3_1 : {
+    onOfframpManagerV3_1_12 : {
       abi: "OnOfframpManager",
       factory: {
         abi: "OnOfframpManagerFactory",
@@ -105,7 +105,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
         eventParameter: "manager",
       },
     },
-    merkleProofManagerV3_1 : {
+    merkleProofManagerV3_1_12 : {
       abi: "MerkleProofManager",
       factory: {
         abi: "MerkleProofManagerFactory",
@@ -113,7 +113,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
         eventParameter: "manager",
       },
     },
-    tokenInstanceV3_1 : {
+    tokenInstanceV3_1_12 : {
       abi: ERC20Abi,
       factory: {
         abi: "Spoke",
@@ -124,7 +124,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
   } as const,
 );
 
-export const contracts = {...contractsV3, ...contractsV3_1};
+export const contracts = {...contractsV3, ...contractsV3_1_12};
 
 const config = createConfig({
   ordering: "omnichain",

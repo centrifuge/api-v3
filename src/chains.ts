@@ -6,17 +6,7 @@ import registries from "../generated";
 // ============================================================================
 
 export type RegistryVersions = keyof typeof registries;
-
-// Registry type - when V is a union (e.g., "v3" | "v3_1"), this becomes a union
-// of registry types: Registry<"v3"> | Registry<"v3_1">
 export type Registry<V extends RegistryVersions> = (typeof registries)[V];
-
-// Root cause fix: When accessing properties on union types, TypeScript doesn't
-// automatically distribute. For example, (A | B)["prop"] doesn't become
-// A["prop"] | B["prop"]. We fix this by making all property accesses explicitly
-// distributive using the pattern: V extends RegistryVersions ? Registry<V>["prop"] : never
-// This ensures each union member is processed separately, then results are unioned.
-
 export type RegistryChains<V extends RegistryVersions> = V extends RegistryVersions
   ? Registry<V>["chains"]
   : never;
@@ -46,14 +36,12 @@ export const networkNames = {
   "56": "binance",
 } as const;
 
-// Extract network names from chain keys by mapping them through networkNames
-// This distributes over union types automatically
-type ExtractNetworkNamesFromKeys<Keys> = 
-  Keys extends keyof typeof networkNames 
-    ? (typeof networkNames)[Keys]
+type ExtractNetworkNamesFromKeys<K> = 
+  K extends keyof typeof networkNames 
+    ? (typeof networkNames)[K]
     : never;
 
-export type NetworkNames<V extends RegistryVersions> = 
+export type NetworkNames<V> = 
   V extends RegistryVersions
     ? ExtractNetworkNamesFromKeys<RegistryChainsKeys<V>>
     : never;
@@ -181,7 +169,7 @@ const blocks = Object.fromEntries(
     return [
       networkName,
       {
-        startBlock: chain.deployment.endBlock,
+        startBlock: chain.deployment.startBlock,
         interval: skipBlocks[chainId.toString() as keyof typeof skipBlocks],
         chain: networkName,
       },

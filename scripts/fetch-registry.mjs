@@ -12,20 +12,24 @@ import fetch from "node-fetch";
 
 dotenv.config({ path: [".env.local", ".env"] });
 
+
+const network = process.argv.length > 2 ? process.argv.at(-1) : "mainnet";
+
 const {
-  REGISTRY_URL = "https://registry.centrifuge.io/",
-  REGISTRY_HASH = "QmRSFDjCevk41FB8Dw3DTZFhLo2AFBv8k3AmbBaf7JZq9w",
+  REGISTRY_URL = network === "mainnet" ? "https://registry.centrifuge.io/" : "https://registry.testnet.centrifuge.io/",
+  IPFS_GATEWAY = "https://centrifuge.mypinata.cloud/ipfs",
 } = process.env;
 
-const registryHashes = REGISTRY_HASH.split(",").map((hash) => hash.trim());
+
+
 const outputDir = join(process.cwd(), "generated");
 
 
 /**
- * Fetches the registry from the configured URL
+ * Fetches a single registry the registry from the configured URL
  */
-async function fetchRegistry(hash) {
-  const url = REGISTRY_URL + hash;
+async function fetchRegistry(ipfsHash) {
+  const url = ipfsHash ? join(IPFS_GATEWAY, ipfsHash) : REGISTRY_URL;
 
   console.log(`Fetching registry from: ${url}`);
 
@@ -38,24 +42,14 @@ async function fetchRegistry(hash) {
   return await response.json();
 }
 
-function getDeploymentVersion(registry) {
-  const deploymentInfos = Object.values(registry.chains).map(
-    (chain) => chain.deploymentInfo
-  );
-  const deploymentVersions = Array.from(
-    new Set(
-      deploymentInfos.map(
-        (info) => info?.["deploy:protocol"]?.version?.replace(/[^0-9.]/g, "") ?? "3"
-      )
-    )
-  );
-  const [version, ...rest] = deploymentVersions;
-  if (!version) throw new Error("No deployment version found");
-  if (rest.length > 0)
-    throw new Error(
-      `Multiple deployment versions found: ${deploymentVersions.join(",")}`
-    );
-  return version;
+async function fetchRegistryChain(registryChain = []) {
+  if (registryChain.length === 0) registryChain.unshift(await fetchRegistry());
+  const registry = registryChain[0]
+  const previousHash = registry.previousRegistry ? registry.previousRegistry.ipfsHash : null;
+  const previousRegistry = await fetchRegistry(previousHash)
+  registryChain.unshift(previousRegistry)
+  if (previousRegistry.previousRegistry) await fetchRegistryChain(registryChain)
+  return registryChain
 }
 
 /**
@@ -72,11 +66,11 @@ async function generateTypeScriptRegistry(registry, version) {
 
 export default ${JSON.stringify(registry, null, 2)} as const satisfies Registry
 `;
-  const filePath = join(outputDir, `registry.v${version}.generated`);
+  const filePath = join(outputDir, `registry.v${version}.generated.ts`);
   return fs.writeFile(filePath, fileContent, "utf-8");
 }
 
-function generateTypescriptIndex(registries, versions) {
+function generateTypescriptIndex(registryChain, versions) {
   const fileContent = `//
 /**
 * AUTO-GENERATED FILE - DO NOT EDIT
@@ -87,7 +81,7 @@ function generateTypescriptIndex(registries, versions) {
 ${versions.map((version, index) => `import registry${index} from './registry.v${version}.generated';`).join("\n")}
 
 export default {
-  ${versions.map((version, index) => `v${version}: registry${index}`).join(",\n")}
+${versions.map((version, index) => `  v${version}: registry${index}`).join(",\n")}
 } as const
 `;
   const filePath = join(outputDir, `index.ts`);
@@ -99,10 +93,10 @@ export default {
  */
 async function main() {
   try {
-    const registries = await Promise.all(registryHashes.map(hash => fetchRegistry(hash)));
-    const versions = registries.map(registry => getDeploymentVersion(registry));
-    const _tsContent = await Promise.all(registries.map((registry, index) => generateTypeScriptRegistry(registry, versions[index])));
-    await generateTypescriptIndex(registries, versions);
+    const registryChain = await fetchRegistryChain();
+    const versions = registryChain.map(registry => registry.version.split('-')[0].replace('v', '').replaceAll(".", "_"));
+    const _tsContent = await Promise.all(registryChain.map((registry, index) => generateTypeScriptRegistry(registry, versions[index])));
+    await generateTypescriptIndex(registryChain, versions);
   } catch (error) {
     console.error("Error fetching registry:", error);
     process.exit(1);

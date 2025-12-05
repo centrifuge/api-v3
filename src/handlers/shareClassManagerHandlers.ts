@@ -1,5 +1,5 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { expandInlineObject, logEvent, serviceLog } from "../helpers/logger";
+import { expandInlineObject, logEvent, serviceLog, serviceError } from "../helpers/logger";
 import {
   TokenService,
   OutstandingInvestService,
@@ -32,6 +32,7 @@ multiMapper(
       id: poolId,
     })) as PoolService;
     const { decimals: poolDecimals } = pool.read();
+    if (typeof poolDecimals !== "number") serviceError("Pool decimals is not a initialised", expandInlineObject(pool.read()));
 
     const _token = (await TokenService.upsert(
       context,
@@ -59,6 +60,7 @@ multiMapper(
       id: poolId,
     })) as PoolService;
     const { decimals: poolDecimals } = pool.read();
+    if (typeof poolDecimals !== "number") serviceError("Pool decimals is not a initialised", expandInlineObject(pool.read()));
 
     const _token = (await TokenService.upsert(
       context,

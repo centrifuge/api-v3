@@ -58,3 +58,12 @@ export function expandInlineObject(obj: Record<string, any> | null): string {
 export function serviceLog(...args: any[]) {
   process.stdout.write("> " + args.join(" ") + "\n");
 }
+
+/**
+ * Logs an error message to the console with a prefix.
+ *
+ * @param args - The arguments to log
+ */
+export function serviceError(...args: any[]) {
+  process.stderr.write("> [ERROR] " + args.join(" ") + "\n");
+}

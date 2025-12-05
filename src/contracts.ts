@@ -500,7 +500,7 @@ function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
         throw new Error(`Address for ${abiName} on ${chainName} not found`);
       }
 
-      const startBlock = chainValue.deployment.endBlock as number;
+      const startBlock = chainValue.deployment.startBlock as number;
 
       return [chainName, { address, startBlock, endBlock }];
     }
