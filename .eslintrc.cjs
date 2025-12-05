@@ -4,6 +4,7 @@ module.exports = {
     tsconfigRootDir: process.cwd(),
   },
   plugins: ["unused-imports", "jsdoc"],
+  ignorePatterns: ["generated/**/*.generated.ts", "generated/schema.graphql", "**/*.cjs", "**/*.mjs"],
   rules: {
     "@typescript-eslint/no-unused-vars": [
       "error",

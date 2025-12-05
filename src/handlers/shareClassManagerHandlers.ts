@@ -1,5 +1,5 @@
-import { ponder } from "ponder:registry";
-import { expandInlineObject, logEvent, serviceLog } from "../helpers/logger";
+import { multiMapper } from "../helpers/multiMapper";
+import { expandInlineObject, logEvent, serviceLog, serviceError } from "../helpers/logger";
 import {
   TokenService,
   OutstandingInvestService,
@@ -21,10 +21,10 @@ import { EpochOutstandingRedeemService } from "../services/EpochOutstandingRedee
 import { HoldingEscrowSnapshot } from "ponder:schema";
 
 // SHARE CLASS LIFECYCLE
-ponder.on(
-  "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index)",
+multiMapper(
+  "shareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index)",
   async ({ event, context }) => {
-    logEvent(event, context, "ShareClassManager:AddShareClassShort");
+    logEvent(event, context, "shareClassManager:AddShareClassShort");
     const { poolId, scId: tokenId, index } = event.args;
 
     const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -32,6 +32,7 @@ ponder.on(
       id: poolId,
     })) as PoolService;
     const { decimals: poolDecimals } = pool.read();
+    if (typeof poolDecimals !== "number") serviceError("Pool decimals is not a initialised", expandInlineObject(pool.read()));
 
     const _token = (await TokenService.upsert(
       context,
@@ -48,10 +49,10 @@ ponder.on(
   }
 );
 
-ponder.on(
-  "ShareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index, string name, string symbol, bytes32 salt)",
+multiMapper(
+  "shareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index, string name, string symbol, bytes32 salt)",
   async ({ event, context }) => {
-    logEvent(event, context, "ShareClassManager:AddShareClassLong");
+    logEvent(event, context, "shareClassManager:AddShareClassLong");
     const { poolId, scId: tokenId, index, name, symbol, salt } = event.args;
 
     const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -59,6 +60,7 @@ ponder.on(
       id: poolId,
     })) as PoolService;
     const { decimals: poolDecimals } = pool.read();
+    if (typeof poolDecimals !== "number") serviceError("Pool decimals is not a initialised", expandInlineObject(pool.read()));
 
     const _token = (await TokenService.upsert(
       context,
@@ -79,8 +81,8 @@ ponder.on(
 );
 
 // INVESTOR TRANSACTIONS
-ponder.on("ShareClassManager:UpdateMetadata", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:UpdatedMetadata");
+multiMapper("shareClassManager:UpdateMetadata", async ({ event, context }) => {
+  logEvent(event, context, "shareClassManager:UpdatedMetadata");
   const { poolId, scId: tokenId, name, symbol } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -98,10 +100,10 @@ ponder.on("ShareClassManager:UpdateMetadata", async ({ event, context }) => {
   await token.save(event.block);
 });
 
-ponder.on(
-  "ShareClassManager:UpdateDepositRequest",
+multiMapper(
+  "shareClassManager:UpdateDepositRequest",
   async ({ event, context }) => {
-    logEvent(event, context, "ShareClassManager:UpdateDepositRequest");
+    logEvent(event, context, "shareClassManager:UpdateDepositRequest");
     const chainId = context.chain.id;
     if (typeof chainId !== "number") throw new Error("Chain ID is required");
 
@@ -158,10 +160,10 @@ ponder.on(
   }
 );
 
-ponder.on(
-  "ShareClassManager:UpdateRedeemRequest",
+multiMapper(
+  "shareClassManager:UpdateRedeemRequest",
   async ({ event, context }) => {
-    logEvent(event, context, "ShareClassManager:UpdateRedeemRequest");
+    logEvent(event, context, "shareClassManager:UpdateRedeemRequest");
     const chainId = context.chain.id;
     if (typeof chainId !== "number") throw new Error("Chain ID is required");
     const {
@@ -217,8 +219,8 @@ ponder.on(
   }
 );
 
-ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:ApproveDeposits");
+multiMapper("shareClassManager:ApproveDeposits", async ({ event, context }) => {
+  logEvent(event, context, "shareClassManager:ApproveDeposits");
   const {
     poolId,
     scId: tokenId,
@@ -287,14 +289,14 @@ ponder.on("ShareClassManager:ApproveDeposits", async ({ event, context }) => {
   await snapshotter(
     context,
     event,
-    "ShareClassManager:ApproveDeposits",
+    "shareClassManagerV3:ApproveDeposits",
     holdingEscrows,
     HoldingEscrowSnapshot
   );
 });
 
-ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:ApproveRedeems");
+multiMapper("shareClassManager:ApproveRedeems", async ({ event, context }) => {
+  logEvent(event, context, "shareClassManager:ApproveRedeems");
   const {
     poolId,
     scId: tokenId,
@@ -364,13 +366,13 @@ ponder.on("ShareClassManager:ApproveRedeems", async ({ event, context }) => {
   await snapshotter(
     context,
     event,
-    "ShareClassManager:ApproveRedeems",
+    "shareClassManagerV3:ApproveRedeems",
     holdingEscrows,
     HoldingEscrowSnapshot
   );
 });
 
-ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
+multiMapper("shareClassManager:IssueShares", async ({ event, context }) => {
   logEvent(event, context, "ShareClassManager:IssueShares");
   const {
     //poolId,
@@ -420,7 +422,7 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
   const investOrderSaves: Promise<InvestOrderService>[] = [];
   for (const outstandingInvest of outstandingInvests) {
     serviceLog(
-      `Processing ShareClassManager:IssueShares for outstanding invest with index ${epochIndex}`,
+      `Processing shareClassManager:IssueShares for outstanding invest with index ${epochIndex}`,
       expandInlineObject(outstandingInvest.read())
     );
     const {
@@ -462,8 +464,8 @@ ponder.on("ShareClassManager:IssueShares", async ({ event, context }) => {
   await Promise.all(outstandingInvestSaves);
 });
 
-ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:RevokeShares");
+multiMapper("shareClassManager:RevokeShares", async ({ event, context }) => {
+  logEvent(event, context, "shareClassManager:RevokeShares");
   const {
     poolId,
     scId: tokenId,
@@ -560,8 +562,8 @@ ponder.on("ShareClassManager:RevokeShares", async ({ event, context }) => {
   await Promise.all([...outstandingRedeemSaves, ...redeemOrderSaves]);
 });
 
-ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:UpdateShareClass");
+multiMapper("shareClassManager:UpdateShareClass", async ({ event, context }) => {
+  logEvent(event, context, "shareClassManager:UpdateShareClass");
   const { poolId, scId: tokenId, navPoolPerShare: tokenPrice } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -581,14 +583,14 @@ ponder.on("ShareClassManager:UpdateShareClass", async ({ event, context }) => {
   await snapshotter(
     context,
     event,
-    "ShareClassManager:UpdateShareClass",
+    "shareClassManagerV3:UpdateShareClass",
     [token],
     TokenSnapshot
   );
 });
 
-ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:ClaimDeposit");
+multiMapper("shareClassManager:ClaimDeposit", async ({ event, context }) => {
+  logEvent(event, context, "shareClassManager:ClaimDeposit");
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID is required");
   const {
@@ -627,8 +629,8 @@ ponder.on("ShareClassManager:ClaimDeposit", async ({ event, context }) => {
   await investOrder.claimDeposit(event.block).save(event.block);
 });
 
-ponder.on("ShareClassManager:ClaimRedeem", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:ClaimRedeem");
+multiMapper("shareClassManager:ClaimRedeem", async ({ event, context }) => {
+  logEvent(event, context, "shareClassManager:ClaimRedeem");
   const {
     //poolId,
     scId: tokenId,

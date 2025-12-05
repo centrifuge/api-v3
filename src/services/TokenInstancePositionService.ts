@@ -1,6 +1,6 @@
 import { TokenInstancePosition } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
-import { ERC20Abi } from "../abis";
+import { ERC20Abi } from "../../abis/ERC20";
 import { Context } from "ponder:registry";
 import { serviceLog } from "../helpers/logger";
 
@@ -70,7 +70,7 @@ export class TokenInstancePositionService extends mixinCommonStatics(Service<typ
 export async function initialisePosition(context: Context, tokenAddress: `0x${string}`, tokenInstancePosition: TokenInstancePositionService['data']) {
   const { accountAddress } = tokenInstancePosition;
   const balance = await context.client.readContract({
-    abi: ERC20Abi,
+    abi:ERC20Abi,
     address: tokenAddress,
     functionName: "balanceOf",
     args: [accountAddress],
