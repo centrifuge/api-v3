@@ -1,4 +1,5 @@
 import type { Event, Context } from "ponder:registry";
+const isStart = process.argv.includes("start");
 /**
  * Logs blockchain event details to the console with formatted output.
  *
@@ -56,6 +57,7 @@ export function expandInlineObject(obj: Record<string, any> | null): string {
  * @param args - The arguments to log
  */
 export function serviceLog(...args: any[]) {
+  if (isStart) return;
   process.stdout.write("> " + args.join(" ") + "\n");
 }
 
