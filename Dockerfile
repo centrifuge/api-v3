@@ -8,6 +8,7 @@ COPY --chown=node:node . /app
 COPY <<'EOF' /usr/bin/docker-entrypoint
 #!/bin/sh
 export PATH="/app/node_modules/.bin:$PATH"
+node scripts/fetch-registry.mjs
 if [ $# -eq 0 ]; then
   # If no arguments given, use default command
   set -- ponder start
