@@ -127,13 +127,14 @@ export const endpoints = {
 const chains = Object.fromEntries(
   loadedChains.map((chain) => {
     const chainId = chain.network.chainId;
+    const envRpc = process.env[`PONDER_RPC_URL_${chainId}`];
     const networkName =
       networkNames[chainId.toString() as keyof typeof networkNames];
     return [
       networkName,
       {
         id: chain.network.chainId,
-        rpc: endpoints[chainId as keyof typeof endpoints],
+        rpc: envRpc ?? endpoints[chainId as keyof typeof endpoints],
       },
     ] as [NetworkNames<RegistryVersions>, ChainConfig];
   })
