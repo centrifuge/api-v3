@@ -1,11 +1,11 @@
 import { ponder } from "ponder:registry";
+import type { Context, Event } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
 import { Timekeeper } from "../helpers/timekeeper";
 import { BlockchainService, HoldingEscrowService, PoolService, TokenInstanceService, TokenService } from "../services";
 import { PoolSnapshot, HoldingEscrowSnapshot, TokenInstanceSnapshot, TokenSnapshot } from "ponder:schema";
 import { snapshotter } from "../helpers/snapshotter";
-import { currentChains } from "../../ponder.config";
-import { networks } from "../chains";
+import { blocks } from "../chains";
 
 const timekeeper = Timekeeper.start()
 
@@ -16,7 +16,7 @@ const timekeeper = Timekeeper.start()
  * @param args.event - Block event containing block details
  * @returns Promise that resolves when processing is complete
  */
-async function processBlock(args: Parameters<Parameters<typeof ponder.on>[1]>[0]) {
+async function processBlock(args: { event: Event; context: Context }) {
   const chainName  = args.context.chain.name
   const { event, context } = args
   const newPeriod = await timekeeper.processBlock(context, event)
@@ -51,8 +51,11 @@ async function processBlock(args: Parameters<Parameters<typeof ponder.on>[1]>[0]
   await snapshotter(context, event, `${chainName}:NewPeriod`, holdingEscrows, HoldingEscrowSnapshot)
 }
 
-currentChains.forEach(chain => {
-  const chainId = chain.network.chainId
-  const network = networks[chainId]
-  ponder.on(`${network}:block`, processBlock);
-})
+// Register block handlers for each chain using the block names from the blocks config
+// This ensures type safety by using the actual block event names from the config
+(Object.keys(blocks) as Array<keyof typeof blocks>).forEach((chainName: keyof typeof blocks) => {
+  ponder.on(`${chainName}:block`, processBlock);
+});
+
+
+

@@ -60,3 +60,12 @@ export function serviceLog(...args: any[]) {
   if (isStart) return;
   process.stdout.write("> " + args.join(" ") + "\n");
 }
+
+/**
+ * Logs an error message to the console with a prefix.
+ *
+ * @param args - The arguments to log
+ */
+export function serviceError(...args: any[]) {
+  process.stderr.write("> [ERROR] " + args.join(" ") + "\n");
+}

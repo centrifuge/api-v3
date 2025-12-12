@@ -1,4 +1,4 @@
-import { ponder } from "ponder:registry";
+import { multiMapper } from "../helpers/multiMapper";
 import { logEvent } from "../helpers/logger";
 import {
   BlockchainService,
@@ -10,8 +10,8 @@ import {
 } from "../services";
 import { initialisePosition } from "../services/TokenInstancePositionService";
 
-ponder.on("TokenInstance:Transfer", async ({ event, context }) => {
-  logEvent(event, context, "TokenInstance:Transfer");
+multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
+  logEvent(event, context, "tokenInstance:Transfer");
   const { from, to, value: amount } = event.args;
   const { address: tokenAddress } = event.log;
 

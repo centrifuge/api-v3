@@ -11,14 +11,19 @@ yarn-error.log*
 # Misc
 .DS_Store
 
+# TypeScript
+.tsbuildinfo
+
 # Env files
 .env*.local
 
 # Ponder
-/generated/
 /.ponder/
 
 # Generated registry data
 src/registry.generated.ts
 
 **/*.log
+tsconfig.tsbuildinfo
+
+/.vscode/

@@ -1,4 +1,4 @@
-import { ponder } from "ponder:registry";
+import { multiMapper } from "../helpers/multiMapper";
 import { logEvent } from "../helpers/logger";
 import {
   AccountService,
@@ -17,8 +17,8 @@ import { OutstandingInvestService } from "../services";
 import { OutstandingRedeemService } from "../services";
 import { initialisePosition } from "../services/TokenInstancePositionService";
 
-ponder.on("Vault:DepositRequest", async ({ event, context }) => {
-  logEvent(event, context, "Vault:DepositRequest");
+multiMapper("vault:DepositRequest", async ({ event, context }) => {
+  logEvent(event, context, "vault:DepositRequest");
   const {
     controller,
     // owner,
@@ -35,7 +35,7 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
     id: vaultId,
     centrifugeId,
   })) as VaultService;
-  if (!vault) throw new Error("Vault not found");
+  if (!vault) throw new Error("vault not found");
 
   const { poolId, tokenId, assetAddress} = vault.read();
 
@@ -109,8 +109,8 @@ ponder.on("Vault:DepositRequest", async ({ event, context }) => {
     .saveOrClear(event.block);
 });
 
-ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
-  logEvent(event, context, "Vault:RedeemRequest");
+multiMapper("vault:RedeemRequest", async ({ event, context }) => {
+  logEvent(event, context, "vault:RedeemRequest");
   const {
     controller,
     // owner,
@@ -119,15 +119,15 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
     shares,
   } = event.args;
   const vaultId = event.log.address;
-  if (!vaultId) throw new Error(`Vault id not found in event`);
+  if (!vaultId) throw new Error(`vault id not found in event`);
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const vault = await VaultService.get(context, { id: vaultId, centrifugeId });
-  if (!vault) throw new Error("Vault not found");
+  const vault = await VaultService.get(context, { id: vaultId, centrifugeId }) as VaultService;
+  if (!vault) throw new Error("vault not found");
   const { poolId, tokenId, assetAddress } = vault.read();
 
-  const token = await TokenService.get(context, { poolId, id: tokenId });
+  const token = await TokenService.get(context, { poolId, id: tokenId }) as TokenService;
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
 
   const invstorAccount = (await AccountService.getOrInit(
@@ -176,16 +176,16 @@ ponder.on("Vault:RedeemRequest", async ({ event, context }) => {
     .saveOrClear(event.block);
 });
 
-ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
-  logEvent(event, context, "Vault:DepositClaimable");
+multiMapper("vault:DepositClaimable", async ({ event, context }) => {
+  logEvent(event, context, "vault:DepositClaimable");
   const { controller, assets, shares } = event.args;
   const vaultId = event.log.address;
-  if (!vaultId) throw new Error(`Vault id not found in event`);
+  if (!vaultId) throw new Error(`vault id not found in event`);
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const vault = await VaultService.get(context, { id: vaultId, centrifugeId });
-  if (!vault) throw new Error("Vault not found");
+  const vault = await VaultService.get(context, { id: vaultId, centrifugeId }) as VaultService;
+  if (!vault) throw new Error("vault not found");
   const { poolId, tokenId, kind, assetAddress } = vault.read();
 
   if (kind !== "Async") return;
@@ -229,16 +229,16 @@ ponder.on("Vault:DepositClaimable", async ({ event, context }) => {
   );
 });
 
-ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
-  logEvent(event, context, "Vault:RedeemClaimable");
+multiMapper("vault:RedeemClaimable", async ({ event, context }) => {
+  logEvent(event, context, "vault:RedeemClaimable");
   const { controller, assets, shares } = event.args;
   const vaultId = event.log.address;
-  if (!vaultId) throw new Error(`Vault id not found in event`);
+  if (!vaultId) throw new Error(`vault id not found in event`);
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const vault = await VaultService.get(context, { id: vaultId, centrifugeId });
-  if (!vault) throw new Error("Vault not found");
+  const vault = await VaultService.get(context, { id: vaultId, centrifugeId }) as VaultService;
+  if (!vault) throw new Error("vault not found");
   const { poolId, tokenId, kind, assetAddress } = vault.read();
 
   if (kind === "Sync") return;
@@ -282,16 +282,16 @@ ponder.on("Vault:RedeemClaimable", async ({ event, context }) => {
   );
 });
 
-ponder.on("Vault:Deposit", async ({ event, context }) => {
-  logEvent(event, context, "Vault:Deposit");
+multiMapper('vault:Deposit', async ({ event, context }) => {
+  logEvent(event, context, "vault:Deposit");
   const { owner, assets, shares } = event.args;
   const vaultId = event.log.address;
-  if (!vaultId) throw new Error(`Vault id not found in event`);
+  if (!vaultId) throw new Error(`vault id not found in event`);
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const vault = await VaultService.get(context, { id: vaultId, centrifugeId });
-  if (!vault) throw new Error("Vault not found");
+  const vault = await VaultService.get(context, { id: vaultId, centrifugeId }) as VaultService;
+  if (!vault) throw new Error("vault not found");
   const { poolId, tokenId, kind, assetAddress } = vault.read();
 
   const token = await TokenService.get(context, { poolId, id: tokenId });
@@ -402,16 +402,16 @@ ponder.on("Vault:Deposit", async ({ event, context }) => {
   }
 });
 
-ponder.on("Vault:Withdraw", async ({ event, context }) => {
-  logEvent(event, context, "Vault:Withdraw");
+multiMapper("vault:Withdraw", async ({ event, context }) => {
+  logEvent(event, context, "vault:Withdraw");
   const { owner, assets, shares } = event.args;
   const vaultId = event.log.address;
-  if (!vaultId) throw new Error(`Vault id not found in event`);
+  if (!vaultId) throw new Error(`vault id not found in event`);
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const vault = await VaultService.get(context, { id: vaultId, centrifugeId });
-  if (!vault) throw new Error("Vault not found");
+  const vault = await VaultService.get(context, { id: vaultId, centrifugeId }) as VaultService;
+  if (!vault) throw new Error("vault not found");
   const { poolId, tokenId, kind, assetAddress } = vault.read();
 
   const asset = (await AssetService.get(context, {

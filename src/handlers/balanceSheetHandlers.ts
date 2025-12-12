@@ -1,4 +1,4 @@
-import { ponder } from "ponder:registry";
+import { multiMapper } from "../helpers/multiMapper";
 import { logEvent } from "../helpers/logger";
 import {
   AccountService,
@@ -11,7 +11,7 @@ import {
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
 
-ponder.on("BalanceSheet:NoteDeposit", async ({ event, context }) => {
+multiMapper('balanceSheet:NoteDeposit', async ({ event, context }) => {
   logEvent(event, context, "BalanceSheet:NoteDeposit");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
@@ -58,10 +58,10 @@ ponder.on("BalanceSheet:NoteDeposit", async ({ event, context }) => {
   await holdingEscrow.setAssetPrice(pricePoolPerAsset);
   await holdingEscrow.save(event.block);
 
-  await snapshotter(context, event, "BalanceSheet:NoteDeposit", [holdingEscrow], HoldingEscrowSnapshot);
+  await snapshotter(context, event, "balanceSheetV3:NoteDeposit", [holdingEscrow], HoldingEscrowSnapshot);
 });
 
-ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
+multiMapper("balanceSheet:Withdraw", async ({ event, context }) => {
   logEvent(event, context, "BalanceSheet:Withdraw");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
@@ -109,11 +109,11 @@ ponder.on("BalanceSheet:Withdraw", async ({ event, context }) => {
   await holdingEscrow.setAssetPrice(pricePoolPerAsset);
   await holdingEscrow.save(event.block);
 
-  await snapshotter(context, event, "BalanceSheet:Withdraw", [holdingEscrow], HoldingEscrowSnapshot);
+  await snapshotter(context, event, "balanceSheetV3:Withdraw", [holdingEscrow], HoldingEscrowSnapshot);
 });
 
-ponder.on("BalanceSheet:UpdateManager", async ({ event, context }) => {
-  logEvent(event, context, "BalanceSheet:UpdateManager");
+multiMapper("balanceSheet:UpdateManager", async ({ event, context }) => {
+  logEvent(event, context, "balanceSheet:UpdateManager");
   
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 

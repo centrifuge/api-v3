@@ -4,16 +4,21 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "pnpm update-registry",
     "dev": "ponder dev --port 8000 --disable-ui",
+    "prestart": "pnpm update-registry",
     "start": "ponder start",
+    "preserve": "pnpm update-registry",
     "serve": "ponder serve",
     "db": "ponder db",
     "codegen": "ponder codegen",
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc",
-    "schema": "tsx graphqlToPonderSchema.ts",
-    "update-registry": "tsx scripts/fetch-registry.ts",
-    "prepare": "husky"
+    "typecheck:watch": "tsc -w",
+    "tsgo": "tsgo",
+    "tsgo:watch": "tsgo -w",
+    "prepare": "husky",
+    "update-registry": "node scripts/fetch-registry.mjs"
   },
   "dependencies": {
     "@ponder/utils": "^0.2.16",
@@ -24,23 +29,23 @@
     "node-fetch": "^3.3.2",
     "picocolors": "^1.1.1",
     "pino": "^8.21.0",
-    "pino-pretty": "^13.1.2",
-    "ponder": "^0.15.16",
+    "pino-pretty": "^13.1.3",
+    "ponder": "^0.15.17",
     "viem": "^2.37.11"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
     "@types/bn.js": "^5.2.0",
-    "@types/node": "^22.19.1",
+    "@types/node": "^22.19.2",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
+    "@typescript/native-preview": "7.0.0-dev.20251124.1",
     "eslint": "^8.57.1",
     "eslint-config-ponder": "^0.14.13",
     "eslint-plugin-jsdoc": "^56.1.2",
     "eslint-plugin-unused-imports": "^4.3.0",
     "husky": "^9.1.7",
-    "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   },
   "engines": {

@@ -1,6 +1,7 @@
-import { ponder } from "ponder:registry";
+import { multiMapper } from "../helpers/multiMapper";
 import { logEvent } from "../helpers/logger";
 import { BlockchainService } from "../services/BlockchainService";
+
 import {
   getCrosschainMessageType,
   CrosschainMessageService,
@@ -13,7 +14,7 @@ import {
   extractMessagesFromPayload,
 } from "../services/CrosschainPayloadService";
 
-ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
+multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
   logEvent(event, context, "Gateway:PrepareMessage");
   const { centrifugeId: toCentrifugeId, poolId, message } = event.args;
   const messageBuffer = Buffer.from(message.substring(2), "hex");
@@ -53,7 +54,7 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
   )) as CrosschainMessageService | null;
 });
 
-ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
+multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
   logEvent(event, context, "Gateway:UnderpaidBatch");
   const { centrifugeId: toCentrifugeId, batch } = event.args;
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -158,7 +159,7 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
   if (!crosschainPayload) console.error("Failed to initialize crosschain payload ");
 });
 
-ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
+multiMapper("gateway:RepayBatch", async ({ event, context }) => {
   logEvent(event, context, "Gateway:RepayBatch");
   const { centrifugeId: toCentrifugeId, batch } = event.args;
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -196,7 +197,7 @@ ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
   await crosschainPayload.save(event.block);
 });
 
-ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
+multiMapper("gateway:ExecuteMessage", async ({ event, context }) => {
   // RECEIVING CHAIN
   logEvent(event, context, "Gateway:ExecuteMessage");
   const { centrifugeId: fromCentrifugeId, message } = event.args;
@@ -246,7 +247,7 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
   await crosschainPayload.save(event.block);
 });
 
-ponder.on("Gateway:FailMessage", async ({ event, context }) => {
+multiMapper("gateway:FailMessage", async ({ event, context }) => {
   // RECEIVING CHAIN
   logEvent(event, context, "Gateway:FailMessage");
   const { centrifugeId: fromCentrifugeId, message, error } = event.args;
