@@ -4,8 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "pnpm update-registry",
     "dev": "ponder dev --port 8000 --disable-ui",
+    "prestart": "pnpm update-registry",
     "start": "ponder start",
+    "preserve": "pnpm update-registry",
     "serve": "ponder serve",
     "db": "ponder db",
     "codegen": "ponder codegen",
@@ -14,7 +17,6 @@
     "typecheck:watch": "tsc -w",
     "tsgo": "tsgo",
     "tsgo:watch": "tsgo -w",
-    "schema": "tsx graphqlToPonderSchema.ts",
     "prepare": "husky",
     "update-registry": "node scripts/fetch-registry.mjs"
   },

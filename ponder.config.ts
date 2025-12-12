@@ -64,67 +64,7 @@ export const contractsV3 = decorateDeploymentContracts(
   } as const,
 );
 
-export const contractsV3_1_12 = decorateDeploymentContracts(
-  "v3_1_12",
-  [
-    "BalanceSheet",
-    "Gateway",
-    "Holdings",
-    "HubRegistry",
-    "Hub",
-    "MerkleProofManagerFactory",
-    "MessageDispatcher",
-    "MultiAdapter",
-    "OnOfframpManagerFactory",
-    "PoolEscrowFactory",
-    "ShareClassManager",
-    "Spoke",
-  ] as const,
-  {
-    vaultV3_1_12: {
-      abi: ["SyncDepositVault", "AsyncVault"],
-      factory: {
-        abi: "Spoke",
-        eventName: "DeployVault",
-        eventParameter: "vault",
-      },
-    },
-    poolEscrowV3_1_12: {
-      abi: "PoolEscrow",
-      factory: {
-        abi: "PoolEscrowFactory",
-        eventName: "DeployPoolEscrow",
-        eventParameter: "escrow",
-      },
-    },
-    onOfframpManagerV3_1_12 : {
-      abi: "OnOfframpManager",
-      factory: {
-        abi: "OnOfframpManagerFactory",
-        eventName: "DeployOnOfframpManager",
-        eventParameter: "manager",
-      },
-    },
-    merkleProofManagerV3_1_12 : {
-      abi: "MerkleProofManager",
-      factory: {
-        abi: "MerkleProofManagerFactory",
-        eventName: "DeployMerkleProofManager",
-        eventParameter: "manager",
-      },
-    },
-    tokenInstanceV3_1_12 : {
-      abi: ERC20Abi,
-      factory: {
-        abi: "Spoke",
-        eventName: "AddShareClass",
-        eventParameter: "token",
-      },
-    },
-  } as const,
-);
-
-export const contracts = {...contractsV3, ...contractsV3_1_12};
+export const contracts = {...contractsV3 };
 
 const config = createConfig({
   ordering: "omnichain",

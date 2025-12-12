@@ -12,8 +12,9 @@ import fetch from "node-fetch";
 
 dotenv.config({ path: [".env.local", ".env"] });
 
-
-const network = process.argv.length > 2 ? process.argv.at(-1) : "mainnet";
+const envNetwork = process.env["ENVIRONMENT"]
+const argNetwork = process.argv.length > 2 ? process.argv.at(-1) : undefined;
+const network = argNetwork ?? envNetwork ?? "mainnet";
 
 const {
   REGISTRY_URL = network === "mainnet" ? "https://registry.centrifuge.io/" : "https://registry.testnet.centrifuge.io/",
@@ -29,6 +30,13 @@ const outputDir = join(process.cwd(), "generated");
  * Fetches a single registry the registry from the configured URL
  */
 async function fetchRegistry(ipfsHash) {
+  // Validate ipfsHash using a regex that matches base58 (CIDv0) or base32 (CIDv1)
+  if (ipfsHash) {
+    const ipfsHashRegex = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{58,})$/i;
+    if (!ipfsHashRegex.test(ipfsHash)) {
+      throw new Error(`Invalid ipfsHash: ${ipfsHash}`);
+    }
+  }
   const url = ipfsHash ? join(IPFS_GATEWAY, ipfsHash) : REGISTRY_URL;
 
   console.log(`Fetching registry from: ${url}`);
@@ -46,6 +54,7 @@ async function fetchRegistryChain(registryChain = []) {
   if (registryChain.length === 0) registryChain.unshift(await fetchRegistry());
   const registry = registryChain[0]
   const previousHash = registry.previousRegistry ? registry.previousRegistry.ipfsHash : null;
+  if (!previousHash) return registryChain;
   const previousRegistry = await fetchRegistry(previousHash)
   registryChain.unshift(previousRegistry)
   if (previousRegistry.previousRegistry) await fetchRegistryChain(registryChain)
@@ -67,6 +76,7 @@ async function generateTypeScriptRegistry(registry, version) {
 export default ${JSON.stringify(registry, null, 2)} as const satisfies Registry
 `;
   const filePath = join(outputDir, `registry.v${version}.generated.ts`);
+  console.log(`Creating registry.v${version}.generated.ts file...`);
   return fs.writeFile(filePath, fileContent, "utf-8");
 }
 
@@ -85,6 +95,7 @@ ${versions.map((version, index) => `  v${version}: registry${index}`).join(",\n"
 } as const
 `;
   const filePath = join(outputDir, `index.ts`);
+  console.log(`Creating index.ts file...`);
   return fs.writeFile(filePath, fileContent, "utf-8");
 }
 
@@ -92,6 +103,16 @@ ${versions.map((version, index) => `  v${version}: registry${index}`).join(",\n"
  * Main execution
  */
 async function main() {
+  // Remove old generated files before starting new generation
+  console.log("Removing old generated files...");
+  const files = await fs.readdir(outputDir);
+  const genFilePattern = /^registry\.v.*\.generated\.ts$/;
+  for (const file of files) {
+    if (genFilePattern.test(file) || file === 'index.ts') {
+      await fs.unlink(join(outputDir, file));
+      console.log(`Removed ${file}`);
+    }
+  }
   try {
     const registryChain = await fetchRegistryChain();
     const versions = registryChain.map(registry => registry.version.split('-')[0].replace('v', '').replaceAll(".", "_"));

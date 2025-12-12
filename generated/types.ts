@@ -28,11 +28,12 @@ export interface RegistryChain<N extends number, C extends string> {
     catapultaNetwork?: string;
     etherscanUrl?: string;
     network?: string;
+    safeAdmin?: string;
   };
   adapters: unknown;
   contracts: ChainContracts<C>;
   deployment: {
-    deployedAt: number;
+    deployedAt: number | null;
     startBlock: number | null;
     endBlock: number | null;
   };
