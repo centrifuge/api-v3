@@ -51,12 +51,12 @@ multiMapper('balanceSheet:NoteDeposit', async ({ event, context }) => {
       assetId,
       escrowAddress,
     },
-    event.block
+    event
   )) as HoldingEscrowService;
 
   await holdingEscrow.increaseAssetAmount(amount);
   await holdingEscrow.setAssetPrice(pricePoolPerAsset);
-  await holdingEscrow.save(event.block);
+  await holdingEscrow.save(event);
 
   await snapshotter(context, event, "balanceSheetV3:NoteDeposit", [holdingEscrow], HoldingEscrowSnapshot);
 });
@@ -102,12 +102,12 @@ multiMapper("balanceSheet:Withdraw", async ({ event, context }) => {
       assetId,
       escrowAddress,
     },
-    event.block
+    event
   )) as HoldingEscrowService;
 
   await holdingEscrow.decreaseAssetAmount(amount);
   await holdingEscrow.setAssetPrice(pricePoolPerAsset);
-  await holdingEscrow.save(event.block);
+  await holdingEscrow.save(event);
 
   await snapshotter(context, event, "balanceSheetV3:Withdraw", [holdingEscrow], HoldingEscrowSnapshot);
 });
@@ -124,7 +124,7 @@ multiMapper("balanceSheet:UpdateManager", async ({ event, context }) => {
     {
       address: manager,
     },
-    event.block
+    event
   )) as AccountService;
 
   const { address: managerAddress } = account.read();
@@ -136,8 +136,8 @@ multiMapper("balanceSheet:UpdateManager", async ({ event, context }) => {
       centrifugeId,
       poolId,
     },
-    event.block
+    event
   )) as PoolManagerService;
   poolManager.setIsBalancesheetManager(canManage);
-  await poolManager.save(event.block);
+  await poolManager.save(event);
 });

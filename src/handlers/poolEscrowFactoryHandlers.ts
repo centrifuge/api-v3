@@ -10,9 +10,9 @@ multiMapper("poolEscrowFactory:DeployPoolEscrow", async ({ event, context }) => 
   const { poolId, escrow: escrowAddress } = event.args;
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const _escrow = (await EscrowService.insert(context, {
+  const _escrow = (await EscrowService.upsert(context, {
     address: escrowAddress,
     poolId,
     centrifugeId,
-  }, event.block)) as EscrowService | null;
+  }, event)) as EscrowService | null;
 });

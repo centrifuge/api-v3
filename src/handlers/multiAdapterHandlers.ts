@@ -1,5 +1,5 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { logEvent } from "../helpers/logger";
+import { logEvent, serviceError } from "../helpers/logger";
 import { BlockchainService } from "../services/BlockchainService";
 import {
   CrosschainMessageService,
@@ -59,7 +59,7 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
         poolId,
         prepareTxHash: event.transaction.hash,
       },
-      event.block
+      event
     )) as CrosschainPayloadService;
   }
 
@@ -79,10 +79,10 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
       blockNumber: Number(event.block.number),
       transactionHash: event.transaction.hash,
     },
-    event.block
+    event
   )) as AdapterParticipationService | null;
   if (!adapterParticipation)
-    console.error("Failed to initialize adapter participation");
+    serviceError("Failed to initialize adapter participation");
 });
 
 multiMapper("multiAdapter:SendProof", async ({ event, context }) => {
@@ -96,7 +96,7 @@ multiMapper("multiAdapter:SendProof", async ({ event, context }) => {
     payloadId
   )) as CrosschainPayloadService | null;
   if (!payload) {
-    console.error("CrosschainPayload not found");
+    serviceError("CrosschainPayload not found");
     return;
   }
   const { index: payloadIndex } = payload.read();
@@ -116,7 +116,7 @@ multiMapper("multiAdapter:SendProof", async ({ event, context }) => {
       blockNumber: Number(event.block.number),
       transactionHash: event.transaction.hash,
     },
-    event.block
+    event
   )) as AdapterParticipationService;
 });
 
@@ -139,7 +139,7 @@ multiMapper("multiAdapter:HandlePayload", async ({ event, context }) => {
       payloadId
     )) as CrosschainPayloadService | null;
   if (!payload) {
-    console.error(`CrosschainPayload ${payloadId} not found`);
+    serviceError(`CrosschainPayload ${payloadId} not found`);
     return;
   }
 
@@ -159,20 +159,20 @@ multiMapper("multiAdapter:HandlePayload", async ({ event, context }) => {
       blockNumber: Number(event.block.number),
       transactionHash: event.transaction.hash,
     },
-    event.block
+    event
   )) as AdapterParticipationService;
 
   const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(context, payloadId, payloadIndex);
   if (!isPayloadVerified) return;
 
   payload.delivered(event);
-  await payload.save(event.block);
+  await payload.save(event);
 
   const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(context, payloadId, payloadIndex);
   if (!isPayloadFullyExecuted) return;
 
   payload.completed(event);
-  await payload.save(event.block);
+  await payload.save(event);
 });
 
 multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
@@ -186,7 +186,7 @@ multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
       payloadId
     )) as CrosschainPayloadService | null;
   if (!crosschainPayload) {
-    console.error(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
+    serviceError(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
     return;
   }
   const { index: payloadIndex } = crosschainPayload.read();
@@ -206,20 +206,20 @@ multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
       blockNumber: Number(event.block.number),
       transactionHash: event.transaction.hash,
     },
-    event.block
+    event
   )) as AdapterParticipationService;
 
   const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(context, payloadId, payloadIndex);
   if (!isPayloadVerified) return;
 
   crosschainPayload.delivered(event);
-  await crosschainPayload.save(event.block);
+  await crosschainPayload.save(event);
 
   const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(context, payloadId, payloadIndex);
   if (!isPayloadFullyExecuted) return;
 
   crosschainPayload.completed(event);
-  await crosschainPayload.save(event.block);
+  await crosschainPayload.save(event);
 });
 
 multiMapper(
@@ -248,14 +248,14 @@ multiMapper(
       const firstPart = contractName
         ? contractName.split(/(?=[A-Z])/)[0]
         : null;
-      const adapterInit = AdapterService.insert(
+      const adapterInit = AdapterService.upsert(
         context,
         {
           address: adapter,
           centrifugeId: centrifugeId.toString(),
           name: firstPart,
         },
-        event.block
+        event
       );
       adapterInits.push(adapterInit);
     }

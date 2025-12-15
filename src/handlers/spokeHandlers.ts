@@ -1,5 +1,5 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { logEvent } from "../helpers/logger";
+import { logEvent, serviceError } from "../helpers/logger";
 import { VaultKinds } from "ponder:schema";
 import {
   BlockchainService,
@@ -43,7 +43,7 @@ multiMapper("spoke:DeployVault", async ({ event, context }) => {
     args: [],
   });
 
-  const _vault = (await VaultService.insert(
+  const _vault = (await VaultService.upsert(
     context,
     {
       id: vaultId,
@@ -55,7 +55,7 @@ multiMapper("spoke:DeployVault", async ({ event, context }) => {
       kind: vaultKind,
       manager,
     },
-    event.block
+    event
   )) as VaultService | null;
 });
 
@@ -83,7 +83,7 @@ multiMapper("spoke:RegisterAsset", async ({ event, context }) => {
       symbol: symbol,
       assetTokenId,
     },
-    event.block
+    event
   )) as AssetService | null;
 });
 
@@ -108,7 +108,7 @@ multiMapper("spoke:AddShareClass", async ({ event, context }) => {
       tokenId,
       centrifugeId,
     },
-    event.block
+    event
   )) as TokenInstanceService;
 
   // Store previous issuance
@@ -117,7 +117,7 @@ multiMapper("spoke:AddShareClass", async ({ event, context }) => {
   // Set token instance properties
   tokenInstance.setTotalIssuance(totalSupply);
   tokenInstance.activate();
-  await tokenInstance.save(event.block);
+  await tokenInstance.save(event);
 
   // Get or create token
   const token = (await TokenService.getOrInit(
@@ -126,7 +126,7 @@ multiMapper("spoke:AddShareClass", async ({ event, context }) => {
       id: tokenId,
       poolId,
     },
-    event.block
+    event
   )) as TokenService;
 
   // Only increase token total issuance if this is a new token instance
@@ -134,7 +134,7 @@ multiMapper("spoke:AddShareClass", async ({ event, context }) => {
     token.increaseTotalIssuance(totalSupply);
   }
 
-  await token.save(event.block);
+  await token.save(event);
 });
 
 multiMapper("spoke:LinkVault", async ({ event, context }) => {
@@ -153,9 +153,12 @@ multiMapper("spoke:LinkVault", async ({ event, context }) => {
     id: vaultId,
     centrifugeId,
   })) as VaultService;
-  if (!vault) throw new Error("Vault not found");
+  if (!vault) {
+    serviceError(`Vault not found for id ${vaultId}`);
+    return;
+  }
   vault.setStatus("Linked");
-  await vault.save(event.block);
+  await vault.save(event);
 });
 
 multiMapper("spoke:UnlinkVault", async ({ event, context }) => {
@@ -170,7 +173,7 @@ multiMapper("spoke:UnlinkVault", async ({ event, context }) => {
   })) as VaultService;
   if (!vault) throw new Error("Vault not found");
   vault.setStatus("Unlinked");
-  await vault.save(event.block);
+  await vault.save(event);
 });
 
 multiMapper("spoke:UpdateSharePrice", async ({ event, context }) => {
@@ -195,7 +198,7 @@ multiMapper("spoke:UpdateSharePrice", async ({ event, context }) => {
 
   await tokenInstance.setTokenPrice(tokenPrice);
   await tokenInstance.setComputedAt(computedAt);
-  await tokenInstance.save(event.block);
+  await tokenInstance.save(event);
 });
 
 multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
@@ -217,7 +220,7 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
     (chain) => chain.network.chainId === chainId
   )?.contracts.poolEscrowFactory;
   if (!poolEscrowFactoryAddress) {
-    console.error(`Pool Escrow Factory address not found for chain ${chainId}`);
+    serviceError(`Pool Escrow Factory address not found for chain ${chainId}`);
     return;
   }
 
@@ -233,7 +236,7 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
     centrifugeId,
   });
   if (assetQuery.length !== 1) {
-    console.error(`Asset not found for address ${assetAddress}`);
+    serviceError(`Asset not found for address ${assetAddress}`);
     return;
   }
 
@@ -250,11 +253,11 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
       assetId,
       escrowAddress,
     },
-    event.block
+    event
   )) as HoldingEscrowService;
 
   await holdingEscrow.setAssetPrice(assetPrice);
-  await holdingEscrow.save(event.block);
+  await holdingEscrow.save(event);
 
   await snapshotter(context, event, "spokeV3:UpdateAssetPrice", [holdingEscrow], HoldingEscrowSnapshot);
 });
@@ -276,12 +279,12 @@ multiMapper("spoke:InitiateTransferShares", async ({ event, context }) => {
     AccountService.getOrInit(
       context,
       { address: sender.substring(0, 42) as `0x${string}` },
-      event.block
+      event
     ),
     AccountService.getOrInit(
       context,
       { address: destinationAddress.substring(0, 42) as `0x${string}` },
-      event.block
+      event
     ),
   ])) as [AccountService, AccountService];
 
@@ -307,7 +310,7 @@ multiMapper("spoke:InitiateTransferShares", async ({ event, context }) => {
         ...transferData,
         account: fromAccountAddress,
       },
-      event.block
+      event
     ),
     InvestorTransactionService.transferIn(
       context,
@@ -315,7 +318,7 @@ multiMapper("spoke:InitiateTransferShares", async ({ event, context }) => {
         ...transferData,
         account: toAccountAddress,
       },
-      event.block
+      event
     ),
   ]);
 });

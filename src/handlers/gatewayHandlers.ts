@@ -1,5 +1,5 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { logEvent } from "../helpers/logger";
+import { logEvent, serviceError } from "../helpers/logger";
 import { BlockchainService } from "../services/BlockchainService";
 
 import {
@@ -50,7 +50,7 @@ multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
       data: data,
       status: "AwaitingBatchDelivery",
     },
-    event.block
+    event
   )) as CrosschainMessageService | null;
 });
 
@@ -95,7 +95,7 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
     if (pendingMessage) {
       logEvent(event, context, `Message ${messageId} already initialized in awaiting batch delivery queue`);
       pendingMessage.setPayloadId(payloadId, payloadIndex);
-      await pendingMessage.save(event.block);
+      await pendingMessage.save(event);
       continue;
     }
 
@@ -109,7 +109,7 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
 
     const data = decodeMessage(messageType, messagePayload);
     if (!data) {
-      console.error(`Failed to decode message for messageId ${messageId}`);
+      serviceError(`Failed to decode message for messageId ${messageId}`);
       return;
     }
 
@@ -131,13 +131,13 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
         payloadId,
         payloadIndex,
       },
-      event.block
+      event
     )) as CrosschainMessageService | null;
   }
 
   const poolIds = Array.from(poolIdSet);
   if (poolIds.length > 1) {
-    console.error(`Multiple poolIds found for payloadId ${payloadId}`);
+    serviceError(`Multiple poolIds found for payloadId ${payloadId}`);
     return;
   }
   const poolId = Array.from(poolIdSet).pop() ?? null;
@@ -154,9 +154,9 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
       status: "Underpaid",
       prepareTxHash: event.transaction.hash,
     },
-    event.block
+    event
   )) as CrosschainPayloadService | null;
-  if (!crosschainPayload) console.error("Failed to initialize crosschain payload ");
+  if (!crosschainPayload) serviceError("Failed to initialize crosschain payload ");
 });
 
 multiMapper("gateway:RepayBatch", async ({ event, context }) => {
@@ -175,7 +175,7 @@ multiMapper("gateway:RepayBatch", async ({ event, context }) => {
       payloadId
     )) as CrosschainPayloadService | null;
   if (!crosschainPayload) {
-    console.error(
+    serviceError(
       `CrosschainPayload not found for payloadId ${payloadId}`
     );
     return;
@@ -189,12 +189,12 @@ multiMapper("gateway:RepayBatch", async ({ event, context }) => {
   const crosschainMessageSaves = []
   for (const crosschainMessage of crosschainMessages) {
     crosschainMessage.awaitingBatchDelivery();
-    crosschainMessageSaves.push(crosschainMessage.save(event.block));
+    crosschainMessageSaves.push(crosschainMessage.save(event));
   }
   await Promise.all(crosschainMessageSaves);
 
   crosschainPayload.InTransit();
-  await crosschainPayload.save(event.block);
+  await crosschainPayload.save(event);
 });
 
 multiMapper("gateway:ExecuteMessage", async ({ event, context }) => {
@@ -214,18 +214,18 @@ multiMapper("gateway:ExecuteMessage", async ({ event, context }) => {
     messageId
   );
   if (!crosschainMessage) {
-    console.error(
+    serviceError(
       `CrosschainMessage not found in AwaitingBatchDelivery queue for messageId ${messageId}`
     );
     return;
   }
 
   crosschainMessage.executed(event);
-  await crosschainMessage.save(event.block);
+  await crosschainMessage.save(event);
 
   const { payloadId } = crosschainMessage.read();
   if (!payloadId) {
-    console.error("Payload ID is required");
+    serviceError("Payload ID is required");
     return;
   }
 
@@ -235,7 +235,7 @@ multiMapper("gateway:ExecuteMessage", async ({ event, context }) => {
       payloadId
     )) as CrosschainPayloadService | null;
   if (!crosschainPayload) {
-    console.error(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
+    serviceError(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
     return;
   }
   const { index: payloadIndex } = crosschainPayload.read();
@@ -244,7 +244,7 @@ multiMapper("gateway:ExecuteMessage", async ({ event, context }) => {
   if (!isPayloadFullyExecuted) return;
 
   crosschainPayload.completed(event);
-  await crosschainPayload.save(event.block);
+  await crosschainPayload.save(event);
 });
 
 multiMapper("gateway:FailMessage", async ({ event, context }) => {
@@ -265,7 +265,7 @@ multiMapper("gateway:FailMessage", async ({ event, context }) => {
     messageId
   );
   if (!crosschainMessage) {
-    console.error(
+    serviceError(
       `CrosschainMessage not found in AwaitingBatchDelivery or Failed queue for messageId ${messageId}`
     );
     return;
@@ -276,7 +276,7 @@ multiMapper("gateway:FailMessage", async ({ event, context }) => {
 
   crosschainMessage.setStatus('Failed');
   crosschainMessage.setFailReason(error);
-  await crosschainMessage.save(event.block);
+  await crosschainMessage.save(event);
 
   const { payloadId } = crosschainMessage.read();
   if (!payloadId) throw new Error("Payload ID is required");
@@ -287,10 +287,10 @@ multiMapper("gateway:FailMessage", async ({ event, context }) => {
       payloadId
     )) as CrosschainPayloadService | null;
   if (!crosschainPayload) {
-    console.error(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
+    serviceError(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
     return;
   }
 
   crosschainPayload.setStatus("PartiallyFailed");
-  await crosschainPayload.save(event.block);
+  await crosschainPayload.save(event);
 });

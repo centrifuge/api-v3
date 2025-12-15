@@ -3,6 +3,7 @@ import { Service, mixinCommonStatics } from "./Service";
 import { Event, Context } from "ponder:registry";
 import { getCrosschainMessageLength } from ".";
 import { keccak256, encodePacked } from "viem";
+import { serviceError } from "../helpers/logger";
 
 
 /**
@@ -201,7 +202,7 @@ export function extractMessagesFromPayload(payload: `0x${string}`) {
       currentBuffer
     );
     if (!messageLength) {
-      console.error(`Invalid message type: ${messageType}`);
+      serviceError(`Invalid message type: ${messageType}`);
       break;
     }
 

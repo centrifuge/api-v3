@@ -26,18 +26,19 @@ export class InvestorTransactionService extends mixinCommonStatics(
    * 
    * @param context - The Ponder context for database operations
    * @param data - The transaction data excluding the type field
+   * @param event - The event containing the block information
    * @returns Promise resolving to the created investor transaction
    */
   static async updateDepositRequest(
     context: Context,
     data: InvestorTransactionData,
-    block: Event["block"]
+    event: Event
   ) {
     serviceLog(
       "Creating investor transaction of type DEPOSIT_REQUEST_UPDATED with data:",
       expandInlineObject(data)
     );
-    return this.insert(context, { ...data, type: "DEPOSIT_REQUEST_UPDATED" }, block);
+    return this.insert(context, { ...data, type: "DEPOSIT_REQUEST_UPDATED" }, event);
   }
 
   /**
@@ -45,15 +46,16 @@ export class InvestorTransactionService extends mixinCommonStatics(
    * 
    * @param context - The Ponder context for database operations
    * @param data - The transaction data excluding the type field
+   * @param event - The event containing the block information
    * @returns Promise resolving to the created investor transaction
    */
   static async updateRedeemRequest(
     context: Context,
     data: InvestorTransactionData,
-    block: Event["block"]
+    event: Event
   ) {
     serviceLog("Creating redeem request", expandInlineObject(data));
-    return this.insert(context, { ...data, type: "REDEEM_REQUEST_UPDATED" }, block);
+    return this.insert(context, { ...data, type: "REDEEM_REQUEST_UPDATED" }, event);
   }
 
   /**
@@ -61,18 +63,19 @@ export class InvestorTransactionService extends mixinCommonStatics(
    * 
    * @param context - The Ponder context for database operations
    * @param data - The transaction data excluding the type field
+   * @param event - The event containing the block information
    * @returns Promise resolving to the created investor transaction
    */
   static async cancelDepositRequest(
     context: Context,
     data: InvestorTransactionData,
-    block: Event["block"]
+    event: Event
   ) {
     serviceLog(
       "Creating investor transaction of type DEPOSIT_REQUEST_CANCELLED with data:",
       expandInlineObject(data)
     );
-    return this.insert(context, { ...data, type: "DEPOSIT_REQUEST_CANCELLED" }, block);
+    return this.insert(context, { ...data, type: "DEPOSIT_REQUEST_CANCELLED" }, event);
   }
 
   /**
@@ -80,18 +83,19 @@ export class InvestorTransactionService extends mixinCommonStatics(
    * 
    * @param context - The Ponder context for database operations
    * @param data - The transaction data excluding the type field
+   * @param event - The event containing the block information
    * @returns Promise resolving to the created investor transaction
    */
   static async cancelRedeemRequest(
     context: Context,
     data: InvestorTransactionData,
-    block: Event["block"]
+    event: Event
   ) {
     serviceLog(
       "Creating investor transaction of type REDEEM_REQUEST_CANCELLED with data:",
       expandInlineObject(data)
     );
-    return this.insert(context, { ...data, type: "REDEEM_REQUEST_CANCELLED" }, block);
+    return this.insert(context, { ...data, type: "REDEEM_REQUEST_CANCELLED" }, event);
   }
 
   /**
@@ -99,18 +103,19 @@ export class InvestorTransactionService extends mixinCommonStatics(
    * 
    * @param context - The Ponder context for database operations
    * @param data - The transaction data excluding the type field
-   * @returns Promise resolving to the created investor transaction
+   * @param event - The event containing the block information
+  * @returns Promise resolving to the created investor transaction
    */
   static async executeDepositRequest(
     context: Context,
     data: InvestorTransactionData,
-    block: Event["block"]
+    event: Event
   ) {
     serviceLog(
       "Creating investor transaction of type DEPOSIT_REQUEST_EXECUTED with data:",
       expandInlineObject(data)
     );
-    return this.insert(context, { ...data, type: "DEPOSIT_REQUEST_EXECUTED" }, block);
+    return this.insert(context, { ...data, type: "DEPOSIT_REQUEST_EXECUTED" }, event);
   }
 
   /**
@@ -118,18 +123,19 @@ export class InvestorTransactionService extends mixinCommonStatics(
    * 
    * @param context - The Ponder context for database operations
    * @param data - The transaction data excluding the type field
+   * @param event - The event containing the block information
    * @returns Promise resolving to the created investor transaction
    */
   static async executeRedeemRequest(
     context: Context,
     data: InvestorTransactionData,
-    block: Event["block"]
+    event: Event
   ) {
     serviceLog(
       "Creating investor transaction of type REDEEM_REQUEST_EXECUTED with data:",
       expandInlineObject(data)
     );
-    return this.insert(context, { ...data, type: "REDEEM_REQUEST_EXECUTED" }, block);
+    return this.insert(context, { ...data, type: "REDEEM_REQUEST_EXECUTED" }, event);
   }
 
   /**
@@ -142,13 +148,13 @@ export class InvestorTransactionService extends mixinCommonStatics(
   static async claimDeposit(
     context: Context,
     data: InvestorTransactionData,
-    block: Event["block"]
+    event: Event
   ) {
     serviceLog(
       "Creating investor transaction of type DEPOSIT_CLAIMED with data:",
       expandInlineObject(data)
     );
-    return this.insert(context, { ...data, type: "DEPOSIT_CLAIMED" }, block);
+    return this.insert(context, { ...data, type: "DEPOSIT_CLAIMED" }, event);
   }
 
   /**
@@ -156,18 +162,19 @@ export class InvestorTransactionService extends mixinCommonStatics(
    * 
    * @param context - The Ponder context for database operations
    * @param data - The transaction data excluding the type field
+   * @param event - The event containing the block information
    * @returns Promise resolving to the created investor transaction
    */
   static async claimRedeem(
     context: Context,
     data: InvestorTransactionData,
-    block: Event["block"]
+    event: Event
   ) {
     serviceLog(
       "Creating investor transaction of type REDEEM_CLAIMED with data:",
       expandInlineObject(data)
     );
-    return this.insert(context, { ...data, type: "REDEEM_CLAIMED" }, block);
+    return this.insert(context, { ...data, type: "REDEEM_CLAIMED" }, event);
   }
 
   /**
@@ -175,18 +182,19 @@ export class InvestorTransactionService extends mixinCommonStatics(
    * 
    * @param context - The Ponder context for database operations
    * @param data - The transaction data excluding the type field
+   * @param event - The event containing the block information
    * @returns Promise resolving to the created investor transaction
    */
   static async depositClaimable(
     context: Context,
     data: InvestorTransactionData,
-    block: Event["block"]
+    event: Event
   ) {
     serviceLog(
       "Creating investor transaction of type DEPOSIT_CLAIMABLE with data:",
       expandInlineObject(data)
     );
-    return this.insert(context, { ...data, type: "DEPOSIT_CLAIMABLE" }, block);
+    return this.insert(context, { ...data, type: "DEPOSIT_CLAIMABLE" }, event);
   }
 
   /**
@@ -194,18 +202,19 @@ export class InvestorTransactionService extends mixinCommonStatics(
    * 
    * @param context - The Ponder context for database operations
    * @param data - The transaction data excluding the type field
+   * @param event - The event containing the block information
    * @returns Promise resolving to the created investor transaction
    */
   static async redeemClaimable(
     context: Context,
     data: InvestorTransactionData,
-    block: Event["block"]
+    event: Event
   ) {
     serviceLog(
       "Creating investor transaction of type REDEEM_CLAIMABLE with data:",
       expandInlineObject(data)
     );
-    return this.insert(context, { ...data, type: "REDEEM_CLAIMABLE" }, block);
+    return this.insert(context, { ...data, type: "REDEEM_CLAIMABLE" }, event);
   }
 
   /**
@@ -218,13 +227,13 @@ export class InvestorTransactionService extends mixinCommonStatics(
   static async syncDeposit(
     context: Context,
     data: InvestorTransactionData,
-    block: Event["block"]
+    event: Event
   ) {
     serviceLog(
       "Creating investor transaction of type SYNC_DEPOSIT with data:",
       expandInlineObject(data)
     );
-    return this.insert(context, { ...data, type: "SYNC_DEPOSIT" }, block);
+    return this.insert(context, { ...data, type: "SYNC_DEPOSIT" }, event);
   }
 
   /**
@@ -232,18 +241,19 @@ export class InvestorTransactionService extends mixinCommonStatics(
    * 
    * @param context - The Ponder context for database operations
    * @param data - The transaction data excluding the type field
+   * @param event - The event containing the block information
    * @returns Promise resolving to the created investor transaction
    */
   static async syncRedeem(
     context: Context,
     data: InvestorTransactionData,
-    block: Event["block"]
+    event: Event
   ) {
     serviceLog(
       "Creating investor transaction of type SYNC_REDEEM with data:",
       expandInlineObject(data)
     );
-    return this.insert(context, { ...data, type: "SYNC_REDEEM" }, block);
+    return this.insert(context, { ...data, type: "SYNC_REDEEM" }, event);
   }
 
   /**
@@ -251,18 +261,19 @@ export class InvestorTransactionService extends mixinCommonStatics(
    * 
    * @param context - The Ponder context for database operations
    * @param data - The transaction data excluding the type field
+   * @param event - The event containing the block information
    * @returns Promise resolving to the created investor transaction
    */
   static async transferIn(
     context: Context,
     data: InvestorTransactionData,
-    block: Event["block"]
+    event: Event
   ) {
     serviceLog(
       "Creating investor transaction of type TRANSFER_IN with data:",
       expandInlineObject(data)
     );
-    return this.insert(context, { ...data, type: "TRANSFER_IN" }, block);
+    return this.insert(context, { ...data, type: "TRANSFER_IN" }, event);
   }
 
   /**
@@ -270,18 +281,19 @@ export class InvestorTransactionService extends mixinCommonStatics(
    * 
    * @param context - The Ponder context for database operations
    * @param data - The transaction data excluding the type field
+   * @param event - The event containing the block information
    * @returns Promise resolving to the created investor transaction
    */
   static async transferOut(
     context: Context,
     data: InvestorTransactionData,
-    block: Event["block"]
+    event: Event
   ) {
     serviceLog(
       "Creating investor transaction of type TRANSFER_OUT with data:",
       expandInlineObject(data)
     );
-    return this.insert(context, { ...data, type: "TRANSFER_OUT" }, block);
+    return this.insert(context, { ...data, type: "TRANSFER_OUT" }, event);
   }
 }
 

@@ -1,5 +1,6 @@
 import { WhitelistedInvestor } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
+import { MAX_UINT64_DATE } from "../config";
 
 /**
  * Service class for managing investor whitelist records in the database.
@@ -38,7 +39,7 @@ export class WhitelistedInvestorService extends mixinCommonStatics(Service<typeo
    * @returns {WhitelistedInvestorService} The current service instance for method chaining
    */
   public setValidUntil(validUntil: Date | null) {
-    this.data.validUntil = validUntil;
+    this.data.validUntil = validUntil ?? MAX_UINT64_DATE;
     return this;
   }
 }

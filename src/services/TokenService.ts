@@ -1,6 +1,7 @@
 import { Token } from "ponder:schema";
 import { Context } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
+import { serviceLog } from "../helpers/logger";
 
 
 /**
@@ -30,7 +31,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
    * @returns {TokenService} The current TokenService instance for method chaining
    */
   public activate() {
-    console.info(`Activating shareClass ${this.data.id}`);
+    serviceLog(`Activating shareClass ${this.data.id}`);
     this.data.isActive = true;
     return this;
   }
@@ -41,7 +42,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
    * @returns {TokenService} The current TokenService instance for method chaining
    */
   public deactivate() {
-    console.info(`Deactivating shareClass ${this.data.id}`);
+    serviceLog(`Deactivating shareClass ${this.data.id}`);
     this.data.isActive = false;
     return this;
   }
@@ -53,7 +54,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
    * @returns {TokenService} The current TokenService instance for method chaining
    */
   public setIndex(index: number) {
-    console.info(`Setting index for shareClass ${this.data.id} to ${index}`);
+    serviceLog(`Setting index for shareClass ${this.data.id} to ${index}`);
     this.data.index = index;
     return this;
   }
@@ -67,7 +68,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
    * @returns {TokenService} The current TokenService instance for method chaining
    */
   public setMetadata(name: string, symbol: string, salt?: `0x${string}`) {
-    console.info(`Setting metadata for shareClass ${this.data.id} to ${name}, ${symbol}`);
+    serviceLog(`Setting metadata for shareClass ${this.data.id} to ${name}, ${symbol}`);
     this.data.name = name;
     this.data.symbol = symbol;
     this.data.salt = salt ?? null;
@@ -81,7 +82,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
    * @returns {TokenService} The current TokenService instance for method chaining
    */
   public setTokenPrice(price: bigint) {
-    console.info(`Setting price for shareClass ${this.data.id} to ${price}`);
+    serviceLog(`Setting price for shareClass ${this.data.id} to ${price}`);
     this.data.tokenPrice = price;
     return this;
   }
@@ -96,7 +97,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
   public increaseTotalIssuance(tokenAmount: bigint) {
     if(this.data.totalIssuance === null) throw new Error(`totalIssuance for token ${this.data.id} is not set`);
     this.data.totalIssuance += tokenAmount;
-    console.info(`Increased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`);
+    serviceLog(`Increased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`);
     return this;
   }
 
@@ -110,7 +111,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
   public decreaseTotalIssuance(tokenAmount: bigint) {
     if(this.data.totalIssuance === null) throw new Error(`totalIssuance for token ${this.data.id} is not set`);
     this.data.totalIssuance -= tokenAmount;
-    console.info(`Decreased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`);
+    serviceLog(`Decreased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`);
     return this;
   }
 }
