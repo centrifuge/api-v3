@@ -21,12 +21,12 @@ multiMapper("holdings:Initialize", async ({ event, context }) => {
     poolId,
     tokenId,
     assetId,
-  }, event.block)) as HoldingService;
+  }, event)) as HoldingService;
 
   await holding.initialize();
   await holding.setValuation(valuation);
   await holding.setIsLiability(isLiability);
-  await holding.save(event.block);
+  await holding.save(event);
 
   for (const { accountId: _accountId, kind: _kind } of accounts) {
     const accountId = _accountId.toString();
@@ -38,7 +38,7 @@ multiMapper("holdings:Initialize", async ({ event, context }) => {
       id: accountId,
       kind,
       tokenId,
-    }, event.block);
+    }, event);
   }
 });
 
@@ -57,10 +57,10 @@ multiMapper("holdings:Increase", async ({ event, context }) => {
     poolId,
     tokenId,
     assetId,
-  }, event.block)) as HoldingService;
+  }, event)) as HoldingService;
 
   await holding.increase(amount, increasedValue);
-  await holding.save(event.block);
+  await holding.save(event);
 
   await snapshotter(context, event, "holdingsV3:Increase", [holding], HoldingSnapshot);
 });
@@ -81,12 +81,12 @@ multiMapper("holdings:Decrease", async ({ event, context }) => {
     poolId,
     tokenId,
     assetId,
-  }, event.block)) as HoldingService;
+  }, event)) as HoldingService;
 
 
 
   await holding.decrease(amount, decreasedValue);
-  await holding.save(event.block);
+  await holding.save(event);
 });
 
 multiMapper("holdings:Update", async ({ event, context }) => {
@@ -111,10 +111,10 @@ multiMapper("holdings:Update", async ({ event, context }) => {
     poolId,
     tokenId,
     assetId,
-  }, event.block)) as HoldingService;
+  }, event)) as HoldingService;
 
   await holding.update(isPositive, diffValue);
-  await holding.save(event.block);
+  await holding.save(event);
 
   await snapshotter(context, event, "holdingsV3:Update", [holding], HoldingSnapshot);
 });
@@ -138,10 +138,10 @@ multiMapper("holdings:UpdateValuation", async ({ event, context }) => {
     poolId,
     tokenId,
     assetId,
-  }, event.block)) as HoldingService;
+  }, event)) as HoldingService;
 
   await holding.setValuation(valuation);
-  await holding.save(event.block);
+  await holding.save(event);
 
   await snapshotter(context, event, "holdingsV3:UpdateValuation", [holding], HoldingSnapshot);
 });

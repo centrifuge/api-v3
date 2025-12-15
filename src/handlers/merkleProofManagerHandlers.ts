@@ -1,5 +1,5 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { logEvent } from "../helpers/logger";
+import { logEvent, serviceError } from "../helpers/logger";
 import {
   BlockchainService,
   MerkleProofManagerService,
@@ -18,17 +18,17 @@ multiMapper(
     const { poolId, manager } = event.args;
     const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-    const merkleProofManager = (await MerkleProofManagerService.insert(
+    const merkleProofManager = (await MerkleProofManagerService.upsert(
       context,
       {
         address: manager,
         centrifugeId,
         poolId,
       },
-      event.block
+      event
     )) as MerkleProofManagerService | null;
     if (!merkleProofManager) {
-      console.error("Failed to insert MerkleProofManager");
+      serviceError("Failed to insert MerkleProofManager");
     }
   }
 );
@@ -53,7 +53,7 @@ multiMapper("merkleProofManager:UpdatePolicy", async ({ event, context }) => {
       poolId,
       root: newRoot,
     },
-    event.block
+    event
   )) as PolicyService;
-  await merkleProofManager.save(event.block);
+  await merkleProofManager.save(event);
 });

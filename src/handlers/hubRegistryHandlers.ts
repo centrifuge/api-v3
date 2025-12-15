@@ -20,7 +20,7 @@ multiMapper("hubRegistry:NewPool", async ({ event, context }) => {
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
   const decimals = await AssetService.getDecimals(context, currency);
 
-  const _pool = (await PoolService.insert(
+  const _pool = (await PoolService.upsert(
     context,
     {
       id: poolId,
@@ -29,7 +29,7 @@ multiMapper("hubRegistry:NewPool", async ({ event, context }) => {
       isActive: true,
       decimals,
     },
-    event.block
+    event
   )) as PoolService;
 
   const account = (await AccountService.getOrInit(
@@ -37,7 +37,7 @@ multiMapper("hubRegistry:NewPool", async ({ event, context }) => {
     {
       address: manager,
     },
-    event.block
+    event
   )) as AccountService;
 
   const { address: managerAddress } = account.read();
@@ -49,10 +49,10 @@ multiMapper("hubRegistry:NewPool", async ({ event, context }) => {
       centrifugeId,
       poolId,
     },
-    event.block
+    event
   )) as PoolManagerService;
   poolManager.setIsHubManager(true);
-  await poolManager.save(event.block);
+  await poolManager.save(event);
 });
 
 multiMapper("hubRegistry:NewAsset", async ({ event, context }) => {
@@ -63,13 +63,13 @@ multiMapper("hubRegistry:NewAsset", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const _assetRegistration = (await AssetRegistrationService.insert(
+  const _assetRegistration = (await AssetRegistrationService.upsert(
     context,
     {
       assetId,
       centrifugeId,
     },
-    event.block
+    event
   )) as AssetRegistrationService;
 
   const isIsoCurrency = assetId < 1000n;
@@ -84,7 +84,7 @@ multiMapper("hubRegistry:NewAsset", async ({ event, context }) => {
         symbol: isoCurrency.shortcode,
         name: isoCurrency.name,
       },
-      event.block
+      event
     )) as AssetService;
   }
 });
@@ -100,7 +100,7 @@ multiMapper("hubRegistry:UpdateManager", async ({ event, context }) => {
     {
       address: manager,
     },
-    event.block
+    event
   )) as AccountService;
   const { address: managerAddress } = account.read();
   const poolManager = (await PoolManagerService.getOrInit(
@@ -110,10 +110,10 @@ multiMapper("hubRegistry:UpdateManager", async ({ event, context }) => {
       poolId,
       address: managerAddress,
     },
-    event.block
+    event
   )) as PoolManagerService;
   poolManager.setIsHubManager(canManage);
-  await poolManager.save(event.block);
+  await poolManager.save(event);
 });
 
 multiMapper("hubRegistry:SetMetadata", async ({ event, context }) => {
@@ -130,7 +130,7 @@ multiMapper("hubRegistry:SetMetadata", async ({ event, context }) => {
       id: poolId,
       centrifugeId,
     },
-    event.block
+    event
   )) as PoolService;
   if (!pool) throw new Error("Pool not found");
 
@@ -143,5 +143,5 @@ multiMapper("hubRegistry:SetMetadata", async ({ event, context }) => {
   }
 
   pool.setMetadata(metadata);
-  await pool.save(event.block);
+  await pool.save(event);
 });

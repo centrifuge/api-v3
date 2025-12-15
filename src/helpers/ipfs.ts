@@ -1,4 +1,5 @@
 import fetch from "node-fetch";
+import { serviceError } from "./logger";
 
 const IPFS_GATEWAY = "https://centrifuge.mypinata.cloud/ipfs/";
 
@@ -19,7 +20,7 @@ export async function fetchFromIpfs(ipfsHash: string): Promise<any> {
     }
     return await response.json();
   } catch (error) {
-    console.error(`Error fetching from IPFS: ${error}`);
+    serviceError(`Error fetching from IPFS: ${error}`);
     throw error;
   }
 }

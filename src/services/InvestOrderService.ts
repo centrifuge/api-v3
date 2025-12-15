@@ -24,7 +24,7 @@ export class InvestOrderService extends mixinCommonStatics(
    *
    * @param navAssetPerShare - The NAV per share for the asset
    * @param navPoolPerShare - The NAV per share for the pool
-   * @param block - The event block containing timestamp and block number
+   * @param event - The event containing the block information
    * @returns The service instance for method chaining
    */
   public issueShares(
@@ -32,15 +32,15 @@ export class InvestOrderService extends mixinCommonStatics(
     navPoolPerShare: bigint, // 18 decimals
     assetDecimals: number,
     shareDecimals: number,
-    block: Event["block"]
+    event: Event
   ) {
     serviceLog(
       `Issuing shares for investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare}`
     );
     if (this.data.issuedAt) throw new Error("Shares already issued");
     if (this.data.approvedAssetsAmount === null) throw new Error("No assets approved");
-    this.data.issuedAt = new Date(Number(block.timestamp) * 1000);
-    this.data.issuedAtBlock = Number(block.number);
+    this.data.issuedAt = new Date(Number(event.block.timestamp) * 1000);
+    this.data.issuedAtBlock = Number(event.block.number);
     this.data.issuedSharesAmount =
       (this.data.approvedAssetsAmount *
         10n ** BigInt(18 + shareDecimals - assetDecimals)) /
@@ -58,13 +58,13 @@ export class InvestOrderService extends mixinCommonStatics(
    * @param block - The event block containing timestamp and block number
    * @returns The service instance for method chaining
    */
-  public claimDeposit(block: Event["block"]) {
+  public claimDeposit(event: Event) {
     serviceLog(
-      `Claiming deposit for investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} on block ${block.number} with timestamp ${block.timestamp}`
+      `Claiming deposit for investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} on block ${event.block.number} with timestamp ${event.block.timestamp}`
     );
     if (this.data.claimedAt) throw new Error("Deposit already claimed");
-    this.data.claimedAt = new Date(Number(block.timestamp) * 1000);
-    this.data.claimedAtBlock = Number(block.number);
+    this.data.claimedAt = new Date(Number(event.block.timestamp) * 1000);
+    this.data.claimedAtBlock = Number(event.block.number);
     return this;
   }
 }

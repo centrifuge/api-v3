@@ -50,7 +50,7 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
     {
       address: controller,
     },
-    event.block
+    event
   )) as AccountService;
   const { address: investorAddress } = invstorAccount.read();
 
@@ -68,7 +68,7 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
       centrifugeId,
       accountAddress: investorAddress,
     },
-    event.block,
+    event,
     async (tokenInstancePosition) => await initialisePosition(context, tokenAddress, tokenInstancePosition)
   )) as TokenInstancePositionService;
 
@@ -90,7 +90,7 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
       centrifugeId,
       currencyAssetId: assetId,
     },
-    event.block
+    event
   );
 
   const OutstandingInvest = (await OutstandingInvestService.getOrInit(
@@ -101,12 +101,12 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
       account: investorAddress,
       assetId,
     },
-    event.block
+    event
   )) as OutstandingInvestService;
 
   await OutstandingInvest.decorateOutstandingOrder(event)
     .updateDepositAmount(assets)
-    .saveOrClear(event.block);
+    .saveOrClear(event);
 });
 
 multiMapper("vault:RedeemRequest", async ({ event, context }) => {
@@ -135,7 +135,7 @@ multiMapper("vault:RedeemRequest", async ({ event, context }) => {
     {
       address: controller,
     },
-    event.block
+    event
   )) as AccountService;
   const { address: investorAddress } = invstorAccount.read();
 
@@ -157,7 +157,7 @@ multiMapper("vault:RedeemRequest", async ({ event, context }) => {
       centrifugeId,
       currencyAssetId: assetId,
     },
-    event.block
+    event
   );
 
   const OutstandingRedeem = (await OutstandingRedeemService.getOrInit(
@@ -168,12 +168,12 @@ multiMapper("vault:RedeemRequest", async ({ event, context }) => {
       account: investorAddress.substring(0, 42) as `0x${string}`,
       assetId,
     },
-    event.block
+    event
   )) as OutstandingRedeemService;
 
   await OutstandingRedeem.decorateOutstandingOrder(event)
     .updateDepositAmount(shares)
-    .saveOrClear(event.block);
+    .saveOrClear(event);
 });
 
 multiMapper("vault:DepositClaimable", async ({ event, context }) => {
@@ -208,7 +208,7 @@ multiMapper("vault:DepositClaimable", async ({ event, context }) => {
     {
       address: controller,
     },
-    event.block
+    event
   )) as AccountService;
   const { address: investorAddress } = invstorAccount.read();
 
@@ -225,7 +225,7 @@ multiMapper("vault:DepositClaimable", async ({ event, context }) => {
       centrifugeId,
       currencyAssetId: assetId,
     },
-    event.block
+    event
   );
 });
 
@@ -261,7 +261,7 @@ multiMapper("vault:RedeemClaimable", async ({ event, context }) => {
     {
       address: controller,
     },
-    event.block
+    event
   )) as AccountService;
   const { address: investorAddress } = invstorAccount.read();
 
@@ -278,7 +278,7 @@ multiMapper("vault:RedeemClaimable", async ({ event, context }) => {
       centrifugeId,
       currencyAssetId: assetId,
     },
-    event.block
+    event
   );
 });
 
@@ -311,7 +311,7 @@ multiMapper('vault:Deposit', async ({ event, context }) => {
     {
       address: owner,
     },
-    event.block
+    event
   )) as AccountService;
 
   const { address: investorAddress } = invstorAccount.read();
@@ -333,14 +333,14 @@ multiMapper('vault:Deposit', async ({ event, context }) => {
       await InvestorTransactionService.claimDeposit(
         context,
         itData,
-        event.block
+        event
       );
       break;
     default:
       await InvestorTransactionService.syncDeposit(
         context,
         itData,
-        event.block
+        event
       );
       const blockTimestamp = new Date(Number(event.block.timestamp) * 1000);
       const blockNumber = Number(event.block.number);
@@ -361,15 +361,18 @@ multiMapper('vault:Deposit', async ({ event, context }) => {
           index: investOrderIndex,
           approvedAt: blockTimestamp,
           approvedAtBlock: blockNumber,
+          approvedAtTxHash: event.transaction.hash,
           approvedAssetsAmount: assets,
           issuedAt: blockTimestamp,
           issuedAtBlock: blockNumber,
+          issuedAtTxHash: event.transaction.hash,
           issuedSharesAmount: shares,
           issuedWithNavAssetPerShare: getSharePrice(assets, shares, assetDecimals, shareDecimals),
           claimedAt: blockTimestamp,
           claimedAtBlock: blockNumber,
+          claimedAtTxHash: event.transaction.hash,
         },
-        event.block
+        event
       );
 
       const epochInvestIndex =
@@ -388,15 +391,17 @@ multiMapper('vault:Deposit', async ({ event, context }) => {
           index: epochInvestIndex,
           approvedAt: blockTimestamp,
           approvedAtBlock: blockNumber,
+          approvedAtTxHash: event.transaction.hash,
           approvedAssetsAmount: assets,
           approvedPoolAmount: assets,
           approvedPercentageOfTotalPending: 100n * 10n ** BigInt(assetDecimals),
           issuedAt: blockTimestamp,
           issuedAtBlock: blockNumber,
+          issuedAtTxHash: event.transaction.hash,
           issuedSharesAmount: shares,
           issuedWithNavAssetPerShare: getSharePrice(assets, shares, assetDecimals, shareDecimals),
         },
-        event.block
+        event
       )) as EpochInvestOrderService;
       break;
   }
@@ -431,7 +436,7 @@ multiMapper("vault:Withdraw", async ({ event, context }) => {
     {
       address: owner,
     },
-    event.block
+    event
   )) as AccountService;
   const { address: investorAddress } = invstorAccount.read();
 
@@ -451,7 +456,7 @@ multiMapper("vault:Withdraw", async ({ event, context }) => {
     case "Sync":
       const blockTimestamp = new Date(Number(event.block.timestamp) * 1000);
       const blockNumber = Number(event.block.number);
-      await InvestorTransactionService.syncRedeem(context, itData, event.block);
+      await InvestorTransactionService.syncRedeem(context, itData, event);
       const redeemOrderIndex =
         (await RedeemOrderService.count(context, {
           poolId,
@@ -478,7 +483,7 @@ multiMapper("vault:Withdraw", async ({ event, context }) => {
           claimedAt: blockTimestamp,
           claimedAtBlock: blockNumber,
         },
-        event.block
+        event
       );
 
       const epochRedeemIndex =
@@ -497,14 +502,16 @@ multiMapper("vault:Withdraw", async ({ event, context }) => {
           index: epochRedeemIndex,
           approvedAt: blockTimestamp,
           approvedAtBlock: blockNumber,
+          approvedAtTxHash: event.transaction.hash,
           approvedSharesAmount: shares,
           approvedPercentageOfTotalPending: 100n * 10n ** BigInt(shareDecimals),
           revokedAt: blockTimestamp,
           revokedAtBlock: blockNumber,
+          revokedAtTxHash: event.transaction.hash,
           revokedAssetsAmount: assets,
           revokedWithNavAssetPerShare: getSharePrice(assets, shares, assetDecimals, shareDecimals),
         },
-        event.block
+        event
       )) as EpochRedeemOrderService;
 
       break;
@@ -512,7 +519,7 @@ multiMapper("vault:Withdraw", async ({ event, context }) => {
       await InvestorTransactionService.claimRedeem(
         context,
         itData,
-        event.block
+        event
       );
       break;
   }

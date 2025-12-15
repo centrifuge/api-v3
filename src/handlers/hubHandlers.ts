@@ -1,5 +1,5 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { logEvent } from "../helpers/logger";
+import { logEvent, serviceError } from "../helpers/logger";
 import { WhitelistedInvestorService, TokenService } from "../services";
 import { PoolSpokeBlockchainService } from "../services/PoolSpokeBlockchainService";
 
@@ -15,7 +15,7 @@ multiMapper("hub:NotifyPool", async ({ event, context }) => {
       poolId,
       centrifugeId: centrifugeId.toString(),
     },
-    event.block
+    event
   );
 });
 
@@ -31,14 +31,14 @@ multiMapper("hub:UpdateRestriction", async ({ event, context }) => {
     id: tokenId,
   })) as TokenService | null;
   if (!token) {
-    console.error("Token not found for id ", tokenId);
+    serviceError("Token not found for id ", tokenId);
     return;
   }
   const { poolId } = token.read();
 
   const decodedPayload = decodeUpdateRestriction(payload);
   if (!decodedPayload) {
-    console.error("Unable to decode updateRestriction payload: ", payload);
+    serviceError("Unable to decode updateRestriction payload: ", payload);
     return;
   }
 
@@ -52,21 +52,21 @@ multiMapper("hub:UpdateRestriction", async ({ event, context }) => {
       centrifugeId: spokeCentrifugeId.toString(),
       accountAddress,
     },
-    event.block
+    event
   )) as WhitelistedInvestorService;
 
   switch (restrictionType) {
     case RestrictionType.Member:
       whitelistedInvestor.setValidUntil(validUntil);
-      await whitelistedInvestor.save(event.block);
+      await whitelistedInvestor.save(event);
       break;
     case RestrictionType.Freeze:
       whitelistedInvestor.freeze();
-      await whitelistedInvestor.save(event.block);
+      await whitelistedInvestor.save(event);
       break;
     case RestrictionType.Unfreeze:
       whitelistedInvestor.unfreeze();
-      await whitelistedInvestor.save(event.block);
+      await whitelistedInvestor.save(event);
       break;
     default:
       break;

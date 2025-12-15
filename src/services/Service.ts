@@ -13,7 +13,7 @@ import {
   gte,
 } from "drizzle-orm";
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
-import { expandInlineObject, serviceLog } from "../helpers/logger";
+import { expandInlineObject, serviceLog, serviceError } from "../helpers/logger";
 import { toCamelCase } from "drizzle-orm/casing";
 import { ReadonlyDrizzle } from "ponder";
 
@@ -21,12 +21,10 @@ import { ReadonlyDrizzle } from "ponder";
 type OnchainTable = PgTableWithColumns<any>;
 type ReadOnlyContext = { db: ReadonlyDrizzle<typeof schema> };
 
-type DefaultColumns = {
-  updatedAt?: Date;
-  updatedAtBlock?: number;
-  createdAt?: Date;
-  createdAtBlock?: number;
-};
+
+type CreationProps<T extends OnchainTable> = { [K in keyof T]: K extends `${string}CreatedAt` ? T[K] : never }[keyof T];
+type UpdateProps<T extends OnchainTable> = { [K in keyof T]: K extends `${string}UpdatedAt` ? T[K] : never }[keyof T];
+type DataWithoutDefaults<T extends OnchainTable> = Omit<T["$inferInsert"], keyof (CreationProps<T> & UpdateProps<T>)>;
 
 /**
  * Generic service class for managing database operations on PostgreSQL tables.
@@ -44,7 +42,7 @@ export class Service<T extends OnchainTable> {
   /** Client context for additional operations */
   protected readonly client: Context["client"] | null;
   /** Current data instance of the table row */
-  protected data: T["$inferSelect"] & DefaultColumns;
+  protected data: T["$inferSelect"];
 
   /**
    * Creates a new Service instance.
@@ -58,7 +56,7 @@ export class Service<T extends OnchainTable> {
     table: T,
     name: string,
     context: Context | ReadOnlyContext,
-    data: T["$inferInsert"] & DefaultColumns
+    data: T["$inferSelect"]
   ) {
     this.db = "sql" in context.db ? context.db.sql : context.db;
     this.client = "client" in context ? context.client : null;
@@ -83,16 +81,16 @@ export class Service<T extends OnchainTable> {
    * @returns Promise that resolves to the service instance after successful update
    * @throws {Error} When the update operation fails
    */
-  public async save(block: Event["block"] | null) {
+  public async save(event: Event | null) {
     if (!("insert" in this.db)) throw new Error(`Read only database`);
-    updateDefaults(this.table, this.data, block);
-    serviceLog(`Saving ${this.name}`, expandInlineObject(this.data));
+    const dataWithDefaults = event ? updateDefaults(this.table, this.data, event) : {...this.data};
+    serviceLog(`Saving ${this.name}`, expandInlineObject(dataWithDefaults));
     const pkFilter = primaryKeyFilter(this.table, this.data);
     const update =
       (
         await this.db
           .update(this.table)
-          .set(this.data)
+          .set(dataWithDefaults)
           .where(pkFilter)
           .returning()
       ).pop() ?? null;
@@ -141,28 +139,30 @@ export function mixinCommonStatics<
   T extends OnchainTable
 >(service: C, table: T, name: string) {
   return class extends service {
-    /**
-     * Creates a new record in the database and returns a service instance.
-     *
-     * @param context - Database and client context
-     * @param data - Data to insert into the database
-     * @returns Promise that resolves to a new service instance
-     * @throws {Error} When the insert operation fails
-     */
     static async insert(
       context: Context,
-      data: T["$inferInsert"] & DefaultColumns,
-      block: Event["block"] | null
+      data: T["$inferInsert"],
+      event: null
+    ): Promise<InstanceType<C> | null>;
+    static async insert(
+      context: Context,
+      data: DataWithoutDefaults<T>,
+      event: Event
+    ): Promise<InstanceType<C> | null>;
+    static async insert(
+      context: Context,
+      data: DataWithoutDefaults<T> | T["$inferInsert"],
+      event: Event | null
     ) {
-      insertDefaults(table, data, block);
+      const dataWithDefaults = event ? insertDefaults(table, data, event) : {...data};
       const [insert] = await context.db.sql
         .insert(table as OnchainTable)
-        .values(data)
+        .values(dataWithDefaults)
         .onConflictDoNothing()
         .returning();
-      serviceLog(`Inserting ${name}`, expandInlineObject(data));
+      serviceLog(`Inserting ${name}`, expandInlineObject(dataWithDefaults));
       if (!insert) return null;
-      return new this(table, name, context, insert);
+      return new this(table, name, context, insert) as InstanceType<C>;
     }
 
     /**
@@ -204,23 +204,35 @@ export function mixinCommonStatics<
      */
     static async getOrInit(
       context: Context,
-      query: T["$inferInsert"] & DefaultColumns,
-      block: Event["block"] | null,
-      onInit?: (entity: T["$inferSelect"] & DefaultColumns) => Promise<void>
-    ) {
-      serviceLog("getOrInit", name, expandInlineObject(query));
-      let entity = await context.db.find(table as any, query);
+      query: DataWithoutDefaults<T>,
+      event: Event,
+      onInit?: (entity: T["$inferSelect"]) => Promise<void>
+    ): Promise<InstanceType<C>>;
+    static async getOrInit(
+      context: Context,
+      query: T["$inferInsert"],
+      event: null,
+      onInit?: (entity: T["$inferSelect"]) => Promise<void>
+    ): Promise<InstanceType<C>>;
+    static async getOrInit(
+      context: Context,
+      query: DataWithoutDefaults<T> | T["$inferInsert"],
+      event: Event | null,
+      onInit?: (entity: T["$inferSelect"]) => Promise<void>
+    ): Promise<InstanceType<C>> {
+      const dataWithDefaults = event ? insertDefaults(table, query, event) : {...query};
+      serviceLog("getOrInit", name, expandInlineObject(dataWithDefaults));
+      let entity = await context.db.find(table as any, dataWithDefaults);
       serviceLog(`Found ${name}: `, expandInlineObject(entity));
       if (!entity) {
-        insertDefaults(table, query, block);
         if (onInit) {
           serviceLog(`Executing onInit for ${name}`);
-          await onInit(query);
+          await onInit(dataWithDefaults);
         }
-        serviceLog(`Initialising ${name}: `, expandInlineObject(query));
+        serviceLog(`Initialising ${name}: `, expandInlineObject(dataWithDefaults));
         const [insert] = await context.db.sql
           .insert(table as OnchainTable)
-          .values(query)
+          .values(dataWithDefaults)
           .onConflictDoNothing()
           .returning();
         entity = insert ?? null;
@@ -229,7 +241,7 @@ export function mixinCommonStatics<
             `Failed to initialise ${name}: ${expandInlineObject(query)}`
           );
       }
-      return new this(table, name, context, entity);
+      return new this(table, name, context, entity) as InstanceType<C>;
     }
 
     /**
@@ -242,25 +254,35 @@ export function mixinCommonStatics<
      */
     static async upsert(
       context: Context,
-      query: T["$inferInsert"] & DefaultColumns,
-      block: Event["block"] | null
-    ) {
-      insertDefaults(table, query, block);
-      serviceLog("upsert", name, expandInlineObject(query));
+      query: T["$inferInsert"],
+      event: null
+    ): Promise<InstanceType<C> | null>;
+    static async upsert(
+      context: Context,
+      query: DataWithoutDefaults<T>,
+      event: Event
+    ): Promise<InstanceType<C> | null>;
+    static async upsert(
+      context: Context,
+      query: DataWithoutDefaults<T> | T["$inferInsert"],
+      event: Event | null
+    ): Promise<InstanceType<C> | null> {
+      const dataWithDefaults = event ? insertDefaults(table, query, event) : {...query};
+      serviceLog("upsert", name, expandInlineObject(dataWithDefaults));
       const [entity] = await context.db.sql
         .insert(table as OnchainTable)
-        .values(query)
+        .values(dataWithDefaults)
         .onConflictDoUpdate({
           target: getPrimaryKeysFieldNames(table).map((key) => table[key]),
-          set: { ...query, createdAt: undefined, createdAtBlock: undefined },
+          set: { ...dataWithDefaults, createdAt: undefined, createdAtBlock: undefined, createdAtTxHash: undefined },
         })
         .returning();
 
       if (!entity) {
-        console.error(`Failed to upsert ${name}: ${expandInlineObject(query)}`);
+        serviceError(`Failed to upsert ${name}: ${expandInlineObject(query)}`);
         return null;
       }
-      return new this(table, name, context, entity);
+      return new this(table, name, context, entity) as InstanceType<C>;
     }
 
     /**
@@ -464,17 +486,19 @@ function queryToFilter<T extends OnchainTable>(
  */
 function insertDefaults<T extends OnchainTable>(
   table: T,
-  data: T["$inferInsert"] & DefaultColumns,
-  block: Event["block"] | null
-) {
-  if (!block) return data;
+  data: DataWithoutDefaults<T>,
+  event: Event
+): T["$inferInsert"] {
+  const dataWithDefaults = { ...data }  as T["$inferInsert"] & CreationProps<T> & UpdateProps<T>;
   if ("createdAt" in table)
-    data.createdAt = new Date(Number(block.timestamp) * 1000);
-  if ("createdAtBlock" in table) data.createdAtBlock = Number(block.number);
+    dataWithDefaults.createdAt = new Date(Number(event.block.timestamp) * 1000);
+  if ("createdAtBlock" in table) dataWithDefaults.createdAtBlock = Number(event.block.number);
+  if ("createdAtTxHash" in table && "transaction" in event) dataWithDefaults.createdAtTxHash = event.transaction.hash as `0x${string}`;
   if ("updatedAt" in table)
-    data.updatedAt = new Date(Number(block.timestamp) * 1000);
-  if ("updatedAtBlock" in table) data.updatedAtBlock = Number(block.number);
-  return data;
+    dataWithDefaults.updatedAt = new Date(Number(event.block.timestamp) * 1000);
+  if ("updatedAtBlock" in table) dataWithDefaults.updatedAtBlock = Number(event.block.number);
+  if ("updatedAtTxHash" in table && "transaction" in event) dataWithDefaults.updatedAtTxHash = event.transaction.hash as `0x${string}`;
+  return dataWithDefaults;
 }
 
 /**
@@ -487,12 +511,12 @@ function insertDefaults<T extends OnchainTable>(
  */
 function updateDefaults<T extends OnchainTable>(
   table: T,
-  data: T["$inferInsert"] & DefaultColumns,
-  block: Event["block"] | null
-) {
-  if (!block) return data;
-  if ("updatedAt" in table)
-    data.updatedAt = new Date(Number(block.timestamp) * 1000);
-  if ("updatedAtBlock" in table) data.updatedAtBlock = Number(block.number);
-  return data;
+  data: T["$inferSelect"],
+  event: Event
+): T["$inferSelect"] & UpdateProps<T> {
+  const dataWithDefaults = { ...data } as T["$inferSelect"] & UpdateProps<T>;
+  if ("updatedAt" in table) dataWithDefaults.updatedAt = new Date(Number(event.block.timestamp) * 1000);
+  if ("updatedAtBlock" in table) dataWithDefaults.updatedAtBlock = Number(event.block.number);
+  if ("updatedAtTxHash" in table && "transaction" in event) dataWithDefaults.updatedAtTxHash = event.transaction.hash as `0x${string}`;
+  return dataWithDefaults;
 }

@@ -21,7 +21,7 @@ export class RedeemOrderService extends mixinCommonStatics(
    * @param navAssetPerShare - The NAV asset per share
    * @param navPoolPerShare - The NAV pool per share
    * @param shareDecimals - The number of decimals for the share
-   * @param block - The block information
+   * @param event - The event containing the block information
    * @returns The service instance for method chaining
    *
    * @example
@@ -35,16 +35,16 @@ export class RedeemOrderService extends mixinCommonStatics(
     navPoolPerShare: bigint,
     shareDecimals: number,
     assetDecimals: number,
-    block: Event["block"]
+    event: Event
   ) {
     serviceLog(
-      `Revoking shares for ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare} shareDecimals: ${shareDecimals} on block ${block.number} and timestamp ${block.timestamp}`
+      `Revoking shares for ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare} shareDecimals: ${shareDecimals} on block ${event.block.number} and timestamp ${event.block.timestamp}`
     );
     const poolDecimals = shareDecimals;
     if (this.data.revokedAt) throw new Error("Shares already revoked");
     if (this.data.approvedSharesAmount === null) throw new Error("No shares approved");
-    this.data.revokedAt = new Date(Number(block.timestamp) * 1000);
-    this.data.revokedAtBlock = Number(block.number);
+    this.data.revokedAt = new Date(Number(event.block.timestamp) * 1000);
+    this.data.revokedAtBlock = Number(event.block.number);
     this.data.revokedAssetsAmount = (this.data.approvedSharesAmount * navAssetPerShare) / 10n ** BigInt(18 + shareDecimals - assetDecimals);
     this.data.revokedPoolAmount = (this.data.approvedSharesAmount * navPoolPerShare) / 10n ** BigInt(18 + shareDecimals - poolDecimals);
     this.data.revokedWithNavAssetPerShare = navAssetPerShare;
@@ -64,13 +64,13 @@ export class RedeemOrderService extends mixinCommonStatics(
    * redeemOrderService.claimRedeem({ number: 123456, timestamp: 1716792000 });
    * ```
    */
-  public claimRedeem(block: Event["block"]) {
+  public claimRedeem(event: Event) {
     serviceLog(
-      `Claiming redeem for ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} on block ${block.number} and timestamp ${block.timestamp}`
+      `Claiming redeem for ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} on block ${event.block.number} and timestamp ${event.block.timestamp}`
     );
     if (this.data.claimedAt) throw new Error("Redeem already claimed");
-    this.data.claimedAt = new Date(Number(block.timestamp) * 1000);
-    this.data.claimedAtBlock = Number(block.number);
+    this.data.claimedAt = new Date(Number(event.block.timestamp) * 1000);
+    this.data.claimedAtBlock = Number(event.block.number);
     return this;
   }
 }

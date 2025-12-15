@@ -1,5 +1,5 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { logEvent } from "../helpers/logger";
+import { logEvent,serviceError } from "../helpers/logger";
 import {
   BlockchainService,
   TokenInstanceService,
@@ -23,7 +23,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
   })) as TokenInstanceService[];
   const tokenInstance = tokenInstanceQuery.pop();
   if (!tokenInstance) {
-    console.error("TokenInstance not found for ", event.log.address);
+    serviceError("TokenInstance not found for ", event.log.address);
     return;
   }
   const { tokenId } = tokenInstance.read();
@@ -38,7 +38,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
         {
           address: from,
         },
-        event.block
+        event
       )) as AccountService | null);
 
   const toAccount = isToNull
@@ -48,7 +48,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
         {
           address: to,
         },
-        event.block
+        event
       )) as AccountService | null);
 
   if (fromAccount) {
@@ -59,12 +59,13 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
         centrifugeId,
         accountAddress: from,
       },
-      event.block,
+      event,
       async (tokenInstancePosition) => await initialisePosition(context, tokenAddress, tokenInstancePosition)
     )) as TokenInstancePositionService;
     const { createdAtBlock } = fromPosition.read();
-    if(createdAtBlock < event.block.number) fromPosition.subBalance(amount);
-    await fromPosition.save(event.block);
+    if (!createdAtBlock) {serviceError("TokenInstancePosition not found for ", event.log.address); return;}
+    if(createdAtBlock < Number(event.block.number)) fromPosition.subBalance(amount);
+    await fromPosition.save(event);
   }
 
   if (toAccount) {
@@ -75,41 +76,42 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
         centrifugeId,
         accountAddress: to,
       },
-      event.block,
+      event,
       async (tokenInstancePosition) => await initialisePosition(context, tokenAddress, tokenInstancePosition)
     )) as TokenInstancePositionService;
     const { createdAtBlock } = toPosition.read();
-    if(createdAtBlock < event.block.number) toPosition.addBalance(amount);
-    await toPosition.save(event.block);
+    if (!createdAtBlock) {serviceError("TokenInstancePosition not found for ", event.log.address); return;}
+    if(createdAtBlock < Number(event.block.number)) toPosition.addBalance(amount);
+    await toPosition.save(event);
   }
 
   const token = (await TokenService.get(context, {
     id: tokenId,
   })) as TokenService | null;
   if (!token) {
-    console.error("Token not found for ", tokenId);
+    serviceError("Token not found for ", tokenId);
     return;
   }
 
   if (isFromNull) {
     tokenInstance.increaseTotalIssuance(amount);
-    await tokenInstance.save(event.block);
+    await tokenInstance.save(event);
     token.increaseTotalIssuance(amount);
-    await token.save(event.block);
+    await token.save(event);
   }
 
   if (isToNull) {
     tokenInstance.decreaseTotalIssuance(amount);
-    await tokenInstance.save(event.block);
+    await tokenInstance.save(event);
     token.decreaseTotalIssuance(amount);
-    await token.save(event.block);
+    await token.save(event);
   }
 
   // Handle transfers
   if (!!fromAccount && !!toAccount) {
     const token = await TokenService.get(context, { id: tokenId });
     if (!token) {
-      console.error("Token not found for ", tokenId);
+      serviceError("Token not found for ", tokenId);
       return;
     }
     const { poolId } = token.read();
@@ -131,7 +133,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
           ...transferData,
           account: to,
         },
-        event.block
+        event
       ),
       InvestorTransactionService.transferOut(
         context,
@@ -139,7 +141,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
           ...transferData,
           account: from,
         },
-        event.block
+        event
       ),
     ]);
   }

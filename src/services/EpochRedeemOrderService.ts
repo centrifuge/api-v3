@@ -20,17 +20,17 @@ export class EpochRedeemOrderService extends mixinCommonStatics(
    * @param revokedPoolAmount - The amount of pool revoked
    * @param revokedWithNavPoolPerShare - The NAV per share for the pool
    * @param revokedWithNavAssetPerShare - The NAV per share for the asset
-   * @param block - The block information
+   * @param event - The event containing the block information
    * @returns The service instance for method chaining
    */
-  public revokedShares(revokedSharesAmount: bigint, revokedAssetsAmount: bigint, revokedPoolAmount: bigint, revokedWithNavPoolPerShare: bigint, revokedWithNavAssetPerShare: bigint, block: Event["block"]) {
+  public revokedShares(revokedSharesAmount: bigint, revokedAssetsAmount: bigint, revokedPoolAmount: bigint, revokedWithNavPoolPerShare: bigint, revokedWithNavAssetPerShare: bigint, event: Event) {
     this.data.revokedSharesAmount = revokedSharesAmount;
     this.data.revokedAssetsAmount = revokedAssetsAmount;
     this.data.revokedPoolAmount = revokedPoolAmount;
     this.data.revokedWithNavPoolPerShare = revokedWithNavPoolPerShare;
     this.data.revokedWithNavAssetPerShare = revokedWithNavAssetPerShare;
-    this.data.revokedAt = new Date(Number(block.timestamp) * 1000);
-    this.data.revokedAtBlock = Number(block.number);
+    this.data.revokedAt = new Date(Number(event.block.timestamp) * 1000);
+    this.data.revokedAtBlock = Number(event.block.number);
     return this;
   }
 }
