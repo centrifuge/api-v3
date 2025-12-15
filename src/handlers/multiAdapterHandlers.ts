@@ -243,7 +243,7 @@ multiMapper(
       const contracts = Object.entries(currentChain.contracts);
       const [contractName = null] =
         contracts.find(
-          ([_, contractAddress]) => typeof contractAddress === 'string' && contractAddress.toLowerCase() === adapter
+          ([_, contractObject]) => typeof contractObject === 'object' && contractObject.address.toLowerCase() === adapter
         ) ?? [];
       const firstPart = contractName
         ? contractName.split(/(?=[A-Z])/)[0]

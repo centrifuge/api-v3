@@ -99,6 +99,7 @@ export class OutstandingInvestService extends mixinCommonStatics(
     );
     this.data.pendingAmount! -= this.data.approvedAmount!;
     this.data.approvedAmount = 0n;
+    this.data.approvedIndex = null;
     this.data.approvedAt = null;
     this.data.approvedAtBlock = null;
     if (this.data.queuedAmount! + this.data.pendingAmount! === 0n)
