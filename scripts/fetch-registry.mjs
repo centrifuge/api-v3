@@ -17,7 +17,7 @@ const argNetwork = process.argv.length > 2 ? process.argv.at(-1) : undefined;
 const network = argNetwork ?? envNetwork ?? "mainnet";
 
 const {
-  REGISTRY_URL = network === "mainnet" ? "https://gist.githubusercontent.com/filo87/b41b95b06ad72ee2f4460262734cb754/raw/63ce3fb626e2f270a5b043300b26aa2bc103fc9f/mainnet_registry.json" : "https://registry.testnet.centrifuge.io/",
+  REGISTRY_URL = network === "mainnet" ? "https://gist.githubusercontent.com/filo87/b41b95b06ad72ee2f4460262734cb754/raw/60aeb9739e435402e6f26568b33cb12171823ef0/mainnet_registry.json" : "https://registry.testnet.centrifuge.io/",
   IPFS_GATEWAY = "https://centrifuge.mypinata.cloud/ipfs",
 } = process.env;
 

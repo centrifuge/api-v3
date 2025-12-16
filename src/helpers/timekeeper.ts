@@ -1,6 +1,6 @@
 import type { Context, Event } from "ponder:registry";
 import { BlockchainService } from "../services/BlockchainService";
-import { RegistryChains, networkNames, explorerUrls,RegistryChainsKeys,RegistryVersions } from "../chains";
+import { RegistryChains, networkNames, explorerUrls,RegistryChainsKeys,RegistryVersions,chainIcons } from "../chains";
 
 /** Interval in seconds for snapshot periods (24 hours) */
 const SNAPSHOT_INTERVAL_SECONDS = 60 * 60 * 24; // 1 day
@@ -73,10 +73,9 @@ export class Timekeeper {
       centrifugeId: chain.network.centrifugeId.toString(),
       network: networkName,
       chainId: chain.network.chainId,
-      environment: null, //TODO:Handle registry env
       name: networkName,
       explorer: explorerUrls[chainId.toString() as keyof typeof explorerUrls],
-      //icon: chain.network.icon, //TODO: Add icons
+      icon: chainIcons[chainId.toString() as keyof typeof chainIcons],
     }, event)) as BlockchainService;
     const lastPeriodStart = blockchain.read().lastPeriodStart;
     if (!lastPeriodStart) blockchain.setLastPeriodStart(new Date(0));

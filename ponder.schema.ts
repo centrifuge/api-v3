@@ -19,11 +19,8 @@ const BlockchainColumns = (t: PgColumnsBuilders) => ({
   network: t.text().notNull(),
   lastPeriodStart: t.timestamp(),
   chainId: t.integer(),
-  environment: t.text(),
   name: t.text(),
   explorer: t.text(),
-  alchemyName: t.text(),
-  quicknodeName: t.text(),
   icon: t.text(),
 });
 
