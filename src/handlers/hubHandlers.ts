@@ -6,7 +6,7 @@ import { PoolSpokeBlockchainService } from "../services/PoolSpokeBlockchainServi
 
 
 multiMapper("hub:NotifyPool", async ({ event, context }) => {
-  logEvent(event, context, "Hub:NotifyPool");
+  logEvent(event, context, "hub:NotifyPool");
   const { poolId, centrifugeId } = event.args;
 
   await PoolSpokeBlockchainService.getOrInit(
@@ -20,7 +20,7 @@ multiMapper("hub:NotifyPool", async ({ event, context }) => {
 });
 
 multiMapper("hub:UpdateRestriction", async ({ event, context }) => {
-  logEvent(event, context, "Hub:UpdateRestriction");
+  logEvent(event, context, "hub:UpdateRestriction");
   const {
     centrifugeId: spokeCentrifugeId,
     scId: tokenId,

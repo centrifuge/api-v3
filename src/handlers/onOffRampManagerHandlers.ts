@@ -12,7 +12,7 @@ import { OnRampAssetService } from "../services";
 multiMapper(
   "onOfframpManagerFactory:DeployOnOfframpManager",
   async ({ event, context }) => {
-    logEvent(event, context, "OnOffRampManagerFactory:DeployOnOfframpManager");
+    logEvent(event, context, "onOffRampManagerFactory:DeployOnOffRampManager");
     const { poolId, scId: tokenId, manager } = event.args;
 
     const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -65,7 +65,7 @@ multiMapper("onOfframpManager:UpdateRelayer", async ({ event, context }) => {
 });
 
 multiMapper("onOfframpManager:UpdateOnramp", async ({ event, context }) => {
-  logEvent(event, context, "OnOffRampManager:UpdateOnramp");
+  logEvent(event, context, "onOffRampManager:UpdateOnramp");
   const manager = event.log.address;
   const { asset, isEnabled } = event.args;
 

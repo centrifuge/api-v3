@@ -6,7 +6,7 @@ import { BlockchainService } from "../services/BlockchainService";
 import { EscrowService } from "../services/EscrowService";
 
 multiMapper("poolEscrowFactory:DeployPoolEscrow", async ({ event, context }) => {
-  logEvent(event, context, "PoolEscrowFactoryV3:DeployPoolEscrow");
+  logEvent(event, context, "poolEscrowFactory:DeployPoolEscrow");
   const { poolId, escrow: escrowAddress } = event.args;
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 

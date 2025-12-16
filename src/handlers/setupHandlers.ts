@@ -1,19 +1,47 @@
 import { ponder } from "ponder:registry";
 import { RegistryChains } from "../chains";
-import { DeploymentService, WhitelistedInvestorService } from "../services";
+import { AdapterService,
+DeploymentService, WhitelistedInvestorService } from "../services";
 import {
   V2_POOLS,
   V2_MIGRATION_BLOCK,
   V2_MIGRATION_TIMESTAMP,
 } from "../config";
+import { serviceLog } from "../helpers/logger";
 
-ponder.on("hubRegistryV3:setup", async ({ context }) => {
+ponder.on("multiAdapterV3:setup", async ({ context }) => {
+  serviceLog("multiAdapterV3:setup");
   const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Need a chain id.");
   const currentChain = RegistryChains.find(
     (chain) => chain.network.chainId === chainId
   );
-  if (!currentChain) throw new Error(`Chain ${chainId} not found`);
+  if (!currentChain) throw new Error(`Chain ${chainId} not found in registry`);
+  const centrifugeId = currentChain.network.centrifugeId;
+  const adapters = Object.fromEntries(Object.entries(currentChain.contracts).filter(([key]) => (key.endsWith("Adapter") && key !== "multiAdapter")).map(([key, value]) => [key.replace("Adapter", ""), value.address.toLowerCase()]));
+  for (const [adapterName, adapterAddress] of Object.entries(adapters)) {
+    serviceLog(`Initialising adapter ${adapterName} with address ${adapterAddress} on chain ${chainId}`);
+    const adapter = await AdapterService.insert(
+      context,
+      {
+        name: adapterName,
+        address: adapterAddress,
+        centrifugeId: centrifugeId.toString(),
+        createdAt: new Date(currentChain.deployment.deployedAt * 1000),
+        createdAtBlock: currentChain.deployment.startBlock,
+        createdAtTxHash: '0x',
+      },
+      null
+    );
+    if (!adapter) throw new Error(`Failed to initialise adapter ${adapterName} with address ${adapterAddress} on chain ${chainId}`);
+  }
+});
+
+ponder.on("hubRegistryV3:setup", async ({ context }) => {
+  const chainId = context.chain.id;
+  const currentChain = RegistryChains.find(
+    (chain) => chain.network.chainId === chainId
+  );
+  if (!currentChain) throw new Error(`Chain ${chainId} not found in registry`);
   const contracts = Object.fromEntries(
     Object.entries(currentChain.contracts).map(
       ([key, value]) => [key, value.address] as [string, `0x${string}`]

@@ -7,7 +7,7 @@ import { BlockchainService } from "../services/BlockchainService";
 import { snapshotter } from "../helpers/snapshotter";
 
 multiMapper("holdings:Initialize", async ({ event, context }) => {
-  logEvent(event, context, "Holdings:Create");
+  logEvent(event, context, "holdings:Create");
   const [_poolId, shareClassId, assetId, _valuation, isLiability, accounts] =
     event.args;
   const poolId = _poolId;
@@ -43,7 +43,7 @@ multiMapper("holdings:Initialize", async ({ event, context }) => {
 });
 
 multiMapper("holdings:Increase", async ({ event, context }) => {
-  logEvent(event, context, "Holdings:Increase");
+  logEvent(event, context, "holdings:Increase");
   const [_poolId, _scId, assetId, _pricePoolPerAsset, amount, increasedValue] =
     event.args;
 
@@ -66,7 +66,7 @@ multiMapper("holdings:Increase", async ({ event, context }) => {
 });
 
 multiMapper("holdings:Decrease", async ({ event, context }) => {
-  logEvent(event, context, "Holdings:Decrease");
+  logEvent(event, context, "holdings:Decrease");
   
   const [_poolId, _scId, assetId, _pricePoolPerAsset, amount, decreasedValue] =
     event.args;
@@ -90,7 +90,7 @@ multiMapper("holdings:Decrease", async ({ event, context }) => {
 });
 
 multiMapper("holdings:Update", async ({ event, context }) => {
-  logEvent(event, context, "Holdings:Update");
+  logEvent(event, context, "holdings:Update");
   
   const {
     poolId: _poolId,
@@ -120,7 +120,7 @@ multiMapper("holdings:Update", async ({ event, context }) => {
 });
 
 multiMapper("holdings:UpdateValuation", async ({ event, context }) => {
-  logEvent(event, context, "Holdings:UpdateValuation");
+  logEvent(event, context, "holdings:UpdateValuation");
   const {
     poolId: _poolId,
     scId: _scId,
