@@ -19,7 +19,7 @@ import { ReadonlyDrizzle } from "ponder";
 
 /** Type alias for PostgreSQL table with columns */
 type OnchainTable = PgTableWithColumns<any>;
-type ReadOnlyContext = { db: ReadonlyDrizzle<typeof schema> };
+export type ReadOnlyContext = { db: ReadonlyDrizzle<typeof schema> };
 
 
 type CreationProps<T extends OnchainTable> = { [K in keyof T]: K extends `${string}CreatedAt` ? T[K] : never }[keyof T];

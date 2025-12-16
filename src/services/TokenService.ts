@@ -2,6 +2,7 @@ import { Token } from "ponder:schema";
 import { Context } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { serviceLog } from "../helpers/logger";
+import { ReadOnlyContext } from "./Service";
 
 
 /**
@@ -113,5 +114,26 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
     this.data.totalIssuance -= tokenAmount;
     serviceLog(`Decreased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`);
     return this;
+  }
+
+  /**
+   * Gets the normalised TVL of the tokens.
+   * @param context - The context.
+   * @returns The normalised TVL of the tokens in fixed point 18 precision.
+   */
+  static async getNormalisedTvl(context: Context | ReadOnlyContext) {
+    const tokens = await TokenService.query(context, {
+      isActive: true,
+    }) as TokenService[];
+    return tokens.reduce((acc, token) => {
+      const { totalIssuance, tokenPrice, decimals } = token.read();
+      if (!totalIssuance || !tokenPrice || !decimals) return acc;
+      // totalIssuance is in 'decimals' precision, tokenPrice is in 18 precision
+      // We want the result in 18 precision
+      // product = totalIssuance * tokenPrice has (decimals + 18) precision
+      // We need to divide by 10^decimals to normalize to 18 precision
+      const product = totalIssuance * tokenPrice;
+      return acc + product / (10n ** BigInt(decimals));
+    }, 0n);
   }
 }

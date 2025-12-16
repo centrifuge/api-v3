@@ -15,7 +15,7 @@ import {
 } from "../services/CrosschainPayloadService";
 
 multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
-  logEvent(event, context, "Gateway:PrepareMessage");
+  logEvent(event, context, "gateway:PrepareMessage");
   const { centrifugeId: toCentrifugeId, poolId, message } = event.args;
   const messageBuffer = Buffer.from(message.substring(2), "hex");
   const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0));
@@ -55,7 +55,7 @@ multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
 });
 
 multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
-  logEvent(event, context, "Gateway:UnderpaidBatch");
+  logEvent(event, context, "gateway:UnderpaidBatch");
   const { centrifugeId: toCentrifugeId, batch } = event.args;
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
@@ -160,7 +160,7 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
 });
 
 multiMapper("gateway:RepayBatch", async ({ event, context }) => {
-  logEvent(event, context, "Gateway:RepayBatch");
+  logEvent(event, context, "gateway:RepayBatch");
   const { centrifugeId: toCentrifugeId, batch } = event.args;
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
   const payloadId = getPayloadId(
@@ -199,7 +199,7 @@ multiMapper("gateway:RepayBatch", async ({ event, context }) => {
 
 multiMapper("gateway:ExecuteMessage", async ({ event, context }) => {
   // RECEIVING CHAIN
-  logEvent(event, context, "Gateway:ExecuteMessage");
+  logEvent(event, context, "gateway:ExecuteMessage");
   const { centrifugeId: fromCentrifugeId, message } = event.args;
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -249,7 +249,7 @@ multiMapper("gateway:ExecuteMessage", async ({ event, context }) => {
 
 multiMapper("gateway:FailMessage", async ({ event, context }) => {
   // RECEIVING CHAIN
-  logEvent(event, context, "Gateway:FailMessage");
+  logEvent(event, context, "gateway:FailMessage");
   const { centrifugeId: fromCentrifugeId, message, error } = event.args;
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);

@@ -14,7 +14,7 @@ import { RegistryChains } from "../chains";
 import { AdapterParticipationService } from "../services/AdapterParticipationService";
 
 multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
-  logEvent(event, context, "MultiAdapter:SendPayload");
+  logEvent(event, context, "multiAdapterSendPayload");
   const {
     centrifugeId: toCentrifugeId,
     payload: payloadData,
@@ -86,7 +86,7 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
 });
 
 multiMapper("multiAdapter:SendProof", async ({ event, context }) => {
-  logEvent(event, context, "MultiAdapter:SendProof");
+  logEvent(event, context, "multiAdapterSendProof");
   const { payloadId, adapter, centrifugeId: toCentrifugeId } = event.args;
 
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -176,7 +176,7 @@ multiMapper("multiAdapter:HandlePayload", async ({ event, context }) => {
 });
 
 multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
-  logEvent(event, context, "MultiAdapter:HandleProof"); //RECEIVING CHAIN
+  logEvent(event, context, "multiAdapterHandleProof"); //RECEIVING CHAIN
   const { payloadId, adapter, centrifugeId: fromCentrifugeId } = event.args;
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -225,7 +225,7 @@ multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
 multiMapper(
   "multiAdapter:File(bytes32 indexed what, uint16 centrifugeId, address[] adapters)",
   async ({ event, context }) => {
-    logEvent(event, context, "MultiAdapter:File2");
+    logEvent(event, context, "multiAdapterFile2");
 
     const chainId = context.chain.id;
 

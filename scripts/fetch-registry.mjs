@@ -17,8 +17,9 @@ const argNetwork = process.argv.length > 2 ? process.argv.at(-1) : undefined;
 const network = argNetwork ?? envNetwork ?? "mainnet";
 
 const {
-  REGISTRY_URL = network === "mainnet" ? "https://gist.githubusercontent.com/filo87/b41b95b06ad72ee2f4460262734cb754/raw/60aeb9739e435402e6f26568b33cb12171823ef0/mainnet_registry.json" : "https://registry.testnet.centrifuge.io/",
-  IPFS_GATEWAY = "https://centrifuge.mypinata.cloud/ipfs",
+  REGISTRY_URL = network === "mainnet" ? "https://ipfs.centrifuge.io/ipfs/bafybeibtwvbdofmoitxzl2b6zklx22bzjxvntu4zfeemvcftg3guwbdqai" : "https://registry.testnet.centrifuge.io/",
+  IPFS_GATEWAY = "https://ipfs.centrifuge.io/ipfs",
+  IPFS_HASH
 } = process.env;
 
 
@@ -31,7 +32,7 @@ const outputDir = join(process.cwd(), "generated");
  */
 async function fetchRegistry(ipfsHash) {
   // Validate ipfsHash using a regex that matches base58 (CIDv0) or base32 (CIDv1)
-  if (ipfsHash) {
+  if (!!ipfsHash) {
     const ipfsHashRegex = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{58,})$/i;
     if (!ipfsHashRegex.test(ipfsHash)) {
       throw new Error(`Invalid ipfsHash: ${ipfsHash}`);
@@ -114,7 +115,7 @@ async function main() {
     }
   }
   try {
-    const registryChain = await fetchRegistryChain();
+    const registryChain = await fetchRegistryChain(IPFS_HASH);
     const versions = registryChain.map(registry => registry.version.split('-')[0].replace('v', '').replaceAll(".", "_"));
     const _tsContent = await Promise.all(registryChain.map((registry, index) => generateTypeScriptRegistry(registry, versions[index])));
     await generateTypescriptIndex(registryChain, versions);

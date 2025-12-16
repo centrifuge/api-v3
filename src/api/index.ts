@@ -2,14 +2,31 @@ import schema from "ponder:schema";
 import { db } from "ponder:api";
 import { Hono } from "hono";
 import { graphql, client } from "ponder";
-import { TokenInstanceService, TokenService } from "../services";
+import {
+  AccountService,
+  AdapterService,
+  AssetRegistrationService,
+  AssetService,
+  CrosschainMessageService,
+  CrosschainPayloadService,
+  EpochInvestOrderService,
+  EpochRedeemOrderService,
+  HoldingService,
+  InvestOrderService,
+  InvestorTransactionService,
+  PoolService,
+  RedeemOrderService,
+  TokenInstanceService,
+  TokenService,
+} from "../services";
 import { formatBigIntToDecimal } from "../helpers/formatter";
+import { AdapterParticipationService } from "../services/AdapterParticipationService";
 
 const app = new Hono();
 const context = { db };
 
 app.use("/", graphql({ db, schema }));
-app.use("/sql/*", client({ db, schema })); 
+app.use("/sql/*", client({ db, schema }));
 app.use("/graphql", graphql({ db, schema }));
 
 const jsonDefaultHeaders = {
@@ -64,6 +81,51 @@ app.get("/tokens/:address/price", async (c) => {
 
   return c.json(
     { result: formatBigIntToDecimal(tokenPrice) },
+    200,
+    jsonDefaultHeaders
+  );
+});
+
+app.get("/stats", async (c) => {
+  const tvl = await TokenService.getNormalisedTvl(context);
+  const pools = await PoolService.count(context, { isActive: true });
+  const tokens = await TokenService.count(context, { isActive: true });
+  const tokenInstances = await TokenInstanceService.count(context, {
+    isActive: true,
+  });
+  const assets = await AssetService.count(context, {});
+  const assetRegistrations = await AssetRegistrationService.count(context, {});
+  const adapters = await AdapterService.count(context, {});
+  const adapterParticipations = await AdapterParticipationService.count(context,{});
+  const investorTransactions = await InvestorTransactionService.count(context,{});
+  const investOrders = await InvestOrderService.count(context,{});
+  const redeemOrders = await RedeemOrderService.count(context,{});
+  const epochInvestOrders = await EpochInvestOrderService.count(context,{});
+  const epochRedeemOrders = await EpochRedeemOrderService.count(context,{});
+  const crosschainMessages = await CrosschainMessageService.count(context,{});
+  const crosschainPayloads = await CrosschainPayloadService.count(context,{});
+  const accounts = await AccountService.count(context,{});
+  const holdings = await HoldingService.count(context,{});
+  return c.json(
+    {
+      tvl: formatBigIntToDecimal(tvl),
+      pools,
+      tokens,
+      tokenInstances,
+      assets,
+      assetRegistrations,
+      adapters,
+      adapterParticipations,
+      investorTransactions,
+      investOrders,
+      redeemOrders,
+      epochInvestOrders,
+      epochRedeemOrders,
+      crosschainMessages,
+      crosschainPayloads,
+      accounts,
+      holdings,
+    },
     200,
     jsonDefaultHeaders
   );
