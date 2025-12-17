@@ -82,11 +82,11 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
   const _it = await InvestorTransactionService.updateDepositRequest(
     context,
     {
+      txHash: event.transaction.hash,
       poolId,
       tokenId,
       account: investorAddress,
       currencyAmount: assets,
-      txHash: event.transaction.hash,
       centrifugeId,
       currencyAssetId: assetId,
     },
@@ -149,11 +149,11 @@ multiMapper("vault:RedeemRequest", async ({ event, context }) => {
   const _it = await InvestorTransactionService.updateRedeemRequest(
     context,
     {
+      txHash: event.transaction.hash,
       poolId,
       tokenId,
       account: investorAddress.substring(0, 42) as `0x${string}`,
       tokenAmount: shares,
-      txHash: event.transaction.hash,
       centrifugeId,
       currencyAssetId: assetId,
     },
@@ -215,13 +215,13 @@ multiMapper("vault:DepositClaimable", async ({ event, context }) => {
   const _it = await InvestorTransactionService.depositClaimable(
     context,
     {
+      txHash: event.transaction.hash,
       poolId,
       tokenId,
       account: investorAddress,
       tokenAmount: shares,
       currencyAmount: assets,
       tokenPrice: getSharePrice(assets, shares, assetDecimals, shareDecimals),
-      txHash: event.transaction.hash,
       centrifugeId,
       currencyAssetId: assetId,
     },
@@ -268,13 +268,13 @@ multiMapper("vault:RedeemClaimable", async ({ event, context }) => {
   const _it = await InvestorTransactionService.redeemClaimable(
     context,
     {
+      txHash: event.transaction.hash,
       poolId,
       tokenId,
       account: investorAddress,
       tokenAmount: shares,
       currencyAmount: assets,
       tokenPrice: getSharePrice(assets, shares, assetDecimals, shareDecimals),
-      txHash: event.transaction.hash,
       centrifugeId,
       currencyAssetId: assetId,
     },

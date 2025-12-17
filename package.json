@@ -18,7 +18,8 @@
     "tsgo": "tsgo",
     "tsgo:watch": "tsgo -w",
     "prepare": "husky",
-    "update-registry": "node scripts/fetch-registry.mjs"
+    "update-registry": "node scripts/fetch-registry.mjs",
+     "evgrep": "scripts/evgrep.sh"
   },
   "dependencies": {
     "@ponder/utils": "^0.2.16",
