@@ -59,6 +59,7 @@ const currentContractFields = (t: PgColumnsBuilders) =>
 const DeploymentColumns = (t: PgColumnsBuilders) => ({
   chainId: t.text().notNull(),
   centrifugeId: t.text().notNull(),
+  globalEscrow: t.hex(),
   ...currentContractFields(t),
 });
 
@@ -255,7 +256,7 @@ export const InvestorTransactionType = onchainEnum(
 );
 
 const InvestorTransactionColumns = (t: PgColumnsBuilders) => ({
-  txHash: t.text().notNull(),
+  txHash: t.hex().notNull(), //TODO: DEPRECATED to be deleted
   centrifugeId: t.text().notNull(),
   poolId: t.bigint().notNull(),
   tokenId: t.text().notNull(),
@@ -278,7 +279,7 @@ export const InvestorTransaction = onchainTable(
   InvestorTransactionColumns,
   (t) => ({
     id: primaryKey({
-      columns: [t.poolId, t.tokenId, t.account, t.type, t.txHash],
+      columns: [t.poolId, t.tokenId, t.account, t.type, t.createdAtTxHash],
     }),
   })
 );
@@ -847,6 +848,7 @@ export const EscrowColumns = (t: PgColumnsBuilders) => ({
   address: t.hex().notNull(),
   poolId: t.bigint().notNull(),
   centrifugeId: t.text().notNull(),
+  ...defaultColumns(t, false),
 });
 
 export const Escrow = onchainTable("escrow", EscrowColumns, (t) => ({
