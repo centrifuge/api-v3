@@ -437,6 +437,7 @@ multiMapper("shareClassManager:IssueShares", async ({ event, context }) => {
       approvedAmount,
       approvedAt,
       approvedAtBlock,
+      approvedAtTxHash,
       approvedIndex,
     } = outstandingInvest.read();
     const investOrder = (await InvestOrderService.getOrInit(
@@ -450,6 +451,7 @@ multiMapper("shareClassManager:IssueShares", async ({ event, context }) => {
         approvedAssetsAmount: approvedAmount,
         approvedAt,
         approvedAtBlock,
+        approvedAtTxHash,
       },
       event
     )) as InvestOrderService;
@@ -537,6 +539,7 @@ multiMapper("shareClassManager:RevokeShares", async ({ event, context }) => {
       account,
       approvedAt,
       approvedAtBlock,
+      approvedAtTxHash,
       approvedAmount,
     } = outstandingRedeem.read();
     const redeemOrder = (await RedeemOrderService.getOrInit(
@@ -549,6 +552,7 @@ multiMapper("shareClassManager:RevokeShares", async ({ event, context }) => {
         account,
         approvedAt,
         approvedAtBlock,
+        approvedAtTxHash,
         approvedSharesAmount: approvedAmount,
       },
       event

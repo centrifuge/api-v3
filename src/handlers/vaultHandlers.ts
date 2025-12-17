@@ -474,14 +474,17 @@ multiMapper("vault:Withdraw", async ({ event, context }) => {
           index: redeemOrderIndex,
           approvedAt: blockTimestamp,
           approvedAtBlock: blockNumber,
+          approvedAtTxHash: event.transaction.hash,
           approvedSharesAmount: shares,
           revokedAt: blockTimestamp,
           revokedAtBlock: blockNumber,
+          revokedAtTxHash: event.transaction.hash,
           revokedAssetsAmount: assets,
           revokedPoolAmount: assets,
           revokedWithNavAssetPerShare: getSharePrice(assets, shares, assetDecimals, shareDecimals),
           claimedAt: blockTimestamp,
           claimedAtBlock: blockNumber,
+          claimedAtTxHash: event.transaction.hash,
         },
         event
       );
