@@ -1,0 +1,13 @@
+{
+  "packages": {
+    ".": {
+      "changelog-sections": [
+        { "type": "feat", "section": "Features" },
+        { "type": "fix", "section": "Bug Fixes" },
+        { "type": "deprecation", "section": "⚠️ Deprecations", "hidden": false },
+        { "type": "perf", "section": "Performance Improvements" },
+        { "type": "BREAKING CHANGE", "section": "BREAKING CHANGES" }
+      ]
+    }
+  }
+}

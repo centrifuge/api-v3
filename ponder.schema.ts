@@ -256,7 +256,7 @@ export const InvestorTransactionType = onchainEnum(
 );
 
 const InvestorTransactionColumns = (t: PgColumnsBuilders) => ({
-  txHash: t.hex().notNull(), //TODO: DEPRECATED to be deleted
+  txHash: t.hex().notNull(), //TODO: DEPRECATED to be deleted in future releases
   centrifugeId: t.text().notNull(),
   poolId: t.bigint().notNull(),
   tokenId: t.text().notNull(),
