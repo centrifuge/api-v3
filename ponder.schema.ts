@@ -1201,6 +1201,34 @@ export const Adapter = onchainTable("adapter", AdapterColumns, (t) => ({
   addressIdx: index().on(t.address),
 }));
 
+export const AdapterRelations = relations(Adapter, ({ many }) => ({
+  adapterWirings: many(AdapterWiring, {
+    relationName: "adapterWirings",
+  }),
+}));
+
+const AdapterWiringColumns = (t: PgColumnsBuilders) => ({
+  fromAddress: t.text().notNull(),
+  fromCentrifugeId: t.text().notNull(),
+  toAddress: t.text().notNull(),
+  toCentrifugeId: t.text().notNull(),
+  ...defaultColumns(t, false),
+});
+export const AdapterWiring = onchainTable("adapter_wiring", AdapterWiringColumns, (t) => ({
+  id: primaryKey({ columns: [t.fromAddress, t.fromCentrifugeId, t.toAddress, t.toCentrifugeId] }),
+}));
+
+export const AdapterWiringRelations = relations(AdapterWiring, ({ one }) => ({
+  fromAdapter: one(Adapter, {
+    fields: [AdapterWiring.fromAddress, AdapterWiring.fromCentrifugeId],
+    references: [Adapter.address, Adapter.centrifugeId],
+  }),
+  toAdapter: one(Adapter, {
+    fields: [AdapterWiring.toAddress, AdapterWiring.toCentrifugeId],
+    references: [Adapter.address, Adapter.centrifugeId],
+  }),
+}));
+
 export const AdapterParticipationTypes = ["PAYLOAD", "PROOF"] as const;
 export const AdapterParticipationType = onchainEnum(
   "adapter_participation_type",

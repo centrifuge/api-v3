@@ -12,7 +12,7 @@ import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
 
 multiMapper('balanceSheet:NoteDeposit', async ({ event, context }) => {
-  logEvent(event, context, "BalanceSheet:NoteDeposit");
+  logEvent(event, context, "balanceSheet:NoteDeposit");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const {
@@ -62,7 +62,7 @@ multiMapper('balanceSheet:NoteDeposit', async ({ event, context }) => {
 });
 
 multiMapper("balanceSheet:Withdraw", async ({ event, context }) => {
-  logEvent(event, context, "BalanceSheet:Withdraw");
+  logEvent(event, context, "balanceSheet:Withdraw");
   const _chainId = context.chain.id;
   if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const {

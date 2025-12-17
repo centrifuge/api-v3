@@ -377,7 +377,7 @@ multiMapper("shareClassManager:ApproveRedeems", async ({ event, context }) => {
 });
 
 multiMapper("shareClassManager:IssueShares", async ({ event, context }) => {
-  logEvent(event, context, "ShareClassManager:IssueShares");
+  logEvent(event, context, "shareClassManager:IssueShares");
   const {
     //poolId,
     scId: tokenId,

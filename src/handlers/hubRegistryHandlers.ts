@@ -57,7 +57,7 @@ multiMapper("hubRegistry:NewPool", async ({ event, context }) => {
 
 multiMapper("hubRegistry:NewAsset", async ({ event, context }) => {
   //Fires Second to complete
-  logEvent(event, context, "HubRegistry:NewAsset");
+  logEvent(event, context, "hubRegistry:NewAsset");
 
   const { assetId, decimals } = event.args;
 
