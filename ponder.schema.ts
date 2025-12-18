@@ -6,6 +6,7 @@ import {
   index,
 } from "ponder";
 import { getContractNames } from "./src/chains";
+import { type NotNull } from "drizzle-orm";
 
 type PgColumnsFunction = Extract<Parameters<typeof onchainTable>[1], Function>;
 type PgColumnsBuilders = Parameters<PgColumnsFunction>[0];
@@ -54,7 +55,9 @@ export const BlockchainRelations = relations(Blockchain, ({ many }) => ({
 }));
 
 const currentContractFields = (t: PgColumnsBuilders) =>
-  Object.fromEntries(getContractNames("v3").map((contract) => [contract, t.hex()]));
+  Object.fromEntries(
+    getContractNames("v3").map((contract) => [contract, t.hex()])
+  );
 
 const DeploymentColumns = (t: PgColumnsBuilders) => ({
   chainId: t.text().notNull(),
@@ -354,9 +357,7 @@ const OutstandingInvestColumns = (t: PgColumnsBuilders) => ({
 
   approvedIndex: t.integer(),
   approvedAmount: t.bigint().default(0n), // Amount that is approved on Hub, asset denomination
-  approvedAt: t.timestamp(),
-  approvedAtBlock: t.integer(),
-  approvedAtTxHash: t.hex(),
+  ...timestamperFields(t, "approved"),
 
   ...defaultColumns(t),
 });
@@ -393,9 +394,7 @@ const OutstandingRedeemColumns = (t: PgColumnsBuilders) => ({
 
   approvedIndex: t.integer(),
   approvedAmount: t.bigint().default(0n), // Amount that is approved on Hub, share denomination
-  approvedAt: t.timestamp(),
-  approvedAtBlock: t.integer(),
-  approvedAtTxHash: t.hex(),
+  ...timestamperFields(t, "approved"),
 
   ...defaultColumns(t),
 });
@@ -427,23 +426,17 @@ const InvestOrderColumns = (t: PgColumnsBuilders) => ({
   index: t.integer().notNull(),
 
   // Approved fields
-  approvedAt: t.timestamp(),
-  approvedAtBlock: t.integer(),
-  approvedAtTxHash: t.hex(),
+  ...timestamperFields(t, "approved"),
   approvedAssetsAmount: t.bigint().default(0n), // Asset denomination
 
   // Issued fields
   issuedSharesAmount: t.bigint().default(0n), // PER USER
   issuedWithNavPoolPerShare: t.bigint().default(0n),
   issuedWithNavAssetPerShare: t.bigint().default(0n),
-  issuedAt: t.timestamp(),
-  issuedAtBlock: t.integer(),
-  issuedAtTxHash: t.hex(),
+  ...timestamperFields(t, "issued"),
 
   // Claimed fields
-  claimedAt: t.timestamp(), // Claim action on the Hub, NOT the Spoke side
-  claimedAtBlock: t.integer(),
-  claimedAtTxHash: t.hex(),
+  ...timestamperFields(t, "claimed"),
 });
 
 export const InvestOrder = onchainTable(
@@ -477,24 +470,18 @@ const RedeemOrderColumns = (t: PgColumnsBuilders) => ({
   index: t.integer().notNull(),
 
   // Approved fields
-  approvedAt: t.timestamp(),
-  approvedAtBlock: t.integer(),
-  approvedAtTxHash: t.hex(),
+  ...timestamperFields(t, "approved"),
   approvedSharesAmount: t.bigint().default(0n), // Share denomination
 
   // Revoked fields
-  revokedAt: t.timestamp(),
-  revokedAtBlock: t.integer(),
-  revokedAtTxHash: t.hex(),
+  ...timestamperFields(t, "revoked"),
   revokedAssetsAmount: t.bigint().default(0n), // payout of assets for shares, in asset denomination, PER USER
   revokedPoolAmount: t.bigint().default(0n), // payout of assets for shares, in pool denomination, , PER USER
   revokedWithNavPoolPerShare: t.bigint().default(0n),
   revokedWithNavAssetPerShare: t.bigint().default(0n),
 
   // Claimed fields
-  claimedAt: t.timestamp(), // Claim action on the Hub, NOT the Spoke side
-  claimedAtBlock: t.integer(),
-  claimedAtTxHash: t.hex(),
+  ...timestamperFields(t, "claimed"),
 });
 
 export const RedeemOrder = onchainTable(
@@ -597,17 +584,13 @@ const EpochInvestOrderColumns = (t: PgColumnsBuilders) => ({
   index: t.integer().notNull(), // required since multiple entries per combination
 
   // Approved fields
-  approvedAt: t.timestamp(),
-  approvedAtBlock: t.integer(),
-  approvedAtTxHash: t.hex(),
+  ...timestamperFields(t, "approved"),
   approvedAssetsAmount: t.bigint().default(0n), // asset denomination
   approvedPoolAmount: t.bigint().default(0n), // pool denomination
   approvedPercentageOfTotalPending: t.bigint().default(0n),
 
   // Closed fields
-  issuedAt: t.timestamp(),
-  issuedAtBlock: t.integer(),
-  issuedAtTxHash: t.hex(),
+  ...timestamperFields(t, "issued"),
   issuedSharesAmount: t.bigint().default(0n),
   issuedWithNavPoolPerShare: t.bigint().default(0n),
   issuedWithNavAssetPerShare: t.bigint().default(0n),
@@ -645,16 +628,12 @@ const EpochRedeemOrderColumns = (t: PgColumnsBuilders) => ({
   index: t.integer().notNull(), // required
 
   // Approved fields
-  approvedAt: t.timestamp(),
-  approvedAtBlock: t.integer(),
-  approvedAtTxHash: t.hex(),
+  ...timestamperFields(t, "approved"),
   approvedSharesAmount: t.bigint().default(0n), // asset denomination
   approvedPercentageOfTotalPending: t.bigint().default(0n), // percentage value as fixed point would be best
 
   // Closed fields
-  revokedAt: t.timestamp(),
-  revokedAtBlock: t.integer(),
-  revokedAtTxHash: t.hex(),
+  ...timestamperFields(t, "revoked"),
   revokedSharesAmount: t.bigint().default(0n),
   revokedAssetsAmount: t.bigint().default(0n), // payout of assets for shares, in asset denomination
   revokedPoolAmount: t.bigint().default(0n), // payout of assets for shares, in pool denomination
@@ -1080,12 +1059,9 @@ const CrosschainPayloadColumns = (t: PgColumnsBuilders) => ({
   rawData: t.hex().notNull(),
   poolId: t.bigint(),
   status: CrosschainPayloadStatus("crosschain_payload_status").notNull(),
-  deliveredAt: t.timestamp(),
-  deliveredAtBlock: t.integer(),
-  completedAt: t.timestamp(),
-  completedAtBlock: t.integer(),
-  prepareTxHash: t.hex().notNull(),
-  deliveryTxHash: t.hex(),
+  ...timestamperFields(t, "delivered"),
+  ...timestamperFields(t, "completed"),
+  ...timestamperFields(t, "prepared", true),
   ...defaultColumns(t, false),
 });
 
@@ -1150,9 +1126,7 @@ const CrosschainMessageColumns = (t: PgColumnsBuilders) => ({
   failReason: t.hex(),
   fromCentrifugeId: t.text().notNull(),
   toCentrifugeId: t.text().notNull(),
-  executedAt: t.timestamp(),
-  executedAtBlock: t.integer(),
-  executeTxHash: t.hex(),
+  ...timestamperFields(t, "executed"),
   ...defaultColumns(t, false),
 });
 
@@ -1216,9 +1190,20 @@ const AdapterWiringColumns = (t: PgColumnsBuilders) => ({
   toCentrifugeId: t.text().notNull(),
   ...defaultColumns(t, false),
 });
-export const AdapterWiring = onchainTable("adapter_wiring", AdapterWiringColumns, (t) => ({
-  id: primaryKey({ columns: [t.fromAddress, t.fromCentrifugeId, t.toAddress, t.toCentrifugeId] }),
-}));
+export const AdapterWiring = onchainTable(
+  "adapter_wiring",
+  AdapterWiringColumns,
+  (t) => ({
+    id: primaryKey({
+      columns: [
+        t.fromAddress,
+        t.fromCentrifugeId,
+        t.toAddress,
+        t.toCentrifugeId,
+      ],
+    }),
+  })
+);
 
 export const AdapterWiringRelations = relations(AdapterWiring, ({ one }) => ({
   fromAdapter: one(Adapter, {
@@ -1476,10 +1461,22 @@ function snapshotColumns<
  * @param t - The PgColumnsBuilders instance
  * @returns A new column definition function with createdAt and updatedAt columns
  */
-function defaultColumns(t: PgColumnsBuilders, update: true): DefaultColumns<true>;
-function defaultColumns(t: PgColumnsBuilders, update: false): DefaultColumns<false>;
-function defaultColumns(t: PgColumnsBuilders, update?: boolean): DefaultColumns<true>;
-function defaultColumns(t: PgColumnsBuilders, update = true): DefaultColumns<true> | DefaultColumns<false> {
+function defaultColumns(
+  t: PgColumnsBuilders,
+  update: true
+): DefaultColumns<true>;
+function defaultColumns(
+  t: PgColumnsBuilders,
+  update: false
+): DefaultColumns<false>;
+function defaultColumns(
+  t: PgColumnsBuilders,
+  update?: boolean
+): DefaultColumns<true>;
+function defaultColumns(
+  t: PgColumnsBuilders,
+  update = true
+): DefaultColumns<true> | DefaultColumns<false> {
   if (update) {
     return {
       createdAt: t.timestamp().notNull(),
@@ -1497,15 +1494,60 @@ function defaultColumns(t: PgColumnsBuilders, update = true): DefaultColumns<tru
     };
   }
 }
-type DefaultColumns<U extends boolean> = U extends true ? {
-  createdAt: PgColumn<"timestamp">;
-  createdAtBlock: PgColumn<"integer">;
-  createdAtTxHash: PgColumn<"hex">;
-  updatedAt: PgColumn<"timestamp">;
-  updatedAtBlock: PgColumn<"integer">;
-  updatedAtTxHash: PgColumn<"hex">;
-} : {
-  createdAt: PgColumn<"timestamp">;
-  createdAtBlock: PgColumn<"integer">;
-  createdAtTxHash: PgColumn<"hex">;
+type DefaultColumns<U extends boolean> = U extends true
+  ? {
+      createdAt: PgColumn<"timestamp">;
+      createdAtBlock: PgColumn<"integer">;
+      createdAtTxHash: PgColumn<"hex">;
+      updatedAt: PgColumn<"timestamp">;
+      updatedAtBlock: PgColumn<"integer">;
+      updatedAtTxHash: PgColumn<"hex">;
+    }
+  : {
+      createdAt: PgColumn<"timestamp">;
+      createdAtBlock: PgColumn<"integer">;
+      createdAtTxHash: PgColumn<"hex">;
+    };
+
+type TimestamperFields<N extends string> = {
+  [K in `${N}At`]: PgColumn<"timestamp">;
+} & {
+  [K in `${N}AtBlock`]: PgColumn<"integer">;
+} & {
+  [K in `${N}AtTxHash`]: PgColumn<"hex">;
 };
+
+type NotNullTimestamperFields<N extends string> = {
+  [K in `${N}At`]: NotNull<PgColumn<"timestamp">>;
+} & {
+  [K in `${N}AtBlock`]: NotNull<PgColumn<"integer">>;
+} & {
+  [K in `${N}AtTxHash`]: NotNull<PgColumn<"hex">>;
+};
+
+function timestamperFields<N extends string>(t: PgColumnsBuilders, fieldName: N): TimestamperFields<N>
+function timestamperFields<N extends string>(t: PgColumnsBuilders, fieldName: N, required: true): NotNullTimestamperFields<N>
+function timestamperFields<N extends string>(t: PgColumnsBuilders, fieldName: N, required: false): TimestamperFields<N>
+
+/**
+ * Creates a timestamper fields object for a given field name.
+ * @param t - The PgColumnsBuilders instance
+ * @param fieldName - The name of the field to create a timestamper fields for
+ * @param nullable - Whether the fields should be nullable
+ * @returns A timestamper fields object
+ */
+function timestamperFields<N extends string>(t: PgColumnsBuilders, fieldName: N, required: boolean = false): TimestamperFields<N> | NotNullTimestamperFields<N> {
+  if (required) {
+    return {
+      [fieldName + "At"]: t.timestamp().notNull(),
+      [fieldName + "AtBlock"]: t.integer().notNull(),
+      [fieldName + "AtTxHash"]: t.hex().notNull(),
+    } as NotNullTimestamperFields<N>;
+  } else {
+    return {
+      [fieldName + "At"]: t.timestamp(),
+      [fieldName + "AtBlock"]: t.integer(),
+      [fieldName + "AtTxHash"]: t.hex(),
+    } as TimestamperFields<N>;
+  }
+}

@@ -1,7 +1,7 @@
-import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { EpochOutstandingInvest } from "ponder:schema";
 import { serviceLog } from "../helpers/logger";
+
 
 /**
  * Service class for managing invest orders in the system.
@@ -11,20 +11,6 @@ import { serviceLog } from "../helpers/logger";
  * Extends the base Service class with common static methods.
  */
 export class EpochOutstandingInvestService extends mixinCommonStatics(Service<typeof EpochOutstandingInvest>, EpochOutstandingInvest, "EpochOutstandingInvest") {
-  
-  /**
-   * Decorates the epoch outstanding invest with the event data.
-   * 
-   * @param event - The event to decorate the epoch outstanding invest with
-   * @returns The current service instance for method chaining
-   */
-  public decorateEpochOutstandingInvest(event: Event) {
-    serviceLog(`Decorating EpochOutstandingInvest`)
-    this.data.updatedAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.updatedAtBlock = Number(event.block.number);
-    return this;
-  }
-
   /**
    * Updates the pending assets amount for the epoch outstanding invest.
    * 

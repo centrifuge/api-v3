@@ -4,6 +4,7 @@ import { Event, Context } from "ponder:registry";
 import { getCrosschainMessageLength } from ".";
 import { keccak256, encodePacked } from "viem";
 import { serviceError } from "../helpers/logger";
+import { timestamper } from "../helpers/timestamper";
 
 
 /**
@@ -147,10 +148,11 @@ export class CrosschainPayloadService extends mixinCommonStatics(
       | 'multiAdapterV3:HandlePayload' 
       | 'multiAdapterV3:HandleProof'
     >) {
-    this.data.status = "Delivered";
-    this.data.deliveredAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.deliveredAtBlock = Number(event.block.number);
-    this.data.deliveryTxHash = event.transaction.hash
+    this.data = {
+      ...this.data,
+      status: "Delivered",
+      ...timestamper("delivered", event),
+    }
     return this;
   }
 
@@ -166,8 +168,11 @@ export class CrosschainPayloadService extends mixinCommonStatics(
       | 'multiAdapterV3:HandlePayload'
     >) {
     this.data.status = "Completed";
-    this.data.completedAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.completedAtBlock = Number(event.block.number);
+    this.data = {
+      ...this.data,
+      status: "Completed",
+      ...timestamper("completed", event),
+    }
     return this;
   }
 }

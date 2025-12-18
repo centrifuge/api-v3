@@ -1,6 +1,7 @@
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceError } from "../helpers/logger";
 import { BlockchainService } from "../services/BlockchainService";
+import { timestamper } from "../helpers/timestamper";
 
 import {
   getCrosschainMessageType,
@@ -152,7 +153,7 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
       toCentrifugeId: toCentrifugeId.toString(),
       fromCentrifugeId: fromCentrifugeId,
       status: "Underpaid",
-      prepareTxHash: event.transaction.hash,
+      ...timestamper("prepared", event),
     },
     event
   )) as CrosschainPayloadService | null;

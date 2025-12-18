@@ -3,6 +3,7 @@ import { Service, mixinCommonStatics } from "./Service";
 import { serviceError } from "../helpers/logger";
 import { encodePacked, keccak256 } from "viem";
 import { Event, Context } from "ponder:registry";
+import { timestamper } from "../helpers/timestamper";
 
 /**
  * Service class for managing CrosschainMessage entities.
@@ -212,10 +213,11 @@ export class CrosschainMessageService extends mixinCommonStatics(
    * @returns {CrosschainMessageService} Returns the current instance for method chaining
    */
   public executed(event: Event<"gatewayV3:ExecuteMessage">) {
-    this.data.status = "Executed";
-    this.data.executedAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.executedAtBlock = Number(event.block.number);
-    this.data.executeTxHash = event.transaction.hash;
+    this.data = {
+      ...this.data,
+      ...timestamper("executed", event),
+      status: "Executed",
+    }
     return this;
   }
 

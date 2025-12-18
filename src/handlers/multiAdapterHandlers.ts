@@ -13,6 +13,7 @@ import {
 import { AdapterService } from "../services/AdapterService";
 import { AdapterParticipationService } from "../services/AdapterParticipationService";
 import { AdapterWiringService } from "../services";
+import { timestamper } from "../helpers/timestamper";
 
 multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
   logEvent(event, context, "multiAdapterSendPayload");
@@ -58,7 +59,7 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
         toCentrifugeId: toCentrifugeId.toString(),
         fromCentrifugeId: fromCentrifugeId,
         poolId,
-        prepareTxHash: event.transaction.hash,
+        ...timestamper("prepared", event),
       },
       event
     )) as CrosschainPayloadService;
