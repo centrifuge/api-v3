@@ -17,7 +17,7 @@ const argNetwork = process.argv.length > 2 ? process.argv.at(-1) : undefined;
 const network = argNetwork ?? envNetwork ?? "mainnet";
 
 const {
-  REGISTRY_URL = network === "mainnet" ? "https://ipfs.centrifuge.io/ipfs/bafybeibtwvbdofmoitxzl2b6zklx22bzjxvntu4zfeemvcftg3guwbdqai" : "https://registry.testnet.centrifuge.io/",
+  REGISTRY_URL = network === "mainnet" ? "https://registry.centrifuge.io/" : "https://registry.testnet.centrifuge.io/",
   IPFS_GATEWAY = "https://ipfs.centrifuge.io/ipfs",
   IPFS_HASH
 } = process.env;
