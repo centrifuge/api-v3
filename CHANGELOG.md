@@ -1,5 +1,38 @@
 # Changelog
 
+## [3.0.0](https://github.com/centrifuge/api-v3/compare/v2.1.0...v3.0.0) (2025-12-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* unify naming of timestamp fields across entities
+
+### Features
+
+* add adapter wiring information ([#203](https://github.com/centrifuge/api-v3/issues/203)) ([6fefb13](https://github.com/centrifuge/api-v3/commit/6fefb13255549dad2e7a6ad6034a4914c0f88ee8)), closes [#200](https://github.com/centrifuge/api-v3/issues/200)
+* add originating txHash to default entity fields ([#202](https://github.com/centrifuge/api-v3/issues/202)) ([ab0aedc](https://github.com/centrifuge/api-v3/commit/ab0aedc0e321c07acef125d09311a4550c051b66)), closes [#191](https://github.com/centrifuge/api-v3/issues/191)
+* architecture for concurrent indexing of V3 and V3.1 indexing logic Fixes [#161](https://github.com/centrifuge/api-v3/issues/161) ([a12fb55](https://github.com/centrifuge/api-v3/commit/a12fb555ad2c5a0dbf00c9323df2d6fe98315912))
+* improved logging ([594683d](https://github.com/centrifuge/api-v3/commit/594683d2fadccf73ef401d588a925a92198d3a8e))
+* optimized prod logging ([fc31e52](https://github.com/centrifuge/api-v3/commit/fc31e5259d88e9cdbcf478130d3df314ee8e6341))
+* unify naming of timestamp fields across entities ([8385ea8](https://github.com/centrifuge/api-v3/commit/8385ea88f05d738212ac503bd49a233fce3fbf23))
+* upgrade to ponder 0.15.17 ([a12fb55](https://github.com/centrifuge/api-v3/commit/a12fb555ad2c5a0dbf00c9323df2d6fe98315912))
+
+
+### Bug Fixes
+
+* filter out reduntant txin + txout for invest redemption orders ([50e980e](https://github.com/centrifuge/api-v3/commit/50e980ee935ac3e385813e8921d365506921dd0d))
+* filter out reduntant txin + txout for invest redemption orders ([3efd3b2](https://github.com/centrifuge/api-v3/commit/3efd3b22ad0f5bfe420ada87d01fbfba65a1788b))
+* imissing icons ([1031051](https://github.com/centrifuge/api-v3/commit/1031051f4c5a19523857eda6e809ef367e87b69d))
+* investor and redeem orders precision fix ([#188](https://github.com/centrifuge/api-v3/issues/188)) ([16a8615](https://github.com/centrifuge/api-v3/commit/16a8615038ca09c3b43f311c16229ee37e228f02))
+* issue and revoke conversions ([1435215](https://github.com/centrifuge/api-v3/commit/1435215565fd2412d4401049fe1ee7c28e36ad67))
+* mainnet registry ([132e22c](https://github.com/centrifuge/api-v3/commit/132e22c895c69ebbe631cf2c309c098994693db4))
+* missing several txHashes in Invest and Redeem Orders as well as epoch ([8385ea8](https://github.com/centrifuge/api-v3/commit/8385ea88f05d738212ac503bd49a233fce3fbf23))
+* missing several txHashes in Invest and Redeem Orders as well as epoch ([#205](https://github.com/centrifuge/api-v3/issues/205)) ([8385ea8](https://github.com/centrifuge/api-v3/commit/8385ea88f05d738212ac503bd49a233fce3fbf23))
+* negative tokenInstance balance ([#190](https://github.com/centrifuge/api-v3/issues/190)) ([1435215](https://github.com/centrifuge/api-v3/commit/1435215565fd2412d4401049fe1ee7c28e36ad67))
+* registry defaults ([e3db503](https://github.com/centrifuge/api-v3/commit/e3db503d78ce8c1c9e9e42adc3c9378dbf6fbf79))
+* registry details ([8b6b40e](https://github.com/centrifuge/api-v3/commit/8b6b40e96f6d15c202e97cb812370873fcac2340))
+* unify inclusion of tx hashes ([8385ea8](https://github.com/centrifuge/api-v3/commit/8385ea88f05d738212ac503bd49a233fce3fbf23))
+
 ## [2.1.0](https://github.com/centrifuge/api-v3/compare/v2.0.0...v2.1.0) (2025-11-18)
 
 
