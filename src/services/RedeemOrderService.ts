@@ -2,6 +2,7 @@ import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { RedeemOrder } from "ponder:schema";
 import { serviceLog } from "../helpers/logger";
+import { timestamper } from "../helpers/timestamper";
 
 /**
  * Service class for managing redeem orders in the system.
@@ -35,7 +36,7 @@ export class RedeemOrderService extends mixinCommonStatics(
     navPoolPerShare: bigint,
     shareDecimals: number,
     assetDecimals: number,
-    event: Event
+    event: Extract<Event, { transaction: any }>
   ) {
     serviceLog(
       `Revoking shares for ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare} shareDecimals: ${shareDecimals} on block ${event.block.number} and timestamp ${event.block.timestamp}`
@@ -43,12 +44,14 @@ export class RedeemOrderService extends mixinCommonStatics(
     const poolDecimals = shareDecimals;
     if (this.data.revokedAt) throw new Error("Shares already revoked");
     if (this.data.approvedSharesAmount === null) throw new Error("No shares approved");
-    this.data.revokedAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.revokedAtBlock = Number(event.block.number);
-    this.data.revokedAssetsAmount = (this.data.approvedSharesAmount * navAssetPerShare) / 10n ** BigInt(18 + shareDecimals - assetDecimals);
-    this.data.revokedPoolAmount = (this.data.approvedSharesAmount * navPoolPerShare) / 10n ** BigInt(18 + shareDecimals - poolDecimals);
-    this.data.revokedWithNavAssetPerShare = navAssetPerShare;
-    this.data.revokedWithNavPoolPerShare = navPoolPerShare;
+    this.data = {
+      ...this.data,
+      ...timestamper("revoked", event),
+      revokedAssetsAmount: (this.data.approvedSharesAmount * navAssetPerShare) / 10n ** BigInt(18 + shareDecimals - assetDecimals),
+      revokedPoolAmount: (this.data.approvedSharesAmount * navPoolPerShare) / 10n ** BigInt(18 + shareDecimals - poolDecimals),
+      revokedWithNavAssetPerShare: navAssetPerShare,
+      revokedWithNavPoolPerShare: navPoolPerShare,
+    }
     return this;
   }
 
@@ -64,13 +67,15 @@ export class RedeemOrderService extends mixinCommonStatics(
    * redeemOrderService.claimRedeem({ number: 123456, timestamp: 1716792000 });
    * ```
    */
-  public claimRedeem(event: Event) {
+  public claimRedeem(event: Extract<Event, { transaction: any }>) {
     serviceLog(
       `Claiming redeem for ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} on block ${event.block.number} and timestamp ${event.block.timestamp}`
     );
     if (this.data.claimedAt) throw new Error("Redeem already claimed");
-    this.data.claimedAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.claimedAtBlock = Number(event.block.number);
+    this.data = {
+      ...this.data,
+      ...timestamper("claimed", event),
+    }
     return this;
   }
 }

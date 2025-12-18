@@ -14,8 +14,10 @@ import { serviceLog } from "../helpers/logger";
  * @property {boolean} isFrozen - Whether the position is frozen
  * @property {Date} createdAt - When the position was created
  * @property {number} createdAtBlock - Block number when position was created
+ * @property {string} createdAtTxHash - Transaction hash when position was created
  * @property {Date} updatedAt - When the position was last updated
  * @property {number} updatedAtBlock - Block number of last update
+ * @property {string} updatedAtTxHash - Transaction hash of last update
  */
 export class TokenInstancePositionService extends mixinCommonStatics(Service<typeof TokenInstancePosition>, TokenInstancePosition, "TokenInstancePosition") {
   /**

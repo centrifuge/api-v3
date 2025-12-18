@@ -2,7 +2,7 @@ import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { InvestOrder } from "ponder:schema";
 import { serviceLog } from "../helpers/logger";
-
+import { timestamper } from "../helpers/timestamper";
 
 /**
  * Service class for managing invest orders in the system.
@@ -32,21 +32,26 @@ export class InvestOrderService extends mixinCommonStatics(
     navPoolPerShare: bigint, // 18 decimals
     assetDecimals: number,
     shareDecimals: number,
-    event: Event
+    event: Extract<Event, { transaction: any }>
   ) {
     serviceLog(
       `Issuing shares for investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare}`
     );
     if (this.data.issuedAt) throw new Error("Shares already issued");
-    if (this.data.approvedAssetsAmount === null) throw new Error("No assets approved");
-    this.data.issuedAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.issuedAtBlock = Number(event.block.number);
-    this.data.issuedSharesAmount =
-      (this.data.approvedAssetsAmount *
-        10n ** BigInt(18 + shareDecimals - assetDecimals)) /
-      navAssetPerShare;
-    this.data.issuedWithNavAssetPerShare = navAssetPerShare;
-    this.data.issuedWithNavPoolPerShare = navPoolPerShare;
+    if (this.data.approvedAssetsAmount === null)
+      throw new Error("No assets approved");
+
+    this.data = {
+      ...this.data,
+      ...timestamper("issued", event),
+      issuedSharesAmount:
+        (this.data.approvedAssetsAmount *
+          10n ** BigInt(18 + shareDecimals - assetDecimals)) /
+        navAssetPerShare,
+      issuedWithNavAssetPerShare: navAssetPerShare,
+      issuedWithNavPoolPerShare: navPoolPerShare,
+    };
+
     return this;
   }
 
@@ -58,13 +63,16 @@ export class InvestOrderService extends mixinCommonStatics(
    * @param block - The event block containing timestamp and block number
    * @returns The service instance for method chaining
    */
-  public claimDeposit(event: Event) {
+  public claimDeposit(event: Extract<Event, { transaction: any }>) {
     serviceLog(
       `Claiming deposit for investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} on block ${event.block.number} with timestamp ${event.block.timestamp}`
     );
     if (this.data.claimedAt) throw new Error("Deposit already claimed");
-    this.data.claimedAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.claimedAtBlock = Number(event.block.number);
+
+    this.data = {
+      ...this.data,
+      ...timestamper("claimed", event),
+    }
     return this;
   }
 }

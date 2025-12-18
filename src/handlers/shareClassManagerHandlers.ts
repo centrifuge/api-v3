@@ -19,6 +19,7 @@ import { snapshotter } from "../helpers/snapshotter";
 import { TokenSnapshot } from "ponder:schema";
 import { EpochOutstandingRedeemService } from "../services/EpochOutstandingRedeemService";
 import { HoldingEscrowSnapshot } from "ponder:schema";
+import { timestamper } from "../helpers/timestamper";
 
 // SHARE CLASS LIFECYCLE
 multiMapper(
@@ -138,7 +139,6 @@ multiMapper(
       event
     )) as OutstandingInvestService;
     await outstandingInvest
-      .decorateOutstandingOrder(event)
       .processHubDepositRequest(queuedUserAssetAmount, pendingUserAssetAmount)
       .saveOrClear(event);
 
@@ -154,7 +154,6 @@ multiMapper(
       )) as EpochOutstandingInvestService;
 
     await epochOutstandingInvest
-      .decorateEpochOutstandingInvest(event)
       .updatePendingAmount(pendingTotalAssetAmount)
       .save(event);
   }
@@ -197,7 +196,6 @@ multiMapper(
       event
     )) as OutstandingRedeemService;
     await oo
-      .decorateOutstandingOrder(event)
       .processHubRedeemRequest(queuedUserShareAmount, pendingUserShareAmount)
       .saveOrClear(event);
 
@@ -213,7 +211,6 @@ multiMapper(
       )) as EpochOutstandingRedeemService;
 
     await epochOutstandingRedeem
-      .decorateEpochOutstandingRedeem(event)
       .updatePendingAmount(pendingTotalShareAmount)
       .save(event);
   }
@@ -247,12 +244,10 @@ multiMapper("shareClassManager:ApproveDeposits", async ({ event, context }) => {
       tokenId,
       assetId: depositAssetId,
       index: epochIndex,
-      approvedAt: new Date(Number(event.block.timestamp) * 1000),
-      approvedAtBlock: Number(event.block.number),
-      approvedAtTxHash: event.transaction.hash,
       approvedAssetsAmount: approvedAssetAmount,
       approvedPoolAmount: approvedPoolAmount,
       approvedPercentageOfTotalPending: approvedPercentage,
+      ...timestamper("approved", event),
     },
     event
   )) as EpochInvestOrderService | null;
@@ -264,9 +259,7 @@ multiMapper("shareClassManager:ApproveDeposits", async ({ event, context }) => {
     pendingAmount_not: 0n,
     approvedIndex: null,
     approvedAmount: 0n,
-    approvedAt: null,
-    approvedAtBlock: null,
-    approvedAtTxHash: null,
+    ...timestamper("approved", null),
   })) as OutstandingInvestService[];
 
   for (const oo of oos) {
@@ -328,9 +321,7 @@ multiMapper("shareClassManager:ApproveRedeems", async ({ event, context }) => {
       tokenId,
       assetId: payoutAssetId,
       index: epochIndex,
-      approvedAt: new Date(Number(event.block.timestamp) * 1000),
-      approvedAtBlock: Number(event.block.number),
-      approvedAtTxHash: event.transaction.hash,
+      ...timestamper("approved", event),
       approvedSharesAmount: approvedShareAmount,
       approvedPercentageOfTotalPending: approvedPercentage,
     },
@@ -344,9 +335,7 @@ multiMapper("shareClassManager:ApproveRedeems", async ({ event, context }) => {
     pendingAmount_not: 0n,
     approvedIndex: null,
     approvedAmount: 0n,
-    approvedAt: null,
-    approvedAtBlock: null,
-    approvedAtTxHash: null,
+    ...timestamper("approved", null),
   })) as OutstandingRedeemService[];
   for (const oo of oos) {
     serviceLog(
@@ -437,6 +426,7 @@ multiMapper("shareClassManager:IssueShares", async ({ event, context }) => {
       approvedAmount,
       approvedAt,
       approvedAtBlock,
+      approvedAtTxHash,
       approvedIndex,
     } = outstandingInvest.read();
     const investOrder = (await InvestOrderService.getOrInit(
@@ -450,6 +440,7 @@ multiMapper("shareClassManager:IssueShares", async ({ event, context }) => {
         approvedAssetsAmount: approvedAmount,
         approvedAt,
         approvedAtBlock,
+        approvedAtTxHash,
       },
       event
     )) as InvestOrderService;
@@ -537,6 +528,7 @@ multiMapper("shareClassManager:RevokeShares", async ({ event, context }) => {
       account,
       approvedAt,
       approvedAtBlock,
+      approvedAtTxHash,
       approvedAmount,
     } = outstandingRedeem.read();
     const redeemOrder = (await RedeemOrderService.getOrInit(
@@ -549,6 +541,7 @@ multiMapper("shareClassManager:RevokeShares", async ({ event, context }) => {
         account,
         approvedAt,
         approvedAtBlock,
+        approvedAtTxHash,
         approvedSharesAmount: approvedAmount,
       },
       event
