@@ -87,7 +87,6 @@ export class OutstandingRedeemService extends mixinCommonStatics(
     );
     this.data = {
       ...this.data,
-      ...timestamper("cleared", null),
       pendingAmount: this.data.pendingAmount! - this.data.approvedAmount!,
       approvedAmount: 0n,
       approvedIndex: null,
