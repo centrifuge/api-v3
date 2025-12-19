@@ -1,4 +1,4 @@
-import { ponder } from "ponder:registry";
+import { multiMapper } from "../helpers/multiMapper";
 import {
   AccountService,
   BlockchainService,
@@ -6,18 +6,18 @@ import {
   OffRampRelayerService,
   OnOffRampManagerService,
 } from "../services";
-import { logEvent } from "../helpers/logger";
+import { logEvent, serviceError } from "../helpers/logger";
 import { OnRampAssetService } from "../services";
 
-ponder.on(
-  "OnOffRampManagerFactory:DeployOnOfframpManager",
+multiMapper(
+  "onOfframpManagerFactory:DeployOnOfframpManager",
   async ({ event, context }) => {
-    logEvent(event, context, "OnOffRampManagerFactory:DeployOnOfframpManager");
+    logEvent(event, context, "onOffRampManagerFactory:DeployOnOffRampManager");
     const { poolId, scId: tokenId, manager } = event.args;
-    
+
     const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-    const _onOffRampManager = (await OnOffRampManagerService.insert(
+    const _onOffRampManager = (await OnOffRampManagerService.upsert(
       context,
       {
         address: manager,
@@ -25,16 +25,16 @@ ponder.on(
         poolId,
         tokenId,
       },
-      event.block
+      event
     )) as OnOffRampManagerService | null;
     if (!_onOffRampManager) {
-      console.error("Failed to insert OnOffRampManager");
+      serviceError("Failed to insert OnOffRampManager");
     }
   }
 );
 
-ponder.on("OnOffRampManager:UpdateRelayer", async ({ event, context }) => {
-  logEvent(event, context, "OnOffRampManager:UpdateRelayer");
+multiMapper("onOfframpManager:UpdateRelayer", async ({ event, context }) => {
+  logEvent(event, context, "onOffRampManager:UpdateRelayer");
   const { relayer, isEnabled } = event.args;
   const manager = event.log.address;
 
@@ -45,7 +45,7 @@ ponder.on("OnOffRampManager:UpdateRelayer", async ({ event, context }) => {
     centrifugeId,
   })) as OnOffRampManagerService;
   if (!onOffRampManager) {
-    console.error("OnOffRampManager not found");
+    serviceError("OnOffRampManager not found");
     return;
   }
   const { poolId, tokenId } = onOffRampManager.read();
@@ -59,13 +59,13 @@ ponder.on("OnOffRampManager:UpdateRelayer", async ({ event, context }) => {
       poolId,
       isEnabled,
     },
-    event.block
+    event
   )) as OffRampRelayerService | null;
-  if (!offRampRelayer) console.error("Failed to upsert OffRampRelayer");
+  if (!offRampRelayer) serviceError("Failed to upsert OffRampRelayer");
 });
 
-ponder.on("OnOffRampManager:UpdateOnramp", async ({ event, context }) => {
-  logEvent(event, context, "OnOffRampManager:UpdateOnramp");
+multiMapper("onOfframpManager:UpdateOnramp", async ({ event, context }) => {
+  logEvent(event, context, "onOffRampManager:UpdateOnramp");
   const manager = event.log.address;
   const { asset, isEnabled } = event.args;
 
@@ -76,7 +76,7 @@ ponder.on("OnOffRampManager:UpdateOnramp", async ({ event, context }) => {
     centrifugeId,
   })) as OnOffRampManagerService;
   if (!onOffRampManager) {
-    console.error("OnOffRampManager not found");
+    serviceError("OnOffRampManager not found");
     return;
   }
 
@@ -91,13 +91,13 @@ ponder.on("OnOffRampManager:UpdateOnramp", async ({ event, context }) => {
       tokenId,
       isEnabled,
     },
-    event.block
+    event
   )) as OnRampAssetService | null;
-  if (!onRampAsset) console.error("Failed to upsert OnRampAsset");
+  if (!onRampAsset) serviceError("Failed to upsert OnRampAsset");
 });
 
-ponder.on("OnOffRampManager:UpdateOfframp", async ({ event, context }) => {
-  logEvent(event, context, "OnOffRampManager:UpdateOfframp");
+multiMapper("onOfframpManager:UpdateOfframp", async ({ event, context }) => {
+  logEvent(event, context, "onOffRampManager:UpdateOfframp");
   const { asset, receiver } = event.args;
   const manager = event.log.address;
 
@@ -108,7 +108,7 @@ ponder.on("OnOffRampManager:UpdateOfframp", async ({ event, context }) => {
     centrifugeId,
   })) as OnOffRampManagerService;
   if (!onOffRampManager) {
-    console.error("OnOffRampManager not found");
+    serviceError("onOffRampManager not found");
     return;
   }
   const { poolId, tokenId } = onOffRampManager.read();
@@ -118,7 +118,7 @@ ponder.on("OnOffRampManager:UpdateOfframp", async ({ event, context }) => {
     {
       address: receiver,
     },
-    event.block
+    event
   )) as AccountService;
   const { address: receiverAddress } = receiverAccount.read();
 
@@ -131,7 +131,7 @@ ponder.on("OnOffRampManager:UpdateOfframp", async ({ event, context }) => {
       assetAddress: asset,
       receiverAddress,
     },
-    event.block
+    event
   )) as OffRampAddressService;
-  await offRampAddress.save(event.block);
+  await offRampAddress.save(event);
 });

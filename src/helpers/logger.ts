@@ -1,24 +1,5 @@
-import pino from "pino";
 import type { Event, Context } from "ponder:registry";
-
-const pinoLogger = pino({
-  transport: {
-    target: "pino-pretty",
-    options: {
-      colorize: false,
-       translateTime: "hh:MM:ss TT",
-       ignore: 'pid,hostname'
-    },
-  },
-});
-
-// Make logger globally available
-declare global {
-  var logger: typeof pinoLogger;
-}
-
-global.logger = pinoLogger;
-
+const isStart = process.argv.includes("start");
 /**
  * Logs blockchain event details to the console with formatted output.
  *
@@ -47,13 +28,9 @@ export function logEvent(event: Event, context: Context, name?: string) {
         },
         []
       )
-    : ["undefined"];
-  console.log(
-    `Received event ${name} on block ${block.number} with chainId ${
-      chain.id
-    }, timestamp ${date.toISOString()}, args: ${eventDetails.join(
-      ", "
-    )}, txHash: ${transaction?.hash || "unknown"}`
+    : ["{}"];
+  process.stdout.write(
+    `Received event ${name} on block ${block.number} with chainId ${chain.id}, timestamp ${date.toISOString()}, args: ${eventDetails.join(", ")}, txHash: ${transaction?.hash || "unknown"}\n`
   );
 }
 
@@ -80,5 +57,15 @@ export function expandInlineObject(obj: Record<string, any> | null): string {
  * @param args - The arguments to log
  */
 export function serviceLog(...args: any[]) {
-  console.log(">", ...args);
+  if (isStart) return;
+  process.stdout.write("> " + args.join(" ") + "\n");
+}
+
+/**
+ * Logs an error message to the console with a prefix.
+ *
+ * @param args - The arguments to log
+ */
+export function serviceError(...args: any[]) {
+  process.stderr.write("> [ERROR] " + args.join(" ") + "\n");
 }

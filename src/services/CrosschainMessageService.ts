@@ -1,7 +1,9 @@
 import { CrosschainMessage, CrosschainMessageStatuses } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
+import { serviceError } from "../helpers/logger";
 import { encodePacked, keccak256 } from "viem";
 import { Event, Context } from "ponder:registry";
+import { timestamper } from "../helpers/timestamper";
 
 /**
  * Service class for managing CrosschainMessage entities.
@@ -156,13 +158,13 @@ export class CrosschainMessageService extends mixinCommonStatics(
         }
       )) as CrosschainMessageService[];
       if (crosschainMessages.length === 0) {
-        console.error(`CrosschainMessage with id ${messageId} not found`);
+        serviceError(`CrosschainMessage with id ${messageId} not found`);
         continue;
       }
       const crosschainMessage = crosschainMessages.shift()!;
       const { poolId } = crosschainMessage.read();
       crosschainMessage.setPayloadId(payloadId, payloadIndex);
-      crosschainMessageSaves.push(crosschainMessage.save(event.block));
+      crosschainMessageSaves.push(crosschainMessage.save(event));
       if (poolId) poolIdSet.add(poolId);
     }
     await Promise.all(crosschainMessageSaves);
@@ -210,11 +212,12 @@ export class CrosschainMessageService extends mixinCommonStatics(
    * @param {Event} event - The event that marks the CrosschainMessage as executed
    * @returns {CrosschainMessageService} Returns the current instance for method chaining
    */
-  public executed(event: Event<"Gateway:ExecuteMessage">) {
-    this.data.status = "Executed";
-    this.data.executedAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.executedAtBlock = Number(event.block.number);
-    this.data.executeTxHash = event.transaction.hash;
+  public executed(event: Event<"gatewayV3:ExecuteMessage">) {
+    this.data = {
+      ...this.data,
+      ...timestamper("executed", event),
+      status: "Executed",
+    }
     return this;
   }
 
@@ -775,7 +778,7 @@ export function decodeMessage<T extends keyof typeof messageDecoders>(
 ): DecodedMessageTypes[T] | null {
   const messageSpec = messageDecoders[messageType];
   if (!messageSpec) {
-    console.error(`Invalid message type: ${messageType}`);
+    serviceError(`Invalid message type: ${messageType}`);
     return null;
   }
 
@@ -787,7 +790,7 @@ export function decodeMessage<T extends keyof typeof messageDecoders>(
     
     const [decoder, length] = MessageDecoders[spec.decoder];
     if (!decoder) {
-      console.error(`Invalid decoder: ${spec.decoder}`);
+      serviceError(`Invalid decoder: ${spec.decoder}`);
       return null;
     }
     // For dynamic length fields (length = 0) that are the last field, read all remaining bytes

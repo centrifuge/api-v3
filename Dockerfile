@@ -8,6 +8,7 @@ COPY --chown=node:node . /app
 COPY <<'EOF' /usr/bin/docker-entrypoint
 #!/bin/sh
 export PATH="/app/node_modules/.bin:$PATH"
+node scripts/fetch-registry.mjs
 if [ $# -eq 0 ]; then
   # If no arguments given, use default command
   set -- ponder start
@@ -26,7 +27,6 @@ ENTRYPOINT ["/usr/bin/docker-entrypoint"]
 FROM base AS dev-deps
 USER node
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm update-registry
 
 FROM base AS prod-deps
 USER node
@@ -35,7 +35,6 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 FROM base
 ENV NODE_ENV=production DATABASE_SCHEMA=app
 COPY --from=prod-deps --chown=node:node /app/node_modules /app/node_modules
-COPY --from=dev-deps --chown=node:node /app/src/registry.generated.ts /app/src/registry.generated.ts
 EXPOSE 8000
 USER node
 CMD ["start", "--port", "8000"]

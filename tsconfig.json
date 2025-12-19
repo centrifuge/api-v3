@@ -9,7 +9,6 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "allowSyntheticDefaultImports": true,
-    "resolveJsonModule": true,
 
     // Language and environment
     "moduleResolution": "bundler",
@@ -19,8 +18,10 @@
     "target": "ES2022",
 
     // Skip type checking for node modules
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "incremental": true,
+
   },
-  "include": ["./**/*.ts", "ponder.schema.ts_bkp"],
-  "exclude": ["node_modules", ".eslintrc.cjs"]
+  "include": ["./**/*.ts"],
+  "exclude": ["node_modules", ".eslintrc.cjs", "scripts/**/*.ts"]
 }

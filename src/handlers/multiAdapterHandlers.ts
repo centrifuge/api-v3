@@ -1,5 +1,6 @@
-import { ponder } from "ponder:registry";
-import { logEvent } from "../helpers/logger";
+import { multiMapper } from "../helpers/multiMapper";
+import { expandInlineObject,
+logEvent, serviceError,serviceLog } from "../helpers/logger";
 import { BlockchainService } from "../services/BlockchainService";
 import {
   CrosschainMessageService,
@@ -10,11 +11,12 @@ import {
   extractMessagesFromPayload,
 } from "../services/CrosschainPayloadService";
 import { AdapterService } from "../services/AdapterService";
-import { currentChains } from "../../ponder.config";
 import { AdapterParticipationService } from "../services/AdapterParticipationService";
+import { AdapterWiringService } from "../services";
+import { timestamper } from "../helpers/timestamper";
 
-ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
-  logEvent(event, context, "MultiAdapter:SendPayload");
+multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
+  logEvent(event, context, "multiAdapterSendPayload");
   const {
     centrifugeId: toCentrifugeId,
     payload: payloadData,
@@ -57,9 +59,9 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
         toCentrifugeId: toCentrifugeId.toString(),
         fromCentrifugeId: fromCentrifugeId,
         poolId,
-        prepareTxHash: event.transaction.hash,
+        ...timestamper("prepared", event),
       },
-      event.block
+      event
     )) as CrosschainPayloadService;
   }
 
@@ -79,14 +81,14 @@ ponder.on("MultiAdapter:SendPayload", async ({ event, context }) => {
       blockNumber: Number(event.block.number),
       transactionHash: event.transaction.hash,
     },
-    event.block
+    event
   )) as AdapterParticipationService | null;
   if (!adapterParticipation)
-    console.error("Failed to initialize adapter participation");
+    serviceError("Failed to initialize adapter participation");
 });
 
-ponder.on("MultiAdapter:SendProof", async ({ event, context }) => {
-  logEvent(event, context, "MultiAdapter:SendProof");
+multiMapper("multiAdapter:SendProof", async ({ event, context }) => {
+  logEvent(event, context, "multiAdapterSendProof");
   const { payloadId, adapter, centrifugeId: toCentrifugeId } = event.args;
 
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -96,7 +98,7 @@ ponder.on("MultiAdapter:SendProof", async ({ event, context }) => {
     payloadId
   )) as CrosschainPayloadService | null;
   if (!payload) {
-    console.error("CrosschainPayload not found");
+    serviceError("CrosschainPayload not found");
     return;
   }
   const { index: payloadIndex } = payload.read();
@@ -116,13 +118,13 @@ ponder.on("MultiAdapter:SendProof", async ({ event, context }) => {
       blockNumber: Number(event.block.number),
       transactionHash: event.transaction.hash,
     },
-    event.block
+    event
   )) as AdapterParticipationService;
 });
 
-ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
+multiMapper("multiAdapter:HandlePayload", async ({ event, context }) => {
   // RECEIVING CHAIN
-  logEvent(event, context, "MultiAdapter:HandlePayload");
+  logEvent(event, context, "multiAdapter:HandlePayload");
   const {
     payloadId,
     adapter,
@@ -139,7 +141,7 @@ ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
       payloadId
     )) as CrosschainPayloadService | null;
   if (!payload) {
-    console.error(`CrosschainPayload ${payloadId} not found`);
+    serviceError(`CrosschainPayload ${payloadId} not found`);
     return;
   }
 
@@ -159,24 +161,24 @@ ponder.on("MultiAdapter:HandlePayload", async ({ event, context }) => {
       blockNumber: Number(event.block.number),
       transactionHash: event.transaction.hash,
     },
-    event.block
+    event
   )) as AdapterParticipationService;
 
   const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(context, payloadId, payloadIndex);
   if (!isPayloadVerified) return;
 
   payload.delivered(event);
-  await payload.save(event.block);
+  await payload.save(event);
 
   const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(context, payloadId, payloadIndex);
   if (!isPayloadFullyExecuted) return;
 
   payload.completed(event);
-  await payload.save(event.block);
+  await payload.save(event);
 });
 
-ponder.on("MultiAdapter:HandleProof", async ({ event, context }) => {
-  logEvent(event, context, "MultiAdapter:HandleProof"); //RECEIVING CHAIN
+multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
+  logEvent(event, context, "multiAdapterHandleProof"); //RECEIVING CHAIN
   const { payloadId, adapter, centrifugeId: fromCentrifugeId } = event.args;
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -186,7 +188,7 @@ ponder.on("MultiAdapter:HandleProof", async ({ event, context }) => {
       payloadId
     )) as CrosschainPayloadService | null;
   if (!crosschainPayload) {
-    console.error(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
+    serviceError(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
     return;
   }
   const { index: payloadIndex } = crosschainPayload.read();
@@ -206,60 +208,49 @@ ponder.on("MultiAdapter:HandleProof", async ({ event, context }) => {
       blockNumber: Number(event.block.number),
       transactionHash: event.transaction.hash,
     },
-    event.block
+    event
   )) as AdapterParticipationService;
 
   const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(context, payloadId, payloadIndex);
   if (!isPayloadVerified) return;
 
   crosschainPayload.delivered(event);
-  await crosschainPayload.save(event.block);
+  await crosschainPayload.save(event);
 
   const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(context, payloadId, payloadIndex);
   if (!isPayloadFullyExecuted) return;
 
   crosschainPayload.completed(event);
-  await crosschainPayload.save(event.block);
+  await crosschainPayload.save(event);
 });
 
-ponder.on(
-  "MultiAdapter:File(bytes32 indexed what, uint16 centrifugeId, address[] adapters)",
+multiMapper(
+  "multiAdapter:File(bytes32 indexed what, uint16 centrifugeId, address[] adapters)",
   async ({ event, context }) => {
-    logEvent(event, context, "MultiAdapter:File2");
+    logEvent(event, context, "multiAdapterFile");
+    const localCentrifugeId = await BlockchainService.getCentrifugeId(context);
+    const { what, centrifugeId: remoteCentrifugeId, adapters } = event.args;
+    const parsedWhat = Buffer.from(what.substring(2), "hex").toString("utf-8").replace(/\0/g, '');
+    serviceLog("Event data: ", expandInlineObject({parsedWhat, remoteCentrifugeId, adapters}));
+    if (parsedWhat !== "adapters") return;
 
-    const chainId = context.chain.id;
-    if (typeof chainId !== "number") throw new Error("Chain ID is required");
-
-    const currentChain = currentChains.find(
-      (chain) => chain.network.chainId === chainId
-    );
-    if (!currentChain) throw new Error("Chain not found");
-
-    const { what, centrifugeId, adapters } = event.args;
-    const parsedWhat = Buffer.from(what.substring(2), "hex").toString("utf-8");
-    if (!parsedWhat.startsWith("adapters")) return;
-
-    const adapterInits: Promise<AdapterService | null>[] = [];
-    for (const adapter of adapters) {
-      const contracts = Object.entries(currentChain.contracts);
-      const [contractName = null] =
-        contracts.find(
-          ([_, contractAddress]) => contractAddress.toLowerCase() === adapter
-        ) ?? [];
-      const firstPart = contractName
-        ? contractName.split(/(?=[A-Z])/)[0]
-        : null;
-      const adapterInit = AdapterService.insert(
-        context,
-        {
-          address: adapter,
-          centrifugeId: centrifugeId.toString(),
-          name: firstPart,
-        },
-        event.block
-      );
-      adapterInits.push(adapterInit);
+    const localAdapters = ((await AdapterService.query(context, { centrifugeId: localCentrifugeId.toString() })) as AdapterService[]).map((adapter) => adapter.read());
+    const adapterWirings: Promise<AdapterWiringService | null>[] = [];
+    for (const remoteAdapterAddress of adapters) {
+      const remoteAdapter = await AdapterService.get(context, { centrifugeId: remoteCentrifugeId.toString(), address: remoteAdapterAddress });
+      if (!remoteAdapter) continue;
+      const { name: remoteAdapterName } = remoteAdapter.read();
+      const localAdapter = localAdapters.find((localAdapter) => localAdapter.name === remoteAdapterName);
+      if (!localAdapter) continue;
+      serviceLog(`Wiring adapter ${localAdapter.name} on chain ${localCentrifugeId} to adapter ${remoteAdapterName} on chain ${remoteCentrifugeId}`);
+      const adapterWiring = AdapterWiringService.insert(context, {
+        fromAddress: localAdapter.address,
+        fromCentrifugeId: localCentrifugeId,
+        toAddress: remoteAdapterAddress,
+        toCentrifugeId: remoteCentrifugeId.toString(),
+      }, event) as Promise<AdapterWiringService | null>;
+      adapterWirings.push(adapterWiring);
     }
-    await Promise.all(adapterInits);
+    await Promise.all(adapterWirings);
   }
 );

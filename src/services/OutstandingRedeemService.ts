@@ -2,6 +2,7 @@ import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { OutstandingRedeem } from "ponder:schema";
 import { serviceLog } from "../helpers/logger";
+import { timestamper } from "../helpers/timestamper";
 
 /**
  * Service class for managing outstanding redeem orders in the system.
@@ -16,29 +17,13 @@ export class OutstandingRedeemService extends mixinCommonStatics(
   "OutstandingRedeem"
 ) {
   /**
-   * Updates the timestamp and block information for the outstanding order.
-   *
-   * @param updatedAt - The new timestamp when the order was last updated
-   * @param updatedAtBlock - The block number when the order was last updated
-   * @returns The service instance for method chaining
-   */
-  public decorateOutstandingOrder(event: Event) {
-    serviceLog(
-      `Decorating OutstandingRedeem ${this.data.tokenId}-${this.data.assetId}-${this.data.account} with event block ${event.block.number} and timestamp ${event.block.timestamp}`
-    );
-    this.data.updatedAt = new Date(Number(event.block.timestamp) * 1000);
-    this.data.updatedAtBlock = Number(event.block.number);
-    return this;
-  }
-
-  /**
    * Updates the requested deposit amount for the outstanding order.
    *
    * @param amount - The new requested deposit amount as a bigint
    * @returns The service instance for method chaining
    */
   public updateDepositAmount(depositAmount: bigint) {
-    console.info(
+    serviceLog(
       `Updating deposit amount for OutstandingRedeem ${this.data.tokenId}-${this.data.assetId}-${this.data.account} to ${depositAmount}`
     );
     this.data.depositAmount = depositAmount;
@@ -76,14 +61,16 @@ export class OutstandingRedeemService extends mixinCommonStatics(
    * @param event - The event that triggered the approval
    * @returns The service instance for method chaining
    */
-  public approveRedeem(approvedUserShareAmount: bigint, approvedIndex: number, block: Event["block"]) {
+  public approveRedeem(approvedUserShareAmount: bigint, approvedIndex: number, event: Extract<Event, { transaction: any }>) {
     serviceLog(
-      `Approving redeem for outstandingRedeem ${this.data.tokenId}-${this.data.assetId}-${this.data.account} for index ${approvedIndex} with approvedUserShareAmount: ${approvedUserShareAmount} on block ${block.number} and timestamp ${block.timestamp}`
+      `Approving redeem for outstandingRedeem ${this.data.tokenId}-${this.data.assetId}-${this.data.account} for index ${approvedIndex} with approvedUserShareAmount: ${approvedUserShareAmount} on block ${event.block.number} and timestamp ${event.block.timestamp}`
     );
-    this.data.approvedIndex = approvedIndex;
-    this.data.approvedAmount = approvedUserShareAmount;
-    this.data.approvedAt = new Date(Number(block.timestamp) * 1000);
-    this.data.approvedAtBlock = Number(block.number);
+    this.data = {
+      ...this.data,
+      ...timestamper("approved", event),
+      approvedIndex: approvedIndex,
+      approvedAmount: approvedUserShareAmount,
+    }
     return this;
   }
 
@@ -94,17 +81,19 @@ export class OutstandingRedeemService extends mixinCommonStatics(
    *
    * @returns The service instance for method chaining
    */
-  public clear(block: Event["block"]) {
+  public clear(event: Event) {
     serviceLog(
-      `Clearing outstanding redeem ${this.data.tokenId}-${this.data.assetId}-${this.data.account} on block ${block.number} and timestamp ${block.timestamp}`
+      `Clearing outstanding redeem ${this.data.tokenId}-${this.data.assetId}-${this.data.account} on block ${event.block.number} and timestamp ${event.block.timestamp}`
     );
-    this.data.pendingAmount! -= this.data.approvedAmount!;
-    this.data.approvedAmount = 0n;
-    this.data.approvedAt = null;
-    this.data.approvedAtBlock = null;
+    this.data = {
+      ...this.data,
+      pendingAmount: this.data.pendingAmount! - this.data.approvedAmount!,
+      approvedAmount: 0n,
+      approvedIndex: null,
+    }
     if (this.data.queuedAmount! + this.data.pendingAmount! === 0n)
       return this.delete();
-    return this.save(block);
+    return this.save(event);
   }
 
   /**
@@ -115,13 +104,13 @@ export class OutstandingRedeemService extends mixinCommonStatics(
    *
    * @returns The service instance for method chaining
    */
-  public saveOrClear(block: Event["block"]) {
+  public saveOrClear(event: Event) {
     if (
       this.data.approvedAmount === 0n &&
       this.data.queuedAmount === 0n &&
       this.data.pendingAmount! === 0n
     )
       return this.delete();
-    return this.save(block);
+    return this.save(event);
   }
 }

@@ -1,4 +1,4 @@
-import { ponder } from "ponder:registry";
+import { multiMapper } from "../helpers/multiMapper";
 import { logEvent } from "../helpers/logger";
 import { HoldingService } from "../services/HoldingService";
 import { HoldingAccountService } from "../services/HoldingAccountService";
@@ -6,8 +6,8 @@ import { HoldingAccountTypes, HoldingSnapshot } from "ponder:schema";
 import { BlockchainService } from "../services/BlockchainService";
 import { snapshotter } from "../helpers/snapshotter";
 
-ponder.on("Holdings:Initialize", async ({ event, context }) => {
-  logEvent(event, context, "Holdings:Create");
+multiMapper("holdings:Initialize", async ({ event, context }) => {
+  logEvent(event, context, "holdings:Create");
   const [_poolId, shareClassId, assetId, _valuation, isLiability, accounts] =
     event.args;
   const poolId = _poolId;
@@ -21,12 +21,12 @@ ponder.on("Holdings:Initialize", async ({ event, context }) => {
     poolId,
     tokenId,
     assetId,
-  }, event.block)) as HoldingService;
+  }, event)) as HoldingService;
 
   await holding.initialize();
   await holding.setValuation(valuation);
   await holding.setIsLiability(isLiability);
-  await holding.save(event.block);
+  await holding.save(event);
 
   for (const { accountId: _accountId, kind: _kind } of accounts) {
     const accountId = _accountId.toString();
@@ -38,12 +38,12 @@ ponder.on("Holdings:Initialize", async ({ event, context }) => {
       id: accountId,
       kind,
       tokenId,
-    }, event.block);
+    }, event);
   }
 });
 
-ponder.on("Holdings:Increase", async ({ event, context }) => {
-  logEvent(event, context, "Holdings:Increase");
+multiMapper("holdings:Increase", async ({ event, context }) => {
+  logEvent(event, context, "holdings:Increase");
   const [_poolId, _scId, assetId, _pricePoolPerAsset, amount, increasedValue] =
     event.args;
 
@@ -57,16 +57,16 @@ ponder.on("Holdings:Increase", async ({ event, context }) => {
     poolId,
     tokenId,
     assetId,
-  }, event.block)) as HoldingService;
+  }, event)) as HoldingService;
 
   await holding.increase(amount, increasedValue);
-  await holding.save(event.block);
+  await holding.save(event);
 
-  await snapshotter(context, event, "Holdings:Increase", [holding], HoldingSnapshot);
+  await snapshotter(context, event, "holdingsV3:Increase", [holding], HoldingSnapshot);
 });
 
-ponder.on("Holdings:Decrease", async ({ event, context }) => {
-  logEvent(event, context, "Holdings:Decrease");
+multiMapper("holdings:Decrease", async ({ event, context }) => {
+  logEvent(event, context, "holdings:Decrease");
   
   const [_poolId, _scId, assetId, _pricePoolPerAsset, amount, decreasedValue] =
     event.args;
@@ -81,16 +81,16 @@ ponder.on("Holdings:Decrease", async ({ event, context }) => {
     poolId,
     tokenId,
     assetId,
-  }, event.block)) as HoldingService;
+  }, event)) as HoldingService;
 
 
 
   await holding.decrease(amount, decreasedValue);
-  await holding.save(event.block);
+  await holding.save(event);
 });
 
-ponder.on("Holdings:Update", async ({ event, context }) => {
-  logEvent(event, context, "Holdings:Update");
+multiMapper("holdings:Update", async ({ event, context }) => {
+  logEvent(event, context, "holdings:Update");
   
   const {
     poolId: _poolId,
@@ -111,16 +111,16 @@ ponder.on("Holdings:Update", async ({ event, context }) => {
     poolId,
     tokenId,
     assetId,
-  }, event.block)) as HoldingService;
+  }, event)) as HoldingService;
 
   await holding.update(isPositive, diffValue);
-  await holding.save(event.block);
+  await holding.save(event);
 
-  await snapshotter(context, event, "Holdings:Update", [holding], HoldingSnapshot);
+  await snapshotter(context, event, "holdingsV3:Update", [holding], HoldingSnapshot);
 });
 
-ponder.on("Holdings:UpdateValuation", async ({ event, context }) => {
-  logEvent(event, context, "Holdings:UpdateValuation");
+multiMapper("holdings:UpdateValuation", async ({ event, context }) => {
+  logEvent(event, context, "holdings:UpdateValuation");
   const {
     poolId: _poolId,
     scId: _scId,
@@ -138,10 +138,10 @@ ponder.on("Holdings:UpdateValuation", async ({ event, context }) => {
     poolId,
     tokenId,
     assetId,
-  }, event.block)) as HoldingService;
+  }, event)) as HoldingService;
 
   await holding.setValuation(valuation);
-  await holding.save(event.block);
+  await holding.save(event);
 
-  await snapshotter(context, event, "Holdings:UpdateValuation", [holding], HoldingSnapshot);
+  await snapshotter(context, event, "holdingsV3:UpdateValuation", [holding], HoldingSnapshot);
 });

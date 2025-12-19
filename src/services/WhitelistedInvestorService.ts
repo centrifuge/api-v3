@@ -1,5 +1,6 @@
 import { WhitelistedInvestor } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
+import { MAX_UINT64_DATE } from "../config";
 
 /**
  * Service class for managing investor whitelist records in the database.
@@ -14,7 +15,7 @@ export class WhitelistedInvestorService extends mixinCommonStatics(Service<typeo
   /**
    * Freezes the investor whitelist record.
    * 
-   * @returns {InvestorWhitelistService} The current service instance for method chaining
+   * @returns {WhitelistedInvestorService} The current service instance for method chaining
    */
   public freeze() {
     this.data.isFrozen = true;
@@ -24,7 +25,7 @@ export class WhitelistedInvestorService extends mixinCommonStatics(Service<typeo
   /**
    * Unfreezes the investor whitelist record.
    * 
-   * @returns {InvestorWhitelistService} The current service instance for method chaining
+   * @returns {WhitelistedInvestorService} The current service instance for method chaining
    */
   public unfreeze() {
     this.data.isFrozen = false;
@@ -35,10 +36,10 @@ export class WhitelistedInvestorService extends mixinCommonStatics(Service<typeo
    * Sets the valid until date for the investor whitelist record.
    * 
    * @param validUntil - The date until which the investor whitelist record is valid
-   * @returns {InvestorWhitelistService} The current service instance for method chaining
+   * @returns {WhitelistedInvestorService} The current service instance for method chaining
    */
   public setValidUntil(validUntil: Date | null) {
-    this.data.validUntil = validUntil;
+    this.data.validUntil = validUntil ?? MAX_UINT64_DATE;
     return this;
   }
 }

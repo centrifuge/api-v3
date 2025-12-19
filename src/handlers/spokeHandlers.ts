@@ -1,5 +1,5 @@
-import { ponder } from "ponder:registry";
-import { logEvent } from "../helpers/logger";
+import { multiMapper } from "../helpers/multiMapper";
+import { logEvent, serviceError } from "../helpers/logger";
 import { VaultKinds } from "ponder:schema";
 import {
   BlockchainService,
@@ -11,13 +11,14 @@ import {
   InvestorTransactionService,
   AccountService,
 } from "../services";
-import { ERC20Abi, PoolEscrowFactoryAbi } from "../abis";
-import { currentChains } from "../../ponder.config";
+import { ERC20Abi } from "../../abis/ERC20";
+import { Abis } from "../contracts";
+import { RegistryChains } from "../chains";
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
 
-ponder.on("Spoke:DeployVault", async ({ event, context }) => {
-  logEvent(event, context, "Spoke:DeployVault");
+multiMapper("spoke:DeployVault", async ({ event, context }) => {
+  logEvent(event, context, "spoke:DeployVault");
 
   const {
     poolId,
@@ -36,13 +37,13 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
 
   const { client, contracts } = context;
   const manager = await client.readContract({
-    abi: contracts.Vault.abi,
+    abi: contracts.vaultV3.abi,
     address: vaultId,
     functionName: "manager",
     args: [],
   });
 
-  const _vault = (await VaultService.insert(
+  const _vault = (await VaultService.upsert(
     context,
     {
       id: vaultId,
@@ -54,13 +55,13 @@ ponder.on("Spoke:DeployVault", async ({ event, context }) => {
       kind: vaultKind,
       manager,
     },
-    event.block
+    event
   )) as VaultService | null;
 });
 
-ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
+multiMapper("spoke:RegisterAsset", async ({ event, context }) => {
   //Fires first to request registration to HUB
-  logEvent(event, context, "Spoke:RegisterAsset");
+  logEvent(event, context, "spoke:RegisterAsset");
   const {
     assetId,
     asset: assetAddress,
@@ -82,12 +83,12 @@ ponder.on("Spoke:RegisterAsset", async ({ event, context }) => {
       symbol: symbol,
       assetTokenId,
     },
-    event.block
+    event
   )) as AssetService | null;
 });
 
-ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
-  logEvent(event, context, "Spoke:AddShareClass");
+multiMapper("spoke:AddShareClass", async ({ event, context }) => {
+  logEvent(event, context, "spoke:AddShareClass");
   const { poolId, scId: tokenId, token: tokenAddress } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -99,8 +100,6 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
     args: [],
   });
 
-  console.log(`Initial totalIssuance for token ${tokenId} is ${totalSupply}`);
-
   // Get the existing token instance
   const tokenInstance = (await TokenInstanceService.getOrInit(
     context,
@@ -109,7 +108,7 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
       tokenId,
       centrifugeId,
     },
-    event.block
+    event
   )) as TokenInstanceService;
 
   // Store previous issuance
@@ -118,7 +117,7 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
   // Set token instance properties
   tokenInstance.setTotalIssuance(totalSupply);
   tokenInstance.activate();
-  await tokenInstance.save(event.block);
+  await tokenInstance.save(event);
 
   // Get or create token
   const token = (await TokenService.getOrInit(
@@ -127,7 +126,7 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
       id: tokenId,
       poolId,
     },
-    event.block
+    event
   )) as TokenService;
 
   // Only increase token total issuance if this is a new token instance
@@ -135,11 +134,11 @@ ponder.on("Spoke:AddShareClass", async ({ event, context }) => {
     token.increaseTotalIssuance(totalSupply);
   }
 
-  await token.save(event.block);
+  await token.save(event);
 });
 
-ponder.on("Spoke:LinkVault", async ({ event, context }) => {
-  logEvent(event, context, "Spoke:LinkVault");
+multiMapper("spoke:LinkVault", async ({ event, context }) => {
+  logEvent(event, context, "spoke:LinkVault");
   const {
     //poolId: poolId,
     //scId: tokenId,
@@ -154,13 +153,16 @@ ponder.on("Spoke:LinkVault", async ({ event, context }) => {
     id: vaultId,
     centrifugeId,
   })) as VaultService;
-  if (!vault) throw new Error("Vault not found");
+  if (!vault) {
+    serviceError(`Vault not found for id ${vaultId}`);
+    return;
+  }
   vault.setStatus("Linked");
-  await vault.save(event.block);
+  await vault.save(event);
 });
 
-ponder.on("Spoke:UnlinkVault", async ({ event, context }) => {
-  logEvent(event, context, "Spoke:UnlinkVault");
+multiMapper("spoke:UnlinkVault", async ({ event, context }) => {
+  logEvent(event, context, "spoke:UnlinkVault");
   const { vault: vaultId } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -171,11 +173,11 @@ ponder.on("Spoke:UnlinkVault", async ({ event, context }) => {
   })) as VaultService;
   if (!vault) throw new Error("Vault not found");
   vault.setStatus("Unlinked");
-  await vault.save(event.block);
+  await vault.save(event);
 });
 
-ponder.on("Spoke:UpdateSharePrice", async ({ event, context }) => {
-  logEvent(event, context, "Spoke:PriceUpdate");
+multiMapper("spoke:UpdateSharePrice", async ({ event, context }) => {
+  logEvent(event, context, "spoke:PriceUpdate");
   const {
     //poolId,
     scId: tokenId,
@@ -196,11 +198,11 @@ ponder.on("Spoke:UpdateSharePrice", async ({ event, context }) => {
 
   await tokenInstance.setTokenPrice(tokenPrice);
   await tokenInstance.setComputedAt(computedAt);
-  await tokenInstance.save(event.block);
+  await tokenInstance.save(event);
 });
 
-ponder.on("Spoke:UpdateAssetPrice", async ({ event, context }) => {
-  logEvent(event, context, "Spoke:UpdateAssetPrice");
+multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
+  logEvent(event, context, "spoke:UpdateAssetPrice");
 
   const {
     poolId: poolId,
@@ -214,17 +216,17 @@ ponder.on("Spoke:UpdateAssetPrice", async ({ event, context }) => {
 
   const chainId = context.chain.id;
   if (typeof chainId !== "number") throw new Error("Chain ID not found");
-  const poolEscrowFactoryAddress = currentChains.find(
+  const poolEscrowFactoryAddress = RegistryChains.find(
     (chain) => chain.network.chainId === chainId
   )?.contracts.poolEscrowFactory;
   if (!poolEscrowFactoryAddress) {
-    console.error(`Pool Escrow Factory address not found for chain ${chainId}`);
+    serviceError(`Pool Escrow Factory address not found for chain ${chainId}`);
     return;
   }
 
   const escrowAddress = await context.client.readContract({
-    abi: PoolEscrowFactoryAbi,
-    address: poolEscrowFactoryAddress,
+    abi: Abis.v3.PoolEscrowFactory,
+    address: poolEscrowFactoryAddress.address,
     functionName: "escrow",
     args: [poolId],
   });
@@ -234,7 +236,7 @@ ponder.on("Spoke:UpdateAssetPrice", async ({ event, context }) => {
     centrifugeId,
   });
   if (assetQuery.length !== 1) {
-    console.error(`Asset not found for address ${assetAddress}`);
+    serviceError(`Asset not found for address ${assetAddress}`);
     return;
   }
 
@@ -251,17 +253,17 @@ ponder.on("Spoke:UpdateAssetPrice", async ({ event, context }) => {
       assetId,
       escrowAddress,
     },
-    event.block
+    event
   )) as HoldingEscrowService;
 
   await holdingEscrow.setAssetPrice(assetPrice);
-  await holdingEscrow.save(event.block);
+  await holdingEscrow.save(event);
 
-  await snapshotter(context, event, "Spoke:UpdateAssetPrice", [holdingEscrow], HoldingEscrowSnapshot);
+  await snapshotter(context, event, "spokeV3:UpdateAssetPrice", [holdingEscrow], HoldingEscrowSnapshot);
 });
 
-ponder.on("Spoke:InitiateTransferShares", async ({ event, context }) => {
-  logEvent(event, context, "Spoke:InitiateTransferShares");
+multiMapper("spoke:InitiateTransferShares", async ({ event, context }) => {
+  logEvent(event, context, "spoke:InitiateTransferShares");
   const {
     centrifugeId: toCentrifugeId,
     poolId,
@@ -277,12 +279,12 @@ ponder.on("Spoke:InitiateTransferShares", async ({ event, context }) => {
     AccountService.getOrInit(
       context,
       { address: sender.substring(0, 42) as `0x${string}` },
-      event.block
+      event
     ),
     AccountService.getOrInit(
       context,
       { address: destinationAddress.substring(0, 42) as `0x${string}` },
-      event.block
+      event
     ),
   ])) as [AccountService, AccountService];
 
@@ -308,7 +310,7 @@ ponder.on("Spoke:InitiateTransferShares", async ({ event, context }) => {
         ...transferData,
         account: fromAccountAddress,
       },
-      event.block
+      event
     ),
     InvestorTransactionService.transferIn(
       context,
@@ -316,7 +318,7 @@ ponder.on("Spoke:InitiateTransferShares", async ({ event, context }) => {
         ...transferData,
         account: toAccountAddress,
       },
-      event.block
+      event
     ),
   ]);
 });

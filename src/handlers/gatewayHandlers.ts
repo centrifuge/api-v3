@@ -1,6 +1,8 @@
-import { ponder } from "ponder:registry";
-import { logEvent } from "../helpers/logger";
+import { multiMapper } from "../helpers/multiMapper";
+import { logEvent, serviceError } from "../helpers/logger";
 import { BlockchainService } from "../services/BlockchainService";
+import { timestamper } from "../helpers/timestamper";
+
 import {
   getCrosschainMessageType,
   CrosschainMessageService,
@@ -13,8 +15,8 @@ import {
   extractMessagesFromPayload,
 } from "../services/CrosschainPayloadService";
 
-ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
-  logEvent(event, context, "Gateway:PrepareMessage");
+multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
+  logEvent(event, context, "gateway:PrepareMessage");
   const { centrifugeId: toCentrifugeId, poolId, message } = event.args;
   const messageBuffer = Buffer.from(message.substring(2), "hex");
   const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0));
@@ -49,12 +51,12 @@ ponder.on("Gateway:PrepareMessage", async ({ event, context }) => {
       data: data,
       status: "AwaitingBatchDelivery",
     },
-    event.block
+    event
   )) as CrosschainMessageService | null;
 });
 
-ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
-  logEvent(event, context, "Gateway:UnderpaidBatch");
+multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
+  logEvent(event, context, "gateway:UnderpaidBatch");
   const { centrifugeId: toCentrifugeId, batch } = event.args;
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
@@ -94,7 +96,7 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
     if (pendingMessage) {
       logEvent(event, context, `Message ${messageId} already initialized in awaiting batch delivery queue`);
       pendingMessage.setPayloadId(payloadId, payloadIndex);
-      await pendingMessage.save(event.block);
+      await pendingMessage.save(event);
       continue;
     }
 
@@ -108,7 +110,7 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
 
     const data = decodeMessage(messageType, messagePayload);
     if (!data) {
-      console.error(`Failed to decode message for messageId ${messageId}`);
+      serviceError(`Failed to decode message for messageId ${messageId}`);
       return;
     }
 
@@ -130,13 +132,13 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
         payloadId,
         payloadIndex,
       },
-      event.block
+      event
     )) as CrosschainMessageService | null;
   }
 
   const poolIds = Array.from(poolIdSet);
   if (poolIds.length > 1) {
-    console.error(`Multiple poolIds found for payloadId ${payloadId}`);
+    serviceError(`Multiple poolIds found for payloadId ${payloadId}`);
     return;
   }
   const poolId = Array.from(poolIdSet).pop() ?? null;
@@ -151,15 +153,15 @@ ponder.on("Gateway:UnderpaidBatch", async ({ event, context }) => {
       toCentrifugeId: toCentrifugeId.toString(),
       fromCentrifugeId: fromCentrifugeId,
       status: "Underpaid",
-      prepareTxHash: event.transaction.hash,
+      ...timestamper("prepared", event),
     },
-    event.block
+    event
   )) as CrosschainPayloadService | null;
-  if (!crosschainPayload) console.error("Failed to initialize crosschain payload ");
+  if (!crosschainPayload) serviceError("Failed to initialize crosschain payload ");
 });
 
-ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
-  logEvent(event, context, "Gateway:RepayBatch");
+multiMapper("gateway:RepayBatch", async ({ event, context }) => {
+  logEvent(event, context, "gateway:RepayBatch");
   const { centrifugeId: toCentrifugeId, batch } = event.args;
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
   const payloadId = getPayloadId(
@@ -174,7 +176,7 @@ ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
       payloadId
     )) as CrosschainPayloadService | null;
   if (!crosschainPayload) {
-    console.error(
+    serviceError(
       `CrosschainPayload not found for payloadId ${payloadId}`
     );
     return;
@@ -188,17 +190,17 @@ ponder.on("Gateway:RepayBatch", async ({ event, context }) => {
   const crosschainMessageSaves = []
   for (const crosschainMessage of crosschainMessages) {
     crosschainMessage.awaitingBatchDelivery();
-    crosschainMessageSaves.push(crosschainMessage.save(event.block));
+    crosschainMessageSaves.push(crosschainMessage.save(event));
   }
   await Promise.all(crosschainMessageSaves);
 
   crosschainPayload.InTransit();
-  await crosschainPayload.save(event.block);
+  await crosschainPayload.save(event);
 });
 
-ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
+multiMapper("gateway:ExecuteMessage", async ({ event, context }) => {
   // RECEIVING CHAIN
-  logEvent(event, context, "Gateway:ExecuteMessage");
+  logEvent(event, context, "gateway:ExecuteMessage");
   const { centrifugeId: fromCentrifugeId, message } = event.args;
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -213,18 +215,18 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
     messageId
   );
   if (!crosschainMessage) {
-    console.error(
+    serviceError(
       `CrosschainMessage not found in AwaitingBatchDelivery queue for messageId ${messageId}`
     );
     return;
   }
 
   crosschainMessage.executed(event);
-  await crosschainMessage.save(event.block);
+  await crosschainMessage.save(event);
 
   const { payloadId } = crosschainMessage.read();
   if (!payloadId) {
-    console.error("Payload ID is required");
+    serviceError("Payload ID is required");
     return;
   }
 
@@ -234,7 +236,7 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
       payloadId
     )) as CrosschainPayloadService | null;
   if (!crosschainPayload) {
-    console.error(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
+    serviceError(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
     return;
   }
   const { index: payloadIndex } = crosschainPayload.read();
@@ -243,12 +245,12 @@ ponder.on("Gateway:ExecuteMessage", async ({ event, context }) => {
   if (!isPayloadFullyExecuted) return;
 
   crosschainPayload.completed(event);
-  await crosschainPayload.save(event.block);
+  await crosschainPayload.save(event);
 });
 
-ponder.on("Gateway:FailMessage", async ({ event, context }) => {
+multiMapper("gateway:FailMessage", async ({ event, context }) => {
   // RECEIVING CHAIN
-  logEvent(event, context, "Gateway:FailMessage");
+  logEvent(event, context, "gateway:FailMessage");
   const { centrifugeId: fromCentrifugeId, message, error } = event.args;
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -264,7 +266,7 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
     messageId
   );
   if (!crosschainMessage) {
-    console.error(
+    serviceError(
       `CrosschainMessage not found in AwaitingBatchDelivery or Failed queue for messageId ${messageId}`
     );
     return;
@@ -275,7 +277,7 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
 
   crosschainMessage.setStatus('Failed');
   crosschainMessage.setFailReason(error);
-  await crosschainMessage.save(event.block);
+  await crosschainMessage.save(event);
 
   const { payloadId } = crosschainMessage.read();
   if (!payloadId) throw new Error("Payload ID is required");
@@ -286,10 +288,10 @@ ponder.on("Gateway:FailMessage", async ({ event, context }) => {
       payloadId
     )) as CrosschainPayloadService | null;
   if (!crosschainPayload) {
-    console.error(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
+    serviceError(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
     return;
   }
 
   crosschainPayload.setStatus("PartiallyFailed");
-  await crosschainPayload.save(event.block);
+  await crosschainPayload.save(event);
 });

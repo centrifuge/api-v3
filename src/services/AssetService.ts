@@ -46,9 +46,8 @@ static async getDecimals(context: Context, assetId: bigint) {
   const asset = (await this.get(context, {
     id: assetId,
   })) as AssetService;
-  if (!asset) throw new Error(`Asset not found for id ${assetId}`);
+  if (!asset) return undefined;
   const { decimals } = asset.read();
-  if (typeof decimals !== "number") throw new Error("Decimals is required");
   return decimals;
 }
 }

@@ -1,5 +1,49 @@
 # Changelog
 
+## [2.1.0](https://github.com/centrifuge/api-v3/compare/v2.0.0...v2.1.0) (2025-11-18)
+
+
+### Features
+
+* add asset relationship in InvestorTransactions with currency amounts ([#182](https://github.com/centrifuge/api-v3/issues/182)) ([ac05de6](https://github.com/centrifuge/api-v3/commit/ac05de63116dee7eb03e21ec3e54b742d843e5df)), closes [#177](https://github.com/centrifuge/api-v3/issues/177)
+* add bsc to indexer ([#143](https://github.com/centrifuge/api-v3/issues/143)) ([3f2f0d6](https://github.com/centrifuge/api-v3/commit/3f2f0d602330fe0df9c0cb62f1b118649693a0e1))
+* add decimals to token ([#163](https://github.com/centrifuge/api-v3/issues/163)) ([80e16ef](https://github.com/centrifuge/api-v3/commit/80e16ef24d21577b766add0ce1724236a8010924))
+* add hardcoded v2 investors ([#185](https://github.com/centrifuge/api-v3/issues/185)) ([6e123ff](https://github.com/centrifuge/api-v3/commit/6e123ff241cbc8c15121a0577f22dfc519639690))
+* add issuance api ([#112](https://github.com/centrifuge/api-v3/issues/112)) ([d52bd8e](https://github.com/centrifuge/api-v3/commit/d52bd8ef2956d3dc3d98de9036b33496d9257877))
+* add message preparation and execution hash ([#166](https://github.com/centrifuge/api-v3/issues/166)) ([ba6b136](https://github.com/centrifuge/api-v3/commit/ba6b136b5e34d8c9b8515e3e7d6807ead9176157))
+* add rawData to payload for underpaid retry ([#149](https://github.com/centrifuge/api-v3/issues/149)) ([7727882](https://github.com/centrifuge/api-v3/commit/7727882a56a27169da26d7e1f73c825fa93c9c0f))
+* add revokedPoolAmount to redeemOrders ([#184](https://github.com/centrifuge/api-v3/issues/184)) ([24abc28](https://github.com/centrifuge/api-v3/commit/24abc28bdb7322fa30b5db3f12ad16ea1e4fa208))
+* enable sql over http ([#181](https://github.com/centrifuge/api-v3/issues/181)) ([03afecd](https://github.com/centrifuge/api-v3/commit/03afecdd643865a6c583b01c682b861eb4b1c2e8))
+* holding escrow snapshots upon redeem and deposit approvals for non zero asset holdings ([#142](https://github.com/centrifuge/api-v3/issues/142)) ([f502ca5](https://github.com/centrifuge/api-v3/commit/f502ca5666509652ddea0bd63806c13928bbac2f))
+* HoldingEscrow snapshots ([d487c6c](https://github.com/centrifuge/api-v3/commit/d487c6cc125f5a3aa5129fc20d6bb41709b14724))
+* index fail reason ([#170](https://github.com/centrifuge/api-v3/issues/170)) ([4e91aef](https://github.com/centrifuge/api-v3/commit/4e91aef9e3b57bf8917f5075c7f15d339d440aa4))
+* index spoke chains per pool ([#173](https://github.com/centrifuge/api-v3/issues/173)) ([8b19772](https://github.com/centrifuge/api-v3/commit/8b19772ed2f4c07f8ebc90bd18ea3c62bb169105))
+* track sync orders in epoch and investor orders ([#147](https://github.com/centrifuge/api-v3/issues/147)) ([a8e29d8](https://github.com/centrifuge/api-v3/commit/a8e29d85897497b16cdd6e95f302c1070e69eb9b))
+* update ponder 0.15.4 ([6e57dee](https://github.com/centrifuge/api-v3/commit/6e57deea9ec6d81bd9a4ec5e983d7efa30991aea))
+* upgrade ponder to 0.14.13 ([9b4198a](https://github.com/centrifuge/api-v3/commit/9b4198a6ef87b0d5249425a3ab407d72bdb9a845))
+* upgrade to ponder 0.15.1 ([831760b](https://github.com/centrifuge/api-v3/commit/831760b642de8595b7819693b81a965b96b90cb2))
+* upgrade to ponder 0.41 ([a2ce305](https://github.com/centrifuge/api-v3/commit/a2ce305b98544e1e2537ab9ef5eb3a320747595c))
+* use registry from IPFS to load chain data and ABIs ([#172](https://github.com/centrifuge/api-v3/issues/172)) ([2dda9c2](https://github.com/centrifuge/api-v3/commit/2dda9c2af9ac21526638948bd41cb695bd0f6066))
+
+
+### Bug Fixes
+
+* correctly set prepareTxHash and deliveryTxHash ([#167](https://github.com/centrifuge/api-v3/issues/167)) ([6715e40](https://github.com/centrifuge/api-v3/commit/6715e40aed389fc760dd6f4f1f880526c5066b10))
+* decoding of all messages ([#169](https://github.com/centrifuge/api-v3/issues/169)) ([9ecb98c](https://github.com/centrifuge/api-v3/commit/9ecb98c3aa2ac51429663862d74398d963c525cc))
+* defaults and env for build process ([#175](https://github.com/centrifuge/api-v3/issues/175)) ([b89e7d1](https://github.com/centrifuge/api-v3/commit/b89e7d12b8d529df1c0ddfc9384b5d16f989d6e3))
+* formatting of issuance data ([#179](https://github.com/centrifuge/api-v3/issues/179)) ([872145d](https://github.com/centrifuge/api-v3/commit/872145d9e961a0aed45f8395d2d1dfd37daf438f))
+* handling of proofs and initialization of underpaids in crosschain messages ([221eb47](https://github.com/centrifuge/api-v3/commit/221eb47f035e26c647516b5146f8b77bc94a5338))
+* holding escrow does not populate on UpdateAssetPrice ([#141](https://github.com/centrifuge/api-v3/issues/141)) ([d487c6c](https://github.com/centrifuge/api-v3/commit/d487c6cc125f5a3aa5129fc20d6bb41709b14724))
+* inverted share price calculation in investor transactions ([#187](https://github.com/centrifuge/api-v3/issues/187)) ([05d00f8](https://github.com/centrifuge/api-v3/commit/05d00f80ea6e8fbc024adeb6395f153fa4a97a69))
+* invest order issue shares decimals ([#186](https://github.com/centrifuge/api-v3/issues/186)) ([fe067f0](https://github.com/centrifuge/api-v3/commit/fe067f08c21de47ae7baff42ecec52e75317afde))
+* issuance tracking for v2 tokens ([#178](https://github.com/centrifuge/api-v3/issues/178)) ([ed29a8b](https://github.com/centrifuge/api-v3/commit/ed29a8b119d7cfc6e03f69ad5a7551a07cb06e82))
+* plume skip block parameter ([ae747fe](https://github.com/centrifuge/api-v3/commit/ae747feffb6b2355fb74babb6b1b540e5b1e73a9))
+* redeem amounts ([#183](https://github.com/centrifuge/api-v3/issues/183)) ([b3b9158](https://github.com/centrifuge/api-v3/commit/b3b9158f1135e9d49aa17c902e52b54b7c803821))
+* repaid messages stuck as unsent ([#150](https://github.com/centrifuge/api-v3/issues/150)) ([2500708](https://github.com/centrifuge/api-v3/commit/250070873e46d9a3dbb1564e9a52fe80bc0d2f63))
+* underpaid batches should look for already prepared messages ([#165](https://github.com/centrifuge/api-v3/issues/165)) ([0e94269](https://github.com/centrifuge/api-v3/commit/0e94269b4da0fb39ce7173718f176496092f45ea))
+* undo rename of blockchain to hub blockchain ([#174](https://github.com/centrifuge/api-v3/issues/174)) ([9c85e08](https://github.com/centrifuge/api-v3/commit/9c85e08932fe6f761d85cee554489c688fcb4fdf))
+* updated OnOffRampManager ABI ([b9b8817](https://github.com/centrifuge/api-v3/commit/b9b8817e1b5c7df3609bf84cd3444abe7cde09e1))
+
 ## [2.0.0](https://github.com/centrifuge/api-v3/compare/v1.6.0...v2.0.0) (2025-09-29)
 
 

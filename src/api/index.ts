@@ -1,16 +1,38 @@
-import schema from "ponder:schema";
-import { db } from "ponder:api";
-import { Hono } from "hono";
-import { graphql } from "ponder";
-import { TokenInstanceService, TokenService } from "../services";
-import { formatBigIntToDecimal } from "../helpers/formatter";
 import { eq } from "drizzle-orm";
-import { Blockchain, PoolSpokeBlockchain, Token, CrosschainPayload } from "ponder:schema";
+import { Hono } from "hono";
+import { client, graphql } from "ponder";
+import { db } from "ponder:api";
+import schema, {
+  Blockchain,
+  CrosschainPayload,
+  PoolSpokeBlockchain,
+  Token,
+} from "ponder:schema";
+import { formatBigIntToDecimal } from "../helpers/formatter";
+import {
+  AccountService,
+  AdapterService,
+  AssetRegistrationService,
+  AssetService,
+  CrosschainMessageService,
+  CrosschainPayloadService,
+  EpochInvestOrderService,
+  EpochRedeemOrderService,
+  HoldingService,
+  InvestOrderService,
+  InvestorTransactionService,
+  PoolService,
+  RedeemOrderService,
+  TokenInstanceService,
+  TokenService,
+} from "../services";
+import { AdapterParticipationService } from "../services/AdapterParticipationService";
 
 const app = new Hono();
 const context = { db };
 
 app.use("/", graphql({ db, schema }));
+app.use("/sql/*", client({ db, schema }));
 app.use("/graphql", graphql({ db, schema }));
 
 const jsonDefaultHeaders = {
@@ -72,14 +94,14 @@ app.get("/tokens/:address/price", async (c) => {
 
 app.get("/transactions/:txHash", async (c) => {
   const txHash = c.req.param("txHash") as `0x${string}`;
-  
+
   // Query CrosschainPayload by prepareTxHash
   const [payload] = await db
     .select()
     .from(CrosschainPayload)
     .where(eq(CrosschainPayload.prepareTxHash, txHash))
     .limit(1);
-  
+
   if (!payload) {
     return c.json({
       data: {
@@ -87,23 +109,25 @@ app.get("/transactions/:txHash", async (c) => {
         substatus: "NOT_FOUND",
         sourceTx: txHash,
         destinationTx: null,
-        explorerLink: null
-      }
+        explorerLink: null,
+      },
     });
   }
-  
+
   // Set explorer link to centrifugescan.io
   const explorerLink = `https://centrifugescan.io/tx/${payload.prepareTxHash}`;
-  
+
   // Map CrosschainPayload status to transaction status
   let status: string;
   let substatus: string;
-  
+
   switch (payload.status) {
     case "Underpaid":
     case "InTransit":
       status = "PENDING";
-      substatus = payload.deliveredAt ? "WAIT_DESTINATION_TRANSACTION" : "WAIT_SOURCE_CONFIRMATIONS";
+      substatus = payload.deliveredAt
+        ? "WAIT_DESTINATION_TRANSACTION"
+        : "WAIT_SOURCE_CONFIRMATIONS";
       break;
     case "Delivered":
       status = "PENDING";
@@ -121,51 +145,55 @@ app.get("/transactions/:txHash", async (c) => {
       status = "PENDING";
       substatus = "UNKNOWN_ERROR";
   }
-  
+
   return c.json({
     data: {
       status,
       substatus,
       sourceTx: payload.prepareTxHash,
       destinationTx: payload.deliveryTxHash || null,
-      explorerLink
-    }
+      explorerLink,
+    },
   });
 });
 
 app.get("/routes", async (c) => {
   const limit = parseInt(c.req.query("limit") || "100");
   const offset = parseInt(c.req.query("offset") || "0");
-  
+
   // Get all active tokens with their hub blockchain
   const tokens = await db.select().from(Token).where(eq(Token.isActive, true));
-  
+
   // Get all blockchains
   const blockchains = await db.select().from(Blockchain);
-  const blockchainMap = new Map(blockchains.map(b => [b.centrifugeId, b]));
-  
+  const blockchainMap = new Map(blockchains.map((b) => [b.centrifugeId, b]));
+
   // Get all spoke blockchains
   const spokeBlockchains = await db.select().from(PoolSpokeBlockchain);
-  
+
   // Generate routes
   const routes = [];
   for (const token of tokens) {
     if (!token.centrifugeId || token.decimals === null) continue;
-    
+
     const hubBlockchain = blockchainMap.get(token.centrifugeId);
-    if (!hubBlockchain || !hubBlockchain.chainId || !hubBlockchain.name) continue;
-    
+    if (!hubBlockchain || !hubBlockchain.chainId || !hubBlockchain.name)
+      continue;
+
     // Get spoke blockchains for this token's pool
-    const tokenSpokes = spokeBlockchains.filter(s => s.poolId === token.poolId);
-    
+    const tokenSpokes = spokeBlockchains.filter(
+      (s) => s.poolId === token.poolId
+    );
+
     for (const spoke of tokenSpokes) {
       // Skip if spoke is the same as hub
       if (spoke.centrifugeId === token.centrifugeId) continue;
-      
+
       // Get the spoke blockchain details from the blockchain map
       const spokeBlockchain = blockchainMap.get(spoke.centrifugeId);
-      if (!spokeBlockchain || !spokeBlockchain.chainId || !spokeBlockchain.name) continue;
-      
+      if (!spokeBlockchain || !spokeBlockchain.chainId || !spokeBlockchain.name)
+        continue;
+
       // Hub to Spoke route
       routes.push({
         tokenId: token.id,
@@ -180,9 +208,9 @@ app.get("/routes", async (c) => {
         estimatedDuration: 210,
         estimatedGas: 1000000,
         standard: "CentrifugeV31",
-        isEnabled: true
+        isEnabled: true,
       });
-      
+
       // Spoke to Hub route
       routes.push({
         tokenId: token.id,
@@ -197,22 +225,76 @@ app.get("/routes", async (c) => {
         estimatedDuration: 210,
         estimatedGas: 1000000,
         standard: "CentrifugeV31",
-        isEnabled: true
+        isEnabled: true,
       });
     }
   }
-  
+
   // Paginate
   const paginatedRoutes = routes.slice(offset, offset + limit);
-  const baseUrl = `${c.req.url.split('?')[0]}`;
-  
+  const baseUrl = `${c.req.url.split("?")[0]}`;
+
   return c.json({
     paging: {
       self: `${baseUrl}?limit=${limit}&offset=${offset}`,
-      next: offset + limit < routes.length ? `${baseUrl}?limit=${limit}&offset=${offset + limit}` : undefined
+      next:
+        offset + limit < routes.length
+          ? `${baseUrl}?limit=${limit}&offset=${offset + limit}`
+          : undefined,
     },
-    data: paginatedRoutes
+    data: paginatedRoutes,
   });
+});
+
+app.get("/stats", async (c) => {
+  const tvl = await TokenService.getNormalisedTvl(context);
+  const pools = await PoolService.count(context, { isActive: true });
+  const tokens = await TokenService.count(context, { isActive: true });
+  const tokenInstances = await TokenInstanceService.count(context, {
+    isActive: true,
+  });
+  const assets = await AssetService.count(context, {});
+  const assetRegistrations = await AssetRegistrationService.count(context, {});
+  const adapters = await AdapterService.count(context, {});
+  const adapterParticipations = await AdapterParticipationService.count(
+    context,
+    {}
+  );
+  const investorTransactions = await InvestorTransactionService.count(
+    context,
+    {}
+  );
+  const investOrders = await InvestOrderService.count(context, {});
+  const redeemOrders = await RedeemOrderService.count(context, {});
+  const epochInvestOrders = await EpochInvestOrderService.count(context, {});
+  const epochRedeemOrders = await EpochRedeemOrderService.count(context, {});
+  const crosschainMessages = await CrosschainMessageService.count(context, {});
+  const crosschainPayloads = await CrosschainPayloadService.count(context, {});
+  const accounts = await AccountService.count(context, {});
+  const holdings = await HoldingService.count(context, {});
+  return c.json(
+    {
+      tvl: formatBigIntToDecimal(tvl),
+      pools,
+      tokens,
+      tokenInstances,
+      assets,
+      assetRegistrations,
+      adapters,
+      adapterParticipations,
+      investorTransactions,
+      investOrders,
+      redeemOrders,
+      epochInvestOrders,
+      epochRedeemOrders,
+      crosschainMessages,
+      crosschainPayloads,
+      accounts,
+      holdings,
+    },
+    200,
+    jsonDefaultHeaders
+  );
 });
 
 export default app;

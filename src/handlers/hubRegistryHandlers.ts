@@ -1,4 +1,4 @@
-import { ponder } from "ponder:registry";
+import { multiMapper } from "../helpers/multiMapper";
 import { PoolService } from "../services/PoolService";
 import { logEvent } from "../helpers/logger";
 import {
@@ -13,14 +13,14 @@ import { isoCurrencies } from "../helpers/isoCurrencies";
 
 const ipfsHashRegex = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[A-Za-z2-7]{58})$/;
 
-ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
-  logEvent(event, context, "HubRegistry:NewPool");
+multiMapper("hubRegistry:NewPool", async ({ event, context }) => {
+  logEvent(event, context, "hubRegistry:NewPool");
   const { poolId, currency, manager } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
   const decimals = await AssetService.getDecimals(context, currency);
 
-  const _pool = (await PoolService.insert(
+  const _pool = (await PoolService.upsert(
     context,
     {
       id: poolId,
@@ -29,7 +29,7 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
       isActive: true,
       decimals,
     },
-    event.block
+    event
   )) as PoolService;
 
   const account = (await AccountService.getOrInit(
@@ -37,7 +37,7 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
     {
       address: manager,
     },
-    event.block
+    event
   )) as AccountService;
 
   const { address: managerAddress } = account.read();
@@ -49,27 +49,27 @@ ponder.on("HubRegistry:NewPool", async ({ event, context }) => {
       centrifugeId,
       poolId,
     },
-    event.block
+    event
   )) as PoolManagerService;
   poolManager.setIsHubManager(true);
-  await poolManager.save(event.block);
+  await poolManager.save(event);
 });
 
-ponder.on("HubRegistry:NewAsset", async ({ event, context }) => {
+multiMapper("hubRegistry:NewAsset", async ({ event, context }) => {
   //Fires Second to complete
-  logEvent(event, context, "HubRegistry:NewAsset");
+  logEvent(event, context, "hubRegistry:NewAsset");
 
   const { assetId, decimals } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const _assetRegistration = (await AssetRegistrationService.insert(
+  const _assetRegistration = (await AssetRegistrationService.upsert(
     context,
     {
       assetId,
       centrifugeId,
     },
-    event.block
+    event
   )) as AssetRegistrationService;
 
   const isIsoCurrency = assetId < 1000n;
@@ -84,13 +84,13 @@ ponder.on("HubRegistry:NewAsset", async ({ event, context }) => {
         symbol: isoCurrency.shortcode,
         name: isoCurrency.name,
       },
-      event.block
+      event
     )) as AssetService;
   }
 });
 
-ponder.on("HubRegistry:UpdateManager", async ({ event, context }) => {
-  logEvent(event, context, "HubRegistry:UpdateManager");
+multiMapper("hubRegistry:UpdateManager", async ({ event, context }) => {
+  logEvent(event, context, "hubRegistry:UpdateManager");
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
   const { manager, poolId, canManage } = event.args;
@@ -100,10 +100,9 @@ ponder.on("HubRegistry:UpdateManager", async ({ event, context }) => {
     {
       address: manager,
     },
-    event.block
+    event
   )) as AccountService;
   const { address: managerAddress } = account.read();
-
   const poolManager = (await PoolManagerService.getOrInit(
     context,
     {
@@ -111,14 +110,14 @@ ponder.on("HubRegistry:UpdateManager", async ({ event, context }) => {
       poolId,
       address: managerAddress,
     },
-    event.block
+    event
   )) as PoolManagerService;
   poolManager.setIsHubManager(canManage);
-  await poolManager.save(event.block);
+  await poolManager.save(event);
 });
 
-ponder.on("HubRegistry:SetMetadata", async ({ event, context }) => {
-  logEvent(event, context, "HubRegistry:SetMetadata");
+multiMapper("hubRegistry:SetMetadata", async ({ event, context }) => {
+  logEvent(event, context, "hubRegistry:SetMetadata");
 
 
   const { poolId, metadata: rawMetadata } = event.args;
@@ -131,7 +130,7 @@ ponder.on("HubRegistry:SetMetadata", async ({ event, context }) => {
       id: poolId,
       centrifugeId,
     },
-    event.block
+    event
   )) as PoolService;
   if (!pool) throw new Error("Pool not found");
 
@@ -144,5 +143,5 @@ ponder.on("HubRegistry:SetMetadata", async ({ event, context }) => {
   }
 
   pool.setMetadata(metadata);
-  await pool.save(event.block);
+  await pool.save(event);
 });

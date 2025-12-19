@@ -1,7 +1,6 @@
 import type { Context, Event } from "ponder:registry";
 import { BlockchainService } from "../services/BlockchainService";
-import { currentChains } from "../../ponder.config";
-import { networks } from "../chains";
+import { RegistryChains, networkNames, explorerUrls,RegistryChainsKeys,RegistryVersions,chainIcons } from "../chains";
 
 /** Interval in seconds for snapshot periods (24 hours) */
 const SNAPSHOT_INTERVAL_SECONDS = 60 * 60 * 24; // 1 day
@@ -60,28 +59,24 @@ export class Timekeeper {
    * @returns Promise that resolves to the current Timekeeper instance for chaining
    * @throws {Error} When chain ID is not a number
    */
-  public async init(context: Context, block: Event["block"]): Promise<Timekeeper> {
+  public async init(context: Context, event: Event): Promise<Timekeeper> {
     const chainId = context.chain.id;
-    console.log("Initializing timekeeper for chainId", chainId);
-    if (typeof chainId !== "number") throw new Error("Chain ID is required");
-    const chain = currentChains.find(
-      (network) => network.network.chainId === chainId
+    process.stdout.write(`Initializing timekeeper for chainId ${chainId}\n`);
+    const chain = RegistryChains.find(
+      (chain) => chain.network.chainId === chainId
     );
     if (!chain) throw new Error(`Chain ${chainId} not found in chains.ts`);
-    const network = networks[chainId as keyof typeof networks]
-    if (!network) throw new Error(`Network ${network} not found in chains.ts`);
+    const networkName = networkNames[chainId.toString() as RegistryChainsKeys<RegistryVersions>]
+    if (!networkName) throw new Error(`Network ${networkName} not found in chains.ts`);
     const blockchain = (await BlockchainService.getOrInit(context, {
       id: chainId.toString(),
       centrifugeId: chain.network.centrifugeId.toString(),
-      network,
+      network: networkName,
       chainId: chain.network.chainId,
-      environment: chain.network.environment,
-      name: chain.network.name,
-      explorer: chain.network.explorer,
-      alchemyName: chain.network.alchemyName,
-      quicknodeName: chain.network.quicknodeName,
-      icon: chain.network.icon,
-    }, block)) as BlockchainService;
+      name: networkName,
+      explorer: explorerUrls[chainId.toString() as keyof typeof explorerUrls],
+      icon: chainIcons[chainId.toString() as keyof typeof chainIcons],
+    }, event)) as BlockchainService;
     const lastPeriodStart = blockchain.read().lastPeriodStart;
     if (!lastPeriodStart) blockchain.setLastPeriodStart(new Date(0));
     this.blockchains[chainId] = blockchain;
@@ -142,11 +137,11 @@ export class Timekeeper {
    */
   public async processBlock(
     context: Context,
-    blockEvent: Event
+    event: Event
   ): Promise<boolean> {
     const chainId = context.chain.id as number;
-    const timestamp = new Date(Number(blockEvent.block.timestamp) * 1000);
-    if (!this.isInitialized(chainId)) await this.init(context, blockEvent.block);
+    const timestamp = new Date(Number(event.block.timestamp) * 1000);
+    if (!this.isInitialized(chainId)) await this.init(context, event);
     const blockPeriodStart = getPeriodStart(timestamp);
     const isNewPeriod =
       blockPeriodStart.valueOf() > this.getCurrentPeriod(chainId).valueOf();
@@ -161,11 +156,11 @@ export class Timekeeper {
    * @returns Promise that resolves to the current Timekeeper instance for chaining
    * @throws {Error} When the timekeeper is not initialized for the specified chain
    */
-  public async update(context: Context, block: Event["block"]) {
+  public async update(context: Context, event: Event) {
     const chainId = context.chain.id as number;
     if (!this.isInitialized(chainId))
       throw new Error(`Timekeeper not initialized for chain ${chainId}`);
-    await this.blockchains[chainId]!.save(block);
+    await this.blockchains[chainId]!.save(event);
     return this;
   }
 }
