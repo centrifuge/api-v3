@@ -62,9 +62,9 @@ let loadedChains: RegistryChainsValues<RegistryVersions>[] = Array.from(
         // Compare deployedAtBlock as numbers (parseInt), select the lowest
         if (
           !current ||
-          (chain.deployment.endBlock &&
-            current.deployment.endBlock &&
-            chain.deployment.endBlock < current.deployment.endBlock)
+          (chain.deployment.startBlock &&
+            current.deployment.startBlock &&
+            chain.deployment.startBlock < current.deployment.startBlock)
         ) {
           map.set(chainId, chain);
         }

@@ -35,7 +35,7 @@ export interface RegistryChain<N extends number, C extends string> {
   deployment: {
     deployedAt: number | null;
     startBlock: number | null;
-    endBlock: number | null;
+    endBlock?: number | null;
   };
 }
 
