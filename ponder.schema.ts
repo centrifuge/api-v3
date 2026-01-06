@@ -359,6 +359,7 @@ const OutstandingInvestColumns = (t: PgColumnsBuilders) => ({
   depositAmount: t.bigint().default(0n), // Amount that is deposited on Hub, asset denomination
 
   approvedAmount: t.bigint().default(0n), // Amount that is approved on Hub, asset denomination
+  approvedIndex: t.integer(),
   ...timestamperFields(t, "approved"),
 
   ...defaultColumns(t),
@@ -397,6 +398,7 @@ const OutstandingRedeemColumns = (t: PgColumnsBuilders) => ({
   queuedAmount: t.bigint().default(0n), // Amount that is queued onchain for AFTER claim, technically needed, share denomination
 
   approvedAmount: t.bigint().default(0n), // Amount that is approved on Hub, share denomination
+  approvedIndex: t.integer(),
   ...timestamperFields(t, "approved"),
 
   ...defaultColumns(t),
@@ -464,6 +466,7 @@ const InvestOrderColumns = (t: PgColumnsBuilders) => ({
 
   // Approved fields
   ...timestamperFields(t, "approved"),
+  approvedIndex: t.integer(), // TODO: DEPRECATED to be deleted in future releases
   approvedAssetsAmount: t.bigint().default(0n), // Asset denomination
 
   // Issued fields
@@ -554,6 +557,7 @@ const RedeemOrderColumns = (t: PgColumnsBuilders) => ({
 
   // Approved fields
   ...timestamperFields(t, "approved"),
+  approvedIndex: t.integer(), // TODO: DEPRECATED to be deleted in future releases
   approvedSharesAmount: t.bigint().default(0n), // Share denomination
 
   // Revoked fields
