@@ -22,8 +22,8 @@ export * from "./OffRampAddressService";
 export * from "./OffRampRelayerService";
 export * from "./OnOffRampManagerService";
 export * from "./OnRampAssetService";
-export * from "./OutstandingInvestService";
-export * from "./OutstandingRedeemService";
+export * from "./OutstandingInvestService"; // TODO: DEPRECATED to be deleted in future releases
+export * from "./OutstandingRedeemService"; // TODO: DEPRECATED to be deleted in future releases
 export * from "./PolicyService";
 export * from "./PoolManagerService";
 export * from "./PoolService";
@@ -32,5 +32,7 @@ export * from "./RedeemOrderService";
 export * from "./TokenInstancePositionService";
 export * from "./TokenInstanceService";
 export * from "./TokenService";
+export * from "./VaultDepositService";
 export * from "./VaultService";
+export * from "./VaultRedeemService";
 export * from "./WhitelistedInvestorService";

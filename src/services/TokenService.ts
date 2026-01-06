@@ -20,7 +20,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
    * @param tokenId - The id of the token.
    * @returns The decimals of the token.
    */
-  static async getDecimals(context: Context, tokenId: string) {
+  static async getDecimals(context: Context, tokenId: `0x${string}`) {
     const token = (await this.get(context, { id: tokenId })) as TokenService;
     if (!token) return undefined;
     const { decimals } = token.read();

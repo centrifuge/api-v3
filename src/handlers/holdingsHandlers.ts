@@ -48,7 +48,7 @@ multiMapper("holdings:Increase", async ({ event, context }) => {
     event.args;
 
   const poolId = _poolId;
-  const tokenId = _scId.toString();
+  const tokenId = _scId;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
@@ -72,7 +72,7 @@ multiMapper("holdings:Decrease", async ({ event, context }) => {
     event.args;
 
   const poolId = _poolId;
-  const tokenId = _scId.toString();
+  const tokenId = _scId;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
@@ -102,7 +102,7 @@ multiMapper("holdings:Update", async ({ event, context }) => {
 
   
   const poolId = _poolId;
-  const tokenId = _scId.toString();
+  const tokenId = _scId;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
@@ -129,7 +129,7 @@ multiMapper("holdings:UpdateValuation", async ({ event, context }) => {
   } = event.args;
 
   const poolId = _poolId;
-  const tokenId = _scId.toString();
+  const tokenId = _scId;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
