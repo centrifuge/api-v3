@@ -11,10 +11,12 @@ import {
   TokenInstancePositionService,
   TokenInstanceService,
   TokenService,
+  VaultDepositService,
+  VaultRedeemService,
 } from "../services";
 import { InvestorTransactionService, VaultService } from "../services";
-import { OutstandingInvestService } from "../services";
-import { OutstandingRedeemService } from "../services";
+import { OutstandingInvestService } from "../services"; // TODO: DEPRECATED to be deleted in future releases
+import { OutstandingRedeemService } from "../services"; // TODO: DEPRECATED to be deleted in future releases
 import { initialisePosition } from "../services/TokenInstancePositionService";
 import { timestamper } from "../helpers/timestamper";
 
@@ -28,6 +30,7 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
     assets,
   } = event.args;
 
+  const investor = controller.substring(0, 42) as `0x${string}`;
   const vaultId = event.log.address;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -46,14 +49,13 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
   });
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
 
-  const invstorAccount = (await AccountService.getOrInit(
+  const _investorAccount = (await AccountService.getOrInit(
     context,
     {
-      address: controller,
+      address: investor,
     },
     event
   )) as AccountService;
-  const { address: investorAddress } = invstorAccount.read();
 
   const tokenInstance = (await TokenInstanceService.get(context, {
     tokenId,
@@ -68,7 +70,7 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
     {
       tokenId,
       centrifugeId,
-      accountAddress: investorAddress,
+      accountAddress: investor,
     },
     event,
     async (tokenInstancePosition) =>
@@ -88,7 +90,7 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
       txHash: event.transaction.hash,
       poolId,
       tokenId,
-      account: investorAddress,
+      account: investor,
       currencyAmount: assets,
       centrifugeId,
       currencyAssetId: assetId,
@@ -96,17 +98,30 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
     event
   );
 
+  // TODO: DEPRECATED to be removed in future releases
   const outstandingInvest = (await OutstandingInvestService.getOrInit(
     context,
     {
       poolId,
       tokenId,
-      account: investorAddress,
+      account: investor,
       assetId,
     },
     event
   )) as OutstandingInvestService;
   await outstandingInvest.updateDepositAmount(assets).saveOrClear(event);
+
+  const _vaultDeposit = (await VaultDepositService.insert(
+    context,
+    {
+      tokenId,
+      centrifugeId,
+      assetId,
+      accountAddress: investor,
+      assetsAmount: assets,
+    },
+    event
+  )) as VaultDepositService;
 });
 
 multiMapper("vault:RedeemRequest", async ({ event, context }) => {
@@ -118,6 +133,7 @@ multiMapper("vault:RedeemRequest", async ({ event, context }) => {
     // sender: senderAddress,
     shares,
   } = event.args;
+  const investor = controller.substring(0, 42) as `0x${string}`;
   const vaultId = event.log.address;
   if (!vaultId) throw new Error(`vault id not found in event`);
 
@@ -136,14 +152,13 @@ multiMapper("vault:RedeemRequest", async ({ event, context }) => {
   })) as TokenService;
   if (!token) throw new Error(`Token not found for vault ${vaultId}`);
 
-  const invstorAccount = (await AccountService.getOrInit(
+  const _investorAccount = (await AccountService.getOrInit(
     context,
     {
-      address: controller,
+      address: investor,
     },
     event
   )) as AccountService;
-  const { address: investorAddress } = invstorAccount.read();
 
   const asset = (await AssetService.get(context, {
     address: assetAddress,
@@ -158,7 +173,7 @@ multiMapper("vault:RedeemRequest", async ({ event, context }) => {
       txHash: event.transaction.hash,
       poolId,
       tokenId,
-      account: investorAddress.substring(0, 42) as `0x${string}`,
+      account: investor,
       tokenAmount: shares,
       centrifugeId,
       currencyAssetId: assetId,
@@ -166,18 +181,27 @@ multiMapper("vault:RedeemRequest", async ({ event, context }) => {
     event
   );
 
-  const OutstandingRedeem = (await OutstandingRedeemService.getOrInit(
+  // TODO: DEPRECATED to be deleted in future releases
+  const outstandingRedeem = (await OutstandingRedeemService.getOrInit(
     context,
     {
       poolId,
       tokenId,
-      account: investorAddress.substring(0, 42) as `0x${string}`,
+      account: investor,
       assetId,
     },
     event
   )) as OutstandingRedeemService;
 
-  await OutstandingRedeem.updateDepositAmount(shares).saveOrClear(event);
+  await outstandingRedeem.updateDepositAmount(shares).saveOrClear(event);
+
+  const _vaultRedeem = (await VaultRedeemService.insert(context, {
+    tokenId,
+    centrifugeId,
+    assetId,
+    accountAddress: investor,
+    sharesAmount: shares,
+  }, event)) as VaultRedeemService;
 });
 
 multiMapper("vault:DepositClaimable", async ({ event, context }) => {
@@ -368,6 +392,8 @@ multiMapper("vault:Deposit", async ({ event, context }) => {
           assetId,
           account: investorAddress,
           index: investOrderIndex,
+          ...timestamper("posted", event),
+          postedAssetsAmount: assets,
           ...timestamper("approved", event),
           approvedAssetsAmount: assets,
           ...timestamper("issued", event),
@@ -484,6 +510,8 @@ multiMapper("vault:Withdraw", async ({ event, context }) => {
           assetId,
           account: investorAddress,
           index: redeemOrderIndex,
+          ...timestamper("posted", event),
+          postedSharesAmount: shares,
           ...timestamper("approved", event),
           approvedSharesAmount: shares,
           ...timestamper("revoked", event),

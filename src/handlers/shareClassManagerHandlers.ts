@@ -1,9 +1,14 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { expandInlineObject, logEvent, serviceLog, serviceError } from "../helpers/logger";
+import {
+  expandInlineObject,
+  logEvent,
+  serviceLog,
+  serviceError,
+} from "../helpers/logger";
 import {
   TokenService,
-  OutstandingInvestService,
-  OutstandingRedeemService,
+  OutstandingInvestService, // TODO: DEPRECATED to be deleted in future releases
+  OutstandingRedeemService, // TODO: DEPRECATED to be deleted in future releases
   BlockchainService,
   InvestOrderService,
   RedeemOrderService,
@@ -14,6 +19,8 @@ import {
   PoolService,
   AccountService,
   HoldingEscrowService,
+  VaultDepositService,
+  VaultRedeemService
 } from "../services";
 import { snapshotter } from "../helpers/snapshotter";
 import { TokenSnapshot } from "ponder:schema";
@@ -33,7 +40,11 @@ multiMapper(
       id: poolId,
     })) as PoolService;
     const { decimals: poolDecimals } = pool.read();
-    if (typeof poolDecimals !== "number") serviceError("Pool decimals is not a initialised", expandInlineObject(pool.read()));
+    if (typeof poolDecimals !== "number")
+      serviceError(
+        "Pool decimals is not a initialised",
+        expandInlineObject(pool.read())
+      );
 
     const _token = (await TokenService.upsert(
       context,
@@ -61,7 +72,11 @@ multiMapper(
       id: poolId,
     })) as PoolService;
     const { decimals: poolDecimals } = pool.read();
-    if (typeof poolDecimals !== "number") serviceError("Pool decimals is not a initialised", expandInlineObject(pool.read()));
+    if (typeof poolDecimals !== "number")
+      serviceError(
+        "Pool decimals is not a initialised",
+        expandInlineObject(pool.read())
+      );
 
     const _token = (await TokenService.upsert(
       context,
@@ -105,13 +120,12 @@ multiMapper(
   "shareClassManager:UpdateDepositRequest",
   async ({ event, context }) => {
     logEvent(event, context, "shareClassManager:UpdateDepositRequest");
-    const chainId = context.chain.id;
-    if (typeof chainId !== "number") throw new Error("Chain ID is required");
+    const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
     const {
       poolId,
       scId: tokenId,
-      //epoch: _epochIndex,
+      epoch: epochIndex,
       investor,
       depositAssetId,
       queuedUserAssetAmount,
@@ -128,6 +142,39 @@ multiMapper(
     )) as AccountService;
     const { address: investorAddress } = investorAccount.read();
 
+    const investOrder = (await InvestOrderService.getOrInit(
+      context,
+      {
+        poolId,
+        tokenId,
+        assetId: depositAssetId,
+        account: investorAddress,
+        index: epochIndex,
+      },
+      event,
+      undefined,
+      true
+    )) as InvestOrderService;
+
+    if (!investOrder.hasVaultDeposit()) {
+      const vaultDeposit = await VaultDepositService.get(
+        context,
+        {
+          accountAddress: investorAddress,
+          assetsAmount: queuedUserAssetAmount + pendingUserAssetAmount,
+        },
+      ) as VaultDepositService | null;
+      if (vaultDeposit) {
+        const { centrifugeId, createdAtTxHash } = vaultDeposit.read();
+        investOrder.setVaultDeposit(centrifugeId, createdAtTxHash!);
+      } else {
+        investOrder.setVaultDeposit(centrifugeId, event.transaction.hash);
+      }
+    }
+
+    await investOrder.post(pendingUserAssetAmount, event).saveOrClear(event);
+
+    // TODO: DEPRECATED to be deleted in future releases
     const outstandingInvest = (await OutstandingInvestService.getOrInit(
       context,
       {
@@ -135,11 +182,20 @@ multiMapper(
         tokenId,
         assetId: depositAssetId,
         account: investorAddress,
+        depositAmount: queuedUserAssetAmount + pendingUserAssetAmount,
+        approvedAt: null,
+        approvedAtBlock: null,
       },
-      event
+      event,
+      undefined,
+      true
     )) as OutstandingInvestService;
     await outstandingInvest
-      .processHubDepositRequest(queuedUserAssetAmount, pendingUserAssetAmount)
+      .processHubDepositRequest(
+        queuedUserAssetAmount,
+        pendingUserAssetAmount,
+        epochIndex
+      )
       .saveOrClear(event);
 
     const epochOutstandingInvest =
@@ -163,12 +219,11 @@ multiMapper(
   "shareClassManager:UpdateRedeemRequest",
   async ({ event, context }) => {
     logEvent(event, context, "shareClassManager:UpdateRedeemRequest");
-    const chainId = context.chain.id;
-    if (typeof chainId !== "number") throw new Error("Chain ID is required");
+    const centrifugeId = await BlockchainService.getCentrifugeId(context);
     const {
       poolId,
       scId: tokenId,
-      //epoch: epochIndex,
+      epoch: epochIndex,
       investor,
       payoutAssetId,
       pendingUserShareAmount,
@@ -185,18 +240,55 @@ multiMapper(
     )) as AccountService;
     const { address: investorAddress } = investorAccount.read();
 
-    const oo = (await OutstandingRedeemService.getOrInit(
+    const redeemOrder = (await RedeemOrderService.getOrInit(
       context,
       {
         poolId,
         tokenId,
         assetId: payoutAssetId,
         account: investorAddress,
+        index: epochIndex,
       },
-      event
+      event,
+      undefined,
+      true
+    )) as RedeemOrderService;
+    if(!redeemOrder.hasVaultRedeem()) {
+      const vaultRedeem = await VaultRedeemService.get(context, {
+        accountAddress: investorAddress,
+        sharesAmount: queuedUserShareAmount + pendingUserShareAmount,
+      }) as VaultRedeemService | null;
+      if(vaultRedeem) {
+        const { centrifugeId, createdAtTxHash } = vaultRedeem.read();
+        redeemOrder.setVaultRedeem(centrifugeId, createdAtTxHash!);
+      } else {
+        redeemOrder.setVaultRedeem(centrifugeId, event.transaction.hash);
+      }
+    }
+    await redeemOrder.post(pendingUserShareAmount, event).saveOrClear(event);
+
+    // TODO: DEPRECATED to be deleted in future releases
+    const outstandingRedeem = (await OutstandingRedeemService.getOrInit(
+      context,
+      {
+        poolId,
+        tokenId,
+        assetId: payoutAssetId,
+        account: investorAddress,
+        depositAmount: queuedUserShareAmount + pendingUserShareAmount,
+        approvedAt: null,
+        approvedAtBlock: null,
+      },
+      event,
+      undefined,
+      true
     )) as OutstandingRedeemService;
-    await oo
-      .processHubRedeemRequest(queuedUserShareAmount, pendingUserShareAmount)
+    await outstandingRedeem
+      .processHubRedeemRequest(
+        queuedUserShareAmount,
+        pendingUserShareAmount,
+        epochIndex
+      )
       .saveOrClear(event);
 
     const epochOutstandingRedeem =
@@ -252,30 +344,30 @@ multiMapper("shareClassManager:ApproveDeposits", async ({ event, context }) => {
     event
   )) as EpochInvestOrderService | null;
 
-  const saves: Promise<InvestOrderService | OutstandingInvestService>[] = [];
-  const oos = (await OutstandingInvestService.query(context, {
+  const investOrderSaves: Promise<InvestOrderService>[] = [];
+  const investOrders = (await InvestOrderService.query(context, {
     tokenId,
     assetId: depositAssetId,
-    pendingAmount_not: 0n,
-    approvedIndex: null,
-    approvedAmount: 0n,
+    index: epochIndex,
+    postedAt_not: null,
+    postedAssetsAmount_not: 0n,
     ...timestamper("approved", null),
-  })) as OutstandingInvestService[];
+  })) as InvestOrderService[];
 
-  for (const oo of oos) {
+  for (const investOrder of investOrders) {
     serviceLog(
       `Processing ShareClassManager:ApproveDeposits for outstanding invest with index ${epochIndex}`,
-      expandInlineObject(oo.read())
+      expandInlineObject(investOrder.read())
     );
-    const { pendingAmount } = oo.read();
+    const { postedAssetsAmount } = investOrder.read();
     const approvedUserAssetAmount = computeApprovedUserAmount(
-      pendingAmount!,
+      postedAssetsAmount!,
       approvedPercentage
     );
-    oo.approveInvest(approvedUserAssetAmount, epochIndex, event);
-    saves.push(oo.save(event));
+    investOrder.approve(approvedUserAssetAmount, event);
+    investOrderSaves.push(investOrder.save(event));
   }
-  await Promise.all(saves);
+  await Promise.all(investOrderSaves);
 
   const holdingEscrows = (await HoldingEscrowService.query(context, {
     tokenId,
@@ -288,6 +380,24 @@ multiMapper("shareClassManager:ApproveDeposits", async ({ event, context }) => {
     holdingEscrows,
     HoldingEscrowSnapshot
   );
+
+  // TODO: DEPRECATED to be deleted in future releases
+  const outstandingInvests = (await OutstandingInvestService.query(context, {
+    tokenId,
+    assetId: depositAssetId,
+    depositAmount_not: 0n,
+  })) as OutstandingInvestService[];
+  const outstandingInvestSaves: Promise<OutstandingInvestService>[] = [];
+  for (const outstandingInvest of outstandingInvests) {
+    const { pendingAmount } = outstandingInvest.read();
+    const approvedAssetAmount = computeApprovedUserAmount(
+      pendingAmount!,
+      approvedPercentage
+    );
+    outstandingInvest.approveInvest(approvedAssetAmount, epochIndex, event);
+    outstandingInvestSaves.push(outstandingInvest.clear(event));
+  }
+  await Promise.all(outstandingInvestSaves);
 });
 
 multiMapper("shareClassManager:ApproveRedeems", async ({ event, context }) => {
@@ -328,29 +438,29 @@ multiMapper("shareClassManager:ApproveRedeems", async ({ event, context }) => {
     event
   )) as EpochRedeemOrderService | null;
 
-  const saves: Promise<RedeemOrderService | OutstandingRedeemService>[] = [];
-  const oos = (await OutstandingRedeemService.query(context, {
+  const redeemOrderSaves: Promise<RedeemOrderService>[] = [];
+  const redeemOrders = (await RedeemOrderService.query(context, {
     tokenId,
     assetId: payoutAssetId,
-    pendingAmount_not: 0n,
-    approvedIndex: null,
-    approvedAmount: 0n,
+    index: epochIndex,
+    postedAt_not: null,
+    postedSharesAmount_not: 0n,
     ...timestamper("approved", null),
-  })) as OutstandingRedeemService[];
-  for (const oo of oos) {
+  })) as RedeemOrderService[];
+  for (const redeemOrder of redeemOrders) {
     serviceLog(
       `Processing ShareClassManager:ApproveRedeems for outstanding redeem with index ${epochIndex}`,
-      expandInlineObject(oo.read())
+      expandInlineObject(redeemOrder.read())
     );
-    const { pendingAmount } = oo.read();
+    const { postedSharesAmount } = redeemOrder.read();
     const approvedUserShareAmount = computeApprovedUserAmount(
-      pendingAmount!,
+      postedSharesAmount!,
       approvedPercentage
     );
-    oo.approveRedeem(approvedUserShareAmount, epochIndex, event);
-    saves.push(oo.save(event));
+    redeemOrder.approve(approvedUserShareAmount, event);
+    redeemOrderSaves.push(redeemOrder.save(event));
   }
-  await Promise.all(saves);
+  await Promise.all(redeemOrderSaves);
 
   const holdingEscrows = (await HoldingEscrowService.query(context, {
     tokenId,
@@ -363,6 +473,24 @@ multiMapper("shareClassManager:ApproveRedeems", async ({ event, context }) => {
     holdingEscrows,
     HoldingEscrowSnapshot
   );
+
+  // TODO: DEPRECATED to be deleted in future releases
+  const outstandingRedeems = (await OutstandingRedeemService.query(context, {
+    tokenId,
+    assetId: payoutAssetId,
+    pendingAmount_not: 0n,
+  })) as OutstandingRedeemService[];
+  const outstandingRedeemSaves: Promise<OutstandingRedeemService>[] = [];
+  for (const outstandingRedeem of outstandingRedeems) {
+    const { pendingAmount } = outstandingRedeem.read();
+    const approvedShareAmount = computeApprovedUserAmount(
+      pendingAmount!,
+      approvedPercentage
+    );
+    outstandingRedeem.approveRedeem(approvedShareAmount, epochIndex, event);
+    outstandingRedeemSaves.push(outstandingRedeem.clear(event));
+  }
+  await Promise.all(outstandingRedeemSaves);
 });
 
 multiMapper("shareClassManager:IssueShares", async ({ event, context }) => {
@@ -404,46 +532,21 @@ multiMapper("shareClassManager:IssueShares", async ({ event, context }) => {
   if (!tokenDecimals)
     throw new Error(`Token decimals not found for id ${tokenId}`);
 
-  const outstandingInvests = (await OutstandingInvestService.query(context, {
+  const investOrders = (await InvestOrderService.query(context, {
     tokenId,
     assetId: depositAssetId,
-    approvedAmount_not: 0n,
-    approvedIndex: epochIndex,
-  })) as OutstandingInvestService[];
+    index: epochIndex,
+    approvedAt_not: null,
+    ...timestamper("issued", null),
+  })) as InvestOrderService[];
 
-  const outstandingInvestSaves: Promise<OutstandingInvestService>[] = [];
   const investOrderSaves: Promise<InvestOrderService>[] = [];
-  for (const outstandingInvest of outstandingInvests) {
+  for (const investOrder of investOrders) {
     serviceLog(
-      `Processing shareClassManager:IssueShares for outstanding invest with index ${epochIndex}`,
-      expandInlineObject(outstandingInvest.read())
+      `Processing shareClassManager:IssueShares for outstanding invest with epochIndex ${epochIndex}`,
+      expandInlineObject(investOrder.read())
     );
-    const {
-      poolId,
-      tokenId,
-      assetId,
-      account,
-      approvedAmount,
-      approvedAt,
-      approvedAtBlock,
-      approvedAtTxHash,
-      approvedIndex,
-    } = outstandingInvest.read();
-    const investOrder = (await InvestOrderService.getOrInit(
-      context,
-      {
-        poolId,
-        tokenId,
-        assetId,
-        index: approvedIndex!,
-        account,
-        approvedAssetsAmount: approvedAmount,
-        approvedAt,
-        approvedAtBlock,
-        approvedAtTxHash,
-      },
-      event
-    )) as InvestOrderService;
+
     investOrder.issueShares(
       navAssetPerShare,
       navPoolPerShare,
@@ -452,11 +555,9 @@ multiMapper("shareClassManager:IssueShares", async ({ event, context }) => {
       event
     );
     investOrderSaves.push(investOrder.save(event));
-    outstandingInvestSaves.push(outstandingInvest.clear(event));
   }
 
   await Promise.all(investOrderSaves);
-  await Promise.all(outstandingInvestSaves);
 });
 
 multiMapper("shareClassManager:RevokeShares", async ({ event, context }) => {
@@ -501,13 +602,6 @@ multiMapper("shareClassManager:RevokeShares", async ({ event, context }) => {
   );
   await epochRedeemOrder.save(event);
 
-  const outstandingRedeems = (await OutstandingRedeemService.query(context, {
-    tokenId,
-    assetId: payoutAssetId,
-    approvedAmount_not: 0n,
-    approvedIndex: epochIndex,
-  })) as OutstandingRedeemService[];
-
   const tokenDecimals = await TokenService.getDecimals(context, tokenId);
   if (!tokenDecimals)
     throw new Error(`Token decimals not found for id ${tokenId}`);
@@ -516,36 +610,21 @@ multiMapper("shareClassManager:RevokeShares", async ({ event, context }) => {
   if (!assetDecimals)
     throw new Error(`Asset decimals not found for id ${payoutAssetId}`);
 
-  const outstandingRedeemSaves: Promise<OutstandingRedeemService>[] = [];
+  const redeemOrders = (await RedeemOrderService.query(context, {
+    tokenId,
+    assetId: payoutAssetId,
+    index: epochIndex,
+    approvedAt_not: null,
+    ...timestamper("revoked", null),
+  })) as RedeemOrderService[];
+
   const redeemOrderSaves: Promise<RedeemOrderService>[] = [];
-  for (const outstandingRedeem of outstandingRedeems) {
+  for (const redeemOrder of redeemOrders) {
     serviceLog(
       `Processing ShareClassManager:RevokeShares for outstanding redeem with index ${epochIndex}`,
-      expandInlineObject(outstandingRedeem.read())
+      expandInlineObject(redeemOrder.read())
     );
-    const {
-      approvedIndex,
-      account,
-      approvedAt,
-      approvedAtBlock,
-      approvedAtTxHash,
-      approvedAmount,
-    } = outstandingRedeem.read();
-    const redeemOrder = (await RedeemOrderService.getOrInit(
-      context,
-      {
-        poolId,
-        tokenId,
-        assetId: payoutAssetId,
-        index: approvedIndex!,
-        account,
-        approvedAt,
-        approvedAtBlock,
-        approvedAtTxHash,
-        approvedSharesAmount: approvedAmount,
-      },
-      event
-    )) as RedeemOrderService;
+
     redeemOrder.revokeShares(
       navAssetPerShare,
       navPoolPerShare,
@@ -553,38 +632,40 @@ multiMapper("shareClassManager:RevokeShares", async ({ event, context }) => {
       assetDecimals,
       event
     );
-    outstandingRedeemSaves.push(outstandingRedeem.clear(event));
     redeemOrderSaves.push(redeemOrder.save(event));
   }
-  await Promise.all([...outstandingRedeemSaves, ...redeemOrderSaves]);
+  await Promise.all(redeemOrderSaves);
 });
 
-multiMapper("shareClassManager:UpdateShareClass", async ({ event, context }) => {
-  logEvent(event, context, "shareClassManager:UpdateShareClass");
-  const { poolId, scId: tokenId, navPoolPerShare: tokenPrice } = event.args;
+multiMapper(
+  "shareClassManager:UpdateShareClass",
+  async ({ event, context }) => {
+    logEvent(event, context, "shareClassManager:UpdateShareClass");
+    const { poolId, scId: tokenId, navPoolPerShare: tokenPrice } = event.args;
 
-  const centrifugeId = await BlockchainService.getCentrifugeId(context);
+    const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const token = (await TokenService.getOrInit(
-    context,
-    {
-      id: tokenId,
-      poolId,
-      centrifugeId,
-    },
-    event
-  )) as TokenService;
-  if (!token) throw new Error(`Token not found for id ${tokenId}`);
-  await token.setTokenPrice(tokenPrice);
-  await token.save(event);
-  await snapshotter(
-    context,
-    event,
-    "shareClassManagerV3:UpdateShareClass",
-    [token],
-    TokenSnapshot
-  );
-});
+    const token = (await TokenService.getOrInit(
+      context,
+      {
+        id: tokenId,
+        poolId,
+        centrifugeId,
+      },
+      event
+    )) as TokenService;
+    if (!token) throw new Error(`Token not found for id ${tokenId}`);
+    await token.setTokenPrice(tokenPrice);
+    await token.save(event);
+    await snapshotter(
+      context,
+      event,
+      "shareClassManagerV3:UpdateShareClass",
+      [token],
+      TokenSnapshot
+    );
+  }
+);
 
 multiMapper("shareClassManager:ClaimDeposit", async ({ event, context }) => {
   logEvent(event, context, "shareClassManager:ClaimDeposit");
@@ -596,7 +677,7 @@ multiMapper("shareClassManager:ClaimDeposit", async ({ event, context }) => {
     depositAssetId: assetId,
     //paymentAssetAmount,
     //pendingAssetAmount,
-    //claimedShareAmount,
+    claimedShareAmount,
     //issuedAt,
   } = event.args;
 
@@ -614,6 +695,8 @@ multiMapper("shareClassManager:ClaimDeposit", async ({ event, context }) => {
     assetId,
     account: investorAddress,
     index: epochIndex,
+    issuedAt_not: null,
+    ...timestamper("claimed", null),
   })) as InvestOrderService;
   if (!investOrder) {
     serviceError(
@@ -621,7 +704,7 @@ multiMapper("shareClassManager:ClaimDeposit", async ({ event, context }) => {
     );
     return;
   }
-  await investOrder.claimDeposit(event).save(event);
+  await investOrder.claimDeposit(claimedShareAmount, event).save(event);
 });
 
 multiMapper("shareClassManager:ClaimRedeem", async ({ event, context }) => {
@@ -634,7 +717,7 @@ multiMapper("shareClassManager:ClaimRedeem", async ({ event, context }) => {
     payoutAssetId: assetId,
     //paymentShareAmount,
     //pendingShareAmount,
-    //claimedAssetAmount,
+    claimedAssetAmount,
     //revokedAt,
   } = event.args;
 
@@ -652,6 +735,8 @@ multiMapper("shareClassManager:ClaimRedeem", async ({ event, context }) => {
     assetId,
     account: investorAddress,
     index: epochIndex,
+    revokedAt_not: null,
+    ...timestamper("claimed", null),
   })) as RedeemOrderService;
   if (!redeemOrder) {
     serviceError(
@@ -659,7 +744,7 @@ multiMapper("shareClassManager:ClaimRedeem", async ({ event, context }) => {
     );
     return;
   }
-  await redeemOrder.claimRedeem(event).save(event);
+  await redeemOrder.claimRedeem(claimedAssetAmount, event).save(event);
 });
 
 /**

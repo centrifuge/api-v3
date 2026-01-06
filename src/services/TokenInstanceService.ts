@@ -17,7 +17,7 @@ export class TokenInstanceService extends mixinCommonStatics(Service<typeof Toke
    * @param tokenId - The token identifier to assign
    * @returns The service instance for method chaining
    */
-  public setTokenId(tokenId: string) {
+  public setTokenId(tokenId: `0x${string}`) {
     serviceLog(`Setting tokenId for token ${this.data.centrifugeId}-${this.data.tokenId}`, tokenId);
     this.data.tokenId = tokenId;
     return this;

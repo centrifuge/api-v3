@@ -17,6 +17,51 @@ export class InvestOrderService extends mixinCommonStatics(
   "InvestOrder"
 ) {
   /**
+   * Fills an invest order with the given queued and pending assets amounts.
+   *
+   * @param queuedAssetsAmount - The amount of assets queued
+   * @param pendingAssetsAmount - The amount of assets pending
+   * @param event - The event containing the block information
+   * @returns The service instance for method chaining
+   */
+  public post(
+    postedAssetsAmount: bigint,
+    event: Extract<Event, { transaction: any }>
+  ) {
+    serviceLog(
+      `Filling investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with postedAssetsAmount: ${postedAssetsAmount}`
+    );
+    this.data = {
+      ...this.data,
+      postedAssetsAmount,
+      ...timestamper("posted", event),
+    };
+    return this;
+  }
+
+  /**
+   * Approves an invest order with the given approved assets amount.
+   *
+   * @param approvedAssetsAmount - The amount of assets approved
+   * @param event - The event containing the block information
+   * @returns The service instance for method chaining
+   */
+  public approve(
+    approvedAssetsAmount: bigint,
+    event: Extract<Event, { transaction: any }>
+  ) {
+    serviceLog(
+      `Approving investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with approvedAssetsAmount: ${approvedAssetsAmount}`
+    );
+    this.data = {
+      ...this.data,
+      approvedAssetsAmount,
+      ...timestamper("approved", event),
+    };
+    return this;
+  }
+
+  /**
    * Issues shares for an invest order and updates the issuance details.
    *
    * This method calculates the issued shares amount based on the approved assets amount
@@ -63,7 +108,10 @@ export class InvestOrderService extends mixinCommonStatics(
    * @param block - The event block containing timestamp and block number
    * @returns The service instance for method chaining
    */
-  public claimDeposit(event: Extract<Event, { transaction: any }>) {
+  public claimDeposit(
+    claimedSharesAmount: bigint,
+    event: Extract<Event, { transaction: any }>
+  ) {
     serviceLog(
       `Claiming deposit for investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} on block ${event.block.number} with timestamp ${event.block.timestamp}`
     );
@@ -71,8 +119,48 @@ export class InvestOrderService extends mixinCommonStatics(
 
     this.data = {
       ...this.data,
+      claimedSharesAmount,
       ...timestamper("claimed", event),
-    }
+    };
     return this;
+  }
+
+  /**
+   * Checks if the invest order has a vault deposit.
+   *
+   * @returns True if the invest order has a vault deposit, false otherwise
+   */
+  public hasVaultDeposit() {
+    return (
+      !!this.data.vaultDepositCentrifugeId &&
+      !!this.data.vaultDepositTxHash
+    );
+  }
+
+  /**
+   * Sets the vault deposit for the invest order.
+   *
+   * @param vaultDepositCentrifugeId - The centrifuge ID
+   * @param vaultDepositTxHash - The transaction hash
+   * @returns The service instance for method chaining
+   */
+  public setVaultDeposit(vaultDepositCentrifugeId: string, vaultDepositTxHash: `0x${string}`) {
+    this.data = {
+      ...this.data,
+      vaultDepositCentrifugeId,
+      vaultDepositTxHash,
+    };
+    return this;
+  }
+
+  /**
+   * Saves or clears the invest order.
+   *
+   * @param event - The event containing the block information
+   * @returns The service instance for method chaining
+   */
+  public saveOrClear(event: Event) {
+    if(this.data.postedAssetsAmount === 0n) return this.delete();
+    return this.save(event);
   }
 }

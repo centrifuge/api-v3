@@ -43,6 +43,20 @@ multiMapper("spoke:DeployVault", async ({ event, context }) => {
     args: [],
   });
 
+  const asset = await AssetService.get(context, {
+    address: assetAddress,
+    centrifugeId,
+  });
+  if (!asset) {
+    serviceError(`Asset not found for address ${assetAddress}`);
+    return;
+  }
+  const { id: assetId } = asset.read();
+  if (!assetId) {
+    serviceError(`Asset ID not found for address ${assetAddress}`);
+    return;
+  }
+
   const _vault = (await VaultService.upsert(
     context,
     {
@@ -50,13 +64,16 @@ multiMapper("spoke:DeployVault", async ({ event, context }) => {
       centrifugeId,
       poolId,
       tokenId,
+      assetId,
       assetAddress,
       factory: factory,
       kind: vaultKind,
       manager,
+      isActive: true,
     },
     event
-  )) as VaultService | null;
+  )) as VaultService;
+
 });
 
 multiMapper("spoke:RegisterAsset", async ({ event, context }) => {

@@ -24,7 +24,7 @@ export function timestamper<N extends string>(
 
 export function timestamper<N extends string>(
   fieldName: N,
-  event: null
+  event: null | undefined
 ): NulledTimestampObject<N>;
 /**
  * Creates a timestamp object with the given field name and event.
@@ -35,7 +35,7 @@ export function timestamper<N extends string>(
  */
 export function timestamper<N extends string>(
   fieldName: N,
-  event: Extract<Event, { transaction: any }> | null
+  event: Extract<Event, { transaction: any }> | null | undefined
 ): TimestampObject<N> | NulledTimestampObject<N> {
   if (event) {
     return {
@@ -45,9 +45,9 @@ export function timestamper<N extends string>(
     } as TimestampObject<N>;
   } else {
     return {
-      [fieldName + "At"]: null,
-      [fieldName + "AtBlock"]: null,
-      [fieldName + "AtTxHash"]: null,
+      [fieldName + "At"]: event,
+      [fieldName + "AtBlock"]: event,
+      [fieldName + "AtTxHash"]: event,
     } as NulledTimestampObject<N>;
   }
 }

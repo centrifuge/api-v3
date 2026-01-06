@@ -1,3 +1,4 @@
+// TODO: DEPRECATED to be deleted in future releases
 import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { OutstandingRedeem } from "ponder:schema";
@@ -42,13 +43,15 @@ export class OutstandingRedeemService extends mixinCommonStatics(
    */
   public processHubRedeemRequest(
     queuedUserShareAmount: bigint,
-    pendingUserShareAmount: bigint
+    pendingUserShareAmount: bigint,
+    epochIndex: number
   ) {
     serviceLog(
       `Processing hub redeem request for ${this.data.tokenId}-${this.data.assetId}-${this.data.account} with queuedUserShareAmount: ${queuedUserShareAmount} and pendingUserShareAmount: ${pendingUserShareAmount}`
     );
     this.data.queuedAmount = queuedUserShareAmount;
     this.data.pendingAmount = pendingUserShareAmount;
+    this.data.epochIndex = epochIndex;
     return this;
   }
 
@@ -68,7 +71,6 @@ export class OutstandingRedeemService extends mixinCommonStatics(
     this.data = {
       ...this.data,
       ...timestamper("approved", event),
-      approvedIndex: approvedIndex,
       approvedAmount: approvedUserShareAmount,
     }
     return this;
@@ -89,7 +91,6 @@ export class OutstandingRedeemService extends mixinCommonStatics(
       ...this.data,
       pendingAmount: this.data.pendingAmount! - this.data.approvedAmount!,
       approvedAmount: 0n,
-      approvedIndex: null,
     }
     if (this.data.queuedAmount! + this.data.pendingAmount! === 0n)
       return this.delete();
