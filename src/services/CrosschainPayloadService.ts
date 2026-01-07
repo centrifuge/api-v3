@@ -6,7 +6,6 @@ import { keccak256, encodePacked } from "viem";
 import { serviceError } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
 
-
 /**
  * Service class for managing CrosschainPayload entities.
  *
@@ -26,7 +25,10 @@ export class CrosschainPayloadService extends mixinCommonStatics(
    * @param payloadId - The ID of the payload to get from the queue
    * @returns The first payload from the queue or null if no payload is found
    */
-  static async getUndeliveredFromQueue(context: Context, payloadId: `0x${string}`) {
+  static async getUndeliveredFromQueue(
+    context: Context,
+    payloadId: `0x${string}`
+  ) {
     const crosschainMessages = (await this.query(context, {
       id: payloadId,
       status_not: "Delivered",
@@ -42,7 +44,10 @@ export class CrosschainPayloadService extends mixinCommonStatics(
    * @param payloadId - The ID of the payload to get from the queue
    * @returns The first payload from the queue or null if no payload is found
    */
-  static async getInTransitFromQueue(context: Context, payloadId: `0x${string}`) {
+  static async getInTransitFromQueue(
+    context: Context,
+    payloadId: `0x${string}`
+  ) {
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
       status: "InTransit",
@@ -58,13 +63,16 @@ export class CrosschainPayloadService extends mixinCommonStatics(
    * @param payloadId - The ID of the payload to get from the queue
    * @returns The first payload from the queue or null if no payload is found
    */
-  static async getUnderpaidFromQueue(context: Context, payloadId: `0x${string}`) {
+  static async getUnderpaidFromQueue(
+    context: Context,
+    payloadId: `0x${string}`
+  ) {
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
       status: "Underpaid",
       _sort: [{ field: "index", direction: "asc" }],
     })) as CrosschainPayloadService[];
-    
+
     if (crosschainPayloads.length === 0) return null;
     return crosschainPayloads.shift()!;
   }
@@ -75,7 +83,10 @@ export class CrosschainPayloadService extends mixinCommonStatics(
    * @param payloadId - The ID of the payload to get from the queue
    * @returns The first payload from the queue or null if no payload is found
    */
-  static async getDeliveredFromQueue(context: Context, payloadId: `0x${string}`) {
+  static async getDeliveredFromQueue(
+    context: Context,
+    payloadId: `0x${string}`
+  ) {
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
       status: "Delivered",
@@ -91,7 +102,10 @@ export class CrosschainPayloadService extends mixinCommonStatics(
    * @param payloadId - The ID of the payload to get from the queue
    * @returns The first payload from the queue or null if no payload is found
    */
-  static async getDeliveredOrPartiallyFailedFromQueue(context: Context, payloadId: `0x${string}`) {
+  static async getDeliveredOrPartiallyFailedFromQueue(
+    context: Context,
+    payloadId: `0x${string}`
+  ) {
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
       status_in: ["Delivered", "PartiallyFailed"],
@@ -107,7 +121,10 @@ export class CrosschainPayloadService extends mixinCommonStatics(
    * @param payloadId - The ID of the payload to get from the queue
    * @returns The first incomplete payload from the queue or null if no payload is found
    */
-  static async getIncompleteFromQueue(context: Context, payloadId: `0x${string}`) {
+  static async getIncompleteFromQueue(
+    context: Context,
+    payloadId: `0x${string}`
+  ) {
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
       status_not: "Completed",
@@ -119,7 +136,7 @@ export class CrosschainPayloadService extends mixinCommonStatics(
 
   /**
    * Sets the status of the CrosschainPayload entity.
-   * 
+   *
    * @param {CrosschainPayloadStatuses} status - The new status to set for the CrosschainPayload
    * @returns {CrosschainPayloadService} Returns the current instance for method chaining
    */
@@ -130,7 +147,7 @@ export class CrosschainPayloadService extends mixinCommonStatics(
 
   /**
    * Marks the CrosschainPayload as in transit.
-   * 
+   *
    * @returns {CrosschainPayloadService} Returns the current instance for method chaining
    */
   public InTransit() {
@@ -140,39 +157,42 @@ export class CrosschainPayloadService extends mixinCommonStatics(
 
   /**
    * Marks the CrosschainPayload as delivered.
-   * 
+   *
    * @param {Event} event - The event that marks the CrosschainPayload as delivered
    * @returns {CrosschainPayloadService} Returns the current instance for method chaining
    */
-  public delivered(event: Event<
-      | 'multiAdapterV3:HandlePayload' 
-      | 'multiAdapterV3:HandleProof'
-    >) {
+  public delivered(
+    event: Event<"multiAdapterV3:HandlePayload" | "multiAdapterV3:HandleProof">
+  ) {
     this.data = {
       ...this.data,
       status: "Delivered",
       ...timestamper("delivered", event),
-    }
+    };
     return this;
   }
 
   /**
    * Marks the CrosschainPayload as completed.
-   * 
+   *
    * @param {Event} event - The event that marks the CrosschainPayload as completed
    * @returns {CrosschainPayloadService} Returns the current instance for method chaining
    */
-  public completed(event: Event<
-      | 'multiAdapterV3:HandleProof'
-      | 'gatewayV3:ExecuteMessage'
-      | 'multiAdapterV3:HandlePayload'
-    >) {
+  public completed(
+    event: Event<
+      | "multiAdapterV3:HandleProof"
+      | "gatewayV3:ExecuteMessage"
+      | "gatewayV3_1:ExecuteMessage"
+      | "multiAdapterV3:HandlePayload"
+      | "multiAdapterV3_1:HandlePayload"
+    >
+  ) {
     this.data.status = "Completed";
     this.data = {
       ...this.data,
       status: "Completed",
       ...timestamper("completed", event),
-    }
+    };
     return this;
   }
 }
@@ -229,7 +249,11 @@ export function extractMessagesFromPayload(payload: `0x${string}`) {
  * @param payload - The hex-encoded payload bytes
  * @returns The keccak256 hash of the encoded parameters as the payload ID
  */
-export function getPayloadId(fromCentrifugeId: string, toCentrifugeId: string, payload: `0x${string}`) {
+export function getPayloadId(
+  fromCentrifugeId: string,
+  toCentrifugeId: string,
+  payload: `0x${string}`
+) {
   return keccak256(
     encodePacked(
       ["uint16", "uint16", "bytes32"],

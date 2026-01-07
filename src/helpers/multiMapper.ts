@@ -87,11 +87,11 @@ export function multiMapper<E extends UnversionedContractEvents>(
         break;
       // Map the exact event in the available versions
     }
+  }
 
-    if (registeredEvents.length > 0) {
-      process.stdout.write(
-        `${event} mapped to [${registeredEvents.join(", ")}]\n`
-      );
-    }
+  if (registeredEvents.length > 0) {
+    process.stdout.write(
+      `${event} mapped to [${registeredEvents.join(", ")}]\n`
+    );
   }
 }

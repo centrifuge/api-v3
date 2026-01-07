@@ -189,7 +189,7 @@ type SingleContractConfig<V extends RegistryVersions, N extends AbiName<V>> = {
       [K in NetworkNames<V>]: {
         address: `0x${string}`;
         startBlock: number;
-        endBlock?: number;
+        endBlock: number | undefined;
       };
     };
   };
@@ -304,7 +304,7 @@ export function decorateDeploymentContracts<
   registryVersion: V,
   selectedAbiNames: A,
   additionalMappings: AM,
-  endBlock?: number
+  endBlocks?: Record<NetworkNames<V>, number>
 ): ContractsWithAdditionalMappings<V, A[number], AM, keyof AM & string> {
   // Validate registry version exists
   const abis = Abis[registryVersion];
@@ -439,7 +439,7 @@ export function decorateDeploymentContracts<
         mappingName,
         {
           abi: resolvedAbi,
-          chain: getContractChain(registryVersion, m.factory.abi, endBlock, {
+          chain: getContractChain(registryVersion, m.factory.abi, endBlocks, {
             // Type assertion: event name is validated above to exist in factory ABI
             // Cast through unknown to satisfy type system while maintaining runtime safety
             event: m.factory.eventName,
@@ -468,7 +468,7 @@ export function decorateDeploymentContracts<
 function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
   registryVersion: V,
   abiName: N,
-  endBlock?: number,
+  endBlocks?: Record<NetworkNames<V>, number>,
   factoryConfig?: {
     event: AbiEventName<V, N>;
     parameter: AbiEventParameter<V, N, AbiEventName<V, N>>;
@@ -501,7 +501,7 @@ function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
       }
 
       const startBlock = chainValue.deployment.startBlock as number;
-
+      const endBlock = computeEndBlock(chainId, toContractCase(abiName), registryVersion);
       return [chainName, { address, startBlock, endBlock }];
     }
   );
@@ -514,4 +514,65 @@ function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
  */
 function toContractCase<S extends string>(name: S): Uncapitalized<S> {
   return (name.charAt(0).toLowerCase() + name.slice(1)) as Uncapitalized<S>;
+}
+
+/**
+ * Computes the end block for a given chain ID, contract name, and start version.
+ * The end block is the start block of the next version (after startVersion) minus 1.
+ * @param chainId - The chain ID (as a string key from networkNames).
+ * @param contractName - The name of the contract.
+ * @param startVersion - The start version.
+ * @returns The end block, or undefined if the contract is not found in the next registry version.
+ */
+function computeEndBlock(chainId: keyof typeof networkNames, contractName: string, startVersion: RegistryVersions): number | undefined {
+  // Get the versions array
+  const versions = Object.keys(fullRegistry) as RegistryVersions[];
+  
+  // Find the index of startVersion in the versions array
+  const startVersionIndex = versions.indexOf(startVersion);
+  
+  if (startVersionIndex === -1) {
+    throw new Error(`Start version "${startVersion}" not found in registry versions`);
+  }
+  
+  // Get the next version after startVersion
+  const endVersionIndex = startVersionIndex + 1;
+  
+  if (endVersionIndex >= versions.length) {
+    return undefined;
+  }
+  
+  const endVersion = versions[endVersionIndex];
+  if (!endVersion) {
+    return undefined;
+  }
+  
+  // Get the registry for the next version
+  const endRegistry = fullRegistry[endVersion] as Registry<RegistryVersions>;
+  
+  // Access the chain for the given chainId
+  // Use Object.entries to safely access chains
+  const chainEntries = Object.entries(endRegistry.chains) as Entries<typeof endRegistry.chains>;
+  const chainEntry = chainEntries.find(([id]) => id === chainId);
+  if (!chainEntry) {
+    return undefined;
+  }
+  const chain = chainEntry[1];
+  
+  // Check if the contract exists in this version
+  const contract = chain.contracts[contractName as keyof typeof chain.contracts];
+  if (!contract) {
+    return undefined;
+  }
+  
+  // Get the block number: use contract.blockNumber if available, otherwise fallback to chain.deployment.startBlock
+  const contractData = contract as { blockNumber?: number | null };
+  const startBlock = contractData.blockNumber ?? chain.deployment.startBlock;
+  
+  if (startBlock === null || startBlock === undefined) {
+    return undefined;
+  }
+  
+  // Return the end block (start block of next version minus 1)
+  return startBlock - 1;
 }

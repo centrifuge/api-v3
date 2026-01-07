@@ -145,6 +145,7 @@ export { chains };
 type BlocksConfig = {
   [N in NetworkNames<RegistryVersions> as `${N}`]: {
     startBlock: number;
+    endBlock: number | undefined;
     interval: number;
     chain: N;
   };

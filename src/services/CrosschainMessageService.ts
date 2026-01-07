@@ -212,7 +212,7 @@ export class CrosschainMessageService extends mixinCommonStatics(
    * @param {Event} event - The event that marks the CrosschainMessage as executed
    * @returns {CrosschainMessageService} Returns the current instance for method chaining
    */
-  public executed(event: Event<"gatewayV3:ExecuteMessage">) {
+  public executed(event: Event<"gatewayV3:ExecuteMessage" | "gatewayV3_1:ExecuteMessage">) {
     this.data = {
       ...this.data,
       ...timestamper("executed", event),

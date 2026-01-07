@@ -10,6 +10,7 @@ export * from "./CrosschainPayloadService";
 export * from "./DeploymentService";
 export * from "./EpochInvestOrderService";
 export * from "./EpochOutstandingInvestService";
+export * from "./EpochOutstandingRedeemService";
 export * from "./EpochRedeemOrderService";
 export * from "./EscrowService";
 export * from "./HoldingAccountService";
