@@ -14,6 +14,7 @@ import { AdapterService } from "../services/AdapterService";
 import { AdapterParticipationService } from "../services/AdapterParticipationService";
 import { AdapterWiringService } from "../services";
 import { timestamper } from "../helpers/timestamper";
+import { getVersionIndexForContract } from "../contracts";
 
 multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
   logEvent(event, context, "multiAdapterSendPayload");
@@ -26,9 +27,10 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
     // refund,
   } = event.args;
 
+  const versionIndex = getVersionIndexForContract("multiAdapter", context.chain.id, event.log.address);
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const messages = extractMessagesFromPayload(payloadData);
+  const messages = extractMessagesFromPayload(payloadData, versionIndex);
   const messageIds = messages.map((message) =>
     getMessageId(fromCentrifugeId, toCentrifugeId.toString(), message)
   );

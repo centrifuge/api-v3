@@ -576,3 +576,102 @@ function computeEndBlock(chainId: keyof typeof networkNames, contractName: strin
   // Return the end block (start block of next version minus 1)
   return startBlock - 1;
 }
+
+/**
+ * Finds the version index where a contract with the given name and address was deployed on a specific chain.
+ * Optimized for runtime efficiency by directly accessing the chain by chainId instead of iterating through all chains.
+ * @param contractName - The name of the contract (will be converted to contract case).
+ * @param chainId - The chain ID as a string (e.g., "1", "8453", "42161").
+ * @param contractAddress - The address of the contract (case-insensitive comparison).
+ * @returns The index of the version where the contract was found, or -1 if not found.
+ */
+export function getVersionIndexForContract(
+  contractName: string,
+  chainId: number,
+  contractAddress: `0x${string}`
+): number {
+  // Normalize the address to lowercase for comparison
+  const normalizedAddress = contractAddress.toLowerCase() as `0x${string}`;
+  
+  // Convert contract name to contract case (first letter lowercase)
+  const contractCaseName = toContractCase(contractName);
+  
+  // Get all versions
+  const versions = Object.keys(fullRegistry) as RegistryVersions[];
+  
+  // Iterate through each version
+  for (let i = 0; i < versions.length; i++) {
+    const version = versions[i];
+    if (!version) continue;
+    
+    const registry = fullRegistry[version] as Registry<RegistryVersions>;
+    
+    // Directly access the chain by chainId (more efficient than iterating all chains)
+    const chain = registry.chains[chainId.toString() as keyof typeof registry.chains];
+    
+    if (!chain) {
+      // Chain doesn't exist in this version, skip to next version
+      continue;
+    }
+    
+    // Check if the contract exists in this chain
+    const contract = chain.contracts[contractCaseName as keyof typeof chain.contracts];
+    
+    if (contract) {
+      // Compare addresses (case-insensitive)
+      const contractAddr = contract.address as `0x${string}`;
+      if (contractAddr.toLowerCase() === normalizedAddress) {
+        return i;
+      }
+    }
+  }
+  
+  // Contract not found in any version
+  return -1;
+}
+
+/**
+ * Finds the contract name for a given chainId and address across all versions.
+ * Returns the first matching contract name found.
+ * Optimized for runtime efficiency by directly accessing the chain by chainId.
+ * @param chainId - The chain ID as a number (e.g., 1, 8453, 42161).
+ * @param contractAddress - The address of the contract (case-insensitive comparison).
+ * @returns The contract name (in contract case, e.g., "gateway") of the first matching contract, or null if not found.
+ */
+export function getContractNameForAddress(
+  chainId: number,
+  contractAddress: `0x${string}`
+): string | null {
+  // Normalize the address to lowercase for comparison
+  const normalizedAddress = contractAddress.toLowerCase() as `0x${string}`;
+  
+  // Get all versions
+  const versions = Object.keys(fullRegistry) as RegistryVersions[];
+  
+  // Iterate through each version
+  for (const version of versions) {
+    
+    const registry = fullRegistry[version] as Registry<RegistryVersions>;
+    
+    // Directly access the chain by chainId (more efficient than iterating all chains)
+    const chain = registry.chains[chainId.toString() as keyof typeof registry.chains];
+    
+    
+    // Iterate through all contracts in this chain
+    const contractEntries = Object.entries(chain.contracts) as Entries<typeof chain.contracts>;
+    
+    for (const [contractName, contract] of contractEntries) {
+      if (!contract) continue;
+      
+      // Compare addresses (case-insensitive)
+      const contractAddr = contract.address as `0x${string}`;
+      if (contractAddr.toLowerCase() === normalizedAddress) {
+        // Return the first matching contract name (in contract case)
+        return contractName;
+      }
+    }
+  }
+  
+  // Contract not found in any version
+  return null;
+}

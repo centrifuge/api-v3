@@ -25,20 +25,18 @@ multiMapper('balanceSheet:NoteDeposit', async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const assetQuery = (await AssetService.query(context, {
+  const asset = (await AssetService.get(context, {
     address: assetAddress,
-  })) as AssetService[];
-  const asset = assetQuery.pop();
+    centrifugeId,
+  })) as AssetService | null;
   if (!asset) throw new Error("Asset not found");
   const { id: assetId } = asset.read();
 
-  const escrowQuery = await EscrowService.query(context, {
+  const escrow = await EscrowService.get(context, {
     poolId,
     centrifugeId,
-  });
-  if (escrowQuery.length !== 1)
-    throw new Error("Expecting 1 escrow for pool and centrifugeId");
-  const escrow = escrowQuery.pop();
+  }) as EscrowService | null;
+  if (!escrow) throw new Error("Escrow not found");
   const { address: escrowAddress } = escrow!.read();
 
   const holdingEscrow = (await HoldingEscrowService.getOrInit(
@@ -75,21 +73,18 @@ multiMapper("balanceSheet:Withdraw", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const assetQuery = (await AssetService.query(context, {
+  const asset = (await AssetService.get(context, {
     address: assetAddress,
-  })) as AssetService[];
-
-  const asset = assetQuery.pop();
+    centrifugeId,
+  })) as AssetService | null;
   if (!asset) throw new Error("Asset not found");
   const { id: assetId } = asset.read();
 
-  const escrowQuery = await EscrowService.query(context, {
+  const escrow = await EscrowService.get(context, {
     poolId,
     centrifugeId,
-  });
-  if (escrowQuery.length !== 1)
-    throw new Error("Expecting 1 escrow for pool and centrifugeId");
-  const escrow = escrowQuery.pop();
+  }) as EscrowService | null;
+  if (!escrow) throw new Error("Escrow not found");
   const { address: escrowAddress } = escrow!.read();
 
   const holdingEscrow = (await HoldingEscrowService.getOrInit(

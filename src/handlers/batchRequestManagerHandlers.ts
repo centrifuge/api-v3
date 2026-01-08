@@ -238,7 +238,7 @@ export async function updateRedeemRequest({
     .save(event);
 }
 
-multiMapper("shareClassManager:ApproveDeposits", approveDeposits);
+multiMapper("batchRequestManager:ApproveDeposits", approveDeposits);
 export async function approveDeposits({
   event,
   context,
@@ -341,7 +341,7 @@ export async function approveDeposits({
   await Promise.all(outstandingInvestSaves);
 }
 
-multiMapper("shareClassManager:ApproveRedeems", approveRedeems);
+multiMapper("batchRequestManager:ApproveRedeems", approveRedeems);
 export async function approveRedeems({
   event,
   context,
@@ -442,7 +442,7 @@ export async function approveRedeems({
   await Promise.all(outstandingRedeemSaves);
 }
 
-multiMapper("shareClassManager:IssueShares", issueShares);
+multiMapper("batchRequestManager:IssueShares", issueShares);
 export async function issueShares({
   event,
   context,
@@ -523,7 +523,7 @@ export async function issueShares({
   await Promise.all(investOrderSaves);
 }
 
-multiMapper("shareClassManager:RevokeShares", revokeShares);
+multiMapper("batchRequestManager:RevokeShares", revokeShares);
 export async function revokeShares({
   event,
   context,
@@ -609,7 +609,7 @@ export async function revokeShares({
   await Promise.all(redeemOrderSaves);
 };
 
-multiMapper("shareClassManager:ClaimDeposit", claimDeposit);
+multiMapper("batchRequestManager:ClaimDeposit", claimDeposit);
 export async function claimDeposit({
   event,
   context,
@@ -655,7 +655,7 @@ export async function claimDeposit({
   await investOrder.claimDeposit(claimedShareAmount, event).save(event);
 };
 
-multiMapper("shareClassManager:ClaimRedeem", claimRedeem);
+multiMapper("batchRequestManager:ClaimRedeem", claimRedeem);
 export async function claimRedeem({
   event,
   context,

@@ -79,12 +79,13 @@ export const contractsV3_1 = decorateDeploymentContracts(
     "PoolEscrowFactory",
     "ShareClassManager",
     "Spoke",
+    "VaultRegistry",
   ] as const,
   {
     vaultV3_1: {
       abi: ["SyncDepositVault", "AsyncVault"],
       factory: {
-        abi: "Spoke",
+        abi: "VaultRegistry",
         eventName: "DeployVault",
         eventParameter: "vault",
       },
