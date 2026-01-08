@@ -163,6 +163,7 @@ const TokenColumns = (t: PgColumnsBuilders) => ({
   // Metrics fields
   totalIssuance: t.bigint().default(0n),
   tokenPrice: t.bigint().default(0n),
+  tokenPriceComputedAt: t.timestamp(),
   ...defaultColumns(t),
 });
 export const Token = onchainTable("token", TokenColumns, (t) => ({
@@ -1403,7 +1404,7 @@ export const PoolSnapshotRelations = relations(PoolSnapshot, ({ one }) => ({
 
 export const TokenSnapshot = onchainTable(
   "token_snapshot",
-  snapshotColumns(TokenColumns, ["id", "tokenPrice", "totalIssuance"] as const),
+  snapshotColumns(TokenColumns, ["id", "tokenPrice", "totalIssuance", "tokenPriceComputedAt"] as const),
   (t) => ({
     id: primaryKey({ columns: [t.id, t.blockNumber, t.trigger] }),
   })

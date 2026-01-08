@@ -82,9 +82,10 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
    * @param {bigint} price - The token price in wei
    * @returns {TokenService} The current TokenService instance for method chaining
    */
-  public setTokenPrice(price: bigint) {
-    serviceLog(`Setting price for shareClass ${this.data.id} to ${price}`);
+  public setTokenPrice(price: bigint, computedAt?: Date) {
+    serviceLog(`Setting price for shareClass ${this.data.id} to ${price} with computedAt ${computedAt}`);
     this.data.tokenPrice = price;
+    this.data.tokenPriceComputedAt = computedAt ?? null;
     return this;
   }
 
