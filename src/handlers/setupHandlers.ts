@@ -1,5 +1,6 @@
 import { ponder } from "ponder:registry";
-import { RegistryChains } from "../chains";
+import { RegistryChains, type RegistryVersions, type Registry } from "../chains";
+import registries from "../../generated";
 import { AdapterService,
 DeploymentService, WhitelistedInvestorService } from "../services";
 import {
@@ -42,11 +43,27 @@ ponder.on("hubRegistryV3:setup", async ({ context }) => {
     (chain) => chain.network.chainId === chainId
   );
   if (!currentChain) throw new Error(`Chain ${chainId} not found in registry`);
-  const contracts = Object.fromEntries(
-    Object.entries(currentChain.contracts).map(
-      ([key, value]) => [key, value.address] as [string, `0x${string}`]
-    )
-  );
+  
+  // Collect contracts from all registry versions, keeping the latest version for each contract name
+  const versions = Object.keys(registries) as RegistryVersions[];
+  const contractsMap = new Map<string, `0x${string}`>();
+  
+  // Iterate through all versions (later versions will overwrite earlier ones for same contract names)
+  for (const version of versions) {
+    const registry = registries[version] as Registry<RegistryVersions>;
+    const chain = registry.chains[chainId.toString() as keyof typeof registry.chains];
+    if (chain && chain.contracts) {
+      const contractKeys = Object.keys(chain.contracts) as Array<keyof typeof chain.contracts>;
+      for (const contractName of contractKeys) {
+        const contract = chain.contracts[contractName];
+        if (contract && 'address' in contract) {
+          contractsMap.set(contractName as string, contract.address as `0x${string}`);
+        }
+      }
+    }
+  }
+  
+  const contracts = Object.fromEntries(contractsMap);
   const _deployment = await DeploymentService.insert(
     context,
     {

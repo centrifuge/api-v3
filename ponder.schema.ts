@@ -56,7 +56,7 @@ export const BlockchainRelations = relations(Blockchain, ({ many }) => ({
 
 const currentContractFields = (t: PgColumnsBuilders) =>
   Object.fromEntries(
-    getContractNames("v3").map((contract) => [contract, t.hex()])
+    getContractNames().map((contract) => [contract, t.hex()])
   );
 
 const DeploymentColumns = (t: PgColumnsBuilders) => ({
