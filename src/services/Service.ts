@@ -5,6 +5,7 @@ import {
   and,
   count,
   isNull,
+  isNotNull,
   not,
   asc,
   desc,
@@ -13,18 +14,29 @@ import {
   gte,
 } from "drizzle-orm";
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
-import { expandInlineObject, serviceLog, serviceError } from "../helpers/logger";
+import {
+  expandInlineObject,
+  serviceLog,
+  serviceError,
+} from "../helpers/logger";
 import { toCamelCase } from "drizzle-orm/casing";
 import { ReadonlyDrizzle } from "ponder";
+import { timestamper } from "../helpers/timestamper";
 
 /** Type alias for PostgreSQL table with columns */
 type OnchainTable = PgTableWithColumns<any>;
 export type ReadOnlyContext = { db: ReadonlyDrizzle<typeof schema> };
 
-
-type CreationProps<T extends OnchainTable> = { [K in keyof T]: K extends `${string}CreatedAt` ? T[K] : never }[keyof T];
-type UpdateProps<T extends OnchainTable> = { [K in keyof T]: K extends `${string}UpdatedAt` ? T[K] : never }[keyof T];
-type DataWithoutDefaults<T extends OnchainTable> = Omit<T["$inferInsert"], keyof (CreationProps<T> & UpdateProps<T>)>;
+type CreationProps<T extends OnchainTable> = {
+  [K in keyof T]: K extends `${string}CreatedAt` ? T[K] : never;
+}[keyof T];
+type UpdateProps<T extends OnchainTable> = {
+  [K in keyof T]: K extends `${string}UpdatedAt` ? T[K] : never;
+}[keyof T];
+type DataWithoutDefaults<T extends OnchainTable> = Omit<
+  T["$inferInsert"],
+  keyof (CreationProps<T> & UpdateProps<T>)
+>;
 
 /**
  * Generic service class for managing database operations on PostgreSQL tables.
@@ -83,19 +95,25 @@ export class Service<T extends OnchainTable> {
    */
   public async save(event: Event | null) {
     if (!("insert" in this.db)) throw new Error(`Read only database`);
-    const dataWithDefaults = event ? updateDefaults(this.table, this.data, event) : {...this.data};
+    const dataWithDefaults = event
+      ? updateDefaults(this.table, this.data, event)
+      : { ...this.data };
     serviceLog(`Saving ${this.name}`, expandInlineObject(dataWithDefaults));
-    const pkFilter = primaryKeyFilter(this.table, this.data);
-    const update =
+    const upsert =
       (
         await this.db
-          .update(this.table)
-          .set(dataWithDefaults)
-          .where(pkFilter)
+          .insert(this.table)
+          .values(dataWithDefaults)
+          .onConflictDoUpdate({
+            target: getPrimaryKeysFieldNames(this.table).map(
+              (key) => this.table[key]
+            ),
+            set: { ...dataWithDefaults, ...timestamper("created", undefined) },
+          })
           .returning()
       ).pop() ?? null;
-    if (!update) throw new Error(`Failed to update ${this.name}`);
-    this.data = update;
+    if (!upsert) throw new Error(`Failed to save ${this.name}`);
+    this.data = upsert;
     return this;
   }
 
@@ -154,7 +172,9 @@ export function mixinCommonStatics<
       data: DataWithoutDefaults<T> | T["$inferInsert"],
       event: Event | null
     ) {
-      const dataWithDefaults = event ? insertDefaults(table, data, event) : {...data};
+      const dataWithDefaults = event
+        ? insertDefaults(table, data, event)
+        : { ...data };
       const [insert] = await context.db.sql
         .insert(table as OnchainTable)
         .values(dataWithDefaults)
@@ -175,19 +195,14 @@ export function mixinCommonStatics<
      */
     static async get(
       context: Context | ReadOnlyContext,
-      query: Partial<NonNullable<T["$inferInsert"]>>
+      query: Partial<ExtendedQuery<T["$inferInsert"]>>
     ) {
       const db = "sql" in context.db ? context.db.sql : context.db;
       serviceLog("get", name, expandInlineObject(query));
       const [entity] = await db
         .select()
         .from(table as OnchainTable)
-        .where(
-          queryToFilter(
-            table,
-            query as Partial<ExtendedQuery<T["$inferInsert"]>>
-          )
-        )
+        .where(queryToFilter(table, query))
         .limit(1);
       if (!entity) return null;
       serviceLog(`Found ${name}: `, expandInlineObject(entity));
@@ -199,6 +214,8 @@ export function mixinCommonStatics<
      *
      * @param context - Database and client context
      * @param query - Query criteria to find or create the record
+     * @param onInit - Function to execute when the record is not found
+     * @param deferInsert - Whether to defer the insert operation for further processing of the entity
      * @returns Promise that resolves to a service instance
      * @throws {Error} When the create operation fails
      */
@@ -206,21 +223,26 @@ export function mixinCommonStatics<
       context: Context,
       query: DataWithoutDefaults<T>,
       event: Event,
-      onInit?: (entity: T["$inferSelect"]) => Promise<void>
+      onInit?: (entity: T["$inferSelect"]) => Promise<void>,
+      deferInsert?: boolean
     ): Promise<InstanceType<C>>;
     static async getOrInit(
       context: Context,
       query: T["$inferInsert"],
       event: null,
-      onInit?: (entity: T["$inferSelect"]) => Promise<void>
+      onInit?: (entity: T["$inferSelect"]) => Promise<void>,
+      deferInsert?: boolean
     ): Promise<InstanceType<C>>;
     static async getOrInit(
       context: Context,
       query: DataWithoutDefaults<T> | T["$inferInsert"],
       event: Event | null,
-      onInit?: (entity: T["$inferSelect"]) => Promise<void>
+      onInit?: (entity: T["$inferSelect"]) => Promise<void>,
+      deferInsert?: boolean
     ): Promise<InstanceType<C>> {
-      const dataWithDefaults = event ? insertDefaults(table, query, event) : {...query};
+      const dataWithDefaults = event
+        ? insertDefaults(table, query, event)
+        : { ...query };
       serviceLog("getOrInit", name, expandInlineObject(dataWithDefaults));
       let entity = await context.db.find(table as any, dataWithDefaults);
       serviceLog(`Found ${name}: `, expandInlineObject(entity));
@@ -229,7 +251,19 @@ export function mixinCommonStatics<
           serviceLog(`Executing onInit for ${name}`);
           await onInit(dataWithDefaults);
         }
-        serviceLog(`Initialising ${name}: `, expandInlineObject(dataWithDefaults));
+        if (deferInsert) {
+          serviceLog(`Deferring insert for ${name}`);
+          return new this(
+            table,
+            name,
+            context,
+            dataWithDefaults
+          ) as InstanceType<C>;
+        }
+        serviceLog(
+          `Initialising ${name}: `,
+          expandInlineObject(dataWithDefaults)
+        );
         const [insert] = await context.db.sql
           .insert(table as OnchainTable)
           .values(dataWithDefaults)
@@ -267,14 +301,21 @@ export function mixinCommonStatics<
       query: DataWithoutDefaults<T> | T["$inferInsert"],
       event: Event | null
     ): Promise<InstanceType<C> | null> {
-      const dataWithDefaults = event ? insertDefaults(table, query, event) : {...query};
+      const dataWithDefaults = event
+        ? insertDefaults(table, query, event)
+        : { ...query };
       serviceLog("upsert", name, expandInlineObject(dataWithDefaults));
       const [entity] = await context.db.sql
         .insert(table as OnchainTable)
         .values(dataWithDefaults)
         .onConflictDoUpdate({
           target: getPrimaryKeysFieldNames(table).map((key) => table[key]),
-          set: { ...dataWithDefaults, createdAt: undefined, createdAtBlock: undefined, createdAtTxHash: undefined },
+          set: {
+            ...dataWithDefaults,
+            createdAt: undefined,
+            createdAtBlock: undefined,
+            createdAtTxHash: undefined,
+          },
         })
         .returning();
 
@@ -458,7 +499,11 @@ function queryToFilter<T extends OnchainTable>(
     ([key]) => !key.startsWith("_")
   );
   const queries = queryEntries.map(([column, value]) => {
-    if (value === null) return isNull(table[column as keyof T]);
+    if (value === null) {
+      if (column.endsWith("_not"))
+        return isNotNull(table[column.slice(0, -4) as keyof T]);
+      return isNull(table[column as keyof T]);
+    }
     if (column.endsWith("_not"))
       return not(eq(table[column.slice(0, -4) as keyof T], value));
     if (column.endsWith("_in"))
@@ -489,15 +534,21 @@ function insertDefaults<T extends OnchainTable>(
   data: DataWithoutDefaults<T>,
   event: Event
 ): T["$inferInsert"] {
-  const dataWithDefaults = { ...data }  as T["$inferInsert"] & CreationProps<T> & UpdateProps<T>;
+  const dataWithDefaults = { ...data } as T["$inferInsert"] &
+    CreationProps<T> &
+    UpdateProps<T>;
   if ("createdAt" in table)
     dataWithDefaults.createdAt = new Date(Number(event.block.timestamp) * 1000);
-  if ("createdAtBlock" in table) dataWithDefaults.createdAtBlock = Number(event.block.number);
-  if ("createdAtTxHash" in table && "transaction" in event) dataWithDefaults.createdAtTxHash = event.transaction.hash as `0x${string}`;
+  if ("createdAtBlock" in table)
+    dataWithDefaults.createdAtBlock = Number(event.block.number);
+  if ("createdAtTxHash" in table && "transaction" in event)
+    dataWithDefaults.createdAtTxHash = event.transaction.hash as `0x${string}`;
   if ("updatedAt" in table)
     dataWithDefaults.updatedAt = new Date(Number(event.block.timestamp) * 1000);
-  if ("updatedAtBlock" in table) dataWithDefaults.updatedAtBlock = Number(event.block.number);
-  if ("updatedAtTxHash" in table && "transaction" in event) dataWithDefaults.updatedAtTxHash = event.transaction.hash as `0x${string}`;
+  if ("updatedAtBlock" in table)
+    dataWithDefaults.updatedAtBlock = Number(event.block.number);
+  if ("updatedAtTxHash" in table && "transaction" in event)
+    dataWithDefaults.updatedAtTxHash = event.transaction.hash as `0x${string}`;
   return dataWithDefaults;
 }
 
@@ -515,8 +566,11 @@ function updateDefaults<T extends OnchainTable>(
   event: Event
 ): T["$inferSelect"] & UpdateProps<T> {
   const dataWithDefaults = { ...data } as T["$inferSelect"] & UpdateProps<T>;
-  if ("updatedAt" in table) dataWithDefaults.updatedAt = new Date(Number(event.block.timestamp) * 1000);
-  if ("updatedAtBlock" in table) dataWithDefaults.updatedAtBlock = Number(event.block.number);
-  if ("updatedAtTxHash" in table && "transaction" in event) dataWithDefaults.updatedAtTxHash = event.transaction.hash as `0x${string}`;
+  if ("updatedAt" in table)
+    dataWithDefaults.updatedAt = new Date(Number(event.block.timestamp) * 1000);
+  if ("updatedAtBlock" in table)
+    dataWithDefaults.updatedAtBlock = Number(event.block.number);
+  if ("updatedAtTxHash" in table && "transaction" in event)
+    dataWithDefaults.updatedAtTxHash = event.transaction.hash as `0x${string}`;
   return dataWithDefaults;
 }

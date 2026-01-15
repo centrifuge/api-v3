@@ -20,7 +20,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
    * @param tokenId - The id of the token.
    * @returns The decimals of the token.
    */
-  static async getDecimals(context: Context, tokenId: string) {
+  static async getDecimals(context: Context, tokenId: `0x${string}`) {
     const token = (await this.get(context, { id: tokenId })) as TokenService;
     if (!token) return undefined;
     const { decimals } = token.read();
@@ -82,9 +82,10 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
    * @param {bigint} price - The token price in wei
    * @returns {TokenService} The current TokenService instance for method chaining
    */
-  public setTokenPrice(price: bigint) {
-    serviceLog(`Setting price for shareClass ${this.data.id} to ${price}`);
+  public setTokenPrice(price: bigint, computedAt?: Date) {
+    serviceLog(`Setting price for shareClass ${this.data.id} to ${price} with computedAt ${computedAt}`);
     this.data.tokenPrice = price;
+    this.data.tokenPriceComputedAt = computedAt ?? null;
     return this;
   }
 

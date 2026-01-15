@@ -189,7 +189,7 @@ type SingleContractConfig<V extends RegistryVersions, N extends AbiName<V>> = {
       [K in NetworkNames<V>]: {
         address: `0x${string}`;
         startBlock: number;
-        endBlock?: number;
+        endBlock: number | undefined;
       };
     };
   };
@@ -304,7 +304,7 @@ export function decorateDeploymentContracts<
   registryVersion: V,
   selectedAbiNames: A,
   additionalMappings: AM,
-  endBlock?: number
+  endBlocks?: Record<NetworkNames<V>, number>
 ): ContractsWithAdditionalMappings<V, A[number], AM, keyof AM & string> {
   // Validate registry version exists
   const abis = Abis[registryVersion];
@@ -439,7 +439,7 @@ export function decorateDeploymentContracts<
         mappingName,
         {
           abi: resolvedAbi,
-          chain: getContractChain(registryVersion, m.factory.abi, endBlock, {
+          chain: getContractChain(registryVersion, m.factory.abi, endBlocks, {
             // Type assertion: event name is validated above to exist in factory ABI
             // Cast through unknown to satisfy type system while maintaining runtime safety
             event: m.factory.eventName,
@@ -468,7 +468,7 @@ export function decorateDeploymentContracts<
 function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
   registryVersion: V,
   abiName: N,
-  endBlock?: number,
+  endBlocks?: Record<NetworkNames<V>, number>,
   factoryConfig?: {
     event: AbiEventName<V, N>;
     parameter: AbiEventParameter<V, N, AbiEventName<V, N>>;
@@ -501,7 +501,7 @@ function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
       }
 
       const startBlock = chainValue.deployment.startBlock as number;
-
+      const endBlock = computeEndBlock(chainId, toContractCase(abiName), registryVersion);
       return [chainName, { address, startBlock, endBlock }];
     }
   );
@@ -514,4 +514,164 @@ function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
  */
 function toContractCase<S extends string>(name: S): Uncapitalized<S> {
   return (name.charAt(0).toLowerCase() + name.slice(1)) as Uncapitalized<S>;
+}
+
+/**
+ * Computes the end block for a given chain ID, contract name, and start version.
+ * The end block is the start block of the next version (after startVersion) minus 1.
+ * @param chainId - The chain ID (as a string key from networkNames).
+ * @param contractName - The name of the contract.
+ * @param startVersion - The start version.
+ * @returns The end block, or undefined if the contract is not found in the next registry version.
+ */
+function computeEndBlock(chainId: keyof typeof networkNames, contractName: string, startVersion: RegistryVersions): number | undefined {
+  // Get the versions array
+  const versions = Object.keys(fullRegistry) as RegistryVersions[];
+  
+  // Find the index of startVersion in the versions array
+  const startVersionIndex = versions.indexOf(startVersion);
+  
+  if (startVersionIndex === -1) {
+    throw new Error(`Start version "${startVersion}" not found in registry versions`);
+  }
+  
+  // Get the next version after startVersion
+  const endVersionIndex = startVersionIndex + 1;
+  
+  if (endVersionIndex >= versions.length) {
+    return undefined;
+  }
+  
+  const endVersion = versions[endVersionIndex];
+  if (!endVersion) {
+    return undefined;
+  }
+  
+  // Get the registry for the next version
+  const endRegistry = fullRegistry[endVersion] as Registry<RegistryVersions>;
+  
+  // Access the chain for the given chainId
+  // Use Object.entries to safely access chains
+  const chainEntries = Object.entries(endRegistry.chains) as Entries<typeof endRegistry.chains>;
+  const chainEntry = chainEntries.find(([id]) => id === chainId);
+  if (!chainEntry) {
+    return undefined;
+  }
+  const chain = chainEntry[1];
+  
+  // Check if the contract exists in this version
+  const contract = chain.contracts[contractName as keyof typeof chain.contracts];
+  if (!contract) {
+    return undefined;
+  }
+  
+  // Get the block number: use contract.blockNumber if available, otherwise fallback to chain.deployment.startBlock
+  const contractData = contract as { blockNumber?: number | null };
+  const startBlock = contractData.blockNumber ?? chain.deployment.startBlock;
+  
+  if (startBlock === null || startBlock === undefined) {
+    return undefined;
+  }
+  
+  // Return the end block (start block of next version minus 1)
+  return startBlock - 1;
+}
+
+/**
+ * Finds the version index where a contract with the given name and address was deployed on a specific chain.
+ * Optimized for runtime efficiency by directly accessing the chain by chainId instead of iterating through all chains.
+ * @param contractName - The name of the contract (will be converted to contract case).
+ * @param chainId - The chain ID as a string (e.g., "1", "8453", "42161").
+ * @param contractAddress - The address of the contract (case-insensitive comparison).
+ * @returns The index of the version where the contract was found, or -1 if not found.
+ */
+export function getVersionIndexForContract(
+  contractName: string,
+  chainId: number,
+  contractAddress: `0x${string}`
+): number {
+  // Normalize the address to lowercase for comparison
+  const normalizedAddress = contractAddress.toLowerCase() as `0x${string}`;
+  
+  // Convert contract name to contract case (first letter lowercase)
+  const contractCaseName = toContractCase(contractName);
+  
+  // Get all versions
+  const versions = Object.keys(fullRegistry) as RegistryVersions[];
+  
+  // Iterate through each version
+  for (let i = 0; i < versions.length; i++) {
+    const version = versions[i];
+    if (!version) continue;
+    
+    const registry = fullRegistry[version] as Registry<RegistryVersions>;
+    
+    // Directly access the chain by chainId (more efficient than iterating all chains)
+    const chain = registry.chains[chainId.toString() as keyof typeof registry.chains];
+    
+    if (!chain) {
+      // Chain doesn't exist in this version, skip to next version
+      continue;
+    }
+    
+    // Check if the contract exists in this chain
+    const contract = chain.contracts[contractCaseName as keyof typeof chain.contracts];
+    
+    if (contract) {
+      // Compare addresses (case-insensitive)
+      const contractAddr = contract.address as `0x${string}`;
+      if (contractAddr.toLowerCase() === normalizedAddress) {
+        return i;
+      }
+    }
+  }
+  
+  // Contract not found in any version
+  return -1;
+}
+
+/**
+ * Finds the contract name for a given chainId and address across all versions.
+ * Returns the first matching contract name found.
+ * Optimized for runtime efficiency by directly accessing the chain by chainId.
+ * @param chainId - The chain ID as a number (e.g., 1, 8453, 42161).
+ * @param contractAddress - The address of the contract (case-insensitive comparison).
+ * @returns The contract name (in contract case, e.g., "gateway") of the first matching contract, or null if not found.
+ */
+export function getContractNameForAddress(
+  chainId: number,
+  contractAddress: `0x${string}`
+): string | null {
+  // Normalize the address to lowercase for comparison
+  const normalizedAddress = contractAddress.toLowerCase() as `0x${string}`;
+  
+  // Get all versions
+  const versions = Object.keys(fullRegistry) as RegistryVersions[];
+  
+  // Iterate through each version
+  for (const version of versions) {
+    
+    const registry = fullRegistry[version] as Registry<RegistryVersions>;
+    
+    // Directly access the chain by chainId (more efficient than iterating all chains)
+    const chain = registry.chains[chainId.toString() as keyof typeof registry.chains];
+    
+    
+    // Iterate through all contracts in this chain
+    const contractEntries = Object.entries(chain.contracts) as Entries<typeof chain.contracts>;
+    
+    for (const [contractName, contract] of contractEntries) {
+      if (!contract) continue;
+      
+      // Compare addresses (case-insensitive)
+      const contractAddr = contract.address as `0x${string}`;
+      if (contractAddr.toLowerCase() === normalizedAddress) {
+        // Return the first matching contract name (in contract case)
+        return contractName;
+      }
+    }
+  }
+  
+  // Contract not found in any version
+  return null;
 }

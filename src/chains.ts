@@ -62,9 +62,9 @@ let loadedChains: RegistryChainsValues<RegistryVersions>[] = Array.from(
         // Compare deployedAtBlock as numbers (parseInt), select the lowest
         if (
           !current ||
-          (chain.deployment.endBlock &&
-            current.deployment.endBlock &&
-            chain.deployment.endBlock < current.deployment.endBlock)
+          (chain.deployment.startBlock &&
+            current.deployment.startBlock &&
+            chain.deployment.startBlock < current.deployment.startBlock)
         ) {
           map.set(chainId, chain);
         }
@@ -145,6 +145,7 @@ export { chains };
 type BlocksConfig = {
   [N in NetworkNames<RegistryVersions> as `${N}`]: {
     startBlock: number;
+    endBlock: number | undefined;
     interval: number;
     chain: N;
   };
@@ -181,20 +182,29 @@ const blocks = Object.fromEntries(
 export { blocks };
 
 /**
- * Gets the contract names for a given registry version.
- * @param registryVersion - The registry version to get the contract names for.
- * @returns The contract names for the given registry version.
+ * Gets the contract names across all registry versions.
+ * If the same contract name appears in multiple versions, the newer version overrides.
+ * @returns The contract names from all registry versions (latest version for each name).
  */
-export function getContractNames<V extends RegistryVersions>(
-  registryVersion: V
-): string[] {
-  return Array.from(
-    new Set(
-      Object.values(registries[registryVersion].chains).flatMap((chain) =>
-        Object.keys(chain.contracts)
-      )
-    )
-  );
+export function getContractNames(): string[] {
+  const versions = Object.keys(registries) as RegistryVersions[];
+  const contractNamesSet = new Set<string>();
+  
+  // Iterate through all versions (later versions will override earlier ones for same contract names)
+  for (const version of versions) {
+    const registry = registries[version];
+    const chains = Object.values(registry.chains);
+    for (const chain of chains) {
+      if (chain && chain.contracts) {
+        const contractKeys = Object.keys(chain.contracts);
+        for (const contractName of contractKeys) {
+          contractNamesSet.add(contractName);
+        }
+      }
+    }
+  }
+  
+  return Array.from(contractNamesSet);
 }
 
 export const explorerUrls = {
