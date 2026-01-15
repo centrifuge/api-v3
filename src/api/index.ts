@@ -1,3 +1,4 @@
+import { sValidator } from "@hono/standard-validator";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { client, graphql } from "ponder";
@@ -5,15 +6,18 @@ import { db } from "ponder:api";
 import schema, {
   Blockchain,
   CrosschainPayload,
-  PoolSpokeBlockchain,
   Token,
+  TokenInstance,
 } from "ponder:schema";
+import { Hex } from "viem";
+import * as z from "zod";
 import { formatBigIntToDecimal } from "../helpers/formatter";
 import {
   AccountService,
   AdapterService,
   AssetRegistrationService,
   AssetService,
+  BlockchainService,
   CrosschainMessageService,
   CrosschainPayloadService,
   EpochInvestOrderService,
@@ -95,11 +99,11 @@ app.get("/tokens/:address/price", async (c) => {
 app.get("/transactions/:txHash", async (c) => {
   const txHash = c.req.param("txHash") as `0x${string}`;
 
-  // Query CrosschainPayload by prepareTxHash
+  // Query CrosschainPayload by preparedAtTxHash
   const [payload] = await db
     .select()
     .from(CrosschainPayload)
-    .where(eq(CrosschainPayload.prepareTxHash, txHash))
+    .where(eq(CrosschainPayload.preparedAtTxHash, txHash))
     .limit(1);
 
   if (!payload) {
@@ -115,7 +119,7 @@ app.get("/transactions/:txHash", async (c) => {
   }
 
   // Set explorer link to centrifugescan.io
-  const explorerLink = `https://centrifugescan.io/tx/${payload.prepareTxHash}`;
+  const explorerLink = `https://centrifugescan.io/tx/${payload.preparedAtTxHash}`;
 
   // Map CrosschainPayload status to transaction status
   let status: string;
@@ -150,99 +154,283 @@ app.get("/transactions/:txHash", async (c) => {
     data: {
       status,
       substatus,
-      sourceTx: payload.prepareTxHash,
-      destinationTx: payload.deliveryTxHash || null,
+      sourceTx: payload.preparedAtTxHash,
+      destinationTx: payload.deliveredAtTxHash || null,
       explorerLink,
     },
   });
 });
 
-app.get("/routes", async (c) => {
-  const limit = parseInt(c.req.query("limit") || "100");
-  const offset = parseInt(c.req.query("offset") || "0");
+const routesParams = z.object({
+  limit: z.coerce.number().int().min(0).max(1000).optional().default(100),
+  offset: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(Number.MAX_SAFE_INTEGER - 1000)
+    .optional()
+    .default(0),
+  isEnabled: z
+    .union([z.literal("true"), z.literal("false")])
+    .optional()
+    .default("false")
+    .pipe(z.transform((val) => val === "true")),
+});
 
-  // Get all active tokens with their hub blockchain
-  const tokens = await db.select().from(Token).where(eq(Token.isActive, true));
+type Route = {
+  tokenId: string;
+  tokenName: string;
+  fromAddress: `0x${string}`;
+  toAddress: `0x${string}`;
+  fromChainId: `${number}`;
+  fromChainName: string;
+  toChainId: `${number}`;
+  toChainName: string;
+  minTransferSize: `${number}`;
+  maxTransferSize: `${number}`;
+  decimals: number;
+  estimatedDuration: number;
+  estimatedGas: number;
+  standard: string;
+  isEnabled: boolean;
+};
+
+app.get("/routes", sValidator("query", routesParams), async (c) => {
+  const { limit, offset } = c.req.valid("query");
+  const ESTIMATED_DURATION = 210; // in seconds
+  const ESTIMATED_GAS = 1000000;
 
   // Get all blockchains
   const blockchains = await db.select().from(Blockchain);
-  const blockchainMap = new Map(blockchains.map((b) => [b.centrifugeId, b]));
+  const blockchainByCentId = new Map(
+    blockchains.map((b) => [b.centrifugeId, b])
+  );
 
-  // Get all spoke blockchains
-  const spokeBlockchains = await db.select().from(PoolSpokeBlockchain);
+  const tokenInstanceRows = await db
+    .select()
+    .from(TokenInstance)
+    .innerJoin(Token, eq(TokenInstance.tokenId, Token.id));
 
-  // Generate routes
-  const routes = [];
-  for (const token of tokens) {
-    if (!token.centrifugeId || token.decimals === null) continue;
+  const hubTokenInstanceRowsByTokenId = new Map<
+    string,
+    (typeof tokenInstanceRows)[number]
+  >();
+  const nonHubTokenInstanceRowsByTokenId = new Map<
+    string,
+    typeof tokenInstanceRows
+  >();
+  const nonHubTokenInstanceRows = tokenInstanceRows.filter((row) => {
+    const isSpoke =
+      Number(row.token_instance.centrifugeId) !==
+      Number(BigInt(row.token_instance.tokenId) >> 112n);
+    if (isSpoke) {
+      const tokenRows =
+        nonHubTokenInstanceRowsByTokenId.get(row.token.id) || [];
+      tokenRows.push(row);
+      nonHubTokenInstanceRowsByTokenId.set(row.token.id, tokenRows);
+      return true;
+    } else {
+      hubTokenInstanceRowsByTokenId.set(row.token.id, row);
+      return false;
+    }
+  });
 
-    const hubBlockchain = blockchainMap.get(token.centrifugeId);
-    if (!hubBlockchain || !hubBlockchain.chainId || !hubBlockchain.name)
-      continue;
-
-    // Get spoke blockchains for this token's pool
-    const tokenSpokes = spokeBlockchains.filter(
-      (s) => s.poolId === token.poolId
+  const routes = nonHubTokenInstanceRows.flatMap((row) => {
+    const hubBlockchain = blockchainByCentId.get(row.token.centrifugeId!);
+    const spokeBlockchain = blockchainByCentId.get(
+      row.token_instance.centrifugeId
     );
+    const hubRow = hubTokenInstanceRowsByTokenId.get(row.token.id);
 
-    for (const spoke of tokenSpokes) {
-      // Skip if spoke is the same as hub
-      if (spoke.centrifugeId === token.centrifugeId) continue;
+    if (
+      !hubBlockchain?.chainId ||
+      !hubBlockchain?.name ||
+      !spokeBlockchain?.chainId ||
+      !spokeBlockchain?.name ||
+      !hubRow
+    )
+      return [];
 
-      // Get the spoke blockchain details from the blockchain map
-      const spokeBlockchain = blockchainMap.get(spoke.centrifugeId);
-      if (!spokeBlockchain || !spokeBlockchain.chainId || !spokeBlockchain.name)
-        continue;
-
+    return [
       // Hub to Spoke route
-      routes.push({
-        tokenId: token.id,
-        tokenName: token.name || token.id,
-        fromChainId: hubBlockchain.chainId.toString(),
+      {
+        tokenId: row.token.id,
+        tokenName: row.token.name || row.token.id,
+        fromAddress: hubRow.token_instance.address,
+        toAddress: row.token_instance.address,
+        fromChainId: hubBlockchain.chainId.toString() as `${number}`,
         fromChainName: hubBlockchain.name,
-        toChainId: spokeBlockchain.chainId.toString(),
+        toChainId: spokeBlockchain.chainId.toString() as `${number}`,
         toChainName: spokeBlockchain.name,
         minTransferSize: "0",
         maxTransferSize: "340282366920938463463374607431768211455", // uint128 max
-        decimals: token.decimals,
-        estimatedDuration: 210,
+        decimals: row.token.decimals || 18,
+        estimatedDuration: ESTIMATED_DURATION,
         estimatedGas: 1000000,
         standard: "CentrifugeV31",
         isEnabled: true,
-      });
-
+      },
       // Spoke to Hub route
-      routes.push({
-        tokenId: token.id,
-        tokenName: token.name || token.id,
-        fromChainId: spokeBlockchain.chainId.toString(),
+      {
+        tokenId: row.token.id,
+        tokenName: row.token.name || row.token.id,
+        fromAddress: row.token_instance.address,
+        toAddress: hubRow.token_instance.address,
+        fromChainId: spokeBlockchain.chainId.toString() as `${number}`,
         fromChainName: spokeBlockchain.name,
-        toChainId: hubBlockchain.chainId.toString(),
+        toChainId: hubBlockchain.chainId.toString() as `${number}`,
         toChainName: hubBlockchain.name,
         minTransferSize: "0",
         maxTransferSize: "340282366920938463463374607431768211455", // uint128 max
-        decimals: token.decimals,
-        estimatedDuration: 210,
+        decimals: row.token.decimals || 18,
+        estimatedDuration: ESTIMATED_DURATION,
         estimatedGas: 1000000,
         standard: "CentrifugeV31",
         isEnabled: true,
-      });
-    }
-  }
+      },
+      // Spoke to Other Spoke routes (via Hub)
+      ...(nonHubTokenInstanceRowsByTokenId
+        .get(row.token.id)
+        ?.flatMap((otherRow) => {
+          // Skip same token on the same chain
+          if (
+            otherRow.token_instance.centrifugeId ===
+            row.token_instance.centrifugeId
+          )
+            return [];
+          const otherSpokeBlockchain = blockchainByCentId.get(
+            otherRow.token_instance.centrifugeId
+          );
+          if (!otherSpokeBlockchain?.chainId || !otherSpokeBlockchain?.name)
+            return [];
 
-  // Paginate
+          return [
+            {
+              tokenId: row.token.id,
+              tokenName: row.token.name || row.token.id,
+              fromAddress: row.token_instance.address,
+              toAddress: otherRow.token_instance.address,
+              fromChainId: spokeBlockchain.chainId!.toString() as `${number}`,
+              fromChainName: spokeBlockchain.name!,
+              toChainId: otherSpokeBlockchain.chainId.toString() as `${number}`,
+              toChainName: otherSpokeBlockchain.name,
+              minTransferSize: "0",
+              maxTransferSize: "340282366920938463463374607431768211455", // uint128 max
+              decimals: row.token.decimals || 18,
+              estimatedDuration: ESTIMATED_DURATION * 2, // Times 2 because 2 hops: spoke->hub->spoke
+              estimatedGas: ESTIMATED_GAS * 2, // Times 2 because 2 hops: spoke->hub->spoke
+              standard: "CentrifugeV31",
+              isEnabled: true,
+            },
+          ] satisfies Route[];
+        }) || []),
+    ] satisfies Route[];
+  });
+
   const paginatedRoutes = routes.slice(offset, offset + limit);
-  const baseUrl = `${c.req.url.split("?")[0]}`;
+  const url = new URL(c.req.url);
+  const baseUrl = `${url.origin}${url.pathname}`;
 
   return c.json({
     paging: {
       self: `${baseUrl}?limit=${limit}&offset=${offset}`,
+      prev:
+        offset - limit >= 0
+          ? `${baseUrl}?limit=${limit}&offset=${offset - limit}`
+          : null,
       next:
         offset + limit < routes.length
           ? `${baseUrl}?limit=${limit}&offset=${offset + limit}`
-          : undefined,
+          : null,
     },
     data: paginatedRoutes,
+  });
+});
+
+const quoteParams = z.object({
+  fromChainId: z.coerce.number().int().min(1).max(4294967295),
+  toChainId: z.coerce.number().int().min(1).max(4294967295),
+  fromAmount: z.coerce
+    .bigint()
+    .min(1n)
+    .max(340282366920938463463374607431768211455n), // uint128 max
+  fromToken: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+});
+
+app.get("/quote", sValidator("query", quoteParams), async (c) => {
+  const { fromChainId, toChainId, fromAmount, fromToken } =
+    c.req.valid("query");
+
+  const ESTIMATED_DURATION = 210; // in seconds
+  const ESTIMATED_GAS = 1000000;
+
+  const blockchains = await db.select().from(Blockchain);
+  const blockchainByChainId = new Map(blockchains.map((b) => [b.chainId, b]));
+
+  const fromCentId = blockchainByChainId.get(fromChainId)?.centrifugeId;
+  const toCentId = blockchainByChainId.get(toChainId)?.centrifugeId;
+
+  if (!fromCentId || !toCentId) {
+    return c.json({ error: "Origin or destination chain not supported" }, 400);
+  } else if (fromCentId === toCentId) {
+    return c.json(
+      { error: "Origin and destination chain cannot be the same" },
+      400
+    );
+  }
+
+  // Get the token instance from the fromToken address
+  const tokenInstanceRows = await db
+    .select()
+    .from(TokenInstance)
+    .innerJoin(Token, eq(TokenInstance.tokenId, Token.id))
+    .where(eq(TokenInstance.address, fromToken as Hex));
+
+  const fromTokenInstance = tokenInstanceRows.find(
+    (row) => row.token_instance.centrifugeId === fromCentId
+  );
+  const toTokenInstance = tokenInstanceRows.find(
+    (row) => row.token_instance.centrifugeId === toCentId
+  );
+
+  if (!fromTokenInstance) {
+    return c.json({ error: "Token does not exist on the origin chain" }, 400);
+  } else if (!toTokenInstance) {
+    return c.json(
+      { error: "Token does not exist on the destination chain" },
+      400
+    );
+  }
+
+  const hubCentId = Number(BigInt(fromTokenInstance.token.id) >> 112n);
+  const isFromHub = Number(fromCentId) === hubCentId;
+  const isToHub = Number(toCentId) === hubCentId;
+
+  let estimatedDuration = ESTIMATED_DURATION;
+  let estimatedGas = ESTIMATED_GAS;
+
+  if (!isFromHub && !isToHub) {
+    // Spoke to Spoke route (via Hub) - requires 2 hops
+    estimatedDuration = ESTIMATED_DURATION * 2;
+    estimatedGas = ESTIMATED_GAS * 2;
+  }
+
+  return c.json({
+    data: {
+      toAmount: fromAmount.toString(),
+      estimatedDuration,
+      estimatedGas,
+      feeCosts: {
+        bridgeFee: {
+          tokenFee: "0",
+          nativeFee: "123456", // TODO: get actual fee
+        },
+        airliftFee: {
+          tokenFee: "0",
+          nativeFee: "0",
+        },
+      },
+    },
   });
 });
 
@@ -272,9 +460,11 @@ app.get("/stats", async (c) => {
   const crosschainPayloads = await CrosschainPayloadService.count(context, {});
   const accounts = await AccountService.count(context, {});
   const holdings = await HoldingService.count(context, {});
+  const blockchains = await BlockchainService.count(context, {});
   return c.json(
     {
       tvl: formatBigIntToDecimal(tvl),
+      blockchains,
       pools,
       tokens,
       tokenInstances,
