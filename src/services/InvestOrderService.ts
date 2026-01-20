@@ -25,15 +25,17 @@ export class InvestOrderService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public post(
-    postedAssetsAmount: bigint,
+    pendingAssetsAmount: bigint,
+    queuedAssetsAmount: bigint,
     event: Extract<Event, { transaction: any }>
   ) {
     serviceLog(
-      `Filling investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with postedAssetsAmount: ${postedAssetsAmount}`
+      `Filling investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with pendingAssetsAmount: ${pendingAssetsAmount}, queuedAssetsAmount: ${queuedAssetsAmount}`
     );
     this.data = {
       ...this.data,
-      postedAssetsAmount,
+      pendingAssetsAmount,
+      queuedAssetsAmount,
       ...timestamper("posted", event),
     };
     return this;
@@ -126,41 +128,13 @@ export class InvestOrderService extends mixinCommonStatics(
   }
 
   /**
-   * Checks if the invest order has a vault deposit.
-   *
-   * @returns True if the invest order has a vault deposit, false otherwise
-   */
-  public hasVaultDeposit() {
-    return (
-      !!this.data.vaultDepositCentrifugeId &&
-      !!this.data.vaultDepositTxHash
-    );
-  }
-
-  /**
-   * Sets the vault deposit for the invest order.
-   *
-   * @param vaultDepositCentrifugeId - The centrifuge ID
-   * @param vaultDepositTxHash - The transaction hash
-   * @returns The service instance for method chaining
-   */
-  public setVaultDeposit(vaultDepositCentrifugeId: string, vaultDepositTxHash: `0x${string}`) {
-    this.data = {
-      ...this.data,
-      vaultDepositCentrifugeId,
-      vaultDepositTxHash,
-    };
-    return this;
-  }
-
-  /**
    * Saves or clears the invest order.
    *
    * @param event - The event containing the block information
    * @returns The service instance for method chaining
    */
   public saveOrClear(event: Event) {
-    if(this.data.postedAssetsAmount === 0n) return this.delete();
+    if(this.data.pendingAssetsAmount === 0n) return this.delete();
     return this.save(event);
   }
 }

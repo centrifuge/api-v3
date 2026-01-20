@@ -433,6 +433,9 @@ const VaultDepositColumns = (t: PgColumnsBuilders) => ({
   assetsAmount: t.bigint().notNull(),
 
   ...defaultColumns(t),
+
+  epochIndex: t.integer(),
+
 });
 
 export const VaultDeposit = onchainTable(
@@ -448,6 +451,10 @@ export const VaultDepositRelations = relations(VaultDeposit, ({ one }) => ({
     fields: [VaultDeposit.tokenId, VaultDeposit.centrifugeId],
     references: [Vault.tokenId, Vault.centrifugeId],
   }),
+  investOrder: one(InvestOrder, {
+    fields: [VaultDeposit.tokenId, VaultDeposit.assetId, VaultDeposit.accountAddress, VaultDeposit.epochIndex],
+    references: [InvestOrder.tokenId, InvestOrder.assetId, InvestOrder.account, InvestOrder.index],
+  }),
 }));
 
 const InvestOrderColumns = (t: PgColumnsBuilders) => ({
@@ -457,13 +464,10 @@ const InvestOrderColumns = (t: PgColumnsBuilders) => ({
   account: t.hex().notNull(),
   index: t.integer().notNull(),
 
-  // VaultDeposit fields
-  vaultDepositCentrifugeId: t.text(),
-  vaultDepositTxHash: t.hex(),
-
   // Posted fields
   ...timestamperFields(t, "posted"),
-  postedAssetsAmount: t.bigint().default(0n),
+  pendingAssetsAmount: t.bigint().default(0n),
+  queuedAssetsAmount: t.bigint().default(0n),
 
   // Approved fields
   ...timestamperFields(t, "approved"),
@@ -495,7 +499,7 @@ export const InvestOrder = onchainTable(
   })
 );
 
-export const InvestOrderRelations = relations(InvestOrder, ({ one }) => ({
+export const InvestOrderRelations = relations(InvestOrder, ({ one, many }) => ({
   token: one(Token, {
     fields: [InvestOrder.tokenId],
     references: [Token.id],
@@ -504,9 +508,8 @@ export const InvestOrderRelations = relations(InvestOrder, ({ one }) => ({
     fields: [InvestOrder.assetId],
     references: [Asset.id],
   }),
-  vaultDeposit: one(VaultDeposit, {
-    fields: [InvestOrder.tokenId, InvestOrder.vaultDepositCentrifugeId, InvestOrder.assetId, InvestOrder.account, InvestOrder.vaultDepositTxHash],
-    references: [VaultDeposit.tokenId, VaultDeposit.centrifugeId, VaultDeposit.assetId, VaultDeposit.accountAddress, VaultDeposit.createdAtTxHash],
+  vaultDeposits: many(VaultDeposit, {
+    relationName: "vaultDeposit",
   }),
 }));
 
@@ -519,6 +522,8 @@ const VaultRedeemColumns = (t: PgColumnsBuilders) => ({
   sharesAmount: t.bigint().notNull(),
 
   ...defaultColumns(t),
+
+  epochIndex: t.integer(),
 });
 
 export const VaultRedeem = onchainTable(
@@ -539,6 +544,10 @@ export const VaultRedeemRelations = relations(VaultRedeem, ({ one }) => ({
     fields: [VaultRedeem.tokenId, VaultRedeem.centrifugeId],
     references: [Vault.tokenId, Vault.centrifugeId],
   }),
+  redeemOrder: one(RedeemOrder, {
+    fields: [VaultRedeem.tokenId, VaultRedeem.assetId, VaultRedeem.accountAddress, VaultRedeem.epochIndex],
+    references: [RedeemOrder.tokenId, RedeemOrder.assetId, RedeemOrder.account, RedeemOrder.index],
+  }),
 }));
 
 const RedeemOrderColumns = (t: PgColumnsBuilders) => ({
@@ -548,13 +557,10 @@ const RedeemOrderColumns = (t: PgColumnsBuilders) => ({
   account: t.hex().notNull(),
   index: t.integer().notNull(),
 
-  // VaultRedeem fields
-  vaultRedeemCentrifugeId: t.text(),
-  vaultRedeemTxHash: t.hex(),
-
   // Posted fields
   ...timestamperFields(t, "posted"),
-  postedSharesAmount: t.bigint().default(0n),
+  pendingSharesAmount: t.bigint().default(0n),
+  queuedSharesAmount: t.bigint().default(0n),
 
   // Approved fields
   ...timestamperFields(t, "approved"),
@@ -588,7 +594,7 @@ export const RedeemOrder = onchainTable(
   })
 );
 
-export const RedeemOrderRelations = relations(RedeemOrder, ({ one }) => ({
+export const RedeemOrderRelations = relations(RedeemOrder, ({ one, many }) => ({
   token: one(Token, {
     fields: [RedeemOrder.tokenId],
     references: [Token.id],
@@ -597,9 +603,8 @@ export const RedeemOrderRelations = relations(RedeemOrder, ({ one }) => ({
     fields: [RedeemOrder.assetId],
     references: [Asset.id],
   }),
-  vaultRedeem: one(VaultRedeem, {
-    fields: [RedeemOrder.tokenId, RedeemOrder.vaultRedeemCentrifugeId, RedeemOrder.assetId, RedeemOrder.account, RedeemOrder.vaultRedeemTxHash],
-    references: [VaultRedeem.tokenId, VaultRedeem.centrifugeId, VaultRedeem.assetId, VaultRedeem.accountAddress, VaultRedeem.createdAtTxHash],
+  vaultRedeem: many(VaultRedeem, {
+    relationName: "vaultRedeem",
   }),
 }));
 

@@ -111,7 +111,7 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
   )) as OutstandingInvestService;
   await outstandingInvest.updateDepositAmount(assets).saveOrClear(event);
 
-  const _vaultDeposit = (await VaultDepositService.insert(
+  const vaultDeposit = (await VaultDepositService.insert(
     context,
     {
       tokenId,
@@ -122,6 +122,19 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
     },
     event
   )) as VaultDepositService;
+
+  const investOrder = await InvestOrderService.get(context, {
+    tokenId,
+    assetId,
+    account: investor,
+    postedAtTxHash: event.transaction.hash,
+  }) as InvestOrderService | null;
+
+  if (investOrder) {
+    const { index: epochIndex } = investOrder.read();
+    vaultDeposit.setEpochIndex(epochIndex);
+    await vaultDeposit.save(event);
+  }
 });
 
 multiMapper("vault:RedeemRequest", async ({ event, context }) => {
@@ -195,13 +208,26 @@ multiMapper("vault:RedeemRequest", async ({ event, context }) => {
 
   await outstandingRedeem.updateDepositAmount(shares).saveOrClear(event);
 
-  const _vaultRedeem = (await VaultRedeemService.insert(context, {
+  const vaultRedeem = (await VaultRedeemService.insert(context, {
     tokenId,
     centrifugeId,
     assetId,
     accountAddress: investor,
     sharesAmount: shares,
   }, event)) as VaultRedeemService;
+
+  const redeemOrder = await RedeemOrderService.get(context, {
+    tokenId,
+    assetId,
+    account: investor,
+    postedAtTxHash: event.transaction.hash,
+  }) as RedeemOrderService | null;
+
+  if (redeemOrder) {
+    const { index: epochIndex } = redeemOrder.read();
+    vaultRedeem.setEpochIndex(epochIndex);
+    await vaultRedeem.save(event);
+  }
 });
 
 multiMapper("vault:DepositClaimable", async ({ event, context }) => {
@@ -393,7 +419,7 @@ multiMapper("vault:Deposit", async ({ event, context }) => {
           account: investorAddress,
           index: investOrderIndex,
           ...timestamper("posted", event),
-          postedAssetsAmount: assets,
+          pendingAssetsAmount: assets,
           ...timestamper("approved", event),
           approvedAssetsAmount: assets,
           ...timestamper("issued", event),
@@ -511,7 +537,7 @@ multiMapper("vault:Withdraw", async ({ event, context }) => {
           account: investorAddress,
           index: redeemOrderIndex,
           ...timestamper("posted", event),
-          postedSharesAmount: shares,
+          pendingSharesAmount: shares,
           ...timestamper("approved", event),
           approvedSharesAmount: shares,
           ...timestamper("revoked", event),

@@ -12,6 +12,8 @@ import {
   inArray,
   lte,
   gte,
+  lt,
+  gt,
 } from "drizzle-orm";
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
 import {
@@ -474,7 +476,11 @@ type ExtendedQuery<T> = {
 } & {
   [P in keyof T as `${string & P}_lte`]: T[P];
 } & {
+  [P in keyof T as `${string & P}_lt`]: T[P];
+} & {
   [P in keyof T as `${string & P}_gte`]: T[P];
+} & {
+  [P in keyof T as `${string & P}_gt`]: T[P];
 } & {
   _sort?: Array<{
     field: keyof T;
@@ -510,8 +516,12 @@ function queryToFilter<T extends OnchainTable>(
       return inArray(table[column.slice(0, -3) as keyof T], value);
     if (column.endsWith("_lte"))
       return lte(table[column.slice(0, -4) as keyof T], value);
+    if (column.endsWith("_lt"))
+      return lt(table[column.slice(0, -3) as keyof T], value);
     if (column.endsWith("_gte"))
       return gte(table[column.slice(0, -4) as keyof T], value);
+    if (column.endsWith("_gt"))
+      return gt(table[column.slice(0, -3) as keyof T], value);
     return eq(table[column as keyof T], value);
   });
   if (queries.length > 1) {

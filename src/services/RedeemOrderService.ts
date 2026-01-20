@@ -24,13 +24,14 @@ export class RedeemOrderService extends mixinCommonStatics(
    * @param event - The event containing the block information
    * @returns The service instance for method chaining
    */
-  public post(postedSharesAmount: bigint, event: Extract<Event, { transaction: any }>) {
+  public post(pendingSharesAmount: bigint, queuedSharesAmount: bigint, event: Extract<Event, { transaction: any }>) {
     serviceLog(
-      `Filling redeemOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with postedSharesAmount: ${postedSharesAmount}`
+      `Filling redeemOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with pendingSharesAmount: ${pendingSharesAmount}`
     );
     this.data = {
       ...this.data,
-      postedSharesAmount,
+      pendingSharesAmount,
+      queuedSharesAmount,
       ...timestamper("posted", event),
     }
     return this;
@@ -121,41 +122,13 @@ export class RedeemOrderService extends mixinCommonStatics(
   }
 
   /**
-   * Checks if the redeem order has a vault redeem.
-   *
-   * @returns True if the redeem order has a vault redeem, false otherwise
-   */
-  public hasVaultRedeem() {
-    return (
-      !!this.data.vaultRedeemCentrifugeId &&
-      !!this.data.vaultRedeemTxHash
-    );
-  }
-
-  /**
-   * Sets the vault redeem for the redeem order.
-   *
-   * @param vaultRedeemCentrifugeId - The centrifuge ID
-   * @param vaultRedeemTxHash - The transaction hash
-   * @returns The service instance for method chaining
-   */
-  public setVaultRedeem(vaultRedeemCentrifugeId: string, vaultRedeemTxHash: `0x${string}`) {
-    this.data = {
-      ...this.data,
-      vaultRedeemCentrifugeId,
-      vaultRedeemTxHash,
-    };
-    return this;
-  }
-
-  /**
    * Saves or clears the redeem order.
    *
    * @param event - The event containing the block information
    * @returns The service instance for method chaining
    */
   public saveOrClear(event: Event) {
-    if(this.data.postedSharesAmount === 0n) return this.delete();
+    if(this.data.pendingSharesAmount === 0n) return this.delete();
     return this.save(event);
   }
 }
