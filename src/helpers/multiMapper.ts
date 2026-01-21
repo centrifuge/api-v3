@@ -1,7 +1,6 @@
 import { ponder } from "ponder:registry";
 import type { Context, Event } from "ponder:registry";
 import { contracts } from "../../ponder.config";
-import { serviceError, expandInlineObject } from "./logger";
 
 type ContractEvents = Parameters<typeof ponder.on>[0];
 
