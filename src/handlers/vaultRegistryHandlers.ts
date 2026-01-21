@@ -21,7 +21,7 @@ export async function deployVault({ event, context }: { event: Event<"vaultRegis
 
   const contractName = getContractNameForAddress(context.chain.id, event.log.address);
   const vaultKind = VaultKinds[kind];
-  if (!vaultKind) throw new Error("Invalid vault kind");
+  if (!vaultKind) return serviceError("Invalid vault kind");
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
@@ -38,12 +38,12 @@ export async function deployVault({ event, context }: { event: Event<"vaultRegis
     centrifugeId,
   });
   if (!asset) {
-    serviceError(`Asset not found for address ${assetAddress}`);
+    serviceError(`Asset not found. Cannot retrieve assetId for vault deployment`);
     return;
   }
   const { id: assetId } = asset.read();
   if (!assetId) {
-    serviceError(`Asset ID not found for address ${assetAddress}`);
+    serviceError(`Asset ID not found. Cannot deploy vault`);
     return;
   }
 
@@ -83,7 +83,7 @@ export async function linkVault({ event, context }: { event: Event<"spokeV3:Link
     centrifugeId,
   })) as VaultService;
   if (!vault) {
-    serviceError(`Vault not found for id ${vaultId}`);
+    serviceError(`Vault not found. Cannot link vault`);
     return;
   }
   vault.setStatus("Linked");
@@ -101,7 +101,7 @@ export async function unlinkVault({ event, context }: { event: Event<"spokeV3:Un
     id: vaultId,
     centrifugeId,
   })) as VaultService;
-  if (!vault) throw new Error("Vault not found");
+  if (!vault) return serviceError(`Vault not found. Cannot unlink vault`);
   vault.setStatus("Unlinked");
   await vault.save(event);
 }

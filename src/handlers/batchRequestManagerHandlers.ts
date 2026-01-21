@@ -267,7 +267,7 @@ export async function approveDeposits({
 
   const assetDecimals = await AssetService.getDecimals(context, depositAssetId);
   if (!assetDecimals)
-    throw new Error(`Asset decimals not found for id ${depositAssetId}`);
+    return serviceError(`Asset decimals not found. Cannot compute approved percentage for invest order`);
 
   const approvedPercentage = computeApprovedPercentage(
     approvedAssetAmount,
@@ -366,10 +366,10 @@ export async function approveRedeems({
   const pool = (await PoolService.get(context, {
     id: poolId,
   })) as PoolService;
-  if (!pool) throw new Error(`Pool not found for id ${poolId}`);
+  if (!pool) return serviceError(`Pool not found. Cannot retrieve currency to compute approved percentage for redeem order`);
 
   const { currency } = pool.read();
-  if (!currency) throw new Error("Currency is required");
+  if (!currency) return serviceError(`Currency not found. Cannot compute approved percentage for redeem order`);
 
   const approvedPercentage = computeApprovedPercentage(
     approvedShareAmount,
@@ -476,10 +476,7 @@ export async function issueShares({
     index: epochIndex,
   })) as EpochInvestOrderService | null;
   if (!epochInvestOrder) {
-    serviceError(
-      `EpochInvestOrder not found for token ${tokenId} asset ${depositAssetId} index ${epochIndex}`
-    );
-    return;
+    return serviceError(`EpochInvestOrder not found. Cannot record issued shares`);
   }
   epochInvestOrder.issuedShares(
     issuedShareAmount,
@@ -491,11 +488,11 @@ export async function issueShares({
 
   const assetDecimals = await AssetService.getDecimals(context, depositAssetId);
   if (!assetDecimals)
-    throw new Error(`Asset decimals not found for id ${depositAssetId}`);
+    return serviceError(`Asset decimals not found. Cannot compute issued shares`);
 
   const tokenDecimals = await TokenService.getDecimals(context, tokenId);
   if (!tokenDecimals)
-    throw new Error(`Token decimals not found for id ${tokenId}`);
+    return serviceError(`Token decimals not found. Cannot compute issued shares`);
 
   const investOrders = (await InvestOrderService.query(context, {
     tokenId,
@@ -551,9 +548,9 @@ export async function revokeShares({
   const pool = (await PoolService.get(context, {
     id: poolId,
   })) as PoolService;
-  if (!pool) throw new Error(`Pool not found for id ${poolId}`);
+  if (!pool) return serviceError(`Pool not found. Cannot compute revoked shares`);
   const { currency: poolCurrency } = pool.read();
-  if (!poolCurrency) throw new Error("Pool currency is required");
+  if (!poolCurrency) return serviceError(`Pool currency not found. Cannot compute revoked shares`);
 
   const epochRedeemOrder = (await EpochRedeemOrderService.get(context, {
     tokenId,
@@ -578,11 +575,11 @@ export async function revokeShares({
 
   const tokenDecimals = await TokenService.getDecimals(context, tokenId);
   if (!tokenDecimals)
-    throw new Error(`Token decimals not found for id ${tokenId}`);
+    return serviceError(`Token decimals not found. Cannot compute revoked shares`);
 
   const assetDecimals = await AssetService.getDecimals(context, payoutAssetId);
   if (!assetDecimals)
-    throw new Error(`Asset decimals not found for id ${payoutAssetId}`);
+    return serviceError(`Asset decimals not found. Cannot compute revoked shares`);
 
   const redeemOrders = (await RedeemOrderService.query(context, {
     tokenId,
@@ -634,7 +631,7 @@ export async function claimDeposit({
   const token = (await TokenService.get(context, {
     id: tokenId,
   })) as TokenService;
-  if (!token) throw new Error(`Token not found for id ${tokenId}`);
+  if (!token) return serviceError(`Token not found. Cannot retrieve poolId`);
   const { poolId } = token.read();
 
   const investorAccount = (await AccountService.getOrInit(
@@ -680,7 +677,7 @@ export async function claimRedeem({
   const token = (await TokenService.get(context, {
     id: tokenId,
   })) as TokenService;
-  if (!token) throw new Error(`Token not found for id ${tokenId}`);
+  if (!token) return serviceError(`Token not found. Cannot retrieve poolId`);
   const { poolId } = token.read();
 
   const investorAccount = (await AccountService.getOrInit(

@@ -119,7 +119,7 @@ multiMapper(
       },
       event
     )) as TokenService;
-    if (!token) throw new Error(`Token not found for id ${tokenId}`);
+    if (!token) return serviceError(`Token not found. Cannot update token price`);
     await token.setTokenPrice(tokenPrice);
     await token.save(event);
     await snapshotter(
@@ -155,7 +155,7 @@ multiMapper(
       },
       event
     )) as TokenService;
-    if (!token) throw new Error(`Token not found for id ${tokenId}`);
+    if (!token) return serviceError(`Token not found. Cannot update token price`);
     await token.setTokenPrice(tokenPrice, computedAt);
     await token.save(event);
     await snapshotter(

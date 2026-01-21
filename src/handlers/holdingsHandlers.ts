@@ -1,5 +1,5 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { logEvent } from "../helpers/logger";
+import { logEvent, serviceError } from "../helpers/logger";
 import { HoldingService } from "../services/HoldingService";
 import { HoldingAccountService } from "../services/HoldingAccountService";
 import { HoldingAccountTypes, HoldingSnapshot } from "ponder:schema";
@@ -33,7 +33,7 @@ multiMapper("holdings:Initialize", async ({ event, context }) => {
     const kind = isLiability
       ? HoldingAccountTypes[_kind + 4]
       : HoldingAccountTypes[_kind];
-    if (!kind) throw new Error(`Invalid holding account type: ${_kind}`);
+    if (!kind) return serviceError(`Invalid holding account type. Cannot create holding account`);
     const _holdingAccount = await HoldingAccountService.getOrInit(context, {
       id: accountId,
       kind,

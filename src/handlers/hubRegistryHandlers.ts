@@ -1,6 +1,6 @@
 import { multiMapper } from "../helpers/multiMapper";
 import { PoolService } from "../services/PoolService";
-import { logEvent } from "../helpers/logger";
+import { logEvent, serviceError } from "../helpers/logger";
 import {
   AccountService,
   AssetRegistrationService,
@@ -132,7 +132,7 @@ multiMapper("hubRegistry:SetMetadata", async ({ event, context }) => {
     },
     event
   )) as PoolService;
-  if (!pool) throw new Error("Pool not found");
+  if (!pool) return serviceError(`Pool not found. Cannot set metadata`);
 
   let metadata = Buffer.from(rawMetadata.slice(2), "hex").toString("utf-8");
   const isIpfs = ipfsHashRegex.test(metadata);

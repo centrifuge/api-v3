@@ -1,5 +1,5 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { logEvent } from "../helpers/logger";
+import { logEvent, serviceError } from "../helpers/logger";
 import {
   AccountService,
   AssetService,
@@ -13,8 +13,6 @@ import { HoldingEscrowSnapshot } from "ponder:schema";
 
 multiMapper('balanceSheet:NoteDeposit', async ({ event, context }) => {
   logEvent(event, context, "balanceSheet:NoteDeposit");
-  const _chainId = context.chain.id;
-  if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const {
     poolId,
     scId: tokenId,
@@ -29,14 +27,14 @@ multiMapper('balanceSheet:NoteDeposit', async ({ event, context }) => {
     address: assetAddress,
     centrifugeId,
   })) as AssetService | null;
-  if (!asset) throw new Error("Asset not found");
+  if (!asset) return serviceError(`Asset not found. Cannot retrieve assetId for holding escrow`);
   const { id: assetId } = asset.read();
 
   const escrow = await EscrowService.get(context, {
     poolId,
     centrifugeId,
   }) as EscrowService | null;
-  if (!escrow) throw new Error("Escrow not found");
+  if (!escrow) return serviceError(`Escrow not found. Cannot retrieve escrow address for holding escrow`);
   const { address: escrowAddress } = escrow!.read();
 
   const holdingEscrow = (await HoldingEscrowService.getOrInit(
@@ -61,8 +59,6 @@ multiMapper('balanceSheet:NoteDeposit', async ({ event, context }) => {
 
 multiMapper("balanceSheet:Withdraw", async ({ event, context }) => {
   logEvent(event, context, "balanceSheet:Withdraw");
-  const _chainId = context.chain.id;
-  if (typeof _chainId !== "number") throw new Error("Chain ID is required");
   const {
     poolId,
     scId: tokenId,
@@ -77,14 +73,14 @@ multiMapper("balanceSheet:Withdraw", async ({ event, context }) => {
     address: assetAddress,
     centrifugeId,
   })) as AssetService | null;
-  if (!asset) throw new Error("Asset not found");
+  if (!asset) return serviceError(`Asset not found. Cannot retrieve assetId for holding escrow`);
   const { id: assetId } = asset.read();
 
   const escrow = await EscrowService.get(context, {
     poolId,
     centrifugeId,
   }) as EscrowService | null;
-  if (!escrow) throw new Error("Escrow not found");
+  if (!escrow) return serviceError(`Escrow not found. Cannot retrieve escrow address for holding escrow`);
   const { address: escrowAddress } = escrow!.read();
 
   const holdingEscrow = (await HoldingEscrowService.getOrInit(

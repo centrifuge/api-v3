@@ -100,7 +100,7 @@ multiMapper("multiAdapter:SendProof", async ({ event, context }) => {
     payloadId
   )) as CrosschainPayloadService | null;
   if (!payload) {
-    serviceError("CrosschainPayload not found");
+    serviceError(`CrosschainPayload not found in Incomplete queue. Cannot send proof`);
     return;
   }
   const { index: payloadIndex } = payload.read();
@@ -143,7 +143,7 @@ multiMapper("multiAdapter:HandlePayload", async ({ event, context }) => {
       payloadId
     )) as CrosschainPayloadService | null;
   if (!payload) {
-    serviceError(`CrosschainPayload ${payloadId} not found`);
+    serviceError(`CrosschainPayload not found in InTransit queue. Cannot handle payload`);
     return;
   }
 
@@ -190,7 +190,7 @@ multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
       payloadId
     )) as CrosschainPayloadService | null;
   if (!crosschainPayload) {
-    serviceError(`CrosschainPayload not found in Delivered queue for payloadId ${payloadId}`);
+    serviceError(`CrosschainPayload not found in Incomplete queue. Cannot handle proof`);
     return;
   }
   const { index: payloadIndex } = crosschainPayload.read();

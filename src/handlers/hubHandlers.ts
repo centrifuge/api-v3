@@ -31,7 +31,7 @@ multiMapper("hub:UpdateRestriction", async ({ event, context }) => {
     id: tokenId,
   })) as TokenService | null;
   if (!token) {
-    serviceError("Token not found for id ", tokenId);
+    serviceError(`Token not found. Cannot retrieve poolId for restriction update`);
     return;
   }
   const { poolId } = token.read();

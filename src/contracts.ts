@@ -309,11 +309,8 @@ export function decorateDeploymentContracts<
   // Validate registry version exists
   const abis = Abis[registryVersion];
   if (!abis) {
-    throw new Error(
-      `Registry version "${registryVersion}" not found in Abis. Available versions: ${Object.keys(
-        Abis
-      ).join(", ")}`
-    );
+    process.stdout.write(`Registry version "${registryVersion}" not found in Abis. Available versions: ${Object.keys(Abis).join(", ")} skipping...\n`);
+    return {} as ContractsWithAdditionalMappings<V, A[number], AM, keyof AM & string>;
   }
 
   // Process selected contracts from registry

@@ -114,7 +114,7 @@ multiMapper("spoke:UpdateSharePrice", async ({ event, context }) => {
     centrifugeId,
   })) as TokenInstanceService;
   if (!tokenInstance)
-    throw new Error("TokenInstance not found for share class");
+    return serviceError(`TokenInstance not found. Cannot update token price`);
 
   await tokenInstance.setTokenPrice(tokenPrice);
   await tokenInstance.setComputedAt(computedAt);
@@ -135,12 +135,11 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID not found");
   const poolEscrowFactoryAddress = RegistryChains.find(
     (chain) => chain.network.chainId === chainId
   )?.contracts.poolEscrowFactory;
   if (!poolEscrowFactoryAddress) {
-    serviceError(`Pool Escrow Factory address not found for chain ${chainId}`);
+    serviceError(`Pool Escrow Factory address not found. Cannot retrieve escrow address`);
     return;
   }
 
@@ -156,7 +155,7 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
     centrifugeId,
   });
   if (assetQuery.length !== 1) {
-    serviceError(`Asset not found for address ${assetAddress}`);
+    serviceError(`Asset not found. Cannot retrieve assetId for holding escrow`);
     return;
   }
 

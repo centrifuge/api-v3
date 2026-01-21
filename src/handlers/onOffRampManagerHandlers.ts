@@ -45,7 +45,7 @@ multiMapper("onOfframpManager:UpdateRelayer", async ({ event, context }) => {
     centrifugeId,
   })) as OnOffRampManagerService;
   if (!onOffRampManager) {
-    serviceError("OnOffRampManager not found");
+    serviceError("OnOffRampManager not found. Cannot retrieve poolId and tokenId");
     return;
   }
   const { poolId, tokenId } = onOffRampManager.read();
@@ -76,7 +76,7 @@ multiMapper("onOfframpManager:UpdateOnramp", async ({ event, context }) => {
     centrifugeId,
   })) as OnOffRampManagerService;
   if (!onOffRampManager) {
-    serviceError("OnOffRampManager not found");
+    serviceError(`OnOffRampManager not found. Cannot retrieve poolId and tokenId`);
     return;
   }
 
@@ -108,7 +108,7 @@ multiMapper("onOfframpManager:UpdateOfframp", async ({ event, context }) => {
     centrifugeId,
   })) as OnOffRampManagerService;
   if (!onOffRampManager) {
-    serviceError("onOffRampManager not found");
+    serviceError(`OnOffRampManager not found. Cannot retrieve poolId and tokenId`);
     return;
   }
   const { poolId, tokenId } = onOffRampManager.read();

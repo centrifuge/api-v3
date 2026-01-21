@@ -25,7 +25,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
   })) as TokenInstanceService[];
   const tokenInstance = tokenInstanceQuery.pop();
   if (!tokenInstance) {
-    serviceError("TokenInstance not found for ", event.log.address);
+    serviceError(`TokenInstance not found. Cannot retrieve tokenId`);
     return;
   }
   const { tokenId } = tokenInstance.read();
@@ -36,13 +36,13 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
     chainId: chainId.toString(),
   })) as DeploymentService | null;
   if (!deployment) {
-    serviceError("Deployment not found for chain ", chainId);
+    serviceError(`Deployment not found. Cannot retrieve global escrow address`);
     return;
   }
 
   const { globalEscrow } = deployment.read();
   if (!globalEscrow) {
-    serviceError(`Global escrow not found for deployment ${chainId}`);
+    serviceError(`Global escrow not found. Cannot determine transfer type`);
     return;
   }
 
@@ -72,7 +72,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
     )) as TokenInstancePositionService;
     const { createdAtBlock } = fromPosition.read();
     if (!createdAtBlock) {
-      serviceError("TokenInstancePosition not found for ", event.log.address);
+      serviceError(`TokenInstancePosition not found. Cannot update balance`);
       return;
     }
     if (createdAtBlock < Number(event.block.number))
@@ -95,7 +95,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
     )) as TokenInstancePositionService;
     const { createdAtBlock } = toPosition.read();
     if (!createdAtBlock) {
-      serviceError("TokenInstancePosition not found for ", event.log.address);
+      serviceError(`TokenInstancePosition not found. Cannot update balance`);
       return;
     }
     if (createdAtBlock < Number(event.block.number))
@@ -107,7 +107,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
     id: tokenId,
   })) as TokenService | null;
   if (!token) {
-    serviceError("Token not found for ", tokenId);
+    serviceError(`Token not found. Cannot update total issuance`);
     return;
   }
 
