@@ -657,7 +657,7 @@ export async function claimRedeem({
  * @returns The percentage of the approved amount that is approved with 18 decimals.
  */
 function computeApprovedPercentage(approveAmount: bigint, pendingAmount: bigint) {
-  return (approveAmount * 10n ** 18n) / (pendingAmount + approveAmount);
+  return (approveAmount * 10n ** 21n) / (pendingAmount + approveAmount);
 }
 
 /**
@@ -667,5 +667,5 @@ function computeApprovedPercentage(approveAmount: bigint, pendingAmount: bigint)
  * @returns The approved user amount.
  */
 function computeApprovedUserAmount(totalApprovedAmount: bigint, approvedPercentage: bigint) {
-  return (totalApprovedAmount * approvedPercentage) / 10n ** 18n;
+  return (totalApprovedAmount * approvedPercentage) / 10n ** 21n;
 }
