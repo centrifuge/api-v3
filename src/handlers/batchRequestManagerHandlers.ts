@@ -33,7 +33,7 @@ export async function updateDepositRequest({
   >;
   context: Context;
 }) {
-  logEvent(event, context, "shareClassManager:UpdateDepositRequest");
+  logEvent(event, context, "batchRequestManager:UpdateDepositRequest");
   const _centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const { poolId, investor, ...args } = event.args;
@@ -122,7 +122,7 @@ export async function updateRedeemRequest({
   >;
   context: Context;
 }) {
-  logEvent(event, context, "shareClassManager:UpdateRedeemRequest");
+  logEvent(event, context, "batchRequestManager:UpdateRedeemRequest");
   const _centrifugeId = await BlockchainService.getCentrifugeId(context);
   const { poolId, investor, ...args } = event.args;
   const tokenId = "shareClassId" in args ? args.shareClassId : args.scId;
@@ -208,7 +208,7 @@ export async function approveDeposits({
   event: Event<"batchRequestManagerV3_1:ApproveDeposits" | "shareClassManagerV3:ApproveDeposits">;
   context: Context;
 }) {
-  logEvent(event, context, "shareClassManager:ApproveDeposits");
+  logEvent(event, context, "batchRequestManager:ApproveDeposits");
   const { poolId, approvedAssetAmount, approvedPoolAmount, pendingAssetAmount, ...args } =
     event.args;
   const tokenId = "shareClassId" in args ? args.shareClassId : args.scId;
@@ -311,7 +311,7 @@ export async function approveRedeems({
   event: Event<"batchRequestManagerV3_1:ApproveRedeems" | "shareClassManagerV3:ApproveRedeems">;
   context: Context;
 }) {
-  logEvent(event, context, "shareClassManager:ApproveRedeems");
+  logEvent(event, context, "batchRequestManager:ApproveRedeems");
   const { poolId, approvedShareAmount, pendingShareAmount, ...args } = event.args;
   const tokenId = "shareClassId" in args ? args.shareClassId : args.scId;
   const epochIndex = "epochId" in args ? args.epochId : args.epoch;
@@ -418,7 +418,7 @@ export async function issueShares({
   event: Event<"batchRequestManagerV3_1:IssueShares" | "shareClassManagerV3:IssueShares">;
   context: Context;
 }) {
-  logEvent(event, context, "shareClassManager:IssueShares");
+  logEvent(event, context, "batchRequestManager:IssueShares");
   const {
     //poolId,
     issuedShareAmount,
@@ -479,7 +479,7 @@ export async function revokeShares({
   event: Event<"batchRequestManagerV3_1:RevokeShares" | "shareClassManagerV3:RevokeShares">;
   context: Context;
 }) {
-  logEvent(event, context, "shareClassManager:RevokeShares");
+  logEvent(event, context, "batchRequestManager:RevokeShares");
   const { poolId, ...args } = event.args;
 
   const tokenId = "shareClassId" in args ? args.shareClassId : args.scId;
@@ -567,7 +567,7 @@ export async function claimDeposit({
   event: Event<"batchRequestManagerV3_1:ClaimDeposit" | "shareClassManagerV3:ClaimDeposit">;
   context: Context;
 }) {
-  logEvent(event, context, "shareClassManager:ClaimDeposit");
+  logEvent(event, context, "batchRequestManager:ClaimDeposit");
   const {
     //poolId,
     investor,
@@ -614,7 +614,7 @@ export async function claimRedeem({
   event: Event<"batchRequestManagerV3_1:ClaimRedeem" | "shareClassManagerV3:ClaimRedeem">;
   context: Context;
 }) {
-  logEvent(event, context, "shareClassManager:ClaimRedeem");
+  logEvent(event, context, "batchRequestManager:ClaimRedeem");
   const {
     //poolId,
     investor,

@@ -25,7 +25,7 @@ export class InvestOrderService extends mixinCommonStatics(
    */
   public approve(approvedAssetsAmount: bigint, event: Extract<Event, { transaction: any }>) {
     serviceLog(
-      `Approving investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with approvedAssetsAmount: ${approvedAssetsAmount}`
+      `Approving investOrder for account ${this.data.account} with approvedAssetsAmount: ${approvedAssetsAmount}`
     );
     this.data = {
       ...this.data,
@@ -54,7 +54,7 @@ export class InvestOrderService extends mixinCommonStatics(
     event: Extract<Event, { transaction: any }>
   ) {
     serviceLog(
-      `Issuing shares for investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare}`
+      `Issuing shares for investOrder for account ${this.data.account} with navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare}`
     );
     if (this.data.issuedAt) throw new Error("Shares already issued");
     if (this.data.approvedAssetsAmount === null) throw new Error("No assets approved");
@@ -82,7 +82,7 @@ export class InvestOrderService extends mixinCommonStatics(
    */
   public claimDeposit(claimedSharesAmount: bigint, event: Extract<Event, { transaction: any }>) {
     serviceLog(
-      `Claiming deposit for investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} on block ${event.block.number} with timestamp ${event.block.timestamp}`
+      `Claiming deposit for account ${this.data.account} with claimedSharesAmount: ${claimedSharesAmount} on block ${event.block.number} with timestamp ${event.block.timestamp}`
     );
     if (this.data.claimedAt) throw new Error("Deposit already claimed");
 

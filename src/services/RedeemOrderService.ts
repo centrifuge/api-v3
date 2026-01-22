@@ -25,7 +25,7 @@ export class RedeemOrderService extends mixinCommonStatics(
    */
   public approve(approvedSharesAmount: bigint, event: Extract<Event, { transaction: any }>) {
     serviceLog(
-      `Approving redeemOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with approvedSharesAmount: ${approvedSharesAmount}`
+      `Approving redeemOrder for account ${this.data.account} with approvedSharesAmount: ${approvedSharesAmount}`
     );
     this.data = {
       ...this.data,
@@ -58,7 +58,7 @@ export class RedeemOrderService extends mixinCommonStatics(
     event: Extract<Event, { transaction: any }>
   ) {
     serviceLog(
-      `Revoking shares for ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare} shareDecimals: ${shareDecimals} on block ${event.block.number} and timestamp ${event.block.timestamp}`
+      `Revoking shares for account ${this.data.account} with navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare} shareDecimals: ${shareDecimals} on block ${event.block.number} and timestamp ${event.block.timestamp}`
     );
     const poolDecimals = shareDecimals;
     if (this.data.revokedAt) throw new Error("Shares already revoked");
@@ -93,7 +93,7 @@ export class RedeemOrderService extends mixinCommonStatics(
    */
   public claimRedeem(claimedAssetsAmount: bigint, event: Extract<Event, { transaction: any }>) {
     serviceLog(
-      `Claiming redeem for ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} on block ${event.block.number} and timestamp ${event.block.timestamp}`
+      `Claiming redeem for account ${this.data.account} with claimedAssetsAmount: ${claimedAssetsAmount} on block ${event.block.number} and timestamp ${event.block.timestamp}`
     );
     if (this.data.claimedAt) throw new Error("Redeem already claimed");
     this.data = {
