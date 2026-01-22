@@ -1,7 +1,7 @@
 import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { RedeemOrder } from "ponder:schema";
-import { serviceLog } from "../helpers/logger";
+import { serviceLog, serviceError, addThousandsSeparator } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
 
 /**
@@ -91,11 +91,23 @@ export class RedeemOrderService extends mixinCommonStatics(
    * redeemOrderService.claimRedeem({ number: 123456, timestamp: 1716792000 });
    * ```
    */
-  public claimRedeem(claimedAssetsAmount: bigint, event: Extract<Event, { transaction: any }>) {
+  public claimRedeem(
+    claimedAssetsAmount: bigint,
+    paymentShareAmount: bigint,
+    event: Extract<Event, { transaction: any }>
+  ) {
     serviceLog(
       `Claiming redeem for account ${this.data.account} with claimedAssetsAmount: ${claimedAssetsAmount} on block ${event.block.number} and timestamp ${event.block.timestamp}`
     );
     if (this.data.claimedAt) throw new Error("Redeem already claimed");
+    if (paymentShareAmount !== this.data.approvedSharesAmount)
+      serviceError(
+        `paymentShareAmount ${addThousandsSeparator(paymentShareAmount)} !== ${addThousandsSeparator(this.data.approvedSharesAmount ?? 0n)} approvedSharesAmount`
+      );
+    if (claimedAssetsAmount !== this.data.revokedAssetsAmount)
+      serviceError(
+        `claimedAssetsAmount ${addThousandsSeparator(claimedAssetsAmount)} !== ${addThousandsSeparator(this.data.revokedAssetsAmount ?? 0n)} revokedAssetsAmount`
+      );
     this.data = {
       ...this.data,
       claimedAssetsAmount,

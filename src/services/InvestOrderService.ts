@@ -1,7 +1,7 @@
 import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { InvestOrder } from "ponder:schema";
-import { serviceLog } from "../helpers/logger";
+import { serviceLog, serviceError, addThousandsSeparator } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
 
 /**
@@ -80,12 +80,23 @@ export class InvestOrderService extends mixinCommonStatics(
    * @param block - The event block containing timestamp and block number
    * @returns The service instance for method chaining
    */
-  public claimDeposit(claimedSharesAmount: bigint, event: Extract<Event, { transaction: any }>) {
+  public claimDeposit(
+    claimedSharesAmount: bigint,
+    paymentAssetAmount: bigint,
+    event: Extract<Event, { transaction: any }>
+  ) {
     serviceLog(
       `Claiming deposit for account ${this.data.account} with claimedSharesAmount: ${claimedSharesAmount} on block ${event.block.number} with timestamp ${event.block.timestamp}`
     );
     if (this.data.claimedAt) throw new Error("Deposit already claimed");
-
+    if (paymentAssetAmount !== this.data.approvedAssetsAmount)
+      serviceError(
+        `paymentAssetAmount ${addThousandsSeparator(paymentAssetAmount)} !== ${addThousandsSeparator(this.data.approvedAssetsAmount ?? 0n)} approvedAssetsAmount`
+      );
+    if (claimedSharesAmount !== this.data.issuedSharesAmount)
+      serviceError(
+        `claimedSharesAmount ${addThousandsSeparator(claimedSharesAmount)} !== ${addThousandsSeparator(this.data.issuedSharesAmount ?? 0n)} issuedSharesAmount`
+      );
     this.data = {
       ...this.data,
       claimedSharesAmount,

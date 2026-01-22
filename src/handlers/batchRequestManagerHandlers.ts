@@ -68,14 +68,11 @@ export async function updateDepositRequest({
     undefined,
     true
   )) as PendingInvestOrderService;
-  const {
-    pendingAssetsAmount: previousPendingAssetsAmount,
-    queuedAssetsAmount: previousQueuedAssetsAmount,
-  } = pendingInvestOrder.read();
-  const isNewOrder =
-    previousPendingAssetsAmount === undefined && previousQueuedAssetsAmount === undefined;
+  const { createdAtTxHash } = pendingInvestOrder.read();
+  const isNewOrder = createdAtTxHash === event.transaction.hash;
+
   pendingInvestOrder.updateQueuedAmount(queuedUserAssetAmount);
-  if (isNewOrder || pendingUserAssetAmount === 0n)
+  if (isNewOrder || queuedUserAssetAmount === 0n)
     pendingInvestOrder.updatePendingAmount(pendingUserAssetAmount);
   await pendingInvestOrder.saveOrClear(event);
 
@@ -156,15 +153,13 @@ export async function updateRedeemRequest({
     undefined,
     true
   )) as PendingRedeemOrderService;
-  const {
-    pendingSharesAmount: previousPendingSharesAmount,
-    queuedSharesAmount: previousQueuedSharesAmount,
-  } = pendingRedeemOrder.read();
-  const isNewOrder =
-    previousPendingSharesAmount === undefined && previousQueuedSharesAmount === undefined;
+  const { createdAtTxHash } = pendingRedeemOrder.read();
+  const isNewOrder = createdAtTxHash === event.transaction.hash;
+
   pendingRedeemOrder.updateQueuedAmount(queuedUserShareAmount);
-  if (isNewOrder || pendingUserShareAmount === 0n)
+  if (isNewOrder || queuedUserShareAmount === 0n)
     pendingRedeemOrder.updatePendingAmount(pendingUserShareAmount);
+
   await pendingRedeemOrder.saveOrClear(event);
 
   // TODO: DEPRECATED to be deleted in future releases
@@ -570,6 +565,7 @@ export async function claimDeposit({
   logEvent(event, context, "batchRequestManager:ClaimDeposit");
   const {
     //poolId,
+    paymentAssetAmount,
     investor,
     ...args
   } = event.args;
@@ -603,7 +599,7 @@ export async function claimDeposit({
     index: epochIndex,
   })) as InvestOrderService | null;
   if (!investOrder) return serviceError(`InvestOrder not found. Cannot claim deposit`);
-  await investOrder.claimDeposit(claimedShareAmount, event).save(event);
+  await investOrder.claimDeposit(claimedShareAmount, paymentAssetAmount, event).save(event);
 }
 
 multiMapper("batchRequestManager:ClaimRedeem", claimRedeem);
@@ -618,6 +614,7 @@ export async function claimRedeem({
   const {
     //poolId,
     investor,
+    paymentShareAmount,
     ...args
   } = event.args;
 
@@ -650,7 +647,7 @@ export async function claimRedeem({
     index: epochIndex,
   })) as RedeemOrderService | null;
   if (!redeemOrder) return serviceError(`RedeemOrder not found. Cannot claim redeem`);
-  await redeemOrder.claimRedeem(claimedAssetAmount, event).save(event);
+  await redeemOrder.claimRedeem(claimedAssetAmount, paymentShareAmount, event).save(event);
 }
 
 /**
@@ -660,7 +657,7 @@ export async function claimRedeem({
  * @returns The percentage of the approved amount that is approved with 18 decimals.
  */
 function computeApprovedPercentage(approveAmount: bigint, pendingAmount: bigint) {
-  return (approveAmount * 10n ** 18n) / (approveAmount + pendingAmount);
+  return (approveAmount * 10n ** 18n) / (pendingAmount + approveAmount);
 }
 
 /**

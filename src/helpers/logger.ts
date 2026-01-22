@@ -1,5 +1,23 @@
 import type { Event, Context } from "ponder:registry";
 const isStart = process.argv.includes("start");
+
+/**
+ * Adds thousands separators (') to a number, grouping digits every 3 from the end.
+ *
+ * @param value - The value to format (bigint, number, or string)
+ * @returns The formatted string with thousands separators and the "n" suffix
+ *
+ * @example
+ * ```typescript
+ * addThousandsSeparator(1234567) // "1'234'567n
+ * addThousandsSeparator("1000") // "1'000"
+ * addThousandsSeparator(1234567n) // "1'234'567"
+ * ```
+ */
+export function addThousandsSeparator(value: bigint | number | string): string {
+  const valueStr = value.toString();
+  return valueStr.replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+}
 /**
  * Logs blockchain event details to the console with formatted output.
  *
