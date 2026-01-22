@@ -17,27 +17,6 @@ export class RedeemOrderService extends mixinCommonStatics(
   "RedeemOrder"
 ) {
   /**
-   * Fills a redeem order with the given queued and pending shares amounts.
-   *
-   * @param queuedSharesAmount - The amount of shares queued
-   * @param pendingSharesAmount - The amount of shares pending
-   * @param event - The event containing the block information
-   * @returns The service instance for method chaining
-   */
-  public post(pendingSharesAmount: bigint, queuedSharesAmount: bigint, event: Extract<Event, { transaction: any }>) {
-    serviceLog(
-      `Filling redeemOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with pendingSharesAmount: ${pendingSharesAmount}`
-    );
-    this.data = {
-      ...this.data,
-      pendingSharesAmount,
-      queuedSharesAmount,
-      ...timestamper("posted", event),
-    }
-    return this;
-  }
-
-  /**
    * Approves a redeem order with the given approved shares amount.
    *
    * @param approvedSharesAmount - The amount of shares approved
@@ -52,7 +31,7 @@ export class RedeemOrderService extends mixinCommonStatics(
       ...this.data,
       approvedSharesAmount,
       ...timestamper("approved", event),
-    }
+    };
     return this;
   }
 
@@ -88,11 +67,15 @@ export class RedeemOrderService extends mixinCommonStatics(
       ...this.data,
       ...timestamper("revoked", event),
       revokedSharesAmount: this.data.approvedSharesAmount,
-      revokedAssetsAmount: (this.data.approvedSharesAmount * navAssetPerShare) / 10n ** BigInt(18 + shareDecimals - assetDecimals),
-      revokedPoolAmount: (this.data.approvedSharesAmount * navPoolPerShare) / 10n ** BigInt(18 + shareDecimals - poolDecimals),
+      revokedAssetsAmount:
+        (this.data.approvedSharesAmount * navAssetPerShare) /
+        10n ** BigInt(18 + shareDecimals - assetDecimals),
+      revokedPoolAmount:
+        (this.data.approvedSharesAmount * navPoolPerShare) /
+        10n ** BigInt(18 + shareDecimals - poolDecimals),
       revokedWithNavAssetPerShare: navAssetPerShare,
       revokedWithNavPoolPerShare: navPoolPerShare,
-    }
+    };
     return this;
   }
 
@@ -117,18 +100,7 @@ export class RedeemOrderService extends mixinCommonStatics(
       ...this.data,
       claimedAssetsAmount,
       ...timestamper("claimed", event),
-    }
+    };
     return this;
-  }
-
-  /**
-   * Saves or clears the redeem order.
-   *
-   * @param event - The event containing the block information
-   * @returns The service instance for method chaining
-   */
-  public saveOrClear(event: Event) {
-    if(this.data.pendingSharesAmount === 0n) return this.delete();
-    return this.save(event);
   }
 }

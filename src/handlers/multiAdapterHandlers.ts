@@ -1,6 +1,5 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { expandInlineObject,
-logEvent, serviceError,serviceLog } from "../helpers/logger";
+import { expandInlineObject, logEvent, serviceError, serviceLog } from "../helpers/logger";
 import { BlockchainService } from "../services/BlockchainService";
 import {
   CrosschainMessageService,
@@ -28,7 +27,11 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
     // refund,
   } = event.args;
 
-  const versionIndex = getVersionIndexForContract("multiAdapter", context.chain.id, event.log.address);
+  const versionIndex = getVersionIndexForContract(
+    "multiAdapter",
+    context.chain.id,
+    event.log.address
+  );
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const messages = extractMessagesFromPayload(payloadData, versionIndex);
@@ -38,9 +41,11 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
 
   let payload: CrosschainPayloadService | null = null;
 
-  if(versionIndex === 0) payload = await CrosschainPayloadService.getUnderpaidFromQueue(context, payloadId);
-  else payload = await CrosschainPayloadService.getUnderpaidOrInTransitFromQueue(context, payloadId);
-  
+  if (versionIndex === 0)
+    payload = await CrosschainPayloadService.getUnderpaidFromQueue(context, payloadId);
+  else
+    payload = await CrosschainPayloadService.getUnderpaidOrInTransitFromQueue(context, payloadId);
+
   if (!payload) {
     const payloadIndex = await CrosschainPayloadService.count(context, {
       id: payloadId,
@@ -86,8 +91,7 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
     },
     event
   )) as AdapterParticipationService | null;
-  if (!adapterParticipation)
-    serviceError("Failed to initialize adapter participation");
+  if (!adapterParticipation) serviceError("Failed to initialize adapter participation");
 });
 
 multiMapper("multiAdapter:SendProof", async ({ event, context }) => {
@@ -138,13 +142,14 @@ multiMapper("multiAdapter:HandlePayload", async ({ event, context }) => {
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const payload =
-    (await CrosschainPayloadService.getInTransitOrDeliveredFromQueue(
-      context,
-      payloadId
-    )) as CrosschainPayloadService | null;
+  const payload = (await CrosschainPayloadService.getInTransitOrDeliveredFromQueue(
+    context,
+    payloadId
+  )) as CrosschainPayloadService | null;
   if (!payload) {
-    serviceError(`CrosschainPayload not found in InTransit or Delivered queue. Cannot handle payload`);
+    serviceError(
+      `CrosschainPayload not found in InTransit or Delivered queue. Cannot handle payload`
+    );
     return;
   }
 
@@ -167,13 +172,21 @@ multiMapper("multiAdapter:HandlePayload", async ({ event, context }) => {
     event
   )) as AdapterParticipationService;
 
-  const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(context, payloadId, payloadIndex);
+  const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(
+    context,
+    payloadId,
+    payloadIndex
+  );
   if (!isPayloadVerified) return;
 
   payload.delivered(event);
   await payload.save(event);
 
-  const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(context, payloadId, payloadIndex);
+  const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(
+    context,
+    payloadId,
+    payloadIndex
+  );
   if (!isPayloadFullyExecuted) return;
 
   payload.completed(event);
@@ -185,11 +198,10 @@ multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
   const { payloadId, adapter, centrifugeId: fromCentrifugeId } = event.args;
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
-  const crosschainPayload =
-    (await CrosschainPayloadService.getIncompleteFromQueue(
-      context,
-      payloadId
-    )) as CrosschainPayloadService | null;
+  const crosschainPayload = (await CrosschainPayloadService.getIncompleteFromQueue(
+    context,
+    payloadId
+  )) as CrosschainPayloadService | null;
   if (!crosschainPayload) {
     serviceError(`CrosschainPayload not found in Incomplete queue. Cannot handle proof`);
     return;
@@ -214,13 +226,21 @@ multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
     event
   )) as AdapterParticipationService;
 
-  const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(context, payloadId, payloadIndex);
+  const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(
+    context,
+    payloadId,
+    payloadIndex
+  );
   if (!isPayloadVerified) return;
 
   crosschainPayload.delivered(event);
   await crosschainPayload.save(event);
 
-  const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(context, payloadId, payloadIndex);
+  const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(
+    context,
+    payloadId,
+    payloadIndex
+  );
   if (!isPayloadFullyExecuted) return;
 
   crosschainPayload.completed(event);
@@ -233,25 +253,40 @@ multiMapper(
     logEvent(event, context, "multiAdapterFile");
     const localCentrifugeId = await BlockchainService.getCentrifugeId(context);
     const { what, centrifugeId: remoteCentrifugeId, adapters } = event.args;
-    const parsedWhat = Buffer.from(what.substring(2), "hex").toString("utf-8").replace(/\0/g, '');
-    serviceLog("Event data: ", expandInlineObject({parsedWhat, remoteCentrifugeId, adapters}));
+    const parsedWhat = Buffer.from(what.substring(2), "hex").toString("utf-8").replace(/\0/g, "");
+    serviceLog("Event data: ", expandInlineObject({ parsedWhat, remoteCentrifugeId, adapters }));
     if (parsedWhat !== "adapters") return;
 
-    const localAdapters = ((await AdapterService.query(context, { centrifugeId: localCentrifugeId.toString() })) as AdapterService[]).map((adapter) => adapter.read());
+    const localAdapters = (
+      (await AdapterService.query(context, {
+        centrifugeId: localCentrifugeId.toString(),
+      })) as AdapterService[]
+    ).map((adapter) => adapter.read());
     const adapterWirings: Promise<AdapterWiringService | null>[] = [];
     for (const remoteAdapterAddress of adapters) {
-      const remoteAdapter = await AdapterService.get(context, { centrifugeId: remoteCentrifugeId.toString(), address: remoteAdapterAddress });
+      const remoteAdapter = await AdapterService.get(context, {
+        centrifugeId: remoteCentrifugeId.toString(),
+        address: remoteAdapterAddress,
+      });
       if (!remoteAdapter) continue;
       const { name: remoteAdapterName } = remoteAdapter.read();
-      const localAdapter = localAdapters.find((localAdapter) => localAdapter.name === remoteAdapterName);
+      const localAdapter = localAdapters.find(
+        (localAdapter) => localAdapter.name === remoteAdapterName
+      );
       if (!localAdapter) continue;
-      serviceLog(`Wiring adapter ${localAdapter.name} on chain ${localCentrifugeId} to adapter ${remoteAdapterName} on chain ${remoteCentrifugeId}`);
-      const adapterWiring = AdapterWiringService.insert(context, {
-        fromAddress: localAdapter.address,
-        fromCentrifugeId: localCentrifugeId,
-        toAddress: remoteAdapterAddress,
-        toCentrifugeId: remoteCentrifugeId.toString(),
-      }, event) as Promise<AdapterWiringService | null>;
+      serviceLog(
+        `Wiring adapter ${localAdapter.name} on chain ${localCentrifugeId} to adapter ${remoteAdapterName} on chain ${remoteCentrifugeId}`
+      );
+      const adapterWiring = AdapterWiringService.insert(
+        context,
+        {
+          fromAddress: localAdapter.address,
+          fromCentrifugeId: localCentrifugeId,
+          toAddress: remoteAdapterAddress,
+          toCentrifugeId: remoteCentrifugeId.toString(),
+        },
+        event
+      ) as Promise<AdapterWiringService | null>;
       adapterWirings.push(adapterWiring);
     }
     await Promise.all(adapterWirings);

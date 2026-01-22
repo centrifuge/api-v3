@@ -74,8 +74,7 @@ multiMapper("hubRegistry:NewAsset", async ({ event, context }) => {
 
   const isIsoCurrency = assetId < 1000n;
   if (isIsoCurrency) {
-    const isoCurrency =
-      isoCurrencies[Number(assetId) as keyof typeof isoCurrencies];
+    const isoCurrency = isoCurrencies[Number(assetId) as keyof typeof isoCurrencies];
     const _asset = (await AssetService.getOrInit(
       context,
       {
@@ -118,7 +117,6 @@ multiMapper("hubRegistry:UpdateManager", async ({ event, context }) => {
 
 multiMapper("hubRegistry:SetMetadata", async ({ event, context }) => {
   logEvent(event, context, "hubRegistry:SetMetadata");
-
 
   const { poolId, metadata: rawMetadata } = event.args;
 

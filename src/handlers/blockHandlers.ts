@@ -2,12 +2,23 @@ import { ponder } from "ponder:registry";
 import type { Context, Event } from "ponder:registry";
 import { logEvent } from "../helpers/logger";
 import { Timekeeper } from "../helpers/timekeeper";
-import { BlockchainService, HoldingEscrowService, PoolService, TokenInstanceService, TokenService } from "../services";
-import { PoolSnapshot, HoldingEscrowSnapshot, TokenInstanceSnapshot, TokenSnapshot } from "ponder:schema";
+import {
+  BlockchainService,
+  HoldingEscrowService,
+  PoolService,
+  TokenInstanceService,
+  TokenService,
+} from "../services";
+import {
+  PoolSnapshot,
+  HoldingEscrowSnapshot,
+  TokenInstanceSnapshot,
+  TokenSnapshot,
+} from "ponder:schema";
 import { snapshotter } from "../helpers/snapshotter";
 import { blocks } from "../chains";
 
-const timekeeper = Timekeeper.start()
+const timekeeper = Timekeeper.start();
 
 /**
  * Processes a new block and creates snapshots if a new period has started
@@ -17,38 +28,50 @@ const timekeeper = Timekeeper.start()
  * @returns Promise that resolves when processing is complete
  */
 async function processBlock(args: { event: Event; context: Context }) {
-  const chainName  = args.context.chain.name
-  const { event, context } = args
-  const newPeriod = await timekeeper.processBlock(context, event)
-  if (!newPeriod) return
-  logEvent(event, context, `${chainName}:NewPeriod`)
-  
+  const chainName = args.context.chain.name;
+  const { event, context } = args;
+  const newPeriod = await timekeeper.processBlock(context, event);
+  if (!newPeriod) return;
+  logEvent(event, context, `${chainName}:NewPeriod`);
+
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
-  
-  const pools = await PoolService.query(context, {
-    isActive: true,
-    centrifugeId
-  }) as PoolService[];
 
-  const tokens = await TokenService.query(context, {
+  const pools = (await PoolService.query(context, {
     isActive: true,
-    centrifugeId
-  }) as TokenService[];
-
-  const tokenInstances = await TokenInstanceService.query(context, {
-    isActive: true,
-    centrifugeId
-  }) as TokenInstanceService[];
-
-  const holdingEscrows = await HoldingEscrowService.query(context, {
     centrifugeId,
-    assetAmount_not: 0n
-  }) as HoldingEscrowService[];
+  })) as PoolService[];
 
-  await snapshotter(context, event, `${chainName}:NewPeriod`, pools, PoolSnapshot)
-  await snapshotter(context, event, `${chainName}:NewPeriod`, tokens, TokenSnapshot)
-  await snapshotter(context, event, `${chainName}:NewPeriod`, tokenInstances, TokenInstanceSnapshot)
-  await snapshotter(context, event, `${chainName}:NewPeriod`, holdingEscrows, HoldingEscrowSnapshot)
+  const tokens = (await TokenService.query(context, {
+    isActive: true,
+    centrifugeId,
+  })) as TokenService[];
+
+  const tokenInstances = (await TokenInstanceService.query(context, {
+    isActive: true,
+    centrifugeId,
+  })) as TokenInstanceService[];
+
+  const holdingEscrows = (await HoldingEscrowService.query(context, {
+    centrifugeId,
+    assetAmount_not: 0n,
+  })) as HoldingEscrowService[];
+
+  await snapshotter(context, event, `${chainName}:NewPeriod`, pools, PoolSnapshot);
+  await snapshotter(context, event, `${chainName}:NewPeriod`, tokens, TokenSnapshot);
+  await snapshotter(
+    context,
+    event,
+    `${chainName}:NewPeriod`,
+    tokenInstances,
+    TokenInstanceSnapshot
+  );
+  await snapshotter(
+    context,
+    event,
+    `${chainName}:NewPeriod`,
+    holdingEscrows,
+    HoldingEscrowSnapshot
+  );
 }
 
 // Register block handlers for each chain using the block names from the blocks config
@@ -56,6 +79,3 @@ async function processBlock(args: { event: Event; context: Context }) {
 (Object.keys(blocks) as Array<keyof typeof blocks>).forEach((chainName: keyof typeof blocks) => {
   ponder.on(`${chainName}:block`, processBlock);
 });
-
-
-

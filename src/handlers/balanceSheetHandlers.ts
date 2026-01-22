@@ -11,15 +11,9 @@ import {
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
 
-multiMapper('balanceSheet:NoteDeposit', async ({ event, context }) => {
+multiMapper("balanceSheet:NoteDeposit", async ({ event, context }) => {
   logEvent(event, context, "balanceSheet:NoteDeposit");
-  const {
-    poolId,
-    scId: tokenId,
-    asset: assetAddress,
-    amount,
-    pricePoolPerAsset,
-  } = event.args;
+  const { poolId, scId: tokenId, asset: assetAddress, amount, pricePoolPerAsset } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
@@ -30,11 +24,12 @@ multiMapper('balanceSheet:NoteDeposit', async ({ event, context }) => {
   if (!asset) return serviceError(`Asset not found. Cannot retrieve assetId for holding escrow`);
   const { id: assetId } = asset.read();
 
-  const escrow = await EscrowService.get(context, {
+  const escrow = (await EscrowService.get(context, {
     poolId,
     centrifugeId,
-  }) as EscrowService | null;
-  if (!escrow) return serviceError(`Escrow not found. Cannot retrieve escrow address for holding escrow`);
+  })) as EscrowService | null;
+  if (!escrow)
+    return serviceError(`Escrow not found. Cannot retrieve escrow address for holding escrow`);
   const { address: escrowAddress } = escrow!.read();
 
   const holdingEscrow = (await HoldingEscrowService.getOrInit(
@@ -54,18 +49,18 @@ multiMapper('balanceSheet:NoteDeposit', async ({ event, context }) => {
   await holdingEscrow.setAssetPrice(pricePoolPerAsset);
   await holdingEscrow.save(event);
 
-  await snapshotter(context, event, "balanceSheetV3:NoteDeposit", [holdingEscrow], HoldingEscrowSnapshot);
+  await snapshotter(
+    context,
+    event,
+    "balanceSheetV3:NoteDeposit",
+    [holdingEscrow],
+    HoldingEscrowSnapshot
+  );
 });
 
 multiMapper("balanceSheet:Withdraw", async ({ event, context }) => {
   logEvent(event, context, "balanceSheet:Withdraw");
-  const {
-    poolId,
-    scId: tokenId,
-    asset: assetAddress,
-    amount,
-    pricePoolPerAsset,
-  } = event.args;
+  const { poolId, scId: tokenId, asset: assetAddress, amount, pricePoolPerAsset } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
@@ -76,11 +71,12 @@ multiMapper("balanceSheet:Withdraw", async ({ event, context }) => {
   if (!asset) return serviceError(`Asset not found. Cannot retrieve assetId for holding escrow`);
   const { id: assetId } = asset.read();
 
-  const escrow = await EscrowService.get(context, {
+  const escrow = (await EscrowService.get(context, {
     poolId,
     centrifugeId,
-  }) as EscrowService | null;
-  if (!escrow) return serviceError(`Escrow not found. Cannot retrieve escrow address for holding escrow`);
+  })) as EscrowService | null;
+  if (!escrow)
+    return serviceError(`Escrow not found. Cannot retrieve escrow address for holding escrow`);
   const { address: escrowAddress } = escrow!.read();
 
   const holdingEscrow = (await HoldingEscrowService.getOrInit(
@@ -100,12 +96,18 @@ multiMapper("balanceSheet:Withdraw", async ({ event, context }) => {
   await holdingEscrow.setAssetPrice(pricePoolPerAsset);
   await holdingEscrow.save(event);
 
-  await snapshotter(context, event, "balanceSheetV3:Withdraw", [holdingEscrow], HoldingEscrowSnapshot);
+  await snapshotter(
+    context,
+    event,
+    "balanceSheetV3:Withdraw",
+    [holdingEscrow],
+    HoldingEscrowSnapshot
+  );
 });
 
 multiMapper("balanceSheet:UpdateManager", async ({ event, context }) => {
   logEvent(event, context, "balanceSheet:UpdateManager");
-  
+
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const { who: manager, poolId, canManage } = event.args;

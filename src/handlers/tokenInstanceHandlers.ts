@@ -56,7 +56,6 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
     !isToNull && !isToGlobalEscrow,
   ];
 
-
   if (isFromUserAccount) {
     const _fromAccount = await AccountService.getOrInit(context, { address: from }, event);
     const fromPosition = (await TokenInstancePositionService.getOrInit(
@@ -75,8 +74,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
       serviceError(`TokenInstancePosition not found. Cannot update balance`);
       return;
     }
-    if (createdAtBlock < Number(event.block.number))
-      fromPosition.subBalance(amount);
+    if (createdAtBlock < Number(event.block.number)) fromPosition.subBalance(amount);
     await fromPosition.save(event);
   }
 
@@ -98,8 +96,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
       serviceError(`TokenInstancePosition not found. Cannot update balance`);
       return;
     }
-    if (createdAtBlock < Number(event.block.number))
-      toPosition.addBalance(amount);
+    if (createdAtBlock < Number(event.block.number)) toPosition.addBalance(amount);
     await toPosition.save(event);
   }
 

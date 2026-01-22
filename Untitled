@@ -1,0 +1,1 @@
+    this.data.requestedAssetsAmount += requestedAssetsAmount;

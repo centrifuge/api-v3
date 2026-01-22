@@ -21,13 +21,10 @@ export function logEvent(event: Event, context: Context, name?: string) {
   const { chain } = context;
   const date = new Date(Number(block.timestamp) * 1000);
   const eventDetails = args
-    ? Object.entries(args).reduce<string[]>(
-        (details: string[], line: [string, any]) => {
-          details.push(line.join(": "));
-          return details;
-        },
-        []
-      )
+    ? Object.entries(args).reduce<string[]>((details: string[], line: [string, any]) => {
+        details.push(line.join(": "));
+        return details;
+      }, [])
     : ["{}"];
   process.stdout.write(
     `Received event ${name} on block ${block.number} with chainId ${chain.id}, timestamp ${date.toISOString()}, args: ${eventDetails.join(", ")}, txHash: ${transaction?.hash || "unknown"}\n`
@@ -43,12 +40,18 @@ export function logEvent(event: Event, context: Context, name?: string) {
  */
 export function expandInlineObject(obj: Record<string, any> | null): string {
   if (!obj) return "null";
-  return "{" + Object.entries(obj).map(([key, value]) => {
-    if (typeof value === "object") {
-      return `${key}: ${expandInlineObject(value)}`;
-    }
-    return `${key}: ${value}`;
-  }).join(", ") + "}";
+  return (
+    "{" +
+    Object.entries(obj)
+      .map(([key, value]) => {
+        if (typeof value === "object") {
+          return `${key}: ${expandInlineObject(value)}`;
+        }
+        return `${key}: ${value}`;
+      })
+      .join(", ") +
+    "}"
+  );
 }
 
 /**

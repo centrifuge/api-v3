@@ -19,10 +19,7 @@ export type RegistryChainsValues<V extends RegistryVersions> = V extends Registr
   ? RegistryChains<V>[keyof RegistryChains<V>]
   : never;
 
-type ChainsConfig<V extends RegistryVersions> = Record<
-  NetworkNames<V>,
-  ChainConfig
->;
+type ChainsConfig<V extends RegistryVersions> = Record<NetworkNames<V>, ChainConfig>;
 
 export const networkNames = {
   "84532": "base",
@@ -36,22 +33,18 @@ export const networkNames = {
   "56": "binance",
 } as const;
 
-type ExtractNetworkNamesFromKeys<K> = 
-  K extends keyof typeof networkNames 
-    ? (typeof networkNames)[K]
-    : never;
+type ExtractNetworkNamesFromKeys<K> = K extends keyof typeof networkNames
+  ? (typeof networkNames)[K]
+  : never;
 
-export type NetworkNames<V> = 
-  V extends RegistryVersions
-    ? ExtractNetworkNamesFromKeys<RegistryChainsKeys<V>>
-    : never;
+export type NetworkNames<V> = V extends RegistryVersions
+  ? ExtractNetworkNamesFromKeys<RegistryChainsKeys<V>>
+  : never;
 
 // Load and deduplicate the registry chains
 let loadedChains: RegistryChainsValues<RegistryVersions>[] = Array.from(
   Object.values(registries)
-    .flatMap((registry: Registry<RegistryVersions>) =>
-      Object.values(registry.chains)
-    )
+    .flatMap((registry: Registry<RegistryVersions>) => Object.values(registry.chains))
     .reduce(
       (
         map: Map<number, RegistryChainsValues<RegistryVersions>>,
@@ -128,8 +121,7 @@ const chains = Object.fromEntries(
   loadedChains.map((chain) => {
     const chainId = chain.network.chainId;
     const envRpc = process.env[`PONDER_RPC_URL_${chainId}`];
-    const networkName =
-      networkNames[chainId.toString() as keyof typeof networkNames];
+    const networkName = networkNames[chainId.toString() as keyof typeof networkNames];
     return [
       networkName,
       {
@@ -166,8 +158,7 @@ export const skipBlocks = {
 const blocks = Object.fromEntries(
   loadedChains.map((chain) => {
     const chainId = chain.network.chainId;
-    const networkName =
-      networkNames[chainId.toString() as keyof typeof networkNames];
+    const networkName = networkNames[chainId.toString() as keyof typeof networkNames];
     return [
       networkName,
       {
@@ -189,7 +180,7 @@ export { blocks };
 export function getContractNames(): string[] {
   const versions = Object.keys(registries) as RegistryVersions[];
   const contractNamesSet = new Set<string>();
-  
+
   // Iterate through all versions (later versions will override earlier ones for same contract names)
   for (const version of versions) {
     const registry = registries[version];
@@ -203,7 +194,7 @@ export function getContractNames(): string[] {
       }
     }
   }
-  
+
   return Array.from(contractNamesSet);
 }
 
@@ -221,12 +212,19 @@ export const explorerUrls = {
 
 export const chainIcons = {
   "1": "https://ipfs.centrifuge.io/ipfs/bafkreihk753r3oksmw5pburcz4dxq2xazsarihdkeae2ilt7tc7lj2hggm",
-  "8453": "https://ipfs.centrifuge.io/ipfs/bafkreifpdqjq6jvh4xat54ymcue6p4n24ifc3gzz2446cipumiwbz7ybu4",
-  "42161": "https://ipfs.centrifuge.io/ipfs/bafkreiemrnwrwcxbwho3ut6x3k4zv4jerowpwnynovt6sbc7kgqbfknq7a",
-  "98866": "https://ipfs.centrifuge.io/ipfs/bafkreiecr63jf4mvgylcnxry3wsds6cdmjsnzcybjffmvcpxhes6qwfngy",
-  "43114": "https://ipfs.centrifuge.io/ipfs/bafkreiaxodsgromeeaihu44fazsxdopkrqvinqzhyfxvx5mrbcmduqdfpq",
+  "8453":
+    "https://ipfs.centrifuge.io/ipfs/bafkreifpdqjq6jvh4xat54ymcue6p4n24ifc3gzz2446cipumiwbz7ybu4",
+  "42161":
+    "https://ipfs.centrifuge.io/ipfs/bafkreiemrnwrwcxbwho3ut6x3k4zv4jerowpwnynovt6sbc7kgqbfknq7a",
+  "98866":
+    "https://ipfs.centrifuge.io/ipfs/bafkreiecr63jf4mvgylcnxry3wsds6cdmjsnzcybjffmvcpxhes6qwfngy",
+  "43114":
+    "https://ipfs.centrifuge.io/ipfs/bafkreiaxodsgromeeaihu44fazsxdopkrqvinqzhyfxvx5mrbcmduqdfpq",
   "56": "https://ipfs.centrifuge.io/ipfs/bafkreidiypdacfywbuokj7r3e7td5bs6ojkh37ycz3uwfcbd34xka2qtai",
-  "11155111": "https://ipfs.centrifuge.io/ipfs/bafkreihk753r3oksmw5pburcz4dxq2xazsarihdkeae2ilt7tc7lj2hggm",
-  "84532": "https://ipfs.centrifuge.io/ipfs/bafkreifpdqjq6jvh4xat54ymcue6p4n24ifc3gzz2446cipumiwbz7ybu4",
-  "421614": "https://ipfs.centrifuge.io/ipfs/bafkreiemrnwrwcxbwho3ut6x3k4zv4jerowpwnynovt6sbc7kgqbfknq7a"
-}
+  "11155111":
+    "https://ipfs.centrifuge.io/ipfs/bafkreihk753r3oksmw5pburcz4dxq2xazsarihdkeae2ilt7tc7lj2hggm",
+  "84532":
+    "https://ipfs.centrifuge.io/ipfs/bafkreifpdqjq6jvh4xat54ymcue6p4n24ifc3gzz2446cipumiwbz7ybu4",
+  "421614":
+    "https://ipfs.centrifuge.io/ipfs/bafkreiemrnwrwcxbwho3ut6x3k4zv4jerowpwnynovt6sbc7kgqbfknq7a",
+};

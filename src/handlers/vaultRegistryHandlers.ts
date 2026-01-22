@@ -6,7 +6,13 @@ import { BlockchainService, AssetService, VaultService } from "../services";
 import { getContractNameForAddress } from "../contracts";
 
 multiMapper("vaultRegistry:DeployVault", deployVault);
-export async function deployVault({ event, context }: { event: Event<"vaultRegistryV3_1:DeployVault" | "spokeV3:DeployVault">, context: Context }) {
+export async function deployVault({
+  event,
+  context,
+}: {
+  event: Event<"vaultRegistryV3_1:DeployVault" | "spokeV3:DeployVault">;
+  context: Context;
+}) {
   logEvent(event, context, "spoke:DeployVault");
 
   const {
@@ -66,7 +72,13 @@ export async function deployVault({ event, context }: { event: Event<"vaultRegis
 }
 
 multiMapper("vaultRegistry:LinkVault", linkVault);
-export async function linkVault({ event, context }: { event: Event<"spokeV3:LinkVault" | "vaultRegistryV3_1:LinkVault">, context: Context }) {
+export async function linkVault({
+  event,
+  context,
+}: {
+  event: Event<"spokeV3:LinkVault" | "vaultRegistryV3_1:LinkVault">;
+  context: Context;
+}) {
   logEvent(event, context, "spoke:LinkVault");
   const {
     //poolId: poolId,
@@ -91,7 +103,13 @@ export async function linkVault({ event, context }: { event: Event<"spokeV3:Link
 }
 
 multiMapper("vaultRegistry:UnlinkVault", unlinkVault);
-export async function unlinkVault({ event, context }: { event: Event<"spokeV3:UnlinkVault" | "vaultRegistryV3_1:UnlinkVault">, context: Context }) {
+export async function unlinkVault({
+  event,
+  context,
+}: {
+  event: Event<"spokeV3:UnlinkVault" | "vaultRegistryV3_1:UnlinkVault">;
+  context: Context;
+}) {
   logEvent(event, context, "spoke:UnlinkVault");
   const { vault: vaultId } = event.args;
 

@@ -16,11 +16,7 @@ import {
   gt,
 } from "drizzle-orm";
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
-import {
-  expandInlineObject,
-  serviceLog,
-  serviceError,
-} from "../helpers/logger";
+import { expandInlineObject, serviceLog, serviceError } from "../helpers/logger";
 import { toCamelCase } from "drizzle-orm/casing";
 import { ReadonlyDrizzle } from "ponder";
 import { timestamper } from "../helpers/timestamper";
@@ -66,12 +62,7 @@ export class Service<T extends OnchainTable> {
    * @param context - Database and client context
    * @param data - Initial data for the service instance
    */
-  constructor(
-    table: T,
-    name: string,
-    context: Context | ReadOnlyContext,
-    data: T["$inferSelect"]
-  ) {
+  constructor(table: T, name: string, context: Context | ReadOnlyContext, data: T["$inferSelect"]) {
     this.db = "sql" in context.db ? context.db.sql : context.db;
     this.client = "client" in context ? context.client : null;
     this.table = table;
@@ -107,9 +98,7 @@ export class Service<T extends OnchainTable> {
           .insert(this.table)
           .values(dataWithDefaults)
           .onConflictDoUpdate({
-            target: getPrimaryKeysFieldNames(this.table).map(
-              (key) => this.table[key]
-            ),
+            target: getPrimaryKeysFieldNames(this.table).map((key) => this.table[key]),
             set: { ...dataWithDefaults, ...timestamper("created", undefined) },
           })
           .returning()
@@ -130,9 +119,7 @@ export class Service<T extends OnchainTable> {
     if (!("delete" in this.db)) throw new Error(`Read only database`);
     serviceLog(`Deleting ${this.name}`, expandInlineObject(this.data));
     if (!this.data) throw new Error(`No data to delete for ${this.table}`);
-    await this.db
-      .delete(this.table)
-      .where(primaryKeyFilter(this.table, this.data));
+    await this.db.delete(this.table).where(primaryKeyFilter(this.table, this.data));
     return this;
   }
 }
@@ -156,27 +143,20 @@ type Constructor<I> = new (..._args: any[]) => I;
 export function mixinCommonStatics<
   C extends Constructor<I>,
   I extends Service<T>,
-  T extends OnchainTable
+  T extends OnchainTable,
 >(service: C, table: T, name: string) {
   return class extends service {
     static async insert(
       context: Context,
-      data: T["$inferInsert"],
-      event: null
-    ): Promise<InstanceType<C> | null>;
-    static async insert(
-      context: Context,
       data: DataWithoutDefaults<T>,
-      event: Event
-    ): Promise<InstanceType<C> | null>;
-    static async insert(
-      context: Context,
-      data: DataWithoutDefaults<T> | T["$inferInsert"],
-      event: Event | null
-    ) {
-      const dataWithDefaults = event
-        ? insertDefaults(table, data, event)
-        : { ...data };
+      event: Event | null,
+      deferInsert?: boolean
+    ): Promise<InstanceType<C> | null> {
+      const dataWithDefaults = event ? insertDefaults(table, data, event) : { ...data };
+      if (deferInsert ?? false) {
+        serviceLog(`Deferring insert for ${name}`);
+        return new this(table, name, context, dataWithDefaults) as InstanceType<C>;
+      }
       const [insert] = await context.db.sql
         .insert(table as OnchainTable)
         .values(dataWithDefaults)
@@ -242,9 +222,7 @@ export function mixinCommonStatics<
       onInit?: (entity: T["$inferSelect"]) => Promise<void>,
       deferInsert?: boolean
     ): Promise<InstanceType<C>> {
-      const dataWithDefaults = event
-        ? insertDefaults(table, query, event)
-        : { ...query };
+      const dataWithDefaults = event ? insertDefaults(table, query, event) : { ...query };
       serviceLog("getOrInit", name, expandInlineObject(dataWithDefaults));
       let entity = await context.db.find(table as any, dataWithDefaults);
       serviceLog(`Found ${name}: `, expandInlineObject(entity));
@@ -253,29 +231,18 @@ export function mixinCommonStatics<
           serviceLog(`Executing onInit for ${name}`);
           await onInit(dataWithDefaults);
         }
-        if (deferInsert) {
+        if (deferInsert ?? false) {
           serviceLog(`Deferring insert for ${name}`);
-          return new this(
-            table,
-            name,
-            context,
-            dataWithDefaults
-          ) as InstanceType<C>;
+          return new this(table, name, context, dataWithDefaults) as InstanceType<C>;
         }
-        serviceLog(
-          `Initialising ${name}: `,
-          expandInlineObject(dataWithDefaults)
-        );
+        serviceLog(`Initialising ${name}: `, expandInlineObject(dataWithDefaults));
         const [insert] = await context.db.sql
           .insert(table as OnchainTable)
           .values(dataWithDefaults)
           .onConflictDoNothing()
           .returning();
         entity = insert ?? null;
-        if (!entity)
-          throw new Error(
-            `Failed to initialise ${name}: ${expandInlineObject(query)}`
-          );
+        if (!entity) throw new Error(`Failed to initialise ${name}: ${expandInlineObject(query)}`);
       }
       return new this(table, name, context, entity) as InstanceType<C>;
     }
@@ -303,9 +270,7 @@ export function mixinCommonStatics<
       query: DataWithoutDefaults<T> | T["$inferInsert"],
       event: Event | null
     ): Promise<InstanceType<C> | null> {
-      const dataWithDefaults = event
-        ? insertDefaults(table, query, event)
-        : { ...query };
+      const dataWithDefaults = event ? insertDefaults(table, query, event) : { ...query };
       serviceLog("upsert", name, expandInlineObject(dataWithDefaults));
       const [entity] = await context.db.sql
         .insert(table as OnchainTable)
@@ -349,12 +314,10 @@ export function mixinCommonStatics<
       if (filter) q = q.where(filter);
       if (query._sort && query._sort.length > 0)
         q = q.orderBy(
-          ...query._sort.map(
-            (sort: { field: keyof T; direction: "asc" | "desc" }) => {
-              const column = table[sort.field];
-              return sort.direction === "asc" ? asc(column) : desc(column);
-            }
-          )
+          ...query._sort.map((sort: { field: keyof T; direction: "asc" | "desc" }) => {
+            const column = table[sort.field];
+            return sort.direction === "asc" ? asc(column) : desc(column);
+          })
         );
       const results = await q;
       serviceLog(`Found ${results.length} ${name}`);
@@ -414,10 +377,7 @@ export function getPrimaryKeysFieldNames<T extends OnchainTable>(table: T) {
  * @param data - The data object to extract primary key values from
  * @returns Object containing only the primary key fields and their values
  */
-export function getPrimaryKeysFields<T extends OnchainTable>(
-  table: T,
-  data: T["$inferSelect"]
-) {
+export function getPrimaryKeysFields<T extends OnchainTable>(table: T, data: T["$inferSelect"]) {
   const primaryKeys = getPrimaryKeysFieldNames(table);
   const pkFields = pick(data, ...primaryKeys);
   return pkFields;
@@ -433,10 +393,13 @@ export function getPrimaryKeysFields<T extends OnchainTable>(
  * @returns A new object containing only the specified properties
  */
 function pick<T, K extends keyof T>(obj: T, ...props: K[]): Pick<T, K> {
-  return props.reduce(function (result, prop) {
-    result[prop] = obj[prop];
-    return result;
-  }, {} as Pick<T, K>);
+  return props.reduce(
+    function (result, prop) {
+      result[prop] = obj[prop];
+      return result;
+    },
+    {} as Pick<T, K>
+  );
 }
 
 /**
@@ -449,10 +412,7 @@ function pick<T, K extends keyof T>(obj: T, ...props: K[]): Pick<T, K> {
  * @returns Drizzle ORM filter condition for primary key matching
  * @throws {Error} When no primary keys are found for the table
  */
-export function primaryKeyFilter<T extends OnchainTable>(
-  table: T,
-  data: T["$inferSelect"]
-) {
+export function primaryKeyFilter<T extends OnchainTable>(table: T, data: T["$inferSelect"]) {
   const primaryKeys = Object.entries(getPrimaryKeysFields(table, data));
   if (primaryKeys.length === 0) throw new Error(`No primary keys for ${table}`);
   if (primaryKeys.length === 1) {
@@ -501,27 +461,18 @@ function queryToFilter<T extends OnchainTable>(
   table: T,
   query: Partial<ExtendedQuery<T["$inferInsert"]>>
 ) {
-  const queryEntries = Object.entries(query).filter(
-    ([key]) => !key.startsWith("_")
-  );
+  const queryEntries = Object.entries(query).filter(([key]) => !key.startsWith("_"));
   const queries = queryEntries.map(([column, value]) => {
     if (value === null) {
-      if (column.endsWith("_not"))
-        return isNotNull(table[column.slice(0, -4) as keyof T]);
+      if (column.endsWith("_not")) return isNotNull(table[column.slice(0, -4) as keyof T]);
       return isNull(table[column as keyof T]);
     }
-    if (column.endsWith("_not"))
-      return not(eq(table[column.slice(0, -4) as keyof T], value));
-    if (column.endsWith("_in"))
-      return inArray(table[column.slice(0, -3) as keyof T], value);
-    if (column.endsWith("_lte"))
-      return lte(table[column.slice(0, -4) as keyof T], value);
-    if (column.endsWith("_lt"))
-      return lt(table[column.slice(0, -3) as keyof T], value);
-    if (column.endsWith("_gte"))
-      return gte(table[column.slice(0, -4) as keyof T], value);
-    if (column.endsWith("_gt"))
-      return gt(table[column.slice(0, -3) as keyof T], value);
+    if (column.endsWith("_not")) return not(eq(table[column.slice(0, -4) as keyof T], value));
+    if (column.endsWith("_in")) return inArray(table[column.slice(0, -3) as keyof T], value);
+    if (column.endsWith("_lte")) return lte(table[column.slice(0, -4) as keyof T], value);
+    if (column.endsWith("_lt")) return lt(table[column.slice(0, -3) as keyof T], value);
+    if (column.endsWith("_gte")) return gte(table[column.slice(0, -4) as keyof T], value);
+    if (column.endsWith("_gt")) return gt(table[column.slice(0, -3) as keyof T], value);
     return eq(table[column as keyof T], value);
   });
   if (queries.length > 1) {
@@ -544,19 +495,15 @@ function insertDefaults<T extends OnchainTable>(
   data: DataWithoutDefaults<T>,
   event: Event
 ): T["$inferInsert"] {
-  const dataWithDefaults = { ...data } as T["$inferInsert"] &
-    CreationProps<T> &
-    UpdateProps<T>;
+  const dataWithDefaults = { ...data } as T["$inferInsert"] & CreationProps<T> & UpdateProps<T>;
   if ("createdAt" in table)
     dataWithDefaults.createdAt = new Date(Number(event.block.timestamp) * 1000);
-  if ("createdAtBlock" in table)
-    dataWithDefaults.createdAtBlock = Number(event.block.number);
+  if ("createdAtBlock" in table) dataWithDefaults.createdAtBlock = Number(event.block.number);
   if ("createdAtTxHash" in table && "transaction" in event)
     dataWithDefaults.createdAtTxHash = event.transaction.hash as `0x${string}`;
   if ("updatedAt" in table)
     dataWithDefaults.updatedAt = new Date(Number(event.block.timestamp) * 1000);
-  if ("updatedAtBlock" in table)
-    dataWithDefaults.updatedAtBlock = Number(event.block.number);
+  if ("updatedAtBlock" in table) dataWithDefaults.updatedAtBlock = Number(event.block.number);
   if ("updatedAtTxHash" in table && "transaction" in event)
     dataWithDefaults.updatedAtTxHash = event.transaction.hash as `0x${string}`;
   return dataWithDefaults;
@@ -578,8 +525,7 @@ function updateDefaults<T extends OnchainTable>(
   const dataWithDefaults = { ...data } as T["$inferSelect"] & UpdateProps<T>;
   if ("updatedAt" in table)
     dataWithDefaults.updatedAt = new Date(Number(event.block.timestamp) * 1000);
-  if ("updatedAtBlock" in table)
-    dataWithDefaults.updatedAtBlock = Number(event.block.number);
+  if ("updatedAtBlock" in table) dataWithDefaults.updatedAtBlock = Number(event.block.number);
   if ("updatedAtTxHash" in table && "transaction" in event)
     dataWithDefaults.updatedAtTxHash = event.transaction.hash as `0x${string}`;
   return dataWithDefaults;

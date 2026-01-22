@@ -4,7 +4,6 @@ import { Service, mixinCommonStatics } from "./Service";
 import { serviceLog } from "../helpers/logger";
 import { ReadOnlyContext } from "./Service";
 
-
 /**
  * Service class for managing Token entities.
  * Provides methods for activating/deactivating tokens, setting metadata,
@@ -13,7 +12,6 @@ import { ReadOnlyContext } from "./Service";
  * @extends {mixinCommonStatics<Service<typeof Token>, Token, "Token">}
  */
 export class TokenService extends mixinCommonStatics(Service<typeof Token>, Token, "Token") {
-
   /**
    * Get the decimals of a token.
    * @param context - The context.
@@ -83,7 +81,9 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
    * @returns {TokenService} The current TokenService instance for method chaining
    */
   public setTokenPrice(price: bigint, computedAt?: Date) {
-    serviceLog(`Setting price for shareClass ${this.data.id} to ${price} with computedAt ${computedAt}`);
+    serviceLog(
+      `Setting price for shareClass ${this.data.id} to ${price} with computedAt ${computedAt}`
+    );
     this.data.tokenPrice = price;
     this.data.tokenPriceComputedAt = computedAt ?? null;
     return this;
@@ -97,9 +97,12 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
    * @throws {Error} When totalIssuance is null (not initialized)
    */
   public increaseTotalIssuance(tokenAmount: bigint) {
-    if(this.data.totalIssuance === null) throw new Error(`totalIssuance for token ${this.data.id} is not set`);
+    if (this.data.totalIssuance === null)
+      throw new Error(`totalIssuance for token ${this.data.id} is not set`);
     this.data.totalIssuance += tokenAmount;
-    serviceLog(`Increased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`);
+    serviceLog(
+      `Increased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`
+    );
     return this;
   }
 
@@ -111,9 +114,12 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
    * @throws {Error} When totalIssuance is null (not initialized)
    */
   public decreaseTotalIssuance(tokenAmount: bigint) {
-    if(this.data.totalIssuance === null) throw new Error(`totalIssuance for token ${this.data.id} is not set`);
+    if (this.data.totalIssuance === null)
+      throw new Error(`totalIssuance for token ${this.data.id} is not set`);
     this.data.totalIssuance -= tokenAmount;
-    serviceLog(`Decreased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`);
+    serviceLog(
+      `Decreased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`
+    );
     return this;
   }
 
@@ -123,9 +129,9 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
    * @returns The normalised TVL of the tokens in fixed point 18 precision.
    */
   static async getNormalisedTvl(context: Context | ReadOnlyContext) {
-    const tokens = await TokenService.query(context, {
+    const tokens = (await TokenService.query(context, {
       isActive: true,
-    }) as TokenService[];
+    })) as TokenService[];
     return tokens.reduce((acc, token) => {
       const { totalIssuance, tokenPrice, decimals } = token.read();
       if (!totalIssuance || !tokenPrice || !decimals) return acc;
@@ -134,7 +140,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
       // product = totalIssuance * tokenPrice has (decimals + 18) precision
       // We need to divide by 10^decimals to normalize to 18 precision
       const product = totalIssuance * tokenPrice;
-      return acc + product / (10n ** BigInt(decimals));
+      return acc + product / 10n ** BigInt(decimals);
     }, 0n);
   }
 }

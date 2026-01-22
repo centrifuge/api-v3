@@ -52,7 +52,7 @@ export class OutstandingInvestService extends mixinCommonStatics(
     // Update queued and deposit amounts from event
     this.data.queuedAmount = queuedUserAssetAmount;
     this.data.pendingAmount = pendingUserAssetAmount;
-    this.data.epochIndex = epochIndex
+    this.data.epochIndex = epochIndex;
     return this;
   }
 
@@ -65,7 +65,11 @@ export class OutstandingInvestService extends mixinCommonStatics(
    * @param event - The event that triggered the approval
    * @returns The service instance for method chaining
    */
-  public approveInvest(approvedUserAssetAmount: bigint, approvedIndex: number, event: Extract<Event, { transaction: any }>) {
+  public approveInvest(
+    approvedUserAssetAmount: bigint,
+    approvedIndex: number,
+    event: Extract<Event, { transaction: any }>
+  ) {
     serviceLog(
       `Approving invest for outstandingInvest ${this.data.tokenId}-${this.data.assetId}-${this.data.account} for index ${approvedIndex} with approvedUserAssetAmount: ${approvedUserAssetAmount} on block ${event.block.number} and timestamp ${event.block.timestamp}`
     );
@@ -73,7 +77,7 @@ export class OutstandingInvestService extends mixinCommonStatics(
       ...this.data,
       ...timestamper("approved", event),
       approvedAmount: approvedUserAssetAmount,
-    }
+    };
     return this;
   }
 
@@ -93,9 +97,8 @@ export class OutstandingInvestService extends mixinCommonStatics(
       ...timestamper("cleared", null),
       pendingAmount: this.data.pendingAmount! - this.data.approvedAmount!,
       approvedAmount: 0n,
-    }
-    if (this.data.queuedAmount! + this.data.pendingAmount! === 0n)
-      return this.delete();
+    };
+    if (this.data.queuedAmount! + this.data.pendingAmount! === 0n) return this.delete();
     return this.save(event);
   }
 

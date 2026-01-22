@@ -1,6 +1,13 @@
 import type { Context, Event } from "ponder:registry";
 import { BlockchainService } from "../services/BlockchainService";
-import { RegistryChains, networkNames, explorerUrls,RegistryChainsKeys,RegistryVersions,chainIcons } from "../chains";
+import {
+  RegistryChains,
+  networkNames,
+  explorerUrls,
+  RegistryChainsKeys,
+  RegistryVersions,
+  chainIcons,
+} from "../chains";
 
 /** Interval in seconds for snapshot periods (24 hours) */
 const SNAPSHOT_INTERVAL_SECONDS = 60 * 60 * 24; // 1 day
@@ -62,21 +69,23 @@ export class Timekeeper {
   public async init(context: Context, event: Event): Promise<Timekeeper> {
     const chainId = context.chain.id;
     process.stdout.write(`Initializing timekeeper for chainId ${chainId}\n`);
-    const chain = RegistryChains.find(
-      (chain) => chain.network.chainId === chainId
-    );
+    const chain = RegistryChains.find((chain) => chain.network.chainId === chainId);
     if (!chain) throw new Error(`Chain ${chainId} not found in chains.ts`);
-    const networkName = networkNames[chainId.toString() as RegistryChainsKeys<RegistryVersions>]
+    const networkName = networkNames[chainId.toString() as RegistryChainsKeys<RegistryVersions>];
     if (!networkName) throw new Error(`Network ${networkName} not found in chains.ts`);
-    const blockchain = (await BlockchainService.getOrInit(context, {
-      id: chainId.toString(),
-      centrifugeId: chain.network.centrifugeId.toString(),
-      network: networkName,
-      chainId: chain.network.chainId,
-      name: networkName,
-      explorer: explorerUrls[chainId.toString() as keyof typeof explorerUrls],
-      icon: chainIcons[chainId.toString() as keyof typeof chainIcons],
-    }, event)) as BlockchainService;
+    const blockchain = (await BlockchainService.getOrInit(
+      context,
+      {
+        id: chainId.toString(),
+        centrifugeId: chain.network.centrifugeId.toString(),
+        network: networkName,
+        chainId: chain.network.chainId,
+        name: networkName,
+        explorer: explorerUrls[chainId.toString() as keyof typeof explorerUrls],
+        icon: chainIcons[chainId.toString() as keyof typeof chainIcons],
+      },
+      event
+    )) as BlockchainService;
     const lastPeriodStart = blockchain.read().lastPeriodStart;
     if (!lastPeriodStart) blockchain.setLastPeriodStart(new Date(0));
     this.blockchains[chainId] = blockchain;
@@ -135,16 +144,12 @@ export class Timekeeper {
    * @param blockEvent - The block event to process
    * @returns Promise that resolves to `true` if the block represents a new period, `false` otherwise
    */
-  public async processBlock(
-    context: Context,
-    event: Event
-  ): Promise<boolean> {
+  public async processBlock(context: Context, event: Event): Promise<boolean> {
     const chainId = context.chain.id as number;
     const timestamp = new Date(Number(event.block.timestamp) * 1000);
     if (!this.isInitialized(chainId)) await this.init(context, event);
     const blockPeriodStart = getPeriodStart(timestamp);
-    const isNewPeriod =
-      blockPeriodStart.valueOf() > this.getCurrentPeriod(chainId).valueOf();
+    const isNewPeriod = blockPeriodStart.valueOf() > this.getCurrentPeriod(chainId).valueOf();
     if (isNewPeriod) this.setLastPeriodStart(chainId, blockPeriodStart);
     return isNewPeriod;
   }
@@ -183,7 +188,6 @@ export class Timekeeper {
  */
 export function getPeriodStart(timestamp: Date): Date {
   const timestampSec = timestamp.valueOf() / 1000;
-  const periodStartTimestampSec =
-    timestampSec - (timestampSec % SNAPSHOT_INTERVAL_SECONDS);
+  const periodStartTimestampSec = timestampSec - (timestampSec % SNAPSHOT_INTERVAL_SECONDS);
   return new Date(periodStartTimestampSec * 1000);
 }

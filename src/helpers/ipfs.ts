@@ -12,7 +12,7 @@ const IPFS_GATEWAY = "https://centrifuge.mypinata.cloud/ipfs/";
 export async function fetchFromIpfs(ipfsHash: string): Promise<any> {
   // Remove ipfs:// prefix if present
   const hash = ipfsHash.replace("ipfs://", "");
-  
+
   try {
     const response = await fetch(`${IPFS_GATEWAY}${hash}`);
     if (!response.ok) {

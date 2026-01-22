@@ -6,11 +6,7 @@ import { Service, mixinCommonStatics } from "./Service";
  * Extends the base Service class with pool-specific functionality including share class management
  * and epoch tracking.
  */
-export class PoolService extends mixinCommonStatics(
-  Service<typeof Pool>,
-  Pool,
-  "Pool"
-) {
+export class PoolService extends mixinCommonStatics(Service<typeof Pool>, Pool, "Pool") {
   /**
    * Sets the metadata for the pool.
    * @param metadata - The metadata to set.

@@ -8,20 +8,23 @@ import { snapshotter } from "../helpers/snapshotter";
 
 multiMapper("holdings:Initialize", async ({ event, context }) => {
   logEvent(event, context, "holdings:Create");
-  const [_poolId, shareClassId, assetId, _valuation, isLiability, accounts] =
-    event.args;
+  const [_poolId, shareClassId, assetId, _valuation, isLiability, accounts] = event.args;
   const poolId = _poolId;
   const tokenId = shareClassId;
   const valuation = _valuation.toString();
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const holding = (await HoldingService.getOrInit(context, {
-    centrifugeId,
-    poolId,
-    tokenId,
-    assetId,
-  }, event)) as HoldingService;
+  const holding = (await HoldingService.getOrInit(
+    context,
+    {
+      centrifugeId,
+      poolId,
+      tokenId,
+      assetId,
+    },
+    event
+  )) as HoldingService;
 
   await holding.initialize();
   await holding.setValuation(valuation);
@@ -30,34 +33,39 @@ multiMapper("holdings:Initialize", async ({ event, context }) => {
 
   for (const { accountId: _accountId, kind: _kind } of accounts) {
     const accountId = _accountId.toString();
-    const kind = isLiability
-      ? HoldingAccountTypes[_kind + 4]
-      : HoldingAccountTypes[_kind];
+    const kind = isLiability ? HoldingAccountTypes[_kind + 4] : HoldingAccountTypes[_kind];
     if (!kind) return serviceError(`Invalid holding account type. Cannot create holding account`);
-    const _holdingAccount = await HoldingAccountService.getOrInit(context, {
-      id: accountId,
-      kind,
-      tokenId,
-    }, event);
+    const _holdingAccount = await HoldingAccountService.getOrInit(
+      context,
+      {
+        id: accountId,
+        kind,
+        tokenId,
+      },
+      event
+    );
   }
 });
 
 multiMapper("holdings:Increase", async ({ event, context }) => {
   logEvent(event, context, "holdings:Increase");
-  const [_poolId, _scId, assetId, _pricePoolPerAsset, amount, increasedValue] =
-    event.args;
+  const [_poolId, _scId, assetId, _pricePoolPerAsset, amount, increasedValue] = event.args;
 
   const poolId = _poolId;
   const tokenId = _scId;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const holding = (await HoldingService.getOrInit(context, {
-    centrifugeId,
-    poolId,
-    tokenId,
-    assetId,
-  }, event)) as HoldingService;
+  const holding = (await HoldingService.getOrInit(
+    context,
+    {
+      centrifugeId,
+      poolId,
+      tokenId,
+      assetId,
+    },
+    event
+  )) as HoldingService;
 
   await holding.increase(amount, increasedValue);
   await holding.save(event);
@@ -67,23 +75,24 @@ multiMapper("holdings:Increase", async ({ event, context }) => {
 
 multiMapper("holdings:Decrease", async ({ event, context }) => {
   logEvent(event, context, "holdings:Decrease");
-  
-  const [_poolId, _scId, assetId, _pricePoolPerAsset, amount, decreasedValue] =
-    event.args;
+
+  const [_poolId, _scId, assetId, _pricePoolPerAsset, amount, decreasedValue] = event.args;
 
   const poolId = _poolId;
   const tokenId = _scId;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const holding = (await HoldingService.getOrInit(context, {
-    centrifugeId,
-    poolId,
-    tokenId,
-    assetId,
-  }, event)) as HoldingService;
-
-
+  const holding = (await HoldingService.getOrInit(
+    context,
+    {
+      centrifugeId,
+      poolId,
+      tokenId,
+      assetId,
+    },
+    event
+  )) as HoldingService;
 
   await holding.decrease(amount, decreasedValue);
   await holding.save(event);
@@ -91,27 +100,24 @@ multiMapper("holdings:Decrease", async ({ event, context }) => {
 
 multiMapper("holdings:Update", async ({ event, context }) => {
   logEvent(event, context, "holdings:Update");
-  
-  const {
-    poolId: _poolId,
-    scId: _scId,
-    assetId: assetId,
-    isPositive,
-    diffValue,
-  } = event.args;
 
-  
+  const { poolId: _poolId, scId: _scId, assetId: assetId, isPositive, diffValue } = event.args;
+
   const poolId = _poolId;
   const tokenId = _scId;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const holding = (await HoldingService.getOrInit(context, {
-    centrifugeId,
-    poolId,
-    tokenId,
-    assetId,
-  }, event)) as HoldingService;
+  const holding = (await HoldingService.getOrInit(
+    context,
+    {
+      centrifugeId,
+      poolId,
+      tokenId,
+      assetId,
+    },
+    event
+  )) as HoldingService;
 
   await holding.update(isPositive, diffValue);
   await holding.save(event);
@@ -121,24 +127,23 @@ multiMapper("holdings:Update", async ({ event, context }) => {
 
 multiMapper("holdings:UpdateValuation", async ({ event, context }) => {
   logEvent(event, context, "holdings:UpdateValuation");
-  const {
-    poolId: _poolId,
-    scId: _scId,
-    assetId,
-    valuation,
-  } = event.args;
+  const { poolId: _poolId, scId: _scId, assetId, valuation } = event.args;
 
   const poolId = _poolId;
   const tokenId = _scId;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const holding = (await HoldingService.getOrInit(context, {
-    centrifugeId,
-    poolId,
-    tokenId,
-    assetId,
-  }, event)) as HoldingService;
+  const holding = (await HoldingService.getOrInit(
+    context,
+    {
+      centrifugeId,
+      poolId,
+      tokenId,
+      assetId,
+    },
+    event
+  )) as HoldingService;
 
   await holding.setValuation(valuation);
   await holding.save(event);

@@ -14,7 +14,7 @@ import { Abis } from "../contracts";
 import { RegistryChains } from "../chains";
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
-import { deployVault,linkVault,unlinkVault } from "./vaultRegistryHandlers";
+import { deployVault, linkVault, unlinkVault } from "./vaultRegistryHandlers";
 
 multiMapper("spoke:DeployVault", deployVault);
 
@@ -113,8 +113,7 @@ multiMapper("spoke:UpdateSharePrice", async ({ event, context }) => {
     tokenId,
     centrifugeId,
   })) as TokenInstanceService;
-  if (!tokenInstance)
-    return serviceError(`TokenInstance not found. Cannot update token price`);
+  if (!tokenInstance) return serviceError(`TokenInstance not found. Cannot update token price`);
 
   await tokenInstance.setTokenPrice(tokenPrice);
   await tokenInstance.setComputedAt(computedAt);
@@ -135,9 +134,8 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const chainId = context.chain.id;
-  const poolEscrowFactoryAddress = RegistryChains.find(
-    (chain) => chain.network.chainId === chainId
-  )?.contracts.poolEscrowFactory;
+  const poolEscrowFactoryAddress = RegistryChains.find((chain) => chain.network.chainId === chainId)
+    ?.contracts.poolEscrowFactory;
   if (!poolEscrowFactoryAddress) {
     serviceError(`Pool Escrow Factory address not found. Cannot retrieve escrow address`);
     return;
@@ -178,7 +176,13 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
   await holdingEscrow.setAssetPrice(assetPrice);
   await holdingEscrow.save(event);
 
-  await snapshotter(context, event, "spokeV3:UpdateAssetPrice", [holdingEscrow], HoldingEscrowSnapshot);
+  await snapshotter(
+    context,
+    event,
+    "spokeV3:UpdateAssetPrice",
+    [holdingEscrow],
+    HoldingEscrowSnapshot
+  );
 });
 
 multiMapper("spoke:InitiateTransferShares", async ({ event, context }) => {
@@ -195,11 +199,7 @@ multiMapper("spoke:InitiateTransferShares", async ({ event, context }) => {
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const [fromAccount, toAccount] = (await Promise.all([
-    AccountService.getOrInit(
-      context,
-      { address: sender.substring(0, 42) as `0x${string}` },
-      event
-    ),
+    AccountService.getOrInit(context, { address: sender.substring(0, 42) as `0x${string}` }, event),
     AccountService.getOrInit(
       context,
       { address: destinationAddress.substring(0, 42) as `0x${string}` },

@@ -3,10 +3,13 @@ import { Service, mixinCommonStatics } from "./Service";
 import { Context } from "ponder:registry";
 import { RegistryChains } from "../chains";
 
-
-type Network = typeof RegistryChains[number]["network"];
-type InMemoryChainId = { [K in Network["chainId"]]: Extract<Network, { chainId: K }>['centrifugeId']}
-const inMemoryChainId = Object.fromEntries(RegistryChains.map((chain) => [chain.network.chainId, chain.network.centrifugeId])) as InMemoryChainId
+type Network = (typeof RegistryChains)[number]["network"];
+type InMemoryChainId = {
+  [K in Network["chainId"]]: Extract<Network, { chainId: K }>["centrifugeId"];
+};
+const inMemoryChainId = Object.fromEntries(
+  RegistryChains.map((chain) => [chain.network.chainId, chain.network.centrifugeId])
+) as InMemoryChainId;
 
 /**
  * Service class for managing blockchain-related operations and data.
@@ -32,7 +35,7 @@ export class BlockchainService extends mixinCommonStatics(
     const chainId = context.chain.id;
     if (typeof chainId !== "number") throw new Error("Chain ID is not a number");
     if (!(chainId in inMemoryChainId)) throw new Error("Chain ID not found in inMemoryChainId");
-    return String(inMemoryChainId[chainId as keyof InMemoryChainId])
+    return String(inMemoryChainId[chainId as keyof InMemoryChainId]);
   }
   /**
    * Sets the last period start date for the blockchain.

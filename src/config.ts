@@ -9,9 +9,7 @@ export const V2_POOLS = {
     poolId: 281474976710662n,
     tokenId: "0x00010000000000060000000000000001" as `0x${string}`,
     centrifugeId: "1",
-    whitelistedInvestors: [
-      "0x491edfb0b8b608044e227225c715981a30f3a44e",
-    ],
+    whitelistedInvestors: ["0x491edfb0b8b608044e227225c715981a30f3a44e"],
   },
   JAAA: {
     poolId: 281474976710663n,

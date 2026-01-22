@@ -17,41 +17,13 @@ export class InvestOrderService extends mixinCommonStatics(
   "InvestOrder"
 ) {
   /**
-   * Fills an invest order with the given queued and pending assets amounts.
-   *
-   * @param queuedAssetsAmount - The amount of assets queued
-   * @param pendingAssetsAmount - The amount of assets pending
-   * @param event - The event containing the block information
-   * @returns The service instance for method chaining
-   */
-  public post(
-    pendingAssetsAmount: bigint,
-    queuedAssetsAmount: bigint,
-    event: Extract<Event, { transaction: any }>
-  ) {
-    serviceLog(
-      `Filling investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with pendingAssetsAmount: ${pendingAssetsAmount}, queuedAssetsAmount: ${queuedAssetsAmount}`
-    );
-    this.data = {
-      ...this.data,
-      pendingAssetsAmount,
-      queuedAssetsAmount,
-      ...timestamper("posted", event),
-    };
-    return this;
-  }
-
-  /**
    * Approves an invest order with the given approved assets amount.
    *
    * @param approvedAssetsAmount - The amount of assets approved
    * @param event - The event containing the block information
    * @returns The service instance for method chaining
    */
-  public approve(
-    approvedAssetsAmount: bigint,
-    event: Extract<Event, { transaction: any }>
-  ) {
+  public approve(approvedAssetsAmount: bigint, event: Extract<Event, { transaction: any }>) {
     serviceLog(
       `Approving investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with approvedAssetsAmount: ${approvedAssetsAmount}`
     );
@@ -85,15 +57,13 @@ export class InvestOrderService extends mixinCommonStatics(
       `Issuing shares for investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare}`
     );
     if (this.data.issuedAt) throw new Error("Shares already issued");
-    if (this.data.approvedAssetsAmount === null)
-      throw new Error("No assets approved");
+    if (this.data.approvedAssetsAmount === null) throw new Error("No assets approved");
 
     this.data = {
       ...this.data,
       ...timestamper("issued", event),
       issuedSharesAmount:
-        (this.data.approvedAssetsAmount *
-          10n ** BigInt(18 + shareDecimals - assetDecimals)) /
+        (this.data.approvedAssetsAmount * 10n ** BigInt(18 + shareDecimals - assetDecimals)) /
         navAssetPerShare,
       issuedWithNavAssetPerShare: navAssetPerShare,
       issuedWithNavPoolPerShare: navPoolPerShare,
@@ -110,10 +80,7 @@ export class InvestOrderService extends mixinCommonStatics(
    * @param block - The event block containing timestamp and block number
    * @returns The service instance for method chaining
    */
-  public claimDeposit(
-    claimedSharesAmount: bigint,
-    event: Extract<Event, { transaction: any }>
-  ) {
+  public claimDeposit(claimedSharesAmount: bigint, event: Extract<Event, { transaction: any }>) {
     serviceLog(
       `Claiming deposit for investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} on block ${event.block.number} with timestamp ${event.block.timestamp}`
     );
@@ -125,16 +92,5 @@ export class InvestOrderService extends mixinCommonStatics(
       ...timestamper("claimed", event),
     };
     return this;
-  }
-
-  /**
-   * Saves or clears the invest order.
-   *
-   * @param event - The event containing the block information
-   * @returns The service instance for method chaining
-   */
-  public saveOrClear(event: Event) {
-    if(this.data.pendingAssetsAmount === 0n) return this.delete();
-    return this.save(event);
   }
 }

@@ -9,29 +9,26 @@ import {
 import { logEvent, serviceError } from "../helpers/logger";
 import { OnRampAssetService } from "../services";
 
-multiMapper(
-  "onOfframpManagerFactory:DeployOnOfframpManager",
-  async ({ event, context }) => {
-    logEvent(event, context, "onOffRampManagerFactory:DeployOnOffRampManager");
-    const { poolId, scId: tokenId, manager } = event.args;
+multiMapper("onOfframpManagerFactory:DeployOnOfframpManager", async ({ event, context }) => {
+  logEvent(event, context, "onOffRampManagerFactory:DeployOnOffRampManager");
+  const { poolId, scId: tokenId, manager } = event.args;
 
-    const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-    const _onOffRampManager = (await OnOffRampManagerService.upsert(
-      context,
-      {
-        address: manager,
-        centrifugeId,
-        poolId,
-        tokenId,
-      },
-      event
-    )) as OnOffRampManagerService | null;
-    if (!_onOffRampManager) {
-      serviceError("Failed to insert OnOffRampManager");
-    }
+  const _onOffRampManager = (await OnOffRampManagerService.upsert(
+    context,
+    {
+      address: manager,
+      centrifugeId,
+      poolId,
+      tokenId,
+    },
+    event
+  )) as OnOffRampManagerService | null;
+  if (!_onOffRampManager) {
+    serviceError("Failed to insert OnOffRampManager");
   }
-);
+});
 
 multiMapper("onOfframpManager:UpdateRelayer", async ({ event, context }) => {
   logEvent(event, context, "onOffRampManager:UpdateRelayer");

@@ -37,16 +37,11 @@ app.get("/tokens/:address/total-issuance", async (c) => {
   const address = c.req.param("address") as `0x${string}`;
   const tokenInstance = await TokenInstanceService.get(context, { address });
   if (!tokenInstance)
-    return c.json(
-      { error: "TokenInstance address not found" },
-      404,
-      jsonDefaultHeaders
-    );
+    return c.json({ error: "TokenInstance address not found" }, 404, jsonDefaultHeaders);
   const { tokenId } = tokenInstance.read();
 
   const token = await TokenService.get(context, { id: tokenId });
-  if (!token)
-    return c.json({ error: "Token not found" }, 404, jsonDefaultHeaders);
+  if (!token) return c.json({ error: "Token not found" }, 404, jsonDefaultHeaders);
 
   const { totalIssuance, decimals } = token.read();
   if (totalIssuance === null)
@@ -64,26 +59,16 @@ app.get("/tokens/:address/price", async (c) => {
   const address = c.req.param("address") as `0x${string}`;
 
   const tokenInstance = await TokenInstanceService.get(context, { address });
-  if (!tokenInstance)
-    return c.json(
-      { error: "TokenInstance not found" },
-      404,
-      jsonDefaultHeaders
-    );
+  if (!tokenInstance) return c.json({ error: "TokenInstance not found" }, 404, jsonDefaultHeaders);
   const { tokenId } = tokenInstance.read();
 
   const token = await TokenService.get(context, { id: tokenId });
-  if (!token)
-    return c.json({ error: "Token not found" }, 404, jsonDefaultHeaders);
+  if (!token) return c.json({ error: "Token not found" }, 404, jsonDefaultHeaders);
 
   const { tokenPrice } = token.read();
   if (tokenPrice === null) return c.json({ error: "Token price not set" }, 404);
 
-  return c.json(
-    { result: formatBigIntToDecimal(tokenPrice) },
-    200,
-    jsonDefaultHeaders
-  );
+  return c.json({ result: formatBigIntToDecimal(tokenPrice) }, 200, jsonDefaultHeaders);
 });
 
 app.get("/stats", async (c) => {
@@ -96,16 +81,16 @@ app.get("/stats", async (c) => {
   const assets = await AssetService.count(context, {});
   const assetRegistrations = await AssetRegistrationService.count(context, {});
   const adapters = await AdapterService.count(context, {});
-  const adapterParticipations = await AdapterParticipationService.count(context,{});
-  const investorTransactions = await InvestorTransactionService.count(context,{});
-  const investOrders = await InvestOrderService.count(context,{});
-  const redeemOrders = await RedeemOrderService.count(context,{});
-  const epochInvestOrders = await EpochInvestOrderService.count(context,{});
-  const epochRedeemOrders = await EpochRedeemOrderService.count(context,{});
-  const crosschainMessages = await CrosschainMessageService.count(context,{});
-  const crosschainPayloads = await CrosschainPayloadService.count(context,{});
-  const accounts = await AccountService.count(context,{});
-  const holdings = await HoldingService.count(context,{});
+  const adapterParticipations = await AdapterParticipationService.count(context, {});
+  const investorTransactions = await InvestorTransactionService.count(context, {});
+  const investOrders = await InvestOrderService.count(context, {});
+  const redeemOrders = await RedeemOrderService.count(context, {});
+  const epochInvestOrders = await EpochInvestOrderService.count(context, {});
+  const epochRedeemOrders = await EpochRedeemOrderService.count(context, {});
+  const crosschainMessages = await CrosschainMessageService.count(context, {});
+  const crosschainPayloads = await CrosschainPayloadService.count(context, {});
+  const accounts = await AccountService.count(context, {});
+  const holdings = await HoldingService.count(context, {});
   return c.json(
     {
       tvl: formatBigIntToDecimal(tvl),

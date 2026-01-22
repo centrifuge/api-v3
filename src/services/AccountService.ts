@@ -3,15 +3,15 @@ import { Service, mixinCommonStatics } from "./Service";
 
 /**
  * Service class for managing Account entities in the database.
- * 
+ *
  * Accounts represent different types of accounts associated with holdings,
  * such as Asset, Equity, Loss, Gain, Expense, and Liability accounts. Each account
  * is linked to a specific token and has a defined account type (kind).
- * 
+ *
  * This service provides CRUD operations and database interaction utilities
  * for HoldingAccount entities, inheriting common functionality from the base
  * Service class and mixinCommonStatics.
- * 
+ *
  * @example
  * ```typescript
  * // Create a new account
@@ -21,4 +21,8 @@ import { Service, mixinCommonStatics } from "./Service";
  *   // ... other account properties
  * });
  */
-export class AccountService extends mixinCommonStatics(Service<typeof Account>, Account, "Account") {}
+export class AccountService extends mixinCommonStatics(
+  Service<typeof Account>,
+  Account,
+  "Account"
+) {}
