@@ -39,18 +39,18 @@ export class CrosschainPayloadService extends mixinCommonStatics(
   }
 
   /**
-   * Gets the first payload from the queue for a given payload ID
+   * Gets the first payload from the in transit or delivered queue for a given payload ID
    * @param context - The database and client context
    * @param payloadId - The ID of the payload to get from the queue
    * @returns The first payload from the queue or null if no payload is found
    */
-  static async getInTransitFromQueue(
+  static async getInTransitOrDeliveredFromQueue(
     context: Context,
     payloadId: `0x${string}`
   ) {
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
-      status: "InTransit",
+      status_in: ["InTransit", "Delivered"],
       _sort: [{ field: "index", direction: "asc" }],
     })) as CrosschainPayloadService[];
     if (crosschainPayloads.length === 0) return null;
@@ -58,7 +58,7 @@ export class CrosschainPayloadService extends mixinCommonStatics(
   }
 
   /**
-   * Gets the first payload from the queue for a given payload ID
+   * Gets the first payload from the underpaid queue for a given payload ID
    * @param context - The database and client context
    * @param payloadId - The ID of the payload to get from the queue
    * @returns The first payload from the queue or null if no payload is found
@@ -70,6 +70,25 @@ export class CrosschainPayloadService extends mixinCommonStatics(
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
       status: "Underpaid",
+      _sort: [{ field: "index", direction: "asc" }],
+    })) as CrosschainPayloadService[];
+    if (crosschainPayloads.length === 0) return null;
+    return crosschainPayloads.shift()!;
+  }
+
+  /**
+   * Gets the first payload from the underpaid or in transit queue for a given payload ID
+   * @param context - The database and client context
+   * @param payloadId - The ID of the payload to get from the queue
+   * @returns The first payload from the queue or null if no payload is found
+   */
+  static async getUnderpaidOrInTransitFromQueue(
+    context: Context,
+    payloadId: `0x${string}`
+  ) {
+    const crosschainPayloads = (await this.query(context, {
+      id: payloadId,
+      status_in: ["Underpaid", "InTransit"],
       _sort: [{ field: "index", direction: "asc" }],
     })) as CrosschainPayloadService[];
 

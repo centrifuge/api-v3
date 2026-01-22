@@ -5,6 +5,7 @@ import { BlockchainService } from "../services/BlockchainService";
 import {
   CrosschainMessageService,
   getMessageId,
+  getMessageHash,
 } from "../services/CrosschainMessageService";
 import {
   CrosschainPayloadService,
@@ -32,13 +33,13 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
 
   const messages = extractMessagesFromPayload(payloadData, versionIndex);
   const messageIds = messages.map((message) =>
-    getMessageId(fromCentrifugeId, toCentrifugeId.toString(), message)
+    getMessageId(fromCentrifugeId, toCentrifugeId.toString(), getMessageHash(message))
   );
 
-  let payload = (await CrosschainPayloadService.getUnderpaidFromQueue(
-    context,
-    payloadId
-  )) as CrosschainPayloadService | null;
+  let payload: CrosschainPayloadService | null = null;
+
+  if(versionIndex === 0) payload = await CrosschainPayloadService.getUnderpaidFromQueue(context, payloadId);
+  else payload = await CrosschainPayloadService.getUnderpaidOrInTransitFromQueue(context, payloadId);
   
   if (!payload) {
     const payloadIndex = await CrosschainPayloadService.count(context, {
@@ -138,12 +139,12 @@ multiMapper("multiAdapter:HandlePayload", async ({ event, context }) => {
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const payload =
-    (await CrosschainPayloadService.getInTransitFromQueue(
+    (await CrosschainPayloadService.getInTransitOrDeliveredFromQueue(
       context,
       payloadId
     )) as CrosschainPayloadService | null;
   if (!payload) {
-    serviceError(`CrosschainPayload not found in InTransit queue. Cannot handle payload`);
+    serviceError(`CrosschainPayload not found in InTransit or Delivered queue. Cannot handle payload`);
     return;
   }
 

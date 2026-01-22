@@ -7,6 +7,7 @@ import {
   getCrosschainMessageType,
   CrosschainMessageService,
   getMessageId,
+  getMessageHash,
   decodeMessage,
 } from "../services/CrosschainMessageService";
 import {
@@ -26,11 +27,13 @@ multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
 
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
+  const messageHash = getMessageHash(message);
   const messageId = getMessageId(
     fromCentrifugeId,
     toCentrifugeId.toString(),
-    message
+    messageHash
   );
+  
   const messageCount = await CrosschainMessageService.count(context, {
     id: messageId,
   });
@@ -50,6 +53,7 @@ multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
       toCentrifugeId: toCentrifugeId.toString(),
       messageType: messageType,
       rawData,
+      hash: messageHash,
       data: data,
       status: "AwaitingBatchDelivery",
     },
@@ -97,6 +101,8 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
       message
     );
 
+    const messageHash = getMessageHash(message);
+
     const pendingMessage =
       await CrosschainMessageService.getFromAwaitingBatchDeliveryQueue(
         context,
@@ -141,6 +147,7 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
         messageType: messageType,
         rawData,
         data: data,
+        hash: messageHash,
         status: "Unsent",
         payloadId,
         payloadIndex,
@@ -216,12 +223,11 @@ multiMapper("gateway:ExecuteMessage", async ({ event, context }) => {
   const { centrifugeId: fromCentrifugeId } = event.args;
   const message = "message" in event.args ? event.args.message : undefined;
   const messageHash =
-    "messageHash" in event.args ? event.args.messageHash : undefined;
+    "messageHash" in event.args ? event.args.messageHash : getMessageHash(message!);
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
-  const messageId = message
-    ? getMessageId(fromCentrifugeId.toString(), toCentrifugeId, message)
-    : messageHash!;
+  const messageId = getMessageId(fromCentrifugeId.toString(), toCentrifugeId, messageHash);
+
 
   const crosschainMessage =
     await CrosschainMessageService.getFromAwaitingBatchDeliveryOrFailedQueue(
@@ -230,7 +236,7 @@ multiMapper("gateway:ExecuteMessage", async ({ event, context }) => {
     );
   if (!crosschainMessage) {
     serviceError(
-      `CrosschainMessage not found in AwaitingBatchDelivery queue. Cannot mark message as executed`
+      `CrosschainMessage not found in AwaitingBatchDelivery or Failed queue. Cannot mark message as executed`
     );
     return;
   }
@@ -275,13 +281,11 @@ multiMapper("gateway:FailMessage", async ({ event, context }) => {
   const { centrifugeId: fromCentrifugeId, error } = event.args;
   const message = "message" in event.args ? event.args.message : undefined;
   const messageHash =
-    "messageHash" in event.args ? event.args.messageHash : undefined;
+    "messageHash" in event.args ? event.args.messageHash : getMessageHash(message!);
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const messageId = message
-    ? getMessageId(fromCentrifugeId.toString(), toCentrifugeId, message)
-    : messageHash!;
+  const messageId = getMessageId(fromCentrifugeId.toString(), toCentrifugeId, messageHash);
 
   const crosschainMessage =
     await CrosschainMessageService.getFromAwaitingBatchDeliveryOrFailedQueue(

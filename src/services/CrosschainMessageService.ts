@@ -748,21 +748,30 @@ export function getCrosschainMessageLength(
  *
  * @param sourceChainId - The Centrifuge Chain ID of the source chain
  * @param destChainId - The Centrifuge Chain ID of the destination chain
- * @param messageBytes - The hex-encoded message bytes
+ * @param messageHash - The hash of the message bytes
  * @returns The keccak256 hash of the encoded parameters as the message ID
  */
 export function getMessageId(
   sourceCentrifugeId: string,
   destCentrifugeId: string,
-  messageBytes: `0x${string}`
+  messageHash: `0x${string}`
 ) {
   const messageId = keccak256(
     encodePacked(
       ["uint16", "uint16", "bytes"],
-      [Number(sourceCentrifugeId), Number(destCentrifugeId), messageBytes]
+      [Number(sourceCentrifugeId), Number(destCentrifugeId), messageHash]
     )
   );
   return messageId;
+}
+
+/**
+ * Generates a hash of a message bytes
+ * @param messageBytes - The message bytes
+ * @returns The hash of the message bytes
+ */
+export function getMessageHash(messageBytes: `0x${string}`) {
+  return keccak256(messageBytes);
 }
 
 // ============================================================================

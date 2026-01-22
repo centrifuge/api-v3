@@ -1222,6 +1222,7 @@ const CrosschainMessageColumns = (t: PgColumnsBuilders) => ({
   payloadIndex: t.integer(),
   messageType: t.text().notNull(),
   status: CrosschainMessageStatus("crosschain_message_status").notNull(),
+  hash: t.hex().notNull(),
   rawData: t.hex().notNull(),
   data: t.jsonb(),
   failReason: t.hex(),
