@@ -1,6 +1,7 @@
 import type { Event } from "ponder:registry";
 import { PendingInvestOrder } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
+import { serviceLog } from "../helpers/logger";
 
 /**
  * Service class for managing pending invest orders in the system.
@@ -20,6 +21,7 @@ export class PendingInvestOrderService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public updatePendingAmount(pendingAssetsAmount: bigint) {
+    serviceLog(`Updating pending assets amount to ${pendingAssetsAmount}`);
     this.data.pendingAssetsAmount = pendingAssetsAmount;
     return this;
   }
@@ -30,6 +32,7 @@ export class PendingInvestOrderService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public updateQueuedAmount(queuedAssetsAmount: bigint) {
+    serviceLog(`Updating queued assets amount to ${queuedAssetsAmount}`);
     this.data.queuedAssetsAmount = queuedAssetsAmount;
     return this;
   }

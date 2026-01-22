@@ -1,6 +1,7 @@
 import { VaultInvestOrder } from "ponder:schema";
 import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
+import { serviceLog } from "../helpers/logger";
 
 /**
  * Service class for managing VaultInvestOrder entities.
@@ -21,6 +22,7 @@ export class VaultInvestOrderService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public depositRequest(requestedAssetsAmount: bigint) {
+    serviceLog(`Adding requested assets amount ${requestedAssetsAmount} to vault invest order`);
     this.data.requestedAssetsAmount =
       (this.data.requestedAssetsAmount ?? 0n) + requestedAssetsAmount;
     return this;
@@ -32,6 +34,7 @@ export class VaultInvestOrderService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public claimableDeposit(claimableSharesAmount: bigint) {
+    serviceLog(`Adding claimable shares amount ${claimableSharesAmount} to vault invest order`);
     this.data.claimableSharesAmount =
       (this.data.claimableSharesAmount ?? 0n) + claimableSharesAmount;
     return this;
@@ -43,6 +46,7 @@ export class VaultInvestOrderService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public deposit(assetsAmount: bigint) {
+    serviceLog(`Depositing assets amount ${assetsAmount} into vault invest order`);
     this.data.requestedAssetsAmount = (this.data.requestedAssetsAmount ?? 0n) - assetsAmount;
     this.data.claimableSharesAmount = (this.data.claimableSharesAmount ?? 0n) - assetsAmount;
     return this;

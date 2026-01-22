@@ -1,6 +1,7 @@
 import type { Event } from "ponder:registry";
 import { VaultRedeemOrder } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
+import { serviceLog } from "../helpers/logger";
 
 /**
  * Service class for managing VaultRedeem entities.
@@ -21,6 +22,7 @@ export class VaultRedeemOrderService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public redeemRequest(requestedSharesAmount: bigint) {
+    serviceLog(`Adding requested shares amount ${requestedSharesAmount} to vault redeem order`);
     this.data.requestedSharesAmount =
       (this.data.requestedSharesAmount ?? 0n) + requestedSharesAmount;
     return this;
@@ -32,6 +34,7 @@ export class VaultRedeemOrderService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public claimableRedeem(claimableAssetsAmount: bigint) {
+    serviceLog(`Adding claimable assets amount ${claimableAssetsAmount} to vault redeem order`);
     this.data.claimableAssetsAmount =
       (this.data.claimableAssetsAmount ?? 0n) + claimableAssetsAmount;
     return this;
@@ -43,6 +46,7 @@ export class VaultRedeemOrderService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public redeem(assetsAmount: bigint) {
+    serviceLog(`Redeeming assets amount ${assetsAmount} from vault redeem order`);
     this.data.requestedSharesAmount = (this.data.requestedSharesAmount ?? 0n) - assetsAmount;
     this.data.claimableAssetsAmount = (this.data.claimableAssetsAmount ?? 0n) - assetsAmount;
     return this;
