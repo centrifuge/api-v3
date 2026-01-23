@@ -42,6 +42,7 @@ export function multiMapper<E extends UnversionedContractEvents>(
   }) => void | Promise<void>
 ): void {
   // Extract contract name and event name from unversioned event, stripping parameters using regex
+  const isParameterizedEvent = event.includes("(");
   const contractName = event.split(":")[0] as string;
   const eventName = event.split(":")[1];
   if (!eventName) return;
@@ -61,9 +62,6 @@ export function multiMapper<E extends UnversionedContractEvents>(
   for (const version of versions) {
     const versionedContract = `${contractName}${version}` as keyof typeof contracts;
     const versionedEvent = `${versionedContract}:${eventName}` as ContractEvents;
-    const versionedEventWithoutParameters =
-      `${versionedContract}:${eventNameWithoutParameters}` as ContractEvents;
-    const isPrametricEvent = versionedEvent !== versionedEventWithoutParameters;
     const eventItems = contracts[versionedContract].abi.filter(
       (abi) => abi.type === "event" && abi.name === eventNameWithoutParameters
     );
@@ -71,11 +69,12 @@ export function multiMapper<E extends UnversionedContractEvents>(
       case 0:
         continue;
       case 1:
-        if (isPrametricEvent) continue;
+        if (isParameterizedEvent) continue;
         ponder.on(versionedEvent, handler as Parameters<typeof ponder.on>[1]);
         registeredEvents.push(versionedEvent);
         break;
       default:
+        if (!isParameterizedEvent) continue;
         ponder.on(versionedEvent, handler as Parameters<typeof ponder.on>[1]);
         registeredEvents.push(versionedEvent);
         break;

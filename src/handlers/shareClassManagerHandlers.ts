@@ -1,3 +1,4 @@
+import { type Event, type Context } from "ponder:registry";
 import { multiMapper } from "../helpers/multiMapper";
 import { expandInlineObject, logEvent, serviceError } from "../helpers/logger";
 import { TokenService, BlockchainService, PoolService } from "../services";
@@ -13,6 +14,46 @@ import {
   updateRedeemRequest,
   approveDeposits,
 } from "./batchRequestManagerHandlers";
+
+multiMapper("shareClassManager:AddShareClass", addShareClassLong);
+multiMapper(
+  "shareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index, string name, string symbol, bytes32 salt)",
+  addShareClassLong
+);
+async function addShareClassLong({
+  event,
+  context,
+}: {
+  event: Event<"shareClassManagerV3_1:AddShareClass">;
+  context: Context;
+}) {
+  logEvent(event, context, "shareClassManager:AddShareClassLong");
+  const { poolId, scId: tokenId, index, name, symbol, salt } = event.args;
+
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const pool = (await PoolService.get(context, {
+    id: poolId,
+  })) as PoolService;
+  const { decimals: poolDecimals } = pool.read();
+  if (typeof poolDecimals !== "number")
+    serviceError("Pool decimals is not a initialised", expandInlineObject(pool.read()));
+
+  const _token = (await TokenService.upsert(
+    context,
+    {
+      id: tokenId,
+      poolId,
+      centrifugeId,
+      name,
+      symbol,
+      salt,
+      decimals: poolDecimals,
+      isActive: true,
+      index,
+    },
+    event
+  )) as TokenService;
+}
 
 // SHARE CLASS LIFECYCLE
 multiMapper(
@@ -38,38 +79,6 @@ multiMapper(
         isActive: true,
         index,
         decimals: poolDecimals,
-      },
-      event
-    )) as TokenService;
-  }
-);
-
-multiMapper(
-  "shareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index, string name, string symbol, bytes32 salt)",
-  async ({ event, context }) => {
-    logEvent(event, context, "shareClassManager:AddShareClassLong");
-    const { poolId, scId: tokenId, index, name, symbol, salt } = event.args;
-
-    const centrifugeId = await BlockchainService.getCentrifugeId(context);
-    const pool = (await PoolService.get(context, {
-      id: poolId,
-    })) as PoolService;
-    const { decimals: poolDecimals } = pool.read();
-    if (typeof poolDecimals !== "number")
-      serviceError("Pool decimals is not a initialised", expandInlineObject(pool.read()));
-
-    const _token = (await TokenService.upsert(
-      context,
-      {
-        id: tokenId,
-        poolId,
-        centrifugeId,
-        name,
-        symbol,
-        salt,
-        decimals: poolDecimals,
-        isActive: true,
-        index,
       },
       event
     )) as TokenService;
