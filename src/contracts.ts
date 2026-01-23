@@ -1,11 +1,7 @@
 import { factory, mergeAbis } from "ponder";
 import { type Abi, getAbiItem } from "viem";
 import fullRegistry from "../generated";
-import type {
-  RegistryVersions,
-  Registry,
-  NetworkNames, 
-} from "./chains";
+import type { RegistryVersions, Registry, NetworkNames } from "./chains";
 import { networkNames } from "./chains";
 
 // ============================================================================
@@ -28,34 +24,25 @@ export type Abis<V extends RegistryVersions> = V extends RegistryVersions
   ? Registry<V>["abis"]
   : never;
 export type AbiName<V extends RegistryVersions> = keyof Abis<V> & string;
-export type AbiItem<
-  V extends RegistryVersions,
-  T extends AbiName<V>
-> = Abis<V>[T];
+export type AbiItem<V extends RegistryVersions, T extends AbiName<V>> = Abis<V>[T];
 
-export type AbiEvent<
-  V extends RegistryVersions,
-  T extends AbiName<V>
-> = AbiItem<V, T> extends readonly (infer U)[]
-  ? Extract<U, { readonly type: "event" }>
-  : never;
+export type AbiEvent<V extends RegistryVersions, T extends AbiName<V>> =
+  AbiItem<V, T> extends readonly (infer U)[] ? Extract<U, { readonly type: "event" }> : never;
 
-export type AbiEventName<
-  V extends RegistryVersions,
-  T extends AbiName<V>
-> = AbiEvent<V, T>["name"];
+export type AbiEventName<V extends RegistryVersions, T extends AbiName<V>> = AbiEvent<V, T>["name"];
 
 export type AbiEventParameter<
   V extends RegistryVersions,
   T extends AbiName<V>,
-  E extends AbiEventName<V, T>
-> = Extract<AbiEvent<V, T>, { readonly name: E & string }> extends {
-  readonly inputs: readonly (infer I)[];
-}
-  ? I extends { readonly name: string }
-    ? I["name"]
-    : never
-  : never;
+  E extends AbiEventName<V, T>,
+> =
+  Extract<AbiEvent<V, T>, { readonly name: E & string }> extends {
+    readonly inputs: readonly (infer I)[];
+  }
+    ? I extends { readonly name: string }
+      ? I["name"]
+      : never
+    : never;
 
 export type AbiExport<V extends RegistryVersions, T extends AbiName<V>> = {
   [K in T]: AbiItem<V, K>;
@@ -63,11 +50,8 @@ export type AbiExport<V extends RegistryVersions, T extends AbiName<V>> = {
 
 export type AbiExports = { [K in RegistryVersions]: AbiExport<K, AbiName<K>> };
 
-export type ExtractContractNames<T> = T extends Record<infer K, any>
-  ? K extends string
-    ? K
-    : never
-  : never;
+export type ExtractContractNames<T> =
+  T extends Record<infer K, any> ? (K extends string ? K : never) : never;
 
 // Type for direct ABI usage (bypassing registry)
 // Preserves the const type so Ponder can extract event types
@@ -93,11 +77,7 @@ function isValidAbiItem(item: unknown): item is { type: string } {
  * Type guard to validate if a value is a valid ABI.
  */
 function isValidAbi(abi: unknown): abi is Abi {
-  return (
-    Array.isArray(abi) &&
-    abi.length > 0 &&
-    abi.every((item) => isValidAbiItem(item))
-  );
+  return Array.isArray(abi) && abi.length > 0 && abi.every((item) => isValidAbiItem(item));
 }
 
 /**
@@ -108,12 +88,7 @@ function isValidAbiType(
 ): item is { type: "function" | "event" | "constructor" | "error" } {
   if (!isValidAbiItem(item)) return false;
   const type = (item as { type: string }).type;
-  return (
-    type === "function" ||
-    type === "event" ||
-    type === "constructor" ||
-    type === "error"
-  );
+  return type === "function" || type === "event" || type === "constructor" || type === "error";
 }
 
 // ============================================================================
@@ -142,7 +117,7 @@ function loadAbisFromRegistry(): AbiExports {
 
 type ContractKeys<
   V extends RegistryVersions,
-  N extends AbiName<V>
+  N extends AbiName<V>,
 > = `${Uncapitalized<N>}${Uppercase<V>}`;
 
 // ============================================================================
@@ -153,14 +128,14 @@ type ValidEventParameter<
   V extends RegistryVersions,
   FA extends AbiName<V>,
   FE extends AbiEventName<V, FA>,
-  FEP extends string
+  FEP extends string,
 > = FEP extends AbiEventParameter<V, FA, FE> ? FEP : never;
 
 type ValidFactoryConfig<
   V extends RegistryVersions,
   FactoryAbi extends AbiName<V>,
   EventName extends AbiEventName<V, FactoryAbi>,
-  EventParameter extends string
+  EventParameter extends string,
 > = {
   abi: FactoryAbi;
   eventName: EventName;
@@ -172,7 +147,7 @@ type ValidAdditionalMappingEntry<
   MappingAbi extends AbiName<V> | AbiName<V>[] | DirectAbi,
   FactoryAbi extends AbiName<V>,
   EventName extends AbiEventName<V, FactoryAbi>,
-  EventParameter extends string
+  EventParameter extends string,
 > = {
   abi: MappingAbi;
   factory: ValidFactoryConfig<V, FactoryAbi, EventName, EventParameter>;
@@ -195,10 +170,7 @@ type SingleContractConfig<V extends RegistryVersions, N extends AbiName<V>> = {
   };
 };
 
-type MultipleContractsConfig<
-  V extends RegistryVersions,
-  A extends AbiName<V>
-> = {
+type MultipleContractsConfig<V extends RegistryVersions, A extends AbiName<V>> = {
   [K in A as ContractKeys<V, K>]: {
     abi: AbiItem<V, K>;
     chain: {
@@ -214,7 +186,7 @@ type MultipleContractsConfig<
 type AdditionalMappingsContracts<
   V extends RegistryVersions,
   AM extends Record<string, { abi: unknown }>,
-  K extends PropertyKey
+  K extends PropertyKey,
 > = {
   [Key in K]: Key extends keyof AM
     ? {
@@ -225,8 +197,8 @@ type AdditionalMappingsContracts<
             ? AbiItem<V, AM[Key]["abi"][number]>
             : AM[Key]["abi"] // Direct ABI - preserve exact type for event inference
           : AM[Key]["abi"] extends AbiName<V>
-          ? AbiItem<V, AM[Key]["abi"]>
-          : Abi;
+            ? AbiItem<V, AM[Key]["abi"]>
+            : Abi;
         chain: {
           [ChainKey in NetworkNames<V>]: {
             address: `0x${string}`;
@@ -242,13 +214,13 @@ type ContractsWithAdditionalMappings<
   V extends RegistryVersions,
   A extends AbiName<V>,
   AM extends Record<string, { abi: unknown }>,
-  T extends PropertyKey
+  T extends PropertyKey,
 > = MultipleContractsConfig<V, A> & AdditionalMappingsContracts<V, AM, T>;
 
-type ContractChain<
-  V extends RegistryVersions,
-  N extends AbiName<V>
-> = SingleContractConfig<V, N>[ContractKeys<V, N>]["chain"];
+type ContractChain<V extends RegistryVersions, N extends AbiName<V>> = SingleContractConfig<
+  V,
+  N
+>[ContractKeys<V, N>]["chain"];
 
 // ============================================================================
 // Additional Mappings Type Constraint
@@ -259,22 +231,16 @@ type ValidateMappingEntry<
   MappingAbi,
   FactoryAbi extends AbiName<V>,
   EventName,
-  EventParameter
+  EventParameter,
 > = MappingAbi extends AbiName<V> | AbiName<V>[] | DirectAbi
   ? EventName extends AbiEventName<V, FactoryAbi>
-    ? ValidAdditionalMappingEntry<
-        V,
-        MappingAbi,
-        FactoryAbi,
-        EventName,
-        EventParameter & string
-      >
+    ? ValidAdditionalMappingEntry<V, MappingAbi, FactoryAbi, EventName, EventParameter & string>
     : never
   : never;
 
 type AdditionalMappingsConstraint<
   V extends RegistryVersions,
-  AM extends Record<string, unknown>
+  AM extends Record<string, unknown>,
 > = {
   [K in keyof AM]: AM[K] extends {
     abi: infer MappingAbi;
@@ -299,7 +265,7 @@ type AdditionalMappingsConstraint<
 export function decorateDeploymentContracts<
   V extends RegistryVersions,
   const A extends readonly AbiName<V>[],
-  const AM extends AdditionalMappingsConstraint<V, AM>
+  const AM extends AdditionalMappingsConstraint<V, AM>,
 >(
   registryVersion: V,
   selectedAbiNames: A,
@@ -309,7 +275,9 @@ export function decorateDeploymentContracts<
   // Validate registry version exists
   const abis = Abis[registryVersion];
   if (!abis) {
-    process.stdout.write(`Registry version "${registryVersion}" not found in Abis. Available versions: ${Object.keys(Abis).join(", ")} skipping...\n`);
+    process.stdout.write(
+      `Registry version "${registryVersion}" not found in Abis. Available versions: ${Object.keys(Abis).join(", ")} skipping...\n`
+    );
     return {} as ContractsWithAdditionalMappings<V, A[number], AM, keyof AM & string>;
   }
 
@@ -342,11 +310,7 @@ export function decorateDeploymentContracts<
         factory: {
           abi: AbiName<V>;
           eventName: AbiEventName<V, AbiName<V>>;
-          eventParameter: AbiEventParameter<
-            V,
-            AbiName<V>,
-            AbiEventName<V, AbiName<V>>
-          >;
+          eventParameter: AbiEventParameter<V, AbiName<V>, AbiEventName<V, AbiName<V>>>;
         };
       };
 
@@ -379,9 +343,7 @@ export function decorateDeploymentContracts<
         const abiArray = m.abi.map((abiName) => {
           const resolved = abis[abiName as AbiName<V>];
           if (!resolved) {
-            throw new Error(
-              `ABI "${abiName}" not found in registry version "${registryVersion}"`
-            );
+            throw new Error(`ABI "${abiName}" not found in registry version "${registryVersion}"`);
           }
           // Type assertion: registry ABIs are guaranteed to be valid Abi types
           return resolved as Abi;
@@ -475,33 +437,31 @@ function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
   const registry = fullRegistry[registryVersion] as Registry<V>;
   const chainEntries = Object.entries(registry.chains) as Entries<typeof registry.chains>;
 
-  const chain = chainEntries.map(
-    ([chainId, chainValue]) => {
-      const chainName = networkNames[chainId as keyof typeof networkNames];
-      const resolvedAddress = chainValue.contracts[
-        toContractCase(abiName) as keyof typeof chainValue.contracts
-      ].address as `0x${string}`;
+  const chain = chainEntries.map(([chainId, chainValue]) => {
+    const chainName = networkNames[chainId as keyof typeof networkNames];
+    const resolvedAddress = chainValue.contracts[
+      toContractCase(abiName) as keyof typeof chainValue.contracts
+    ].address as `0x${string}`;
 
-      const address = factoryConfig
-        ? factory({
-            address: resolvedAddress,
-            event: getAbiItem({
-              abi: abis[abiName] as Abi,
-              name: factoryConfig.event as string,
-            }) as Parameters<typeof factory>[0]["event"],
-            parameter: factoryConfig.parameter,
-          })
-        : resolvedAddress;
+    const address = factoryConfig
+      ? factory({
+          address: resolvedAddress,
+          event: getAbiItem({
+            abi: abis[abiName] as Abi,
+            name: factoryConfig.event as string,
+          }) as Parameters<typeof factory>[0]["event"],
+          parameter: factoryConfig.parameter,
+        })
+      : resolvedAddress;
 
-      if (!address) {
-        throw new Error(`Address for ${abiName} on ${chainName} not found`);
-      }
-
-      const startBlock = chainValue.deployment.startBlock as number;
-      const endBlock = computeEndBlock(chainId, toContractCase(abiName), registryVersion);
-      return [chainName, { address, startBlock, endBlock }];
+    if (!address) {
+      throw new Error(`Address for ${abiName} on ${chainName} not found`);
     }
-  );
+
+    const startBlock = chainValue.deployment.startBlock as number;
+    const endBlock = computeEndBlock(chainId, toContractCase(abiName), registryVersion);
+    return [chainName, { address, startBlock, endBlock }];
+  });
 
   return Object.fromEntries(chain);
 }
@@ -521,32 +481,36 @@ function toContractCase<S extends string>(name: S): Uncapitalized<S> {
  * @param startVersion - The start version.
  * @returns The end block, or undefined if the contract is not found in the next registry version.
  */
-function computeEndBlock(chainId: keyof typeof networkNames, contractName: string, startVersion: RegistryVersions): number | undefined {
+function computeEndBlock(
+  chainId: keyof typeof networkNames,
+  contractName: string,
+  startVersion: RegistryVersions
+): number | undefined {
   // Get the versions array
   const versions = Object.keys(fullRegistry) as RegistryVersions[];
-  
+
   // Find the index of startVersion in the versions array
   const startVersionIndex = versions.indexOf(startVersion);
-  
+
   if (startVersionIndex === -1) {
     throw new Error(`Start version "${startVersion}" not found in registry versions`);
   }
-  
+
   // Get the next version after startVersion
   const endVersionIndex = startVersionIndex + 1;
-  
+
   if (endVersionIndex >= versions.length) {
     return undefined;
   }
-  
+
   const endVersion = versions[endVersionIndex];
   if (!endVersion) {
     return undefined;
   }
-  
+
   // Get the registry for the next version
   const endRegistry = fullRegistry[endVersion] as Registry<RegistryVersions>;
-  
+
   // Access the chain for the given chainId
   // Use Object.entries to safely access chains
   const chainEntries = Object.entries(endRegistry.chains) as Entries<typeof endRegistry.chains>;
@@ -555,21 +519,21 @@ function computeEndBlock(chainId: keyof typeof networkNames, contractName: strin
     return undefined;
   }
   const chain = chainEntry[1];
-  
+
   // Check if the contract exists in this version
   const contract = chain.contracts[contractName as keyof typeof chain.contracts];
   if (!contract) {
     return undefined;
   }
-  
+
   // Get the block number: use contract.blockNumber if available, otherwise fallback to chain.deployment.startBlock
   const contractData = contract as { blockNumber?: number | null };
   const startBlock = contractData.blockNumber ?? chain.deployment.startBlock;
-  
+
   if (startBlock === null || startBlock === undefined) {
     return undefined;
   }
-  
+
   // Return the end block (start block of next version minus 1)
   return startBlock - 1;
 }
@@ -589,31 +553,31 @@ export function getVersionIndexForContract(
 ): number {
   // Normalize the address to lowercase for comparison
   const normalizedAddress = contractAddress.toLowerCase() as `0x${string}`;
-  
+
   // Convert contract name to contract case (first letter lowercase)
   const contractCaseName = toContractCase(contractName);
-  
+
   // Get all versions
   const versions = Object.keys(fullRegistry) as RegistryVersions[];
-  
+
   // Iterate through each version
   for (let i = 0; i < versions.length; i++) {
     const version = versions[i];
     if (!version) continue;
-    
+
     const registry = fullRegistry[version] as Registry<RegistryVersions>;
-    
+
     // Directly access the chain by chainId (more efficient than iterating all chains)
     const chain = registry.chains[chainId.toString() as keyof typeof registry.chains];
-    
+
     if (!chain) {
       // Chain doesn't exist in this version, skip to next version
       continue;
     }
-    
+
     // Check if the contract exists in this chain
     const contract = chain.contracts[contractCaseName as keyof typeof chain.contracts];
-    
+
     if (contract) {
       // Compare addresses (case-insensitive)
       const contractAddr = contract.address as `0x${string}`;
@@ -622,7 +586,7 @@ export function getVersionIndexForContract(
       }
     }
   }
-  
+
   // Contract not found in any version
   return -1;
 }
@@ -641,25 +605,23 @@ export function getContractNameForAddress(
 ): string | null {
   // Normalize the address to lowercase for comparison
   const normalizedAddress = contractAddress.toLowerCase() as `0x${string}`;
-  
+
   // Get all versions
   const versions = Object.keys(fullRegistry) as RegistryVersions[];
-  
+
   // Iterate through each version
   for (const version of versions) {
-    
     const registry = fullRegistry[version] as Registry<RegistryVersions>;
-    
+
     // Directly access the chain by chainId (more efficient than iterating all chains)
     const chain = registry.chains[chainId.toString() as keyof typeof registry.chains];
-    
-    
+
     // Iterate through all contracts in this chain
     const contractEntries = Object.entries(chain.contracts) as Entries<typeof chain.contracts>;
-    
+
     for (const [contractName, contract] of contractEntries) {
       if (!contract) continue;
-      
+
       // Compare addresses (case-insensitive)
       const contractAddr = contract.address as `0x${string}`;
       if (contractAddr.toLowerCase() === normalizedAddress) {
@@ -668,7 +630,7 @@ export function getContractNameForAddress(
       }
     }
   }
-  
+
   // Contract not found in any version
   return null;
 }

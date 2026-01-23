@@ -13,6 +13,8 @@
     "db": "ponder db",
     "codegen": "ponder codegen",
     "lint": "eslint src/**/*.ts",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json}\"",
     "typecheck": "tsc",
     "typecheck:watch": "tsc -w",
     "tsgo": "tsgo",

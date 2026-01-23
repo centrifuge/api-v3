@@ -43,14 +43,8 @@ type TriggerEvent = Parameters<typeof ponder.on>[0] | `${string}:NewPeriod`;
 export async function snapshotter<
   S extends Service<T>,
   T extends PgTableWithColumns<any>,
-  ST extends PgTableWithColumns<any>
->(
-  context: Context,
-  event: Event,
-  trigger: TriggerEvent,
-  entities: S[],
-  snapshotTable: ST
-) {
+  ST extends PgTableWithColumns<any>,
+>(context: Context, event: Event, trigger: TriggerEvent, entities: S[], snapshotTable: ST) {
   if (entities.length === 0) {
     serviceLog(`No entities to snapshot`);
     return;

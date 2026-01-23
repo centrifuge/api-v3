@@ -64,7 +64,11 @@ export class OutstandingRedeemService extends mixinCommonStatics(
    * @param event - The event that triggered the approval
    * @returns The service instance for method chaining
    */
-  public approveRedeem(approvedUserShareAmount: bigint, approvedIndex: number, event: Extract<Event, { transaction: any }>) {
+  public approveRedeem(
+    approvedUserShareAmount: bigint,
+    approvedIndex: number,
+    event: Extract<Event, { transaction: any }>
+  ) {
     serviceLog(
       `Approving redeem for outstandingRedeem ${this.data.tokenId}-${this.data.assetId}-${this.data.account} for index ${approvedIndex} with approvedUserShareAmount: ${approvedUserShareAmount} on block ${event.block.number} and timestamp ${event.block.timestamp}`
     );
@@ -72,7 +76,7 @@ export class OutstandingRedeemService extends mixinCommonStatics(
       ...this.data,
       ...timestamper("approved", event),
       approvedAmount: approvedUserShareAmount,
-    }
+    };
     return this;
   }
 
@@ -91,9 +95,8 @@ export class OutstandingRedeemService extends mixinCommonStatics(
       ...this.data,
       pendingAmount: this.data.pendingAmount! - this.data.approvedAmount!,
       approvedAmount: 0n,
-    }
-    if (this.data.queuedAmount! + this.data.pendingAmount! === 0n)
-      return this.delete();
+    };
+    if (this.data.queuedAmount! + this.data.pendingAmount! === 0n) return this.delete();
     return this.save(event);
   }
 

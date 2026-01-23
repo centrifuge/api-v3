@@ -1,7 +1,7 @@
 import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { RedeemOrder } from "ponder:schema";
-import { serviceLog } from "../helpers/logger";
+import { serviceLog, addThousandsSeparator } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
 
 /**
@@ -17,27 +17,6 @@ export class RedeemOrderService extends mixinCommonStatics(
   "RedeemOrder"
 ) {
   /**
-   * Fills a redeem order with the given queued and pending shares amounts.
-   *
-   * @param queuedSharesAmount - The amount of shares queued
-   * @param pendingSharesAmount - The amount of shares pending
-   * @param event - The event containing the block information
-   * @returns The service instance for method chaining
-   */
-  public post(pendingSharesAmount: bigint, queuedSharesAmount: bigint, event: Extract<Event, { transaction: any }>) {
-    serviceLog(
-      `Filling redeemOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with pendingSharesAmount: ${pendingSharesAmount}`
-    );
-    this.data = {
-      ...this.data,
-      pendingSharesAmount,
-      queuedSharesAmount,
-      ...timestamper("posted", event),
-    }
-    return this;
-  }
-
-  /**
    * Approves a redeem order with the given approved shares amount.
    *
    * @param approvedSharesAmount - The amount of shares approved
@@ -46,13 +25,13 @@ export class RedeemOrderService extends mixinCommonStatics(
    */
   public approve(approvedSharesAmount: bigint, event: Extract<Event, { transaction: any }>) {
     serviceLog(
-      `Approving redeemOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with approvedSharesAmount: ${approvedSharesAmount}`
+      `Approving redeemOrder for account ${this.data.account} with approvedSharesAmount: ${approvedSharesAmount}`
     );
     this.data = {
       ...this.data,
       approvedSharesAmount,
       ...timestamper("approved", event),
-    }
+    };
     return this;
   }
 
@@ -79,7 +58,7 @@ export class RedeemOrderService extends mixinCommonStatics(
     event: Extract<Event, { transaction: any }>
   ) {
     serviceLog(
-      `Revoking shares for ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare} shareDecimals: ${shareDecimals} on block ${event.block.number} and timestamp ${event.block.timestamp}`
+      `Revoking shares for account ${this.data.account} with navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare} shareDecimals: ${shareDecimals} on block ${event.block.number} and timestamp ${event.block.timestamp}`
     );
     const poolDecimals = shareDecimals;
     if (this.data.revokedAt) throw new Error("Shares already revoked");
@@ -88,11 +67,15 @@ export class RedeemOrderService extends mixinCommonStatics(
       ...this.data,
       ...timestamper("revoked", event),
       revokedSharesAmount: this.data.approvedSharesAmount,
-      revokedAssetsAmount: (this.data.approvedSharesAmount * navAssetPerShare) / 10n ** BigInt(18 + shareDecimals - assetDecimals),
-      revokedPoolAmount: (this.data.approvedSharesAmount * navPoolPerShare) / 10n ** BigInt(18 + shareDecimals - poolDecimals),
+      revokedAssetsAmount:
+        (this.data.approvedSharesAmount * navAssetPerShare) /
+        10n ** BigInt(18 + shareDecimals - assetDecimals),
+      revokedPoolAmount:
+        (this.data.approvedSharesAmount * navPoolPerShare) /
+        10n ** BigInt(18 + shareDecimals - poolDecimals),
       revokedWithNavAssetPerShare: navAssetPerShare,
       revokedWithNavPoolPerShare: navPoolPerShare,
-    }
+    };
     return this;
   }
 
@@ -108,27 +91,30 @@ export class RedeemOrderService extends mixinCommonStatics(
    * redeemOrderService.claimRedeem({ number: 123456, timestamp: 1716792000 });
    * ```
    */
-  public claimRedeem(claimedAssetsAmount: bigint, event: Extract<Event, { transaction: any }>) {
+  public claimRedeem(
+    claimedAssetsAmount: bigint,
+    paymentShareAmount: bigint,
+    event: Extract<Event, { transaction: any }>
+  ) {
     serviceLog(
-      `Claiming redeem for ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} on block ${event.block.number} and timestamp ${event.block.timestamp}`
+      `Claiming redeem for account ${this.data.account} with claimedAssetsAmount: ${claimedAssetsAmount} on block ${event.block.number} and timestamp ${event.block.timestamp}`
     );
     if (this.data.claimedAt) throw new Error("Redeem already claimed");
+    if (paymentShareAmount !== this.data.approvedSharesAmount)
+      serviceLog(
+        `paymentShareAmount ${addThousandsSeparator(paymentShareAmount)} !== ${addThousandsSeparator(this.data.approvedSharesAmount ?? 0n)} approvedSharesAmount`
+      );
+    if (claimedAssetsAmount !== this.data.revokedAssetsAmount)
+      serviceLog(
+        `claimedAssetsAmount ${addThousandsSeparator(claimedAssetsAmount)} !== ${addThousandsSeparator(this.data.revokedAssetsAmount ?? 0n)} revokedAssetsAmount`
+      );
     this.data = {
       ...this.data,
       claimedAssetsAmount,
+      approvedSharesAmount: paymentShareAmount,
+      revokedAssetsAmount: claimedAssetsAmount,
       ...timestamper("claimed", event),
-    }
+    };
     return this;
-  }
-
-  /**
-   * Saves or clears the redeem order.
-   *
-   * @param event - The event containing the block information
-   * @returns The service instance for method chaining
-   */
-  public saveOrClear(event: Event) {
-    if(this.data.pendingSharesAmount === 0n) return this.delete();
-    return this.save(event);
   }
 }

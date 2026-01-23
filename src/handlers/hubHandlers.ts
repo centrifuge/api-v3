@@ -3,8 +3,6 @@ import { logEvent, serviceError } from "../helpers/logger";
 import { WhitelistedInvestorService, TokenService } from "../services";
 import { PoolSpokeBlockchainService } from "../services/PoolSpokeBlockchainService";
 
-
-
 multiMapper("hub:NotifyPool", async ({ event, context }) => {
   logEvent(event, context, "hub:NotifyPool");
   const { poolId, centrifugeId } = event.args;
@@ -21,11 +19,7 @@ multiMapper("hub:NotifyPool", async ({ event, context }) => {
 
 multiMapper("hub:UpdateRestriction", async ({ event, context }) => {
   logEvent(event, context, "hub:UpdateRestriction");
-  const {
-    centrifugeId: spokeCentrifugeId,
-    scId: tokenId,
-    payload,
-  } = event.args;
+  const { centrifugeId: spokeCentrifugeId, scId: tokenId, payload } = event.args;
 
   const token = (await TokenService.get(context, {
     id: tokenId,
@@ -89,12 +83,9 @@ function decodeUpdateRestriction(
   payload: `0x${string}`
 ):
   | [
-      restrictionType:
-        | RestrictionType.Member
-        | RestrictionType.Freeze
-        | RestrictionType.Unfreeze,
+      restrictionType: RestrictionType.Member | RestrictionType.Freeze | RestrictionType.Unfreeze,
       accountAddress: `0x${string}`,
-      validUntil: Date | null
+      validUntil: Date | null,
     ]
   | null {
   const buffer = Buffer.from(payload.slice(2), "hex");

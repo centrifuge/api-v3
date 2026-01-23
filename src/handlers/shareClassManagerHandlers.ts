@@ -27,10 +27,7 @@ multiMapper(
     })) as PoolService;
     const { decimals: poolDecimals } = pool.read();
     if (typeof poolDecimals !== "number")
-      serviceError(
-        "Pool decimals is not a initialised",
-        expandInlineObject(pool.read())
-      );
+      serviceError("Pool decimals is not a initialised", expandInlineObject(pool.read()));
 
     const _token = (await TokenService.upsert(
       context,
@@ -59,10 +56,7 @@ multiMapper(
     })) as PoolService;
     const { decimals: poolDecimals } = pool.read();
     if (typeof poolDecimals !== "number")
-      serviceError(
-        "Pool decimals is not a initialised",
-        expandInlineObject(pool.read())
-      );
+      serviceError("Pool decimals is not a initialised", expandInlineObject(pool.read()));
 
     const _token = (await TokenService.upsert(
       context,
@@ -102,71 +96,54 @@ multiMapper("shareClassManager:UpdateMetadata", async ({ event, context }) => {
   await token.save(event);
 });
 
-multiMapper(
-  "shareClassManager:UpdateShareClass",
-  async ({ event, context }) => {
-    logEvent(event, context, "shareClassManager:UpdateShareClass");
-    const { poolId, scId: tokenId, navPoolPerShare: tokenPrice } = event.args;
+multiMapper("shareClassManager:UpdateShareClass", async ({ event, context }) => {
+  logEvent(event, context, "shareClassManager:UpdateShareClass");
+  const { poolId, scId: tokenId, navPoolPerShare: tokenPrice } = event.args;
 
-    const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-    const token = (await TokenService.getOrInit(
-      context,
-      {
-        id: tokenId,
-        poolId,
-        centrifugeId,
-      },
-      event
-    )) as TokenService;
-    if (!token) return serviceError(`Token not found. Cannot update token price`);
-    await token.setTokenPrice(tokenPrice);
-    await token.save(event);
-    await snapshotter(
-      context,
-      event,
-      "shareClassManagerV3:UpdateShareClass",
-      [token],
-      TokenSnapshot
-    );
-  }
-);
-
-multiMapper(
-  "shareClassManager:UpdatePricePoolPerShare",
-  async ({ event, context }) => {
-    logEvent(event, context, "shareClassManager:UpdateShareClass");
-    const {
+  const token = (await TokenService.getOrInit(
+    context,
+    {
+      id: tokenId,
       poolId,
-      scId: tokenId,
-      price: tokenPrice,
-      computedAt: computedAtTimestamp,
-    } = event.args;
+      centrifugeId,
+    },
+    event
+  )) as TokenService;
+  if (!token) return serviceError(`Token not found. Cannot update token price`);
+  await token.setTokenPrice(tokenPrice);
+  await token.save(event);
+  await snapshotter(context, event, "shareClassManagerV3:UpdateShareClass", [token], TokenSnapshot);
+});
 
-    const centrifugeId = await BlockchainService.getCentrifugeId(context);
-    const computedAt = new Date(Number(computedAtTimestamp.toString()) * 1000);
+multiMapper("shareClassManager:UpdatePricePoolPerShare", async ({ event, context }) => {
+  logEvent(event, context, "shareClassManager:UpdateShareClass");
+  const { poolId, scId: tokenId, price: tokenPrice, computedAt: computedAtTimestamp } = event.args;
 
-    const token = (await TokenService.getOrInit(
-      context,
-      {
-        id: tokenId,
-        poolId,
-        centrifugeId,
-      },
-      event
-    )) as TokenService;
-    if (!token) return serviceError(`Token not found. Cannot update token price`);
-    await token.setTokenPrice(tokenPrice, computedAt);
-    await token.save(event);
-    await snapshotter(
-      context,
-      event,
-      "shareClassManagerV3_1:UpdatePricePoolPerShare",
-      [token],
-      TokenSnapshot
-    );
-  }
-);
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const computedAt = new Date(Number(computedAtTimestamp.toString()) * 1000);
+
+  const token = (await TokenService.getOrInit(
+    context,
+    {
+      id: tokenId,
+      poolId,
+      centrifugeId,
+    },
+    event
+  )) as TokenService;
+  if (!token) return serviceError(`Token not found. Cannot update token price`);
+  await token.setTokenPrice(tokenPrice, computedAt);
+  await token.save(event);
+  await snapshotter(
+    context,
+    event,
+    "shareClassManagerV3_1:UpdatePricePoolPerShare",
+    [token],
+    TokenSnapshot
+  );
+});
 
 multiMapper("shareClassManager:UpdateDepositRequest", updateDepositRequest);
 multiMapper("shareClassManager:UpdateRedeemRequest", updateRedeemRequest);

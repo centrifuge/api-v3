@@ -19,16 +19,14 @@ export type RelatedContractEvents<ContractName extends string> = Extract<
 >;
 
 // Extracts contract name and event name from an unversioned event
-type ExtractParts<T extends string> =
-  T extends `${infer ContractName}:${infer EventName}`
-    ? { contractName: ContractName; eventName: EventName }
-    : never;
+type ExtractParts<T extends string> = T extends `${infer ContractName}:${infer EventName}`
+  ? { contractName: ContractName; eventName: EventName }
+  : never;
 
-type VersionedEventsForUnversioned<T extends UnversionedContractEvents> =
-  Extract<
-    ContractEvents,
-    `${ExtractParts<T>["contractName"]}V${string}:${ExtractParts<T>["eventName"]}`
-  >;
+type VersionedEventsForUnversioned<T extends UnversionedContractEvents> = Extract<
+  ContractEvents,
+  `${ExtractParts<T>["contractName"]}V${string}:${ExtractParts<T>["eventName"]}`
+>;
 
 /**
  * Maps an unversioned contract event to a handler, registering handlers for all
@@ -51,9 +49,7 @@ export function multiMapper<E extends UnversionedContractEvents>(
 
   // Find all contract keys that start with the contract name followed by "V"
   // This gives us all available versions for this contract
-  const contractKeys = Object.keys(contracts).filter((key) =>
-    key.startsWith(`${contractName}V`)
-  );
+  const contractKeys = Object.keys(contracts).filter((key) => key.startsWith(`${contractName}V`));
 
   // Extract versions from contract keys (e.g., "HubV3" -> "V3", "HubV3_1" -> "V3_1")
   const versions = contractKeys.map((key) => key.slice(contractName.length));
@@ -63,10 +59,8 @@ export function multiMapper<E extends UnversionedContractEvents>(
   const registeredEvents: string[] = [];
 
   for (const version of versions) {
-    const versionedContract =
-      `${contractName}${version}` as keyof typeof contracts;
-    const versionedEvent =
-      `${versionedContract}:${eventName}` as ContractEvents;
+    const versionedContract = `${contractName}${version}` as keyof typeof contracts;
+    const versionedEvent = `${versionedContract}:${eventName}` as ContractEvents;
     const versionedEventWithoutParameters =
       `${versionedContract}:${eventNameWithoutParameters}` as ContractEvents;
     const isPrametricEvent = versionedEvent !== versionedEventWithoutParameters;
@@ -90,8 +84,6 @@ export function multiMapper<E extends UnversionedContractEvents>(
   }
 
   if (registeredEvents.length > 0) {
-    process.stdout.write(
-      `${event} mapped to [${registeredEvents.join(", ")}]\n`
-    );
+    process.stdout.write(`${event} mapped to [${registeredEvents.join(", ")}]\n`);
   }
 }

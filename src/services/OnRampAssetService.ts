@@ -5,7 +5,11 @@ import { OnRampAsset } from "ponder:schema";
  * Service for managing on-ramp assets.
  *
  */
-export class OnRampAssetService extends mixinCommonStatics(Service<typeof OnRampAsset>, OnRampAsset, "OnRampAsset") {
+export class OnRampAssetService extends mixinCommonStatics(
+  Service<typeof OnRampAsset>,
+  OnRampAsset,
+  "OnRampAsset"
+) {
   /**
    * Enables the on-ramp asset
    *
