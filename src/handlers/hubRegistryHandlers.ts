@@ -55,6 +55,19 @@ multiMapper("hubRegistry:NewPool", async ({ event, context }) => {
   await poolManager.save(event);
 });
 
+multiMapper("hubRegistry:UpdateCurrency", async ({ event, context }) => {
+  logEvent(event, context, "hubRegistry:UpdateCurrency");
+  const { poolId, currency } = event.args;
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const pool = (await PoolService.getOrInit(
+    context,
+    { id: poolId, centrifugeId },
+    event
+  )) as PoolService;
+  pool.setCurrency(currency);
+  await pool.save(event);
+});
+
 multiMapper("hubRegistry:NewAsset", async ({ event, context }) => {
   //Fires Second to complete
   logEvent(event, context, "hubRegistry:NewAsset");
@@ -137,9 +150,9 @@ multiMapper("hubRegistry:SetMetadata", async ({ event, context }) => {
   if (isIpfs) {
     metadata = `ipfs://${metadata}`;
     const ipfsData = await fetchFromIpfs(metadata);
-    pool.setName(ipfsData?.pool?.name);
+    const name = ipfsData?.pool?.name;
+    if (name) pool.setName(name);
   }
-
   pool.setMetadata(metadata);
   await pool.save(event);
 });
