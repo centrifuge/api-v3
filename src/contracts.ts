@@ -435,7 +435,13 @@ function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
 ): ContractChain<V, N> {
   const abis = Abis[registryVersion];
   const registry = fullRegistry[registryVersion] as Registry<V>;
-  const chainEntries = Object.entries(registry.chains) as Entries<typeof registry.chains>;
+  let chainEntries = Object.entries(registry.chains) as Entries<typeof registry.chains>;
+  const selectedNetworks = process.env.SELECTED_NETWORKS?.split(",") ?? [];
+  if (selectedNetworks.length > 0) {
+    chainEntries = chainEntries.filter(([chainId]) =>
+      process.env.SELECTED_NETWORKS!.split(",").includes(chainId)
+    );
+  }
 
   const chain = chainEntries.map(([chainId, chainValue]) => {
     const chainName = networkNames[chainId as keyof typeof networkNames];
