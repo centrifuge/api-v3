@@ -68,12 +68,8 @@ export async function updateDepositRequest({
     undefined,
     true
   )) as PendingInvestOrderService;
-  const { createdAtTxHash } = pendingInvestOrder.read();
-  const isNewOrder = createdAtTxHash === event.transaction.hash;
-
   pendingInvestOrder.updateQueuedAmount(queuedUserAssetAmount);
-  if (isNewOrder || queuedUserAssetAmount === 0n)
-    pendingInvestOrder.updatePendingAmount(pendingUserAssetAmount);
+  if (queuedUserAssetAmount === 0n) pendingInvestOrder.updatePendingAmount(pendingUserAssetAmount);
   await pendingInvestOrder.saveOrClear(event);
 
   // TODO: DEPRECATED to be deleted in future releases
@@ -153,12 +149,8 @@ export async function updateRedeemRequest({
     undefined,
     true
   )) as PendingRedeemOrderService;
-  const { createdAtTxHash } = pendingRedeemOrder.read();
-  const isNewOrder = createdAtTxHash === event.transaction.hash;
-
   pendingRedeemOrder.updateQueuedAmount(queuedUserShareAmount);
-  if (isNewOrder || queuedUserShareAmount === 0n)
-    pendingRedeemOrder.updatePendingAmount(pendingUserShareAmount);
+  if (queuedUserShareAmount === 0n) pendingRedeemOrder.updatePendingAmount(pendingUserShareAmount);
 
   await pendingRedeemOrder.saveOrClear(event);
 
