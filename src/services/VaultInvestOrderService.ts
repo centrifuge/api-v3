@@ -33,10 +33,10 @@ export class VaultInvestOrderService extends mixinCommonStatics(
    * @param claimableSharesAmount - The amount of shares claimable
    * @returns The service instance for method chaining
    */
-  public claimableDeposit(claimableSharesAmount: bigint) {
-    serviceLog(`Adding claimable shares amount ${claimableSharesAmount} to vault invest order`);
-    this.data.claimableSharesAmount =
-      (this.data.claimableSharesAmount ?? 0n) + claimableSharesAmount;
+  public claimableDeposit(claimableAssetsAmount: bigint) {
+    serviceLog(`Adding claimable assets amount ${claimableAssetsAmount} to vault invest order`);
+    this.data.claimableAssetsAmount =
+      (this.data.claimableAssetsAmount ?? 0n) + claimableAssetsAmount;
     return this;
   }
 
@@ -48,7 +48,7 @@ export class VaultInvestOrderService extends mixinCommonStatics(
   public deposit(assetsAmount: bigint) {
     serviceLog(`Depositing assets amount ${assetsAmount} into vault invest order`);
     this.data.requestedAssetsAmount = (this.data.requestedAssetsAmount ?? 0n) - assetsAmount;
-    this.data.claimableSharesAmount = (this.data.claimableSharesAmount ?? 0n) - assetsAmount;
+    this.data.claimableAssetsAmount = (this.data.claimableAssetsAmount ?? 0n) - assetsAmount;
     return this;
   }
 
@@ -58,7 +58,7 @@ export class VaultInvestOrderService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public saveOrClear(event: Event) {
-    if (this.data.requestedAssetsAmount === 0n && this.data.claimableSharesAmount === 0n) {
+    if (this.data.requestedAssetsAmount === 0n && this.data.claimableAssetsAmount === 0n) {
       return this.delete();
     }
     return this.save(event);

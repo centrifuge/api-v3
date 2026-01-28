@@ -33,10 +33,10 @@ export class VaultRedeemOrderService extends mixinCommonStatics(
    * @param claimableAssetsAmount - The amount of assets claimable
    * @returns The service instance for method chaining
    */
-  public claimableRedeem(claimableAssetsAmount: bigint) {
-    serviceLog(`Adding claimable assets amount ${claimableAssetsAmount} to vault redeem order`);
-    this.data.claimableAssetsAmount =
-      (this.data.claimableAssetsAmount ?? 0n) + claimableAssetsAmount;
+  public claimableRedeem(claimableSharesAmount: bigint) {
+    serviceLog(`Adding claimable shares amount ${claimableSharesAmount} to vault redeem order`);
+    this.data.claimableSharesAmount =
+      (this.data.claimableSharesAmount ?? 0n) + claimableSharesAmount;
     return this;
   }
 
@@ -45,10 +45,10 @@ export class VaultRedeemOrderService extends mixinCommonStatics(
    * @param assetsAmount - The amount of assets to redeem
    * @returns The service instance for method chaining
    */
-  public redeem(assetsAmount: bigint) {
-    serviceLog(`Redeeming assets amount ${assetsAmount} from vault redeem order`);
-    this.data.requestedSharesAmount = (this.data.requestedSharesAmount ?? 0n) - assetsAmount;
-    this.data.claimableAssetsAmount = (this.data.claimableAssetsAmount ?? 0n) - assetsAmount;
+  public redeem(sharesAmount: bigint) {
+    serviceLog(`Redeeming shares amount ${sharesAmount} from vault redeem order`);
+    this.data.requestedSharesAmount = (this.data.requestedSharesAmount ?? 0n) - sharesAmount;
+    this.data.claimableSharesAmount = (this.data.claimableSharesAmount ?? 0n) - sharesAmount;
     return this;
   }
 
@@ -58,7 +58,7 @@ export class VaultRedeemOrderService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public saveOrClear(event: Event) {
-    if (this.data.requestedSharesAmount === 0n && this.data.claimableAssetsAmount === 0n) {
+    if (this.data.requestedSharesAmount === 0n && this.data.claimableSharesAmount === 0n) {
       return this.delete();
     }
     return this.save(event);

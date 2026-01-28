@@ -284,7 +284,7 @@ multiMapper("vault:DepositClaimable", async ({ event, context }) => {
     undefined,
     true
   )) as VaultInvestOrderService;
-  await vaultInvestOrder.claimableDeposit(shares).save(event);
+  await vaultInvestOrder.claimableDeposit(assets).save(event);
 });
 
 multiMapper("vault:RedeemClaimable", async ({ event, context }) => {
@@ -355,7 +355,7 @@ multiMapper("vault:RedeemClaimable", async ({ event, context }) => {
     undefined,
     true
   )) as VaultRedeemOrderService;
-  await vaultRedeemOrder.claimableRedeem(assets).save(event);
+  await vaultRedeemOrder.claimableRedeem(shares).save(event);
 });
 
 multiMapper("vault:Deposit", async ({ event, context }) => {
@@ -602,7 +602,7 @@ multiMapper("vault:Withdraw", async ({ event, context }) => {
     undefined,
     true
   )) as VaultRedeemOrderService;
-  await vaultRedeemOrder.redeem(assets).saveOrClear(event);
+  await vaultRedeemOrder.redeem(shares).saveOrClear(event);
 });
 
 /**
