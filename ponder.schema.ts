@@ -391,7 +391,7 @@ const VaultInvestOrderColumns = (t: PgColumnsBuilders) => ({
   assetId: t.bigint().notNull(),
 
   requestedAssetsAmount: t.bigint().default(0n),
-  claimableSharesAmount: t.bigint().default(0n),
+  claimableAssetsAmount: t.bigint().default(0n),
 
   ...defaultColumns(t),
 
@@ -487,7 +487,7 @@ const VaultRedeemOrderColumns = (t: PgColumnsBuilders) => ({
   assetId: t.bigint().notNull(),
 
   requestedSharesAmount: t.bigint().default(0n),
-  claimableAssetsAmount: t.bigint().default(0n),
+  claimableSharesAmount: t.bigint().default(0n),
 
   ...defaultColumns(t),
 });
@@ -925,6 +925,7 @@ const PoolManagerColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   isHubManager: t.boolean().notNull().default(false),
   isBalancesheetManager: t.boolean().notNull().default(false),
+  ...defaultColumns(t),
 });
 
 export const PoolManager = onchainTable("pool_manager", PoolManagerColumns, (t) => ({
@@ -944,6 +945,7 @@ const OnOffRampManagerColumns = (t: PgColumnsBuilders) => ({
   address: t.hex().notNull(),
   poolId: t.bigint().notNull(),
   tokenId: t.hex().notNull(),
+  ...defaultColumns(t),
 });
 
 export const OnOffRampManager = onchainTable(
@@ -974,6 +976,7 @@ const OfframpRelayerColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   address: t.hex().notNull(),
   isEnabled: t.boolean().notNull().default(false),
+  ...defaultColumns(t),
 });
 
 export const OfframpRelayer = onchainTable("offramp_relayer", OfframpRelayerColumns, (t) => ({
@@ -989,6 +992,7 @@ const OnRampAssetColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   assetAddress: t.hex().notNull(),
   isEnabled: t.boolean().notNull().default(false),
+  ...defaultColumns(t),
 });
 
 export const OnRampAsset = onchainTable("on_ramp_asset", OnRampAssetColumns, (t) => ({
@@ -1015,6 +1019,7 @@ const OffRampAddressColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   assetAddress: t.hex().notNull(),
   receiverAddress: t.hex().notNull(),
+  ...defaultColumns(t),
 });
 export const OffRampAddress = onchainTable("off_ramp_address", OffRampAddressColumns, (t) => ({
   id: primaryKey({ columns: [t.tokenId, t.assetAddress, t.receiverAddress] }),
@@ -1040,6 +1045,7 @@ const PolicyColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   strategistAddress: t.hex().notNull(),
   root: t.hex().notNull(),
+  ...defaultColumns(t),
 });
 
 export const Policy = onchainTable("policy", PolicyColumns, (t) => ({
@@ -1395,6 +1401,7 @@ const MerkleProofManagerColumns = (t: PgColumnsBuilders) => ({
   address: t.hex().notNull(),
   centrifugeId: t.text().notNull(),
   poolId: t.bigint().notNull(),
+  ...defaultColumns(t),
 });
 export const MerkleProofManager = onchainTable(
   "merkle_proof_manager",
