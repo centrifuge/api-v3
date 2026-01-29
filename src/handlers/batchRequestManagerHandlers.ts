@@ -68,6 +68,7 @@ export async function updateDepositRequest({
     undefined,
     true
   )) as PendingInvestOrderService;
+  const { queuedAssetsAmount: lastQueuedAssetsAmount } = pendingInvestOrder.read();
   pendingInvestOrder.updateQueuedAmount(queuedUserAssetAmount);
   if (queuedUserAssetAmount === 0n) pendingInvestOrder.updatePendingAmount(pendingUserAssetAmount);
   await pendingInvestOrder.saveOrClear(event);
@@ -101,8 +102,11 @@ export async function updateDepositRequest({
     },
     event
   )) as EpochOutstandingInvestService;
-
-  await epochOutstandingInvest.updatePendingAmount(pendingTotalAssetAmount).save(event);
+  const deltaQueuedAssetsAmount = queuedUserAssetAmount - (lastQueuedAssetsAmount ?? 0n);
+  await epochOutstandingInvest
+    .updatePendingAmount(pendingTotalAssetAmount)
+    .increaseQueuedAmount(deltaQueuedAssetsAmount)
+    .saveOrClear(event);
 }
 
 multiMapper("batchRequestManager:UpdateRedeemRequest", updateRedeemRequest);
@@ -149,6 +153,7 @@ export async function updateRedeemRequest({
     undefined,
     true
   )) as PendingRedeemOrderService;
+  const { queuedSharesAmount: lastQueuedSharesAmount } = pendingRedeemOrder.read();
   pendingRedeemOrder.updateQueuedAmount(queuedUserShareAmount);
   if (queuedUserShareAmount === 0n) pendingRedeemOrder.updatePendingAmount(pendingUserShareAmount);
 
@@ -183,8 +188,11 @@ export async function updateRedeemRequest({
     },
     event
   )) as EpochOutstandingRedeemService;
-
-  await epochOutstandingRedeem.updatePendingAmount(pendingTotalShareAmount).save(event);
+  const deltaQueuedSharesAmount = queuedUserShareAmount - (lastQueuedSharesAmount ?? 0n);
+  await epochOutstandingRedeem
+    .updatePendingAmount(pendingTotalShareAmount)
+    .increaseQueuedAmount(deltaQueuedSharesAmount)
+    .saveOrClear(event);
 }
 
 multiMapper("batchRequestManager:ApproveDeposits", approveDeposits);
@@ -234,7 +242,6 @@ export async function approveDeposits({
     },
     event
   )) as EpochOutstandingInvestService;
-
   await epochOutstandingInvest.updatePendingAmount(pendingAssetAmount).saveOrClear(event);
 
   const investOrderSaves: Promise<InvestOrderService>[] = [];
@@ -353,7 +360,6 @@ export async function approveRedeems({
     },
     event
   )) as EpochOutstandingRedeemService;
-
   await epochOutstandingRedeem.updatePendingAmount(pendingShareAmount).saveOrClear(event);
 
   const redeemOrderSaves: Promise<RedeemOrderService>[] = [];
