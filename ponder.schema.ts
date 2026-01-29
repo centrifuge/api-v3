@@ -581,6 +581,7 @@ const EpochOutstandingInvestColumns = (t: PgColumnsBuilders) => ({
   assetId: t.bigint().notNull(),
 
   pendingAssetsAmount: t.bigint().default(0n),
+  queuedAssetsAmount: t.bigint().default(0n),
 
   ...defaultColumns(t),
 });
@@ -613,6 +614,7 @@ const EpochOutstandingRedeemColumns = (t: PgColumnsBuilders) => ({
   assetId: t.bigint().notNull(),
 
   pendingSharesAmount: t.bigint().default(0n),
+  queuedSharesAmount: t.bigint().default(0n),
 
   ...defaultColumns(t),
 });

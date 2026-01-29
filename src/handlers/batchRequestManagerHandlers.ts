@@ -225,6 +225,18 @@ export async function approveDeposits({
     event
   )) as EpochInvestOrderService | null;
 
+  const epochOutstandingInvest = (await EpochOutstandingInvestService.getOrInit(
+    context,
+    {
+      poolId,
+      tokenId,
+      assetId: depositAssetId,
+    },
+    event
+  )) as EpochOutstandingInvestService;
+
+  await epochOutstandingInvest.updatePendingAmount(pendingAssetAmount).saveOrClear(event);
+
   const investOrderSaves: Promise<InvestOrderService>[] = [];
   const pendingInvestOrders = (await PendingInvestOrderService.query(context, {
     tokenId,
@@ -331,6 +343,18 @@ export async function approveRedeems({
     },
     event
   )) as EpochRedeemOrderService | null;
+
+  const epochOutstandingRedeem = (await EpochOutstandingRedeemService.getOrInit(
+    context,
+    {
+      poolId,
+      tokenId,
+      assetId: payoutAssetId,
+    },
+    event
+  )) as EpochOutstandingRedeemService;
+
+  await epochOutstandingRedeem.updatePendingAmount(pendingShareAmount).saveOrClear(event);
 
   const redeemOrderSaves: Promise<RedeemOrderService>[] = [];
   const pendingRedeemOrders = (await PendingRedeemOrderService.query(context, {

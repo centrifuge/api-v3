@@ -1,3 +1,4 @@
+import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { EpochOutstandingInvest } from "ponder:schema";
 import { serviceLog } from "../helpers/logger";
@@ -21,8 +22,22 @@ export class EpochOutstandingInvestService extends mixinCommonStatics(
    * @returns The current service instance for method chaining
    */
   public updatePendingAmount(amount: bigint) {
-    serviceLog(`Updating pending amount to ${amount}`);
+    serviceLog(`Updating epoch pending assets amount to ${amount}`);
     this.data.pendingAssetsAmount = amount;
     return this;
+  }
+
+  /**
+   * Clears the outstanding invest if the queued and pending amounts are 0.
+   *
+   * @returns The service instance for method chaining
+   */
+  public saveOrClear(event: Event) {
+    if (
+      this.data.pendingAssetsAmount === 0n &&
+      this.data.queuedAssetsAmount === 0n
+    )
+      return this.delete();
+    return this.save(event);
   }
 }
