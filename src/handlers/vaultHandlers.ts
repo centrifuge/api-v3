@@ -5,9 +5,7 @@ import {
   AssetService,
   BlockchainService,
   EpochInvestOrderService,
-  EpochRedeemOrderService,
   InvestOrderService,
-  RedeemOrderService,
   TokenInstancePositionService,
   TokenInstanceService,
   TokenService,
@@ -300,9 +298,8 @@ multiMapper("vault:RedeemClaimable", async ({ event, context }) => {
     centrifugeId,
   })) as VaultService;
   if (!vault) return serviceError(`Vault not found. Cannot retrieve vault configuration`);
-  const { poolId, tokenId, kind, assetAddress } = vault.read();
+  const { poolId, tokenId, assetAddress } = vault.read();
 
-  if (kind === "Sync") return;
 
   const asset = (await AssetService.get(context, {
     address: assetAddress,
@@ -411,8 +408,23 @@ multiMapper("vault:Deposit", async ({ event, context }) => {
   switch (kind) {
     case "Async":
       await InvestorTransactionService.claimDeposit(context, itData, event);
+      const vaultInvestOrder = (await VaultInvestOrderService.getOrInit(
+        context,
+        {
+          centrifugeId,
+          poolId,
+          tokenId,
+          assetId,
+          accountAddress: investorAddress,
+        },
+        event,
+        undefined,
+        true
+      )) as VaultInvestOrderService;
+      await vaultInvestOrder.deposit(assets).saveOrClear(event);
       break;
-    default:
+    case "SyncDepositAsyncRedeem":
+    case "Sync":
       await InvestorTransactionService.syncDeposit(context, itData, event);
       const investOrderIndex =
         (await InvestOrderService.count(context, {
@@ -435,6 +447,7 @@ multiMapper("vault:Deposit", async ({ event, context }) => {
           issuedSharesAmount: shares,
           issuedWithNavAssetPerShare: getSharePrice(assets, shares, assetDecimals, shareDecimals),
           ...timestamper("claimed", event),
+          claimedSharesAmount: shares,
         },
         event
       );
@@ -464,22 +477,9 @@ multiMapper("vault:Deposit", async ({ event, context }) => {
         event
       )) as EpochInvestOrderService;
       break;
+    default:
+      return serviceError("Unknown vault kind");
   }
-
-  const vaultInvestOrder = (await VaultInvestOrderService.getOrInit(
-    context,
-    {
-      centrifugeId,
-      poolId,
-      tokenId,
-      assetId,
-      accountAddress: investorAddress,
-    },
-    event,
-    undefined,
-    true
-  )) as VaultInvestOrderService;
-  await vaultInvestOrder.deposit(assets).saveOrClear(event);
 });
 
 multiMapper("vault:Withdraw", async ({ event, context }) => {
@@ -530,79 +530,32 @@ multiMapper("vault:Withdraw", async ({ event, context }) => {
     currencyAssetId: assetId,
   };
 
+
   switch (kind) {
     case "Sync":
-      await InvestorTransactionService.syncRedeem(context, itData, event);
-      const redeemOrderIndex =
-        (await RedeemOrderService.count(context, {
-          poolId,
-          tokenId,
-          account: investorAddress,
-          index_lte: 0,
-        })) * -1;
-      await RedeemOrderService.insert(
+      return serviceError("Sync vaults are not supported yet");
+    case "SyncDepositAsyncRedeem":
+    case "Async":
+      const vaultRedeemOrder = (await VaultRedeemOrderService.getOrInit(
         context,
         {
+          centrifugeId,
           poolId,
           tokenId,
           assetId,
-          account: investorAddress,
-          index: redeemOrderIndex,
-          ...timestamper("approved", event),
-          approvedSharesAmount: shares,
-          ...timestamper("revoked", event),
-          revokedAssetsAmount: assets,
-          revokedPoolAmount: assets,
-          revokedWithNavAssetPerShare: getSharePrice(assets, shares, assetDecimals, shareDecimals),
-          ...timestamper("claimed", event),
+          accountAddress: investorAddress,
         },
-        event
-      );
+        event,
+        undefined,
+        true
+      )) as VaultRedeemOrderService;
+      await vaultRedeemOrder.redeem(shares).saveOrClear(event);
 
-      const epochRedeemIndex =
-        (await EpochRedeemOrderService.count(context, {
-          poolId,
-          tokenId,
-          assetId,
-          index_lte: 0,
-        })) * -1;
-      (await EpochRedeemOrderService.insert(
-        context,
-        {
-          poolId,
-          tokenId,
-          assetId,
-          index: epochRedeemIndex,
-          ...timestamper("approved", event),
-          approvedSharesAmount: shares,
-          approvedPercentageOfTotalPending: 100n * 10n ** BigInt(shareDecimals),
-          ...timestamper("revoked", event),
-          revokedAssetsAmount: assets,
-          revokedWithNavAssetPerShare: getSharePrice(assets, shares, assetDecimals, shareDecimals),
-        },
-        event
-      )) as EpochRedeemOrderService;
-
-      break;
-    default:
       await InvestorTransactionService.claimRedeem(context, itData, event);
       break;
+    default:
+      return serviceError("Unknown vault kind");
   }
-
-  const vaultRedeemOrder = (await VaultRedeemOrderService.getOrInit(
-    context,
-    {
-      centrifugeId,
-      poolId,
-      tokenId,
-      assetId,
-      accountAddress: investorAddress,
-    },
-    event,
-    undefined,
-    true
-  )) as VaultRedeemOrderService;
-  await vaultRedeemOrder.redeem(shares).saveOrClear(event);
 });
 
 /**
