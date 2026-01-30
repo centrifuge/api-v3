@@ -8,6 +8,7 @@ import {
   TokenService,
   InvestorTransactionService,
   AccountService,
+  TokenInstancePositionService,
 } from "../services";
 import { ERC20Abi } from "../../abis/ERC20";
 import { Abis } from "../contracts";
@@ -15,6 +16,8 @@ import { RegistryChains } from "../chains";
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
 import { deployVault, linkVault, unlinkVault } from "./vaultRegistryHandlers";
+import { getInitialHolders } from "../config";
+import { initialisePosition } from "../services/TokenInstancePositionService";
 
 multiMapper("spoke:DeployVault", deployVault);
 
@@ -91,6 +94,26 @@ multiMapper("spoke:AddShareClass", async ({ event, context }) => {
   // Only increase token total issuance if this is a new token instance
   if (prevInstanceIssuance === 0n) {
     token.increaseTotalIssuance(totalSupply);
+
+    // Fetch initial holders from hardcoded list
+    const initialHolders: string[] = getInitialHolders(poolId, tokenId, centrifugeId);
+    if (initialHolders.length > 0) {
+      await Promise.all(
+        initialHolders.map(async (holder: string) => {
+          (await TokenInstancePositionService.getOrInit(
+            context,
+            {
+              tokenId,
+              centrifugeId,
+              accountAddress: holder.toLowerCase() as `0x${string}`,
+            },
+            event,
+            async (tokenInstancePosition) =>
+              await initialisePosition(context, tokenAddress, tokenInstancePosition)
+          )) as TokenInstancePositionService;
+        })
+      );
+    }
   }
 
   await token.save(event);

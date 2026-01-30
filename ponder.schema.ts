@@ -172,6 +172,7 @@ export const TokenRelations = relations(Token, ({ one, many }) => ({
   offRampAddresses: many(OffRampAddress, { relationName: "offRampAddresses" }),
 }));
 
+// NOTE: Sync is not supported in the protocol atm, but it is in the enum
 export const VaultKinds = ["Async", "Sync", "SyncDepositAsyncRedeem"] as const;
 export const VaultKind = onchainEnum("vault_kind", VaultKinds);
 export const VaultStatuses = ["LinkInProgress", "UnlinkInProgress", "Linked", "Unlinked"] as const;
