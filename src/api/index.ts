@@ -482,9 +482,6 @@ app.get("/quote", sValidator("query", quoteParams), async (c) => {
     }),
   ]);
 
-  console.log("isFromHub", isFromHub);
-  console.log("isToHub", isToHub);
-
   let estimatedGas: number;
   let totalFee: bigint;
   if (isFromHub) {
