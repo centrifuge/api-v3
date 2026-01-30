@@ -70,7 +70,7 @@ multiMapper("holdings:Increase", async ({ event, context }) => {
   await holding.increase(amount, increasedValue);
   await holding.save(event);
 
-  await snapshotter(context, event, "holdingsV3:Increase", [holding], HoldingSnapshot);
+  await snapshotter(context, event, "holdingsV3_1:Increase", [holding], HoldingSnapshot);
 });
 
 multiMapper("holdings:Decrease", async ({ event, context }) => {
@@ -122,7 +122,7 @@ multiMapper("holdings:Update", async ({ event, context }) => {
   await holding.update(isPositive, diffValue);
   await holding.save(event);
 
-  await snapshotter(context, event, "holdingsV3:Update", [holding], HoldingSnapshot);
+  await snapshotter(context, event, "holdingsV3_1:Update", [holding], HoldingSnapshot);
 });
 
 multiMapper("holdings:UpdateValuation", async ({ event, context }) => {
@@ -148,5 +148,5 @@ multiMapper("holdings:UpdateValuation", async ({ event, context }) => {
   await holding.setValuation(valuation);
   await holding.save(event);
 
-  await snapshotter(context, event, "holdingsV3:UpdateValuation", [holding], HoldingSnapshot);
+  await snapshotter(context, event, "holdingsV3_1:UpdateValuation", [holding], HoldingSnapshot);
 });
