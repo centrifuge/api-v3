@@ -11,7 +11,15 @@ import schema, {
 } from "ponder:schema";
 import { Hex } from "viem";
 import * as z from "zod";
+import {
+  getContract,
+  getContractAbi,
+  getPublicClient,
+} from "../helpers/contracts";
 import { formatBigIntToDecimal } from "../helpers/formatter";
+import { emptyMessage, MessageType } from "../helpers/messaging";
+import { centrifugeId, poolId } from "../helpers/tokenId";
+
 import {
   AccountService,
   AdapterService,
@@ -50,7 +58,7 @@ app.get("/tokens/:address/total-issuance", async (c) => {
     return c.json(
       { error: "TokenInstance address not found" },
       404,
-      jsonDefaultHeaders
+      jsonDefaultHeaders,
     );
   const { tokenId } = tokenInstance.read();
 
@@ -66,7 +74,7 @@ app.get("/tokens/:address/total-issuance", async (c) => {
   return c.json(
     { result: formatBigIntToDecimal(totalIssuance, decimals) },
     200,
-    jsonDefaultHeaders
+    jsonDefaultHeaders,
   );
 });
 
@@ -78,7 +86,7 @@ app.get("/tokens/:address/price", async (c) => {
     return c.json(
       { error: "TokenInstance not found" },
       404,
-      jsonDefaultHeaders
+      jsonDefaultHeaders,
     );
   const { tokenId } = tokenInstance.read();
 
@@ -92,7 +100,7 @@ app.get("/tokens/:address/price", async (c) => {
   return c.json(
     { result: formatBigIntToDecimal(tokenPrice) },
     200,
-    jsonDefaultHeaders
+    jsonDefaultHeaders,
   );
 });
 
@@ -200,10 +208,9 @@ app.get("/routes", sValidator("query", routesParams), async (c) => {
   const ESTIMATED_DURATION = 210; // in seconds
   const ESTIMATED_GAS = 1000000;
 
-  // Get all blockchains
   const blockchains = await db.select().from(Blockchain);
   const blockchainByCentId = new Map(
-    blockchains.map((b) => [b.centrifugeId, b])
+    blockchains.map((b) => [b.centrifugeId, b]),
   );
 
   const tokenInstanceRows = await db
@@ -222,7 +229,7 @@ app.get("/routes", sValidator("query", routesParams), async (c) => {
   const nonHubTokenInstanceRows = tokenInstanceRows.filter((row) => {
     const isSpoke =
       Number(row.token_instance.centrifugeId) !==
-      Number(BigInt(row.token_instance.tokenId) >> 112n);
+      centrifugeId(row.token_instance.tokenId);
     if (isSpoke) {
       const tokenRows =
         nonHubTokenInstanceRowsByTokenId.get(row.token.id) || [];
@@ -238,7 +245,7 @@ app.get("/routes", sValidator("query", routesParams), async (c) => {
   const routes = nonHubTokenInstanceRows.flatMap((row) => {
     const hubBlockchain = blockchainByCentId.get(row.token.centrifugeId!);
     const spokeBlockchain = blockchainByCentId.get(
-      row.token_instance.centrifugeId
+      row.token_instance.centrifugeId,
     );
     const hubRow = hubTokenInstanceRowsByTokenId.get(row.token.id);
 
@@ -299,7 +306,7 @@ app.get("/routes", sValidator("query", routesParams), async (c) => {
           )
             return [];
           const otherSpokeBlockchain = blockchainByCentId.get(
-            otherRow.token_instance.centrifugeId
+            otherRow.token_instance.centrifugeId,
           );
           if (!otherSpokeBlockchain?.chainId || !otherSpokeBlockchain?.name)
             return [];
@@ -362,20 +369,19 @@ app.get("/quote", sValidator("query", quoteParams), async (c) => {
     c.req.valid("query");
 
   const ESTIMATED_DURATION = 210; // in seconds
-  const ESTIMATED_GAS = 1000000;
 
   const blockchains = await db.select().from(Blockchain);
   const blockchainByChainId = new Map(blockchains.map((b) => [b.chainId, b]));
 
-  const fromCentId = blockchainByChainId.get(fromChainId)?.centrifugeId;
-  const toCentId = blockchainByChainId.get(toChainId)?.centrifugeId;
+  const fromCentId = Number(blockchainByChainId.get(fromChainId)?.centrifugeId);
+  const toCentId = Number(blockchainByChainId.get(toChainId)?.centrifugeId);
 
   if (!fromCentId || !toCentId) {
     return c.json({ error: "Origin or destination chain not supported" }, 400);
   } else if (fromCentId === toCentId) {
     return c.json(
       { error: "Origin and destination chain cannot be the same" },
-      400
+      400,
     );
   }
 
@@ -387,10 +393,10 @@ app.get("/quote", sValidator("query", quoteParams), async (c) => {
     .where(eq(TokenInstance.address, fromToken as Hex));
 
   const fromTokenInstance = tokenInstanceRows.find(
-    (row) => row.token_instance.centrifugeId === fromCentId
+    (row) => row.token_instance.centrifugeId === String(fromCentId),
   );
   const toTokenInstance = tokenInstanceRows.find(
-    (row) => row.token_instance.centrifugeId === toCentId
+    (row) => row.token_instance.centrifugeId === String(toCentId),
   );
 
   if (!fromTokenInstance) {
@@ -398,21 +404,99 @@ app.get("/quote", sValidator("query", quoteParams), async (c) => {
   } else if (!toTokenInstance) {
     return c.json(
       { error: "Token does not exist on the destination chain" },
-      400
+      400,
     );
   }
 
-  const hubCentId = Number(BigInt(fromTokenInstance.token.id) >> 112n);
+  const hubCentId = centrifugeId(fromTokenInstance.token.id);
   const isFromHub = Number(fromCentId) === hubCentId;
   const isToHub = Number(toCentId) === hubCentId;
+  const isTwoHops = !isFromHub && !isToHub;
+  const hubChainId = blockchains.find(
+    (b) => Number(b.centrifugeId) === hubCentId,
+  )?.chainId;
+
+  if (!hubChainId) {
+    return c.json({ error: "Hub chain not found for this token" }, 400);
+  }
 
   let estimatedDuration = ESTIMATED_DURATION;
-  let estimatedGas = ESTIMATED_GAS;
 
-  if (!isFromHub && !isToHub) {
-    // Spoke to Spoke route (via Hub) - requires 2 hops
+  const fromClient = getPublicClient(fromChainId);
+  const hubClient = getPublicClient(hubChainId);
+
+  const [initiateTransferSharesGasLimit, executeTransferSharesGasLimit] =
+    await Promise.all([
+      fromClient.readContract({
+        abi: getContractAbi("gasServiceV3_1"),
+        address: getContract("gasServiceV3_1", fromChainId),
+        functionName: "messageOverallGasLimit",
+        args: [
+          isTwoHops ? hubCentId : toCentId,
+          emptyMessage(
+            MessageType.InitiateTransferShares,
+            poolId(fromTokenInstance.token.id),
+          ),
+        ],
+      }),
+      hubClient.readContract({
+        abi: getContractAbi("gasServiceV3_1"),
+        address: getContract("gasServiceV3_1", hubChainId),
+        functionName: "messageOverallGasLimit",
+        args: [
+          toCentId,
+          emptyMessage(
+            MessageType.ExecuteTransferShares,
+            poolId(fromTokenInstance.token.id),
+          ),
+        ],
+      }),
+    ]);
+
+  const [initiateFee, executeFee] = await Promise.all([
+    fromClient.readContract({
+      abi: getContractAbi("multiAdapterV3_1"),
+      address: getContract("multiAdapterV3_1", fromChainId),
+      functionName: "estimate",
+      args: [
+        isTwoHops ? hubCentId : toCentId,
+        emptyMessage(
+          MessageType.InitiateTransferShares,
+          poolId(fromTokenInstance.token.id),
+        ),
+        initiateTransferSharesGasLimit,
+      ],
+    }),
+    hubClient.readContract({
+      abi: getContractAbi("multiAdapterV3_1"),
+      address: getContract("multiAdapterV3_1", hubChainId),
+      functionName: "estimate",
+      args: [
+        toCentId,
+        emptyMessage(
+          MessageType.ExecuteTransferShares,
+          poolId(fromTokenInstance.token.id),
+        ),
+        executeTransferSharesGasLimit,
+      ],
+    }),
+  ]);
+
+  console.log("isFromHub", isFromHub);
+  console.log("isToHub", isToHub);
+
+  let estimatedGas: number;
+  let totalFee: bigint;
+  if (isFromHub) {
+    estimatedGas = Number(executeTransferSharesGasLimit);
+    totalFee = executeFee;
+  } else if (isToHub) {
+    estimatedGas = Number(initiateTransferSharesGasLimit);
+    totalFee = initiateFee;
+  } else {
     estimatedDuration = ESTIMATED_DURATION * 2;
-    estimatedGas = ESTIMATED_GAS * 2;
+    estimatedGas = Number(initiateTransferSharesGasLimit); // + Number(executeTransferSharesGasLimit);
+    totalFee = initiateFee; // + executeFee TODO: Include the execute fee and price in the price of the native token on the intermediate hub chain
   }
 
   return c.json({
@@ -423,7 +507,7 @@ app.get("/quote", sValidator("query", quoteParams), async (c) => {
       feeCosts: {
         bridgeFee: {
           tokenFee: "0",
-          nativeFee: "123456", // TODO: get actual fee
+          nativeFee: totalFee.toString(),
         },
         airliftFee: {
           tokenFee: "0",
@@ -446,11 +530,11 @@ app.get("/stats", async (c) => {
   const adapters = await AdapterService.count(context, {});
   const adapterParticipations = await AdapterParticipationService.count(
     context,
-    {}
+    {},
   );
   const investorTransactions = await InvestorTransactionService.count(
     context,
-    {}
+    {},
   );
   const investOrders = await InvestOrderService.count(context, {});
   const redeemOrders = await RedeemOrderService.count(context, {});
@@ -483,7 +567,7 @@ app.get("/stats", async (c) => {
       holdings,
     },
     200,
-    jsonDefaultHeaders
+    jsonDefaultHeaders,
   );
 });
 
