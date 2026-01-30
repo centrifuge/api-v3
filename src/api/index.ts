@@ -9,6 +9,7 @@ import {
   AssetService,
   CrosschainMessageService,
   CrosschainPayloadService,
+  DeploymentService,
   EpochInvestOrderService,
   EpochRedeemOrderService,
   HoldingService,
@@ -91,6 +92,7 @@ app.get("/stats", async (c) => {
   const crosschainPayloads = await CrosschainPayloadService.count(context, {});
   const accounts = await AccountService.count(context, {});
   const holdings = await HoldingService.count(context, {});
+  const deployments = await DeploymentService.count(context, {});
   return c.json(
     {
       tvl: formatBigIntToDecimal(tvl),
@@ -110,6 +112,7 @@ app.get("/stats", async (c) => {
       crosschainPayloads,
       accounts,
       holdings,
+      deployments,
     },
     200,
     jsonDefaultHeaders

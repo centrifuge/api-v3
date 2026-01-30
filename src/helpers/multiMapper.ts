@@ -58,10 +58,19 @@ export function multiMapper<E extends UnversionedContractEvents>(
   // Register handlers for versioned events using string pattern matching
   // Pattern: <ContractName><Version>:<EventName>
   const registeredEvents: string[] = [];
+  // Setup is a Ponder lifecycle hook, not an ABI event; register for each version without ABI lookup
+  const isSetupEvent = event.endsWith(":setup");
 
   for (const version of versions) {
     const versionedContract = `${contractName}${version}` as keyof typeof contracts;
     const versionedEvent = `${versionedContract}:${eventName}` as ContractEvents;
+
+    if (isSetupEvent) {
+      ponder.on(versionedEvent, handler as Parameters<typeof ponder.on>[1]);
+      registeredEvents.push(versionedEvent);
+      continue;
+    }
+
     const eventItems = contracts[versionedContract].abi.filter(
       (abi) => abi.type === "event" && abi.name === eventNameWithoutParameters
     );
