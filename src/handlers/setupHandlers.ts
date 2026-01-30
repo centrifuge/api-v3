@@ -1,11 +1,11 @@
-import { ponder } from "ponder:registry";
 import { RegistryChains, type RegistryVersions, type Registry } from "../chains";
 import registries from "../../generated";
 import { AdapterService, DeploymentService, WhitelistedInvestorService } from "../services";
 import { V2_POOLS, V2_MIGRATION_BLOCK, V2_MIGRATION_TIMESTAMP } from "../config";
 import { serviceLog } from "../helpers/logger";
+import { multiMapper } from "../helpers/multiMapper";
 
-ponder.on("multiAdapterV3:setup", async ({ context }) => {
+multiMapper("multiAdapter:setup", async ({ context }) => {
   serviceLog("multiAdapterV3:setup");
   const chainId = context.chain.id;
   const currentChain = RegistryChains.find((chain) => chain.network.chainId === chainId);
@@ -39,7 +39,7 @@ ponder.on("multiAdapterV3:setup", async ({ context }) => {
   }
 });
 
-ponder.on("hubRegistryV3:setup", async ({ context }) => {
+multiMapper("hubRegistry:setup", async ({ context }) => {
   const chainId = context.chain.id;
   const currentChain = RegistryChains.find((chain) => chain.network.chainId === chainId);
   if (!currentChain) throw new Error(`Chain ${chainId} not found in registry`);

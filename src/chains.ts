@@ -31,6 +31,7 @@ export const networkNames = {
   "1": "ethereum",
   "98866": "plume",
   "56": "binance",
+  "998": "hyperliquid",
 } as const;
 
 type ExtractNetworkNamesFromKeys<K> = K extends keyof typeof networkNames
@@ -113,6 +114,10 @@ export const endpoints = {
   56: [
     `https://bnb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.bsc.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+  ],
+  998: [
+    `https://hyperliquid-testnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `https://${process.env.QUICKNODE_API_NAME}.hype-testnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/evm`,
   ],
 };
 

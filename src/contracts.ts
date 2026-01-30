@@ -544,11 +544,14 @@ function computeEndBlock(
   return startBlock - 1;
 }
 
+/** Ordered registry version keys (e.g. ["v3", "v3_1"]) for use as message/payload version index. */
+export const REGISTRY_VERSION_ORDER = Object.keys(fullRegistry) as string[];
+
 /**
  * Finds the version index where a contract with the given name and address was deployed on a specific chain.
- * Optimized for runtime efficiency by directly accessing the chain by chainId instead of iterating through all chains.
+ * Single-pass: iterates by index and returns it directly (no follow-up findIndex).
  * @param contractName - The name of the contract (will be converted to contract case).
- * @param chainId - The chain ID as a string (e.g., "1", "8453", "42161").
+ * @param chainId - The chain ID as a number (e.g., 1, 8453, 42161).
  * @param contractAddress - The address of the contract (case-insensitive comparison).
  * @returns The index of the version where the contract was found, or -1 if not found.
  */
@@ -557,44 +560,44 @@ export function getVersionIndexForContract(
   chainId: number,
   contractAddress: `0x${string}`
 ): number {
-  // Normalize the address to lowercase for comparison
   const normalizedAddress = contractAddress.toLowerCase() as `0x${string}`;
-
-  // Convert contract name to contract case (first letter lowercase)
   const contractCaseName = toContractCase(contractName);
+  const versions = REGISTRY_VERSION_ORDER;
 
-  // Get all versions
-  const versions = Object.keys(fullRegistry) as RegistryVersions[];
-
-  // Iterate through each version
   for (let i = 0; i < versions.length; i++) {
     const version = versions[i];
     if (!version) continue;
 
-    const registry = fullRegistry[version] as Registry<RegistryVersions>;
-
-    // Directly access the chain by chainId (more efficient than iterating all chains)
+    const registry = fullRegistry[version as RegistryVersions] as Registry<RegistryVersions>;
     const chain = registry.chains[chainId.toString() as keyof typeof registry.chains];
+    if (!chain) continue;
 
-    if (!chain) {
-      // Chain doesn't exist in this version, skip to next version
-      continue;
-    }
-
-    // Check if the contract exists in this chain
     const contract = chain.contracts[contractCaseName as keyof typeof chain.contracts];
-
     if (contract) {
-      // Compare addresses (case-insensitive)
       const contractAddr = contract.address as `0x${string}`;
-      if (contractAddr.toLowerCase() === normalizedAddress) {
-        return i;
-      }
+      if (contractAddr.toLowerCase() === normalizedAddress) return i;
     }
   }
-
-  // Contract not found in any version
   return -1;
+}
+
+/**
+ * Finds the registry version (e.g. "V3_1") where a contract with the given name and address was deployed on a specific chain.
+ * Delegates to getVersionIndexForContract for a single-pass lookup, then maps index to version string.
+ * @param contractName - The name of the contract (will be converted to contract case).
+ * @param chainId - The chain ID as a number (e.g., 1, 8453, 42161).
+ * @param contractAddress - The address of the contract (case-insensitive comparison).
+ * @returns The registry version string in format V3_1, or null if not found.
+ */
+export function getVersionForContract(
+  contractName: string,
+  chainId: number,
+  contractAddress: `0x${string}`
+): string | null {
+  const index = getVersionIndexForContract(contractName, chainId, contractAddress);
+  if (index < 0) return null;
+  const version = REGISTRY_VERSION_ORDER[index];
+  return version ? version.toUpperCase() : null;
 }
 
 /**
