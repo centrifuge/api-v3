@@ -1,7 +1,7 @@
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceError } from "../helpers/logger";
 import { BlockchainService, MerkleProofManagerService, PolicyService } from "../services";
-import { Abis } from "../contracts";
+import { Abis, getVersionForContract, REGISTRY_VERSION_ORDER } from "../contracts";
 
 multiMapper("merkleProofManagerFactory:DeployMerkleProofManager", async ({ event, context }) => {
   logEvent(event, context, "merkleProofManagerFactory:DeployMerkleProofManager");
@@ -26,11 +26,13 @@ multiMapper("merkleProofManager:UpdatePolicy", async ({ event, context }) => {
   logEvent(event, context, "merkleProofManager:UpdatePolicy");
   const { strategist, newRoot } = event.args;
 
+  const indexerVersion = REGISTRY_VERSION_ORDER[0];
+
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const poolId = await context.client.readContract({
     address: event.log.address,
-    abi: Abis.v3.MerkleProofManager,
+    abi: Abis[indexerVersion as keyof typeof Abis].MerkleProofManager,
     functionName: "poolId",
   });
 

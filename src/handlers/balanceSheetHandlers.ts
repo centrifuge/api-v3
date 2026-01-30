@@ -52,7 +52,7 @@ multiMapper("balanceSheet:NoteDeposit", async ({ event, context }) => {
   await snapshotter(
     context,
     event,
-    "balanceSheetV3:NoteDeposit",
+    "balanceSheetV3_1:NoteDeposit",
     [holdingEscrow],
     HoldingEscrowSnapshot
   );
@@ -99,7 +99,7 @@ multiMapper("balanceSheet:Withdraw", async ({ event, context }) => {
   await snapshotter(
     context,
     event,
-    "balanceSheetV3:Withdraw",
+    "balanceSheetV3_1:Withdraw",
     [holdingEscrow],
     HoldingEscrowSnapshot
   );

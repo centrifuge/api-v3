@@ -11,7 +11,7 @@ import {
   TokenInstancePositionService,
 } from "../services";
 import { ERC20Abi } from "../../abis/ERC20";
-import { Abis } from "../contracts";
+import { Abis, REGISTRY_VERSION_ORDER } from "../contracts";
 import { RegistryChains } from "../chains";
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
@@ -155,6 +155,7 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
   } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const indexerVersion = REGISTRY_VERSION_ORDER[0];
 
   const chainId = context.chain.id;
   const poolEscrowFactoryAddress = RegistryChains.find((chain) => chain.network.chainId === chainId)
@@ -165,7 +166,7 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
   }
 
   const escrowAddress = await context.client.readContract({
-    abi: Abis.v3.PoolEscrowFactory,
+    abi: Abis[indexerVersion as keyof typeof Abis].PoolEscrowFactory,
     address: poolEscrowFactoryAddress.address,
     functionName: "escrow",
     args: [poolId],
@@ -202,7 +203,7 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
   await snapshotter(
     context,
     event,
-    "spokeV3:UpdateAssetPrice",
+    "spokeV3_1:UpdateAssetPrice",
     [holdingEscrow],
     HoldingEscrowSnapshot
   );
