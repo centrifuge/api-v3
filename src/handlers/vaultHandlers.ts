@@ -357,7 +357,7 @@ multiMapper("vault:RedeemClaimable", async ({ event, context }) => {
 
 multiMapper("vault:Deposit", async ({ event, context }) => {
   logEvent(event, context, "vault:Deposit");
-  const { owner, assets, shares } = event.args;
+  const { sender, owner, assets, shares } = event.args;
   const vaultId = event.log.address;
   if (!vaultId) return serviceError(`Vault id not found in event. Cannot identify vault`);
 
@@ -383,15 +383,31 @@ multiMapper("vault:Deposit", async ({ event, context }) => {
   if (typeof assetDecimals !== "number")
     return serviceError("Asset decimals is required to compute share price");
 
-  const invstorAccount = (await AccountService.getOrInit(
+  // NOTE: In our current implementation v3.1 there is a bug in the SyncDepositVault where `sender` and `receiver` are swapped 
+  //       in the event data. 
+  //       -> Use sender as our investor in this case.
+  let investor: `0x${string}`;
+  switch (kind) {
+    case "Async":
+      investor = owner;
+      break;
+    case "SyncDepositAsyncRedeem":
+    case "Sync":
+      investor = sender;
+      break;
+    default:
+      return serviceError("Unknown vault kind");
+  }
+
+  const investorAccount = (await AccountService.getOrInit(
     context,
     {
-      address: owner,
+      address: investor,
     },
     event
   )) as AccountService;
 
-  const { address: investorAddress } = invstorAccount.read();
+  const { address: investorAddress } = investorAccount.read();
 
   const itData = {
     poolId,
@@ -484,7 +500,7 @@ multiMapper("vault:Deposit", async ({ event, context }) => {
 
 multiMapper("vault:Withdraw", async ({ event, context }) => {
   logEvent(event, context, "vault:Withdraw");
-  const { owner, assets, shares } = event.args;
+  const { receiver, assets, shares } = event.args;
   const vaultId = event.log.address;
   if (!vaultId) return serviceError(`Vault id not found in event. Cannot identify vault`);
 
@@ -512,7 +528,7 @@ multiMapper("vault:Withdraw", async ({ event, context }) => {
   const invstorAccount = (await AccountService.getOrInit(
     context,
     {
-      address: owner,
+      address: receiver,
     },
     event
   )) as AccountService;
