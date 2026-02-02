@@ -500,7 +500,7 @@ multiMapper("vault:Deposit", async ({ event, context }) => {
 
 multiMapper("vault:Withdraw", async ({ event, context }) => {
   logEvent(event, context, "vault:Withdraw");
-  const { receiver, assets, shares } = event.args;
+  const { owner, assets, shares } = event.args;
   const vaultId = event.log.address;
   if (!vaultId) return serviceError(`Vault id not found in event. Cannot identify vault`);
 
@@ -528,7 +528,7 @@ multiMapper("vault:Withdraw", async ({ event, context }) => {
   const invstorAccount = (await AccountService.getOrInit(
     context,
     {
-      address: receiver,
+      address: owner,
     },
     event
   )) as AccountService;
