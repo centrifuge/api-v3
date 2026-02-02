@@ -26,8 +26,11 @@ export interface RegistryChain<N extends number, C extends string> {
     chainId: N;
     centrifugeId: number;
     catapultaNetwork?: string;
+    protocolAdmin?: string;
+    opsAdmin?: string;
     etherscanUrl?: string;
     network?: string;
+    batchLimit?: number;
     safeAdmin?: string;
   };
   adapters: unknown;

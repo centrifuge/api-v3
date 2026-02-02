@@ -32,6 +32,9 @@ export const networkNames = {
   "98866": "plume",
   "56": "binance",
   "998": "hyperliquid",
+  "10": "optimism",
+  "143": "monad",
+  "999": "hyperliquid",
 } as const;
 
 type ExtractNetworkNamesFromKeys<K> = K extends keyof typeof networkNames
@@ -119,6 +122,18 @@ export const endpoints = {
     `https://hyperliquid-testnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.hype-testnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/evm`,
   ],
+  10: [
+    `https://opt-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `https://${process.env.QUICKNODE_API_NAME}.optimism-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+  ],
+  143: [
+    `https://monad-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `https://${process.env.QUICKNODE_API_NAME}.monad-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+  ],
+  999: [
+    `https://hyperliquid-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `https://${process.env.QUICKNODE_API_NAME}.hyperliquid-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+  ],
 };
 
 // Package loadedChains into a ChainConfig object for ponder to consume
@@ -158,6 +173,9 @@ export const skipBlocks = {
   "1": 300,
   "98866": 9000,
   "56": 4800,
+  "10": 1800,
+  "143": 9000,
+  "999": 18000,
 };
 
 const blocks = Object.fromEntries(

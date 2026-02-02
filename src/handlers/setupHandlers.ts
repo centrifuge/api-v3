@@ -20,7 +20,7 @@ multiMapper("multiAdapter:setup", async ({ context }) => {
     serviceLog(
       `Initialising adapter ${adapterName} with address ${adapterAddress} on chain ${chainId}`
     );
-    const adapter = await AdapterService.insert(
+    const adapter = await AdapterService.upsert(
       context,
       {
         name: adapterName,
@@ -64,7 +64,7 @@ multiMapper("hubRegistry:setup", async ({ context }) => {
   }
 
   const contracts = Object.fromEntries(contractsMap);
-  const _deployment = await DeploymentService.insert(
+  const _deployment = await DeploymentService.upsert(
     context,
     {
       chainId: currentChain.network.chainId.toString(),
