@@ -1,5 +1,5 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { logEvent, serviceError } from "../helpers/logger";
+import { logEvent, serviceError, serviceLog } from "../helpers/logger";
 import {
   BlockchainService,
   DeploymentService,
@@ -40,15 +40,15 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
     return;
   }
 
+  // TODO: Implement filtering based on poolEscrows for V3.1
   const { globalEscrow } = deployment.read();
   if (!globalEscrow) {
-    serviceError(`Global escrow not found. Cannot determine transfer type`);
-    return;
+    serviceLog(`Global escrow not found. Fall back to tracking all transfers.`);
   }
 
   const [isFromGlobalEscrow, isToGlobalEscrow] = [
-    BigInt(from) === BigInt(globalEscrow.toLowerCase()),
-    BigInt(to) === BigInt(globalEscrow.toLowerCase()),
+    !!globalEscrow && BigInt(from) === BigInt(globalEscrow.toLowerCase()),
+    !!globalEscrow && BigInt(to) === BigInt(globalEscrow.toLowerCase()),
   ];
 
   const [isFromUserAccount, isToUserAccount] = [
