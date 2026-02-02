@@ -154,6 +154,6 @@ erDiagram
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Licenses
+## License
 
 [MIT](/LICENSE) License
