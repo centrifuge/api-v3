@@ -65,6 +65,7 @@ The indexer uses a compile-time registry system that loads chain and ABI configu
 ### Updating Registry Data
 
 The registry data (chains and ABIs) is fetched at build time, not at runtime. This ensures:
+
 - Full TypeScript typing support
 - No runtime network dependencies
 - Indexer can start reliably even with network issues
@@ -80,8 +81,6 @@ REGISTRY_HASH=<ipfs-hash> pnpm run update-registry
 ```
 
 This generates `src/registry.generated.ts` which contains all chain configurations and ABIs with full type safety.
-
-
 
 ### Running the Indexer
 
@@ -111,6 +110,7 @@ The indexer builds and maintains a structured database with the following primar
 Once running, the Ponder indexer provides a GraphQL API for querying indexed data. URL printed on start.
 
 ## Entity Relationships
+
 ```mermaid
 erDiagram
   direction LR
@@ -149,10 +149,11 @@ erDiagram
   HoldingEscrow }o--|| Asset : ""
   HoldingEscrow }o--|| Escrow : ""
 ```
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
+## Licenses
 
 [MIT](/LICENSE) License
