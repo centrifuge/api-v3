@@ -1,7 +1,7 @@
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceError } from "../helpers/logger";
 import { BlockchainService, MerkleProofManagerService, PolicyService } from "../services";
-import { Abis, getVersionForContract, REGISTRY_VERSION_ORDER } from "../contracts";
+import { Abis, REGISTRY_VERSION_ORDER } from "../contracts";
 
 multiMapper("merkleProofManagerFactory:DeployMerkleProofManager", async ({ event, context }) => {
   logEvent(event, context, "merkleProofManagerFactory:DeployMerkleProofManager");
