@@ -244,14 +244,14 @@ multiMapper("vault:DepositClaimable", async ({ event, context }) => {
   const { decimals: shareDecimals } = token.read();
   if (typeof shareDecimals !== "number") return serviceError("Share decimals is required");
 
-  const invstorAccount = (await AccountService.getOrInit(
+  const investorAccount = (await AccountService.getOrInit(
     context,
     {
       address: controller,
     },
     event
   )) as AccountService;
-  const { address: investorAddress } = invstorAccount.read();
+  const { address: investorAddress } = investorAccount.read();
 
   const _it = await InvestorTransactionService.depositClaimable(
     context,
@@ -300,7 +300,6 @@ multiMapper("vault:RedeemClaimable", async ({ event, context }) => {
   if (!vault) return serviceError(`Vault not found. Cannot retrieve vault configuration`);
   const { poolId, tokenId, assetAddress } = vault.read();
 
-
   const asset = (await AssetService.get(context, {
     address: assetAddress,
     centrifugeId,
@@ -314,14 +313,14 @@ multiMapper("vault:RedeemClaimable", async ({ event, context }) => {
   const { decimals: shareDecimals } = token.read();
   if (typeof shareDecimals !== "number") return serviceError("Share decimals is required");
 
-  const invstorAccount = (await AccountService.getOrInit(
+  const investorAccount = (await AccountService.getOrInit(
     context,
     {
       address: controller,
     },
     event
   )) as AccountService;
-  const { address: investorAddress } = invstorAccount.read();
+  const { address: investorAddress } = investorAccount.read();
 
   const _it = await InvestorTransactionService.redeemClaimable(
     context,
@@ -383,8 +382,8 @@ multiMapper("vault:Deposit", async ({ event, context }) => {
   if (typeof assetDecimals !== "number")
     return serviceError("Asset decimals is required to compute share price");
 
-  // NOTE: In our current implementation v3.1 there is a bug in the SyncDepositVault where `sender` and `receiver` are swapped 
-  //       in the event data. 
+  // NOTE: In our current implementation v3.1 there is a bug in the SyncDepositVault where `sender` and `receiver` are swapped
+  //       in the event data.
   //       -> Use sender as our investor in this case.
   let investor: `0x${string}`;
   switch (kind) {
@@ -525,14 +524,14 @@ multiMapper("vault:Withdraw", async ({ event, context }) => {
   if (!token) return serviceError(`Token not found. Cannot retrieve token configuration`);
   const { decimals: shareDecimals } = token.read();
   if (typeof shareDecimals !== "number") return serviceError("Share decimals is required");
-  const invstorAccount = (await AccountService.getOrInit(
+  const investorAccount = (await AccountService.getOrInit(
     context,
     {
       address: owner,
     },
     event
   )) as AccountService;
-  const { address: investorAddress } = invstorAccount.read();
+  const { address: investorAddress } = investorAccount.read();
 
   const itData = {
     poolId,
@@ -545,7 +544,6 @@ multiMapper("vault:Withdraw", async ({ event, context }) => {
     centrifugeId,
     currencyAssetId: assetId,
   };
-
 
   switch (kind) {
     case "Sync":
