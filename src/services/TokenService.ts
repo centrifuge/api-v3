@@ -143,4 +143,20 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
       return acc + product / 10n ** BigInt(decimals);
     }, 0n);
   }
+
+  /**
+   * Gets the normalised aggregated supply of the tokens.
+   * @param context - The context.
+   * @returns The normalised aggregated supply of the tokens in fixed point 18 precision.
+   */
+  static async getNormalisedAggregatedSupply(context: Context | ReadOnlyContext) {
+    const tokens = (await TokenService.query(context, {})) as TokenService[];
+    return tokens.reduce((acc, token) => {
+      const { totalIssuance, decimals } = token.read();
+      if (!totalIssuance || !decimals) return acc;
+      // totalIssuance is in 'decimals' precision, we want the result in 18 precision
+      // We need to multiply by 10^18 / 10^decimals to normalize to 18 precision
+      return acc + totalIssuance * 10n ** BigInt(18 - decimals);
+    }, 0n);
+  }
 }

@@ -1,4 +1,4 @@
-import { Service } from "../services/Service";
+import { Service } from "../services/Service.js";
 import { ponder } from "ponder:registry";
 import type { Context, Event } from "ponder:registry";
 import { PgTableWithColumns } from "drizzle-orm/pg-core";

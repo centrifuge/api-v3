@@ -1,18 +1,16 @@
 import { multiMapper } from "../helpers/multiMapper";
 import { expandInlineObject, logEvent, serviceError, serviceLog } from "../helpers/logger";
-import { BlockchainService } from "../services/BlockchainService";
 import {
+  BlockchainService,
+  AdapterService,
+  AdapterParticipationService,
+  AdapterWiringService,
   CrosschainMessageService,
+  CrosschainPayloadService,
   getMessageId,
   getMessageHash,
-} from "../services/CrosschainMessageService";
-import {
-  CrosschainPayloadService,
   extractMessagesFromPayload,
-} from "../services/CrosschainPayloadService";
-import { AdapterService } from "../services/AdapterService";
-import { AdapterParticipationService } from "../services/AdapterParticipationService";
-import { AdapterWiringService } from "../services";
+} from "../services";
 import { timestamper } from "../helpers/timestamper";
 import { getVersionIndexForContract } from "../contracts";
 

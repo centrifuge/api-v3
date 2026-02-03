@@ -1,7 +1,6 @@
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceError } from "../helpers/logger";
-import { WhitelistedInvestorService, TokenService } from "../services";
-import { PoolSpokeBlockchainService } from "../services/PoolSpokeBlockchainService";
+import { WhitelistedInvestorService, TokenService, PoolSpokeBlockchainService } from "../services";
 
 multiMapper("hub:NotifyPool", async ({ event, context }) => {
   logEvent(event, context, "hub:NotifyPool");

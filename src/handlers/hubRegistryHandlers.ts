@@ -1,13 +1,14 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { PoolService } from "../services/PoolService";
+
 import { logEvent, serviceError } from "../helpers/logger";
 import {
   AccountService,
   AssetRegistrationService,
   AssetService,
   PoolManagerService,
+  BlockchainService,
+  PoolService,
 } from "../services";
-import { BlockchainService } from "../services/BlockchainService";
 import { fetchFromIpfs } from "../helpers/ipfs";
 import { isoCurrencies } from "../helpers/isoCurrencies";
 

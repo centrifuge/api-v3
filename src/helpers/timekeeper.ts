@@ -1,5 +1,5 @@
 import type { Context, Event } from "ponder:registry";
-import { BlockchainService } from "../services/BlockchainService";
+import { BlockchainService } from "../services";
 import {
   RegistryChains,
   networkNames,

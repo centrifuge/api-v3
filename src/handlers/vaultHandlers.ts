@@ -15,7 +15,7 @@ import {
 import { InvestorTransactionService, VaultService } from "../services";
 import { OutstandingInvestService } from "../services"; // TODO: DEPRECATED to be deleted in future releases
 import { OutstandingRedeemService } from "../services"; // TODO: DEPRECATED to be deleted in future releases
-import { initialisePosition } from "../services/TokenInstancePositionService";
+import { initialisePosition } from "../services";
 import { timestamper } from "../helpers/timestamper";
 
 multiMapper("vault:DepositRequest", async ({ event, context }) => {
