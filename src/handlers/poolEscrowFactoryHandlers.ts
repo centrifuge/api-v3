@@ -1,7 +1,6 @@
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent } from "../helpers/logger";
-import { BlockchainService } from "../services/BlockchainService";
-import { EscrowService } from "../services/EscrowService";
+import { BlockchainService, EscrowService } from "../services";
 
 multiMapper("poolEscrowFactory:DeployPoolEscrow", async ({ event, context }) => {
   logEvent(event, context, "poolEscrowFactory:DeployPoolEscrow");

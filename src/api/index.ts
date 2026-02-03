@@ -2,26 +2,8 @@ import schema from "ponder:schema";
 import { db } from "ponder:api";
 import { Hono } from "hono";
 import { graphql, client } from "ponder";
-import {
-  AccountService,
-  AdapterService,
-  AssetRegistrationService,
-  AssetService,
-  CrosschainMessageService,
-  CrosschainPayloadService,
-  DeploymentService,
-  EpochInvestOrderService,
-  EpochRedeemOrderService,
-  HoldingService,
-  InvestOrderService,
-  InvestorTransactionService,
-  PoolService,
-  RedeemOrderService,
-  TokenInstanceService,
-  TokenService,
-} from "../services";
+import * as Services from "../services";
 import { formatBigIntToDecimal } from "../helpers/formatter";
-import { AdapterParticipationService } from "../services/AdapterParticipationService";
 
 const app = new Hono();
 const context = { db };
@@ -36,12 +18,12 @@ const jsonDefaultHeaders = {
 };
 app.get("/tokens/:address/total-issuance", async (c) => {
   const address = c.req.param("address") as `0x${string}`;
-  const tokenInstance = await TokenInstanceService.get(context, { address });
+  const tokenInstance = await Services.TokenInstanceService.get(context, { address });
   if (!tokenInstance)
     return c.json({ error: "TokenInstance address not found" }, 404, jsonDefaultHeaders);
   const { tokenId } = tokenInstance.read();
 
-  const token = await TokenService.get(context, { id: tokenId });
+  const token = await Services.TokenService.get(context, { id: tokenId });
   if (!token) return c.json({ error: "Token not found" }, 404, jsonDefaultHeaders);
 
   const { totalIssuance, decimals } = token.read();
@@ -58,12 +40,11 @@ app.get("/tokens/:address/total-issuance", async (c) => {
 
 app.get("/tokens/:address/price", async (c) => {
   const address = c.req.param("address") as `0x${string}`;
-
-  const tokenInstance = await TokenInstanceService.get(context, { address });
+  const tokenInstance = await Services.TokenInstanceService.get(context, { address });
   if (!tokenInstance) return c.json({ error: "TokenInstance not found" }, 404, jsonDefaultHeaders);
   const { tokenId } = tokenInstance.read();
 
-  const token = await TokenService.get(context, { id: tokenId });
+  const token = await Services.TokenService.get(context, { id: tokenId });
   if (!token) return c.json({ error: "Token not found" }, 404, jsonDefaultHeaders);
 
   const { tokenPrice } = token.read();
@@ -73,46 +54,21 @@ app.get("/tokens/:address/price", async (c) => {
 });
 
 app.get("/stats", async (c) => {
-  const tvl = await TokenService.getNormalisedTvl(context);
-  const pools = await PoolService.count(context, { isActive: true });
-  const tokens = await TokenService.count(context, { isActive: true });
-  const tokenInstances = await TokenInstanceService.count(context, {
-    isActive: true,
-  });
-  const assets = await AssetService.count(context, {});
-  const assetRegistrations = await AssetRegistrationService.count(context, {});
-  const adapters = await AdapterService.count(context, {});
-  const adapterParticipations = await AdapterParticipationService.count(context, {});
-  const investorTransactions = await InvestorTransactionService.count(context, {});
-  const investOrders = await InvestOrderService.count(context, {});
-  const redeemOrders = await RedeemOrderService.count(context, {});
-  const epochInvestOrders = await EpochInvestOrderService.count(context, {});
-  const epochRedeemOrders = await EpochRedeemOrderService.count(context, {});
-  const crosschainMessages = await CrosschainMessageService.count(context, {});
-  const crosschainPayloads = await CrosschainPayloadService.count(context, {});
-  const accounts = await AccountService.count(context, {});
-  const holdings = await HoldingService.count(context, {});
-  const deployments = await DeploymentService.count(context, {});
+  const tvl = await Services.TokenService.getNormalisedTvl(context);
+  const aggregatedSupply = await Services.TokenService.getNormalisedAggregatedSupply(context);
+  const services = Object.values(Services).filter((service) => "count" in service);
+  const entityNames = services.map(
+    (service) => service.name.substring(0, service.name.length - "Service".length) + "s"
+  );
+  const entityCounts = await Promise.all(services.map((service) => service.count(context, {})));
+  const response = Object.fromEntries(
+    entityNames.map((name, index) => [name, entityCounts[index]])
+  );
   return c.json(
     {
       tvl: formatBigIntToDecimal(tvl),
-      pools,
-      tokens,
-      tokenInstances,
-      assets,
-      assetRegistrations,
-      adapters,
-      adapterParticipations,
-      investorTransactions,
-      investOrders,
-      redeemOrders,
-      epochInvestOrders,
-      epochRedeemOrders,
-      crosschainMessages,
-      crosschainPayloads,
-      accounts,
-      holdings,
-      deployments,
+      aggregatedSupply: formatBigIntToDecimal(aggregatedSupply),
+      ...response,
     },
     200,
     jsonDefaultHeaders

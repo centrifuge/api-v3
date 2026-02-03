@@ -1,5 +1,6 @@
 export * from "./AccountService";
 export * from "./AdapterService";
+export * from "./AdapterParticipationService";
 export * from "./AdapterWiringService";
 export * from "./AssetRegistrationService";
 export * from "./AssetService";

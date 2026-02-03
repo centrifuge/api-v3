@@ -9,7 +9,7 @@ import {
   TokenService,
   InvestorTransactionService,
 } from "../services";
-import { initialisePosition } from "../services/TokenInstancePositionService";
+import { initialisePosition } from "../services";
 
 multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
   logEvent(event, context, "tokenInstance:Transfer");

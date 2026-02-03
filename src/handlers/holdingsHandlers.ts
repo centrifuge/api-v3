@@ -1,9 +1,8 @@
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceError } from "../helpers/logger";
-import { HoldingService } from "../services/HoldingService";
-import { HoldingAccountService } from "../services/HoldingAccountService";
+import { HoldingService, HoldingAccountService } from "../services";
 import { HoldingAccountTypes, HoldingSnapshot } from "ponder:schema";
-import { BlockchainService } from "../services/BlockchainService";
+import { BlockchainService } from "../services";
 import { snapshotter } from "../helpers/snapshotter";
 
 multiMapper("holdings:Initialize", async ({ event, context }) => {
