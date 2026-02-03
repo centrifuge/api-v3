@@ -189,6 +189,7 @@ const VaultColumns = (t: PgColumnsBuilders) => ({
   assetAddress: t.hex().notNull(),
   factory: t.text().notNull(),
   manager: t.text(),
+  ...defaultColumns(t),
 });
 export const Vault = onchainTable("vault", VaultColumns, (t) => ({
   id: primaryKey({ columns: [t.id, t.centrifugeId] }),
@@ -659,6 +660,8 @@ const EpochInvestOrderColumns = (t: PgColumnsBuilders) => ({
   issuedSharesAmount: t.bigint().default(0n),
   issuedWithNavPoolPerShare: t.bigint().default(0n),
   issuedWithNavAssetPerShare: t.bigint().default(0n),
+
+  ...defaultColumns(t),
 });
 
 export const EpochInvestOrder = onchainTable(
@@ -701,6 +704,8 @@ const EpochRedeemOrderColumns = (t: PgColumnsBuilders) => ({
   revokedPoolAmount: t.bigint().default(0n), // payout of assets for shares, in pool denomination
   revokedWithNavPoolPerShare: t.bigint().default(0n),
   revokedWithNavAssetPerShare: t.bigint().default(0n),
+
+  ...defaultColumns(t),
 });
 
 export const EpochRedeemOrder = onchainTable(
@@ -757,7 +762,7 @@ const AssetColumns = (t: PgColumnsBuilders) => ({
   decimals: t.integer().notNull(),
   name: t.text(),
   symbol: t.text(),
-  ...defaultColumns(t, false),
+  ...defaultColumns(t),
 });
 
 export const Asset = onchainTable("asset", AssetColumns, (t) => ({
@@ -813,7 +818,7 @@ const HoldingColumns = (t: PgColumnsBuilders) => ({
   // Spoke side amounts and values
   assetQuantity: t.bigint().default(0n),
   totalValue: t.bigint().default(0n),
-  ...defaultColumns(t, false),
+  ...defaultColumns(t),
 });
 
 export const Holding = onchainTable("holding", HoldingColumns, (t) => ({
@@ -852,6 +857,7 @@ export const HoldingAccountColumns = (t: PgColumnsBuilders) => ({
   id: t.text().notNull(),
   tokenId: t.hex().notNull(),
   kind: HoldingAccountType("holding_account_type").notNull(),
+  ...defaultColumns(t),
 });
 
 export const HoldingAccount = onchainTable("holding_account", HoldingAccountColumns, (t) => ({
@@ -869,7 +875,7 @@ export const EscrowColumns = (t: PgColumnsBuilders) => ({
   address: t.hex().notNull(),
   poolId: t.bigint().notNull(),
   centrifugeId: t.text().notNull(),
-  ...defaultColumns(t, false),
+  ...defaultColumns(t),
 });
 
 export const Escrow = onchainTable("escrow", EscrowColumns, (t) => ({
@@ -895,7 +901,7 @@ export const HoldingEscrowColumns = (t: PgColumnsBuilders) => ({
   assetAmount: t.bigint().default(0n),
   assetPrice: t.bigint().default(0n),
   escrowAddress: t.hex().notNull(),
-  ...defaultColumns(t, true),
+  ...defaultColumns(t),
 });
 export const HoldingEscrow = onchainTable("holding_escrow", HoldingEscrowColumns, (t) => ({
   id: primaryKey({ columns: [t.tokenId, t.assetId] }),
@@ -1361,7 +1367,7 @@ export const HoldingEscrowSnapshot = onchainTable(
 
 const AccountColumns = (t: PgColumnsBuilders) => ({
   address: t.hex().notNull(),
-  ...defaultColumns(t, false),
+  ...defaultColumns(t),
 });
 export const Account = onchainTable("account", AccountColumns, (t) => ({
   id: primaryKey({ columns: [t.address] }),
