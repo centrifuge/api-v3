@@ -66,6 +66,7 @@ export async function deployVault({
       kind: vaultKind,
       manager,
       isActive: true,
+      status: "Unlinked",
     },
     event
   )) as VaultService;

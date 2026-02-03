@@ -17,7 +17,7 @@ import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
 import { deployVault, linkVault, unlinkVault } from "./vaultRegistryHandlers";
 import { getInitialHolders } from "../config";
-import { initialisePosition } from "../services/TokenInstancePositionService";
+import { initialisePosition } from "../services";
 
 multiMapper("spoke:DeployVault", deployVault);
 
