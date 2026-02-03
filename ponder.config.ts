@@ -122,7 +122,8 @@ export const contractsV3_1 = decorateDeploymentContracts(
         eventParameter: "token",
       },
     },
-  } as const
+  } as const,
+  240
 );
 
 export const contracts = { ...contractsV3, ...contractsV3_1 };

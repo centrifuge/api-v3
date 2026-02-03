@@ -1,7 +1,7 @@
 import { factory, mergeAbis } from "ponder";
 import { type Abi, getAbiItem } from "viem";
 import fullRegistry from "../generated";
-import type { RegistryVersions, Registry, NetworkNames } from "./chains";
+import { skipBlocks, type RegistryVersions, type Registry, type NetworkNames } from "./chains";
 import { networkNames } from "./chains";
 
 // ============================================================================
@@ -270,7 +270,7 @@ export function decorateDeploymentContracts<
   registryVersion: V,
   selectedAbiNames: A,
   additionalMappings: AM,
-  endBlocks?: Record<NetworkNames<V>, number>
+  overlappingHours?: number
 ): ContractsWithAdditionalMappings<V, A[number], AM, keyof AM & string> {
   // Validate registry version exists
   const abis = Abis[registryVersion];
@@ -398,7 +398,7 @@ export function decorateDeploymentContracts<
         mappingName,
         {
           abi: resolvedAbi,
-          chain: getContractChain(registryVersion, m.factory.abi, endBlocks, {
+          chain: getContractChain(registryVersion, m.factory.abi, overlappingHours, {
             // Type assertion: event name is validated above to exist in factory ABI
             // Cast through unknown to satisfy type system while maintaining runtime safety
             event: m.factory.eventName,
@@ -427,7 +427,7 @@ export function decorateDeploymentContracts<
 function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
   registryVersion: V,
   abiName: N,
-  endBlocks?: Record<NetworkNames<V>, number>,
+  overlappingHours?: number,
   factoryConfig?: {
     event: AbiEventName<V, N>;
     parameter: AbiEventParameter<V, N, AbiEventName<V, N>>;
@@ -465,7 +465,12 @@ function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
     }
 
     const startBlock = chainValue.deployment.startBlock as number;
-    const endBlock = computeEndBlock(chainId, toContractCase(abiName), registryVersion);
+    const endBlock = computeEndBlock(
+      chainId,
+      toContractCase(abiName),
+      registryVersion,
+      overlappingHours
+    );
     return [chainName, { address, startBlock, endBlock }];
   });
 
@@ -490,7 +495,8 @@ function toContractCase<S extends string>(name: S): Uncapitalized<S> {
 function computeEndBlock(
   chainId: keyof typeof networkNames,
   contractName: string,
-  startVersion: RegistryVersions
+  startVersion: RegistryVersions,
+  overlappingHours?: number
 ): number | undefined {
   // Get the versions array
   const versions = Object.keys(fullRegistry) as RegistryVersions[];
@@ -540,8 +546,12 @@ function computeEndBlock(
     return undefined;
   }
 
+  const endBlock = overlappingHours
+    ? startBlock + overlappingHours * skipBlocks[chainId as keyof typeof skipBlocks]
+    : startBlock - 1;
+
   // Return the end block (start block of next version minus 1)
-  return startBlock - 1;
+  return endBlock;
 }
 
 /** Ordered registry version keys (e.g. ["v3", "v3_1"]) for use as message/payload version index. */
