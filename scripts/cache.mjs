@@ -136,6 +136,9 @@ export async function pullPonderSync(tag) {
   const repo = await getRepoName();
   const artifact = `${repo}/${ARTIFACT_NAME}`;
   const resolvedTag = tag ?? "latest";
+  if (resolvedTag !== "latest" && !/^\d+$/.test(resolvedTag)) {
+    throw new Error("Invalid tag format");
+  }
   const client = new OrasClient();
   await mkdir(OUTPUT_DIR, { recursive: true });
   await client.pullArtifact(`${REGISTRY_HOST}/${artifact}:${resolvedTag}`, OUTPUT_DIR);
