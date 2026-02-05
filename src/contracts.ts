@@ -466,9 +466,6 @@ function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
 
     const startBlock = chainValue.deployment.startBlock as number;
     const endBlock = computeEndBlock(chainId, toContractCase(abiName), registryVersion, endBlocks);
-    console.log(
-      `endBlocks for ${registryVersion} chainId ${chainId} contract ${toContractCase(abiName)}: ${endBlock}`
-    );
     return [chainName, { address, startBlock, endBlock }];
   });
 

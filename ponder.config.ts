@@ -65,11 +65,6 @@ export const contractsV3 = decorateDeploymentContracts(
   V3_1_MIGRATION_BLOCKS
 );
 
-console.log(
-  "contractsV3",
-  Object.entries(contractsV3).map(([key, value]) => [key, value.chain.ethereum])
-);
-
 export const contractsV3_1 = decorateDeploymentContracts(
   "v3_1",
   [
