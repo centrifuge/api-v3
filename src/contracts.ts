@@ -1,7 +1,7 @@
 import { factory, mergeAbis } from "ponder";
 import { type Abi, getAbiItem } from "viem";
 import fullRegistry from "../generated";
-import { skipBlocks, type RegistryVersions, type Registry, type NetworkNames } from "./chains";
+import { type RegistryVersions, type Registry, type NetworkNames } from "./chains";
 import { networkNames } from "./chains";
 
 // ============================================================================
@@ -270,7 +270,7 @@ export function decorateDeploymentContracts<
   registryVersion: V,
   selectedAbiNames: A,
   additionalMappings: AM,
-  overlappingHours?: number
+  endblocks?: Partial<Record<keyof typeof networkNames, number>>
 ): ContractsWithAdditionalMappings<V, A[number], AM, keyof AM & string> {
   // Validate registry version exists
   const abis = Abis[registryVersion];
@@ -297,7 +297,7 @@ export function decorateDeploymentContracts<
       `${toContractCase(abiName)}${registryVersion.toUpperCase()}`,
       {
         abi,
-        chain: getContractChain(registryVersion, abiName),
+        chain: getContractChain(registryVersion, abiName, endblocks),
       },
     ];
   });
@@ -398,7 +398,7 @@ export function decorateDeploymentContracts<
         mappingName,
         {
           abi: resolvedAbi,
-          chain: getContractChain(registryVersion, m.factory.abi, overlappingHours, {
+          chain: getContractChain(registryVersion, m.factory.abi, endblocks, {
             // Type assertion: event name is validated above to exist in factory ABI
             // Cast through unknown to satisfy type system while maintaining runtime safety
             event: m.factory.eventName,
@@ -427,7 +427,7 @@ export function decorateDeploymentContracts<
 function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
   registryVersion: V,
   abiName: N,
-  overlappingHours?: number,
+  endBlocks?: Partial<Record<keyof typeof networkNames, number | undefined>>,
   factoryConfig?: {
     event: AbiEventName<V, N>;
     parameter: AbiEventParameter<V, N, AbiEventName<V, N>>;
@@ -465,11 +465,9 @@ function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
     }
 
     const startBlock = chainValue.deployment.startBlock as number;
-    const endBlock = computeEndBlock(
-      chainId,
-      toContractCase(abiName),
-      registryVersion,
-      overlappingHours
+    const endBlock = computeEndBlock(chainId, toContractCase(abiName), registryVersion, endBlocks);
+    console.log(
+      `endBlocks for ${registryVersion} chainId ${chainId} contract ${toContractCase(abiName)}: ${endBlock}`
     );
     return [chainName, { address, startBlock, endBlock }];
   });
@@ -496,62 +494,50 @@ function computeEndBlock(
   chainId: keyof typeof networkNames,
   contractName: string,
   startVersion: RegistryVersions,
-  overlappingHours?: number
+  endBlocks?: Partial<Record<keyof typeof networkNames, number | undefined>>
 ): number | undefined {
+  if (endBlocks) return endBlocks[chainId];
+
   // Get the versions array
   const versions = Object.keys(fullRegistry) as RegistryVersions[];
 
   // Find the index of startVersion in the versions array
-  const startVersionIndex = versions.indexOf(startVersion);
+  const currentVersionIndex = versions.indexOf(startVersion);
 
-  if (startVersionIndex === -1) {
+  if (currentVersionIndex === -1)
     throw new Error(`Start version "${startVersion}" not found in registry versions`);
-  }
 
-  // Get the next version after startVersion
-  const endVersionIndex = startVersionIndex + 1;
+  const nextVersionIndex = currentVersionIndex + 1;
 
-  if (endVersionIndex >= versions.length) {
-    return undefined;
-  }
+  if (nextVersionIndex >= versions.length) return undefined;
 
-  const endVersion = versions[endVersionIndex];
-  if (!endVersion) {
-    return undefined;
-  }
+  const nextVersion = versions[nextVersionIndex];
+  if (!nextVersion) return undefined;
 
   // Get the registry for the next version
-  const endRegistry = fullRegistry[endVersion] as Registry<RegistryVersions>;
+  const nextRegistry = fullRegistry[nextVersion] as Registry<RegistryVersions>;
 
   // Access the chain for the given chainId
   // Use Object.entries to safely access chains
-  const chainEntries = Object.entries(endRegistry.chains) as Entries<typeof endRegistry.chains>;
-  const chainEntry = chainEntries.find(([id]) => id === chainId);
-  if (!chainEntry) {
-    return undefined;
-  }
-  const chain = chainEntry[1];
+  const nextChainEntries = Object.entries(nextRegistry.chains) as Entries<
+    typeof nextRegistry.chains
+  >;
+  const nextChainEntry = nextChainEntries.find(([id]) => id === chainId);
+  if (!nextChainEntry) return undefined;
+
+  const nextChain = nextChainEntry[1];
 
   // Check if the contract exists in this version
-  const contract = chain.contracts[contractName as keyof typeof chain.contracts];
-  if (!contract) {
-    return undefined;
-  }
+  const newContract = nextChain.contracts[contractName as keyof typeof nextChain.contracts];
+  if (!newContract) return undefined;
 
   // Get the block number: use contract.blockNumber if available, otherwise fallback to chain.deployment.startBlock
-  const contractData = contract as { blockNumber?: number | null };
-  const startBlock = contractData.blockNumber ?? chain.deployment.startBlock;
+  const nextContractData = newContract as { blockNumber?: number | null };
+  const nextContractStartBlock = nextContractData.blockNumber ?? nextChain.deployment.startBlock;
 
-  if (startBlock === null || startBlock === undefined) {
-    return undefined;
-  }
+  if (!nextContractStartBlock) return undefined;
 
-  const endBlock = overlappingHours
-    ? startBlock + overlappingHours * skipBlocks[chainId as keyof typeof skipBlocks]
-    : startBlock - 1;
-
-  // Return the end block (start block of next version minus 1)
-  return endBlock;
+  return nextContractStartBlock - 1;
 }
 
 /** Ordered registry version keys (e.g. ["v3", "v3_1"]) for use as message/payload version index. */

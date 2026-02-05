@@ -31,8 +31,8 @@ export const INITIAL_HOLDERS: Record<string, string[]> = {
     "0x2033B1D0714b5DDd66f78d8B75317F1a0d4440De",
     "0xb3DacC732509Ba6B7F25Ad149e56cA44fE901AB9",
     "0xB19Cdd566E5ee580E068ED099136d52906e2ca09",
-     "0x0000000005F458Fd6ba9EEb5f365D83b7dA913dD"
-    ],
+    "0x0000000005F458Fd6ba9EEb5f365D83b7dA913dD",
+  ],
   "281474976710663-0x00010000000000070000000000000001-1": [
     "0x491EDFB0B8b608044e227225C715981a30F3A44E",
     "0x227942bD9C3e4ECA1b76E8199e407e6c52fdacd6",
@@ -40,15 +40,25 @@ export const INITIAL_HOLDERS: Record<string, string[]> = {
     "0xb3DacC732509Ba6B7F25Ad149e56cA44fE901AB9",
     "0xcf5C83A12E0bd55a8c02fc7802203BC23e3efB30",
     "0xb5E93B4434e63B86A2e16e3C37732E24a6af68D6",
-    "0x0000000005F458Fd6ba9EEb5f365D83b7dA913dD"
+    "0x0000000005F458Fd6ba9EEb5f365D83b7dA913dD",
   ],
 };
 
 export const getInitialHolders = (
-    poolId: bigint,
-    tokenId: string,
-    centrifugeId: string
+  poolId: bigint,
+  tokenId: string,
+  centrifugeId: string
 ): string[] => {
-    const key = `${poolId}-${tokenId.toLowerCase()}-${centrifugeId.toLowerCase()}`;
-    return INITIAL_HOLDERS[key] || [];
+  const key = `${poolId}-${tokenId.toLowerCase()}-${centrifugeId.toLowerCase()}`;
+  return INITIAL_HOLDERS[key] || [];
 };
+
+//https://coins.llama.fi/block/chainid/1770163200
+export const V3_1_MIGRATION_BLOCKS = {
+  "1": 24379763,
+  "42161": 428355962,
+  "43114": 77214282,
+  "8453": 41686927,
+  "98866": 49444791,
+  "56": 79150546,
+} as const;
