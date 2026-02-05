@@ -19,13 +19,19 @@ importers:
         version: 17.2.3
       drizzle-orm:
         specifier: ~0.41.0
-        version: 0.41.0(@electric-sql/pglite@0.2.13)(@opentelemetry/api@1.9.0)(kysely@0.26.3)(pg@8.18.0)
+        version: 0.41.0(@electric-sql/pglite@0.2.13)(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(kysely@0.26.3)(pg@8.18.0)
       hono:
         specifier: ^4.9.12
         version: 4.9.12
       node-fetch:
         specifier: ^3.3.2
         version: 3.3.2
+      pg:
+        specifier: ^8.11.3
+        version: 8.18.0
+      pg-copy-streams:
+        specifier: ^6.0.6
+        version: 6.0.6
       picocolors:
         specifier: ^1.1.1
         version: 1.1.1
@@ -37,7 +43,7 @@ importers:
         version: 13.1.3
       ponder:
         specifier: ^0.16.3
-        version: 0.16.3(@opentelemetry/api@1.9.0)(@types/node@22.19.2)(hono@4.9.12)(typescript@5.9.3)(viem@2.37.11(typescript@5.9.3))
+        version: 0.16.3(@opentelemetry/api@1.9.0)(@types/node@22.19.2)(@types/pg@8.16.0)(hono@4.9.12)(typescript@5.9.3)(viem@2.37.11(typescript@5.9.3))
       viem:
         specifier: ^2.37.11
         version: 2.37.11(typescript@5.9.3)
@@ -48,6 +54,9 @@ importers:
       '@commitlint/config-conventional':
         specifier: ^19.8.1
         version: 19.8.1
+      '@dfatwork-pkgs/oras-client':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@graphql-inspector/cli':
         specifier: ^6.0.5
         version: 6.0.5(@types/node@22.19.2)(graphql@16.12.0)
@@ -57,6 +66,12 @@ importers:
       '@types/node':
         specifier: ^22.19.2
         version: 22.19.2
+      '@types/pg':
+        specifier: ^8.11.3
+        version: 8.16.0
+      '@types/pg-copy-streams':
+        specifier: ^1.2.5
+        version: 1.2.5
       '@typescript-eslint/eslint-plugin':
         specifier: ^6.21.0
         version: 6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
@@ -259,6 +274,40 @@ packages:
   '@commitlint/types@19.8.1':
     resolution: {integrity: sha512-/yCrWGCoA1SVKOks25EGadP9Pnj0oAIHGpl2wH2M2Y46dPM2ueb8wyCVOD7O3WCTkaJ0IkKvzhl1JY7+uCT2Dw==}
     engines: {node: '>=v18'}
+
+  '@dfatwork-pkgs/oras-client-darwin-arm64@0.1.0':
+    resolution: {integrity: sha512-k6kWFV8G7Llpd1FLqBPodRZBVseKKD8kbjOqncd1e0cgrGOxtC1bGICPSxwlJUbvu2RBOnNqOGzd5HQ7HGiaBg==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@dfatwork-pkgs/oras-client-darwin-x64@0.1.0':
+    resolution: {integrity: sha512-IBE8liQCbyo6ZVXhy6KNeVPsju31MHJ0dAdVAEZjDEjF4LlhK0nmijUAruoVc2Sbip7pwKgup6SNGjx4Oig0pA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@dfatwork-pkgs/oras-client-linux-arm64-gnu@0.1.0':
+    resolution: {integrity: sha512-8fasdN/uqq2UkerKxfGTsrJ+jw3+woSrhVSVZ96/u6lDo6t/BEdfrm8Il0/EDiFBn8QYstS6pegJpPV4wyjzQQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+
+  '@dfatwork-pkgs/oras-client-linux-x64-gnu@0.1.0':
+    resolution: {integrity: sha512-P26AqtwPYTJuP6BdoRaLM+2PirGNGKo6PRtuuAqC9htzzYGuOQcg5iOoBqljZz28UjdVe06u8TYBnP/6rxpb/A==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+
+  '@dfatwork-pkgs/oras-client-win32-x64-msvc@0.1.0':
+    resolution: {integrity: sha512-GKW1H8gds4+MgAaZJxfelbXV6IiCke3ky8gpgEFyD7veLobKvVhiKkhCe5pgDSZXm+MQo4pA4yIpUIKS647EOQ==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
+
+  '@dfatwork-pkgs/oras-client@0.1.0':
+    resolution: {integrity: sha512-1qZXg622Tbp96jDHDvsAubI7QHJYhbUtNGVRLDda/X2tTebW94xrtTt7fsXvm7Yz/4elOxCqNpW2N+7sQwPLsg==}
+    engines: {node: '>= 10'}
 
   '@electric-sql/pglite@0.2.13':
     resolution: {integrity: sha512-YRY806NnScVqa21/1L1vaysSQ+0/cAva50z7vlwzaGiBOTS9JhdzIRHN0KfgMhobFAphbznZJ7urMso4RtMBIQ==}
@@ -1007,6 +1056,12 @@ packages:
   '@types/node@22.19.2':
     resolution: {integrity: sha512-LPM2G3Syo1GLzXLGJAKdqoU35XvrWzGJ21/7sgZTUpbkBaOasTj8tjwn6w+hCkqaa1TfJ/w67rJSwYItlJ2mYw==}
 
+  '@types/pg-copy-streams@1.2.5':
+    resolution: {integrity: sha512-7D6/GYW2uHIaVU6S/5omI+6RZnwlZBpLQDZAH83xX1rjxAOK0f6/deKyyUTewxqts145VIGn6XWYz1YGf50G5g==}
+
+  '@types/pg@8.16.0':
+    resolution: {integrity: sha512-RmhMd/wD+CF8Dfo+cVIy3RR5cl8CyfXQ0tGgW6XBL8L4LM/UTEbNXYRbLwU6w+CgrKBNbrQWt4FUtTfaU5jSYQ==}
+
   '@types/semver@7.7.1':
     resolution: {integrity: sha512-FmgJfu+MOcQ370SD0ev7EI8TlCAfKYU+B4m5T3yXc1CiRN94g/SZPtsCkk506aUDtlMnFZvasDwHHUcZUEaYuA==}
 
@@ -1308,6 +1363,10 @@ packages:
   chalk@5.6.2:
     resolution: {integrity: sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA==}
     engines: {node: ^12.17.0 || ^14.13 || >=16.0.0}
+
+  chownr@2.0.0:
+    resolution: {integrity: sha512-bIomtDF5KGpdogkLd9VspvFzk9KfpyyGlS8YFVZl7TGPBHL5snIOnxeshwVgPteQ9b4Eydl+pVbIyE1DcvCWgQ==}
+    engines: {node: '>=10'}
 
   cli-table3@0.6.3:
     resolution: {integrity: sha512-w5Jac5SykAeZJKntOxJCrm63Eg5/4dhMWIcuTbo9rpE+brgaSZo0RuNJZeOyMgsUdhDeojvgyQLmjI+K50ZGyg==}
@@ -1766,6 +1825,10 @@ packages:
     resolution: {integrity: sha512-buewHzMvYL29jdeQTVILecSaZKnt/RJWjoZCF5OW60Z67/GmSLBkOFM7qh1PI3zFNtJbaZL5eQu1vLfazOwj4g==}
     engines: {node: '>=12.20.0'}
 
+  fs-minipass@2.1.0:
+    resolution: {integrity: sha512-V/JgOLFCS+R6Vcq0slCuaeWEdNC3ouDlJMNIsacH2VtALiu9mV4LPrHc5cDl8k5aw6J8jwgWWpiTo5RYhmIzvg==}
+    engines: {node: '>= 8'}
+
   fs.realpath@1.0.0:
     resolution: {integrity: sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==}
 
@@ -2128,9 +2191,26 @@ packages:
   minimist@1.2.8:
     resolution: {integrity: sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==}
 
+  minipass@3.3.6:
+    resolution: {integrity: sha512-DxiNidxSEK+tHG6zOIklvNOwm3hvCrbUrdtzY74U6HKTJxvIDfOUL5W5P2Ghd3DTkhhKPYGqeNUIh5qcM4YBfw==}
+    engines: {node: '>=8'}
+
+  minipass@5.0.0:
+    resolution: {integrity: sha512-3FnjYuehv9k6ovOEbyOswadCDPX1piCfhV8ncmYtHOjuPwylVWsghTLo7rabjC3Rx5xD4HDx8Wm1xnMF7S5qFQ==}
+    engines: {node: '>=8'}
+
   minipass@7.1.2:
     resolution: {integrity: sha512-qOOzS1cBTWYF4BH8fVePDBOO9iptMnGUEZwNc/cMWnTV2nVLZ7VoNWEPHkYczZA0pdoA7dl6e7FL659nX9S2aw==}
     engines: {node: '>=16 || 14 >=14.17'}
+
+  minizlib@2.1.2:
+    resolution: {integrity: sha512-bAxsR8BVfj60DWXHE3u30oHzfl4G7khkSuPW+qvpd7jFRHm7dLxOjUk1EHACJ/hxLY8phGJ0YhYHZo7jil7Qdg==}
+    engines: {node: '>= 8'}
+
+  mkdirp@1.0.4:
+    resolution: {integrity: sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==}
+    engines: {node: '>=10'}
+    hasBin: true
 
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
@@ -2583,6 +2663,11 @@ packages:
     resolution: {integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==}
     engines: {node: '>=8'}
 
+  tar@6.2.1:
+    resolution: {integrity: sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==}
+    engines: {node: '>=10'}
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+
   tdigest@0.1.2:
     resolution: {integrity: sha512-+G0LLgjjo9BZX2MfdvPfH+MKLCrxlXSYec5DaPYP1fe6Iyhf0/fSmJ0bFiZ1F8BT6cGXl2LpltQptzjXKWEkKA==}
 
@@ -2814,6 +2899,9 @@ packages:
 
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
+
+  yallist@4.0.0:
+    resolution: {integrity: sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A==}
 
   yargs-parser@21.1.1:
     resolution: {integrity: sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw==}
@@ -3075,6 +3163,31 @@ snapshots:
     dependencies:
       '@types/conventional-commits-parser': 5.0.1
       chalk: 5.6.2
+
+  '@dfatwork-pkgs/oras-client-darwin-arm64@0.1.0':
+    optional: true
+
+  '@dfatwork-pkgs/oras-client-darwin-x64@0.1.0':
+    optional: true
+
+  '@dfatwork-pkgs/oras-client-linux-arm64-gnu@0.1.0':
+    optional: true
+
+  '@dfatwork-pkgs/oras-client-linux-x64-gnu@0.1.0':
+    optional: true
+
+  '@dfatwork-pkgs/oras-client-win32-x64-msvc@0.1.0':
+    optional: true
+
+  '@dfatwork-pkgs/oras-client@0.1.0':
+    dependencies:
+      tar: 6.2.1
+    optionalDependencies:
+      '@dfatwork-pkgs/oras-client-darwin-arm64': 0.1.0
+      '@dfatwork-pkgs/oras-client-darwin-x64': 0.1.0
+      '@dfatwork-pkgs/oras-client-linux-arm64-gnu': 0.1.0
+      '@dfatwork-pkgs/oras-client-linux-x64-gnu': 0.1.0
+      '@dfatwork-pkgs/oras-client-win32-x64-msvc': 0.1.0
 
   '@electric-sql/pglite@0.2.13': {}
 
@@ -3956,6 +4069,17 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@types/pg-copy-streams@1.2.5':
+    dependencies:
+      '@types/node': 22.19.2
+      '@types/pg': 8.16.0
+
+  '@types/pg@8.16.0':
+    dependencies:
+      '@types/node': 22.19.2
+      pg-protocol: 1.11.0
+      pg-types: 2.2.0
+
   '@types/semver@7.7.1': {}
 
   '@types/ws@8.18.1':
@@ -4262,6 +4386,8 @@ snapshots:
 
   chalk@5.6.2: {}
 
+  chownr@2.0.0: {}
+
   cli-table3@0.6.3:
     dependencies:
       string-width: 4.2.3
@@ -4404,10 +4530,11 @@ snapshots:
 
   dotenv@17.2.3: {}
 
-  drizzle-orm@0.41.0(@electric-sql/pglite@0.2.13)(@opentelemetry/api@1.9.0)(kysely@0.26.3)(pg@8.18.0):
+  drizzle-orm@0.41.0(@electric-sql/pglite@0.2.13)(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(kysely@0.26.3)(pg@8.18.0):
     optionalDependencies:
       '@electric-sql/pglite': 0.2.13
       '@opentelemetry/api': 1.9.0
+      '@types/pg': 8.16.0
       kysely: 0.26.3
       pg: 8.18.0
 
@@ -4668,6 +4795,10 @@ snapshots:
   formdata-polyfill@4.0.10:
     dependencies:
       fetch-blob: 3.2.0
+
+  fs-minipass@2.1.0:
+    dependencies:
+      minipass: 3.3.6
 
   fs.realpath@1.0.0: {}
 
@@ -4972,7 +5103,20 @@ snapshots:
 
   minimist@1.2.8: {}
 
+  minipass@3.3.6:
+    dependencies:
+      yallist: 4.0.0
+
+  minipass@5.0.0: {}
+
   minipass@7.1.2: {}
+
+  minizlib@2.1.2:
+    dependencies:
+      minipass: 3.3.6
+      yallist: 4.0.0
+
+  mkdirp@1.0.4: {}
 
   ms@2.1.3: {}
 
@@ -5198,7 +5342,7 @@ snapshots:
       sonic-boom: 3.8.1
       thread-stream: 2.7.0
 
-  ponder@0.16.3(@opentelemetry/api@1.9.0)(@types/node@22.19.2)(hono@4.9.12)(typescript@5.9.3)(viem@2.37.11(typescript@5.9.3)):
+  ponder@0.16.3(@opentelemetry/api@1.9.0)(@types/node@22.19.2)(@types/pg@8.16.0)(hono@4.9.12)(typescript@5.9.3)(viem@2.37.11(typescript@5.9.3)):
     dependencies:
       '@babel/code-frame': 7.29.0
       '@commander-js/extra-typings': 12.1.0(commander@12.1.0)
@@ -5215,7 +5359,7 @@ snapshots:
       dataloader: 2.2.3
       detect-package-manager: 3.0.2
       dotenv: 16.6.1
-      drizzle-orm: 0.41.0(@electric-sql/pglite@0.2.13)(@opentelemetry/api@1.9.0)(kysely@0.26.3)(pg@8.18.0)
+      drizzle-orm: 0.41.0(@electric-sql/pglite@0.2.13)(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(kysely@0.26.3)(pg@8.18.0)
       glob: 10.5.0
       graphql: 16.8.2
       graphql-yoga: 5.17.1(graphql@16.8.2)
@@ -5486,6 +5630,15 @@ snapshots:
     dependencies:
       has-flag: 4.0.0
 
+  tar@6.2.1:
+    dependencies:
+      chownr: 2.0.0
+      fs-minipass: 2.1.0
+      minipass: 5.0.0
+      minizlib: 2.1.2
+      mkdirp: 1.0.4
+      yallist: 4.0.0
+
   tdigest@0.1.2:
     dependencies:
       bintrees: 1.0.2
@@ -5657,6 +5810,8 @@ snapshots:
   y18n@5.0.8: {}
 
   yallist@3.1.1: {}
+
+  yallist@4.0.0: {}
 
   yargs-parser@21.1.1: {}
 
