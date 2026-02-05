@@ -2,7 +2,7 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import { createReadStream } from "fs";
 import { mkdir, readFile, rename, unlink } from "fs/promises";
-import { join } from "path";
+import { join, resolve, sep } from "path";
 import { StringDecoder } from "string_decoder";
 import { finished } from "stream/promises";
 import { createGunzip } from "zlib";
@@ -53,6 +53,14 @@ async function getRepoName() {
 }
 
 export async function restorePonderSync(connectionString, filePath) {
+  const outputRoot = resolve(process.cwd(), OUTPUT_DIR);
+  const resolvedPath = resolve(filePath);
+  if (!resolvedPath.startsWith(`${outputRoot}${sep}`)) {
+    throw new Error("Invalid file path for restore");
+  }
+  if (!resolvedPath.endsWith(".sql.gz")) {
+    throw new Error("Invalid cache file extension");
+  }
   const client = new Client({ connectionString });
   await client.connect();
   await client.query("BEGIN");
