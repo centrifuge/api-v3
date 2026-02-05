@@ -142,13 +142,13 @@ const chains = Object.fromEntries(
     const chainId = chain.network.chainId;
     const envRpc = process.env[`PONDER_RPC_URL_${chainId}`];
     const networkName = networkNames[chainId.toString() as keyof typeof networkNames];
-    return [
-      networkName,
-      {
-        id: chain.network.chainId,
-        rpc: envRpc ?? endpoints[chainId as keyof typeof endpoints],
-      },
-    ] as [NetworkNames<RegistryVersions>, ChainConfig];
+    const rpc = envRpc
+      ? envRpc.split(",").map((r) => r.trim())
+      : endpoints[chainId as keyof typeof endpoints];
+    return [networkName, { id: chain.network.chainId, rpc }] as [
+      NetworkNames<RegistryVersions>,
+      ChainConfig,
+    ];
   })
 ) as ChainsConfig<RegistryVersions>;
 
