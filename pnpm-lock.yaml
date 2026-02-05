@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@dfatwork-pkgs/oras-client':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@ponder/utils':
         specifier: ^0.2.17
         version: 0.2.17(typescript@5.9.3)(viem@2.37.11(typescript@5.9.3))
@@ -54,9 +57,6 @@ importers:
       '@commitlint/config-conventional':
         specifier: ^19.8.1
         version: 19.8.1
-      '@dfatwork-pkgs/oras-client':
-        specifier: ^0.1.0
-        version: 0.1.0
       '@graphql-inspector/cli':
         specifier: ^6.0.5
         version: 6.0.5(@types/node@22.19.2)(graphql@16.12.0)
