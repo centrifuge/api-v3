@@ -1,6 +1,6 @@
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceError } from "../helpers/logger";
-import { BlockchainService } from "../services/BlockchainService";
+import { BlockchainService } from "../services";
 import { timestamper } from "../helpers/timestamper";
 
 import {

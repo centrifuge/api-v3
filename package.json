@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "pnpm update-registry",
+    "predev": "pnpm update-registry && docker compose up -d",
     "dev": "ponder dev --port 8000 --disable-ui",
+    "postdev": "docker compose down",
     "prestart": "pnpm update-registry",
     "start": "ponder start",
     "preserve": "pnpm update-registry",
@@ -22,7 +23,9 @@
     "prepare": "husky",
     "update-registry": "node scripts/fetch-registry.mjs",
     "evgrep": "scripts/evgrep.sh",
-    "compare-schema": "graphql-inspector diff https://api.centrifuge.io generated/schema.graphql --rule safeUnreachable --rule ignoreDescriptionChanges | grep 'Field.*removed'"
+    "compare-schema": "graphql-inspector diff https://api.centrifuge.io generated/schema.graphql --rule safeUnreachable --rule ignoreDescriptionChanges | grep 'Field.*removed'",
+    "sync:export": "docker compose exec -T db sh -lc 'pg_dump --dbname=postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB --schema=ponder_sync --no-owner --no-privileges --clean --if-exists' | gzip > $(date +%Y%m%d)_ponder_sync.sql.gz",
+    "sync:restore": "LATEST=$(ls -t *_ponder_sync.sql.gz 2>/dev/null | head -n 1) && [ -n \"$LATEST\" ] && gzip -dc \"$LATEST\" | docker compose exec -T db sh -lc 'psql --dbname=postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB'"
   },
   "dependencies": {
     "@ponder/utils": "^0.2.17",
