@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+    paths:
+      - src/**
+      - scripts/**
+      - Dockerfile
   release:
     types: [published, created]  # Add 'created' to trigger on release creation
 
