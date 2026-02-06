@@ -29,14 +29,14 @@ jobs:
         env:
           IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
         with:
-          cmd: yq -i inplace '.indexer.image.tag = strenv(IMAGE_TAG)' environments/test.yaml
+          cmd: yq -i '.indexer.image.tag = strenv(IMAGE_TAG)' environments/test.yaml
 
       - name: Update testnet query image tag
         uses: mikefarah/yq@v4
         env:
           IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
         with:
-          cmd: yq -i inplace '.query.image.tag = strenv(IMAGE_TAG)' environments/test.yaml
+          cmd: yq -i '.query.image.tag = strenv(IMAGE_TAG)' environments/test.yaml
 
       - name: Commit testnet environment tags
         uses: stefanzweifel/git-auto-commit-action@v5
