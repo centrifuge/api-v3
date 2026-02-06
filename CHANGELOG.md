@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.1](https://github.com/centrifuge/api-v3/compare/v3.0.0...v3.0.1) (2026-02-06)
+
+
+### Bug Fixes
+
+* little change to test ci ([6a7c01b](https://github.com/centrifuge/api-v3/commit/6a7c01b556aa5a9db851b73a727f4d5458cd4c30))
+
 ## [3.0.0](https://github.com/centrifuge/api-v3/compare/v2.1.0...v3.0.0) (2026-02-06)
 
 
