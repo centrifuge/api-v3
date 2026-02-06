@@ -231,6 +231,9 @@ export const explorerUrls = {
   "1": "https://etherscan.io",
   "98866": "https://explorer.plume.org",
   "56": "https://bscscan.com",
+  "143": "https://monad.socialscan.io",
+  "999": "https://hyperevmscan.io",
+  "10": "https://explorer.optimism.io",
 };
 
 export const chainIcons = {
@@ -250,4 +253,8 @@ export const chainIcons = {
     "https://ipfs.centrifuge.io/ipfs/bafkreifpdqjq6jvh4xat54ymcue6p4n24ifc3gzz2446cipumiwbz7ybu4",
   "421614":
     "https://ipfs.centrifuge.io/ipfs/bafkreiemrnwrwcxbwho3ut6x3k4zv4jerowpwnynovt6sbc7kgqbfknq7a",
+    "143": "https://ipfs.centrifuge.io/ipfs/QmX86URyeeYYR5DxcnKfYF7ApMeRQPC9JurZBTS9VBUiAH",
+    "999": "https://ipfs.centrifuge.io/ipfs/QmZnmSzzq3Jspa3HxUdk4JQAWgtAQtinBdDTBdAFn2jijX",
+    "998": "https://ipfs.centrifuge.io/ipfs/QmZnmSzzq3Jspa3HxUdk4JQAWgtAQtinBdDTBdAFn2jijX",
+    "10":  "https://ipfs.centrifuge.io/ipfs/QmXR2gUAwJdEhH7MAqEqd6NTGB58XibiKvtE3TUoe6CcMK",
 };
