@@ -221,6 +221,7 @@ export function getContractNames(): string[] {
   return Array.from(contractNamesSet);
 }
 
+// Explorer URLs definitions
 export const explorerUrls = {
   "84532": "https://sepolia.basescan.org",
   "421614": "https://sepolia.arbiscan.io",
@@ -236,6 +237,7 @@ export const explorerUrls = {
   "10": "https://explorer.optimism.io",
 };
 
+// Icons definitions
 export const chainIcons = {
   "1": "https://ipfs.centrifuge.io/ipfs/bafkreihk753r3oksmw5pburcz4dxq2xazsarihdkeae2ilt7tc7lj2hggm",
   "8453":
@@ -253,8 +255,8 @@ export const chainIcons = {
     "https://ipfs.centrifuge.io/ipfs/bafkreifpdqjq6jvh4xat54ymcue6p4n24ifc3gzz2446cipumiwbz7ybu4",
   "421614":
     "https://ipfs.centrifuge.io/ipfs/bafkreiemrnwrwcxbwho3ut6x3k4zv4jerowpwnynovt6sbc7kgqbfknq7a",
-    "143": "https://ipfs.centrifuge.io/ipfs/QmX86URyeeYYR5DxcnKfYF7ApMeRQPC9JurZBTS9VBUiAH",
-    "999": "https://ipfs.centrifuge.io/ipfs/QmZnmSzzq3Jspa3HxUdk4JQAWgtAQtinBdDTBdAFn2jijX",
-    "998": "https://ipfs.centrifuge.io/ipfs/QmZnmSzzq3Jspa3HxUdk4JQAWgtAQtinBdDTBdAFn2jijX",
-    "10":  "https://ipfs.centrifuge.io/ipfs/QmXR2gUAwJdEhH7MAqEqd6NTGB58XibiKvtE3TUoe6CcMK",
+  "143": "https://ipfs.centrifuge.io/ipfs/QmX86URyeeYYR5DxcnKfYF7ApMeRQPC9JurZBTS9VBUiAH",
+  "999": "https://ipfs.centrifuge.io/ipfs/QmZnmSzzq3Jspa3HxUdk4JQAWgtAQtinBdDTBdAFn2jijX",
+  "998": "https://ipfs.centrifuge.io/ipfs/QmZnmSzzq3Jspa3HxUdk4JQAWgtAQtinBdDTBdAFn2jijX",
+  "10": "https://ipfs.centrifuge.io/ipfs/QmXR2gUAwJdEhH7MAqEqd6NTGB58XibiKvtE3TUoe6CcMK",
 };
