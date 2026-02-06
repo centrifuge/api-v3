@@ -1,0 +1,31 @@
+global:
+  env:
+    ENVIRONMENT: "testnet"
+    SELECTED_NETWORKS: "11155111,84532,421614"
+    REGISTRY_URL: "https://gist.githubusercontent.com/filo87/065a797e757920e75d29eaf5d00d71d5/raw/a30410edb9f5290e3fc91ca9105329f30c7ff9bf/testnet.json"
+  apiSecretName: cfg-api-v3-rpc-keys
+
+indexer:
+  enabled: true
+  image:
+    tag: sha-11c4bce
+
+query:
+  enabled: true
+  image:
+    tag: sha-11c4bce
+  replicaCount: 1
+  ingress:
+    enabled: true
+    hosts:
+      - host: api-v3-test.cfg.embrio.tech
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: cfg-api-v3-test-tls
+        hosts:
+          - api-v3-test.cfg.embrio.tech
+
+postgres:
+  enabled: true
