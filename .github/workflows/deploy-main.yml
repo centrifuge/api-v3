@@ -1,0 +1,44 @@
+name: Deploy Main Environment
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+
+jobs:
+  deploy-main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: vars
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          IMAGE_TAG="${RELEASE_TAG#v}"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Update mainnet indexer image tag
+        uses: mikefarah/yq@v4
+        env:
+          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
+        with:
+          cmd: yq -i inplace '.indexer.image.tag = strenv(IMAGE_TAG)' environments/main.yaml
+
+      - name: Update mainnet query image tag
+        uses: mikefarah/yq@v4
+        env:
+          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
+        with:
+          cmd: yq -i inplace '.query.image.tag = strenv(IMAGE_TAG)' environments/main.yaml
+
+      - name: Commit mainnet environment tags
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(cd): update main image tags to ${{ steps.vars.outputs.image_tag }}"
+          file_pattern: environments/main.yaml

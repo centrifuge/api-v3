@@ -1,4 +1,4 @@
-name: Update Environment Tags
+name: Deploy Test Environment
 
 on:
   workflow_run:
@@ -11,16 +11,9 @@ permissions:
   contents: write
 
 jobs:
-  update-tags:
+  deploy-test:
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - name: main
-            file: environments/main.yaml
-          - name: test
-            file: environments/test.yaml
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,22 +24,22 @@ jobs:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: echo "image_tag=sha-${HEAD_SHA::7}" >> "$GITHUB_OUTPUT"
 
-      - name: Update indexer image tag
+      - name: Update testnet indexer image tag
         uses: mikefarah/yq@v4
         env:
           IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
         with:
-          cmd: yq -i inplace '.indexer.image.tag = strenv(IMAGE_TAG)' ${{ matrix.file }}
+          cmd: yq -i inplace '.indexer.image.tag = strenv(IMAGE_TAG)' environments/test.yaml
 
-      - name: Update query image tag
+      - name: Update testnet query image tag
         uses: mikefarah/yq@v4
         env:
           IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
         with:
-          cmd: yq -i inplace '.query.image.tag = strenv(IMAGE_TAG)' ${{ matrix.file }}
+          cmd: yq -i inplace '.query.image.tag = strenv(IMAGE_TAG)' environments/test.yaml
 
-      - name: Commit updated environment tags
+      - name: Commit testnet environment tags
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore(cd): update ${{ matrix.name }} image tags to ${{ steps.vars.outputs.image_tag }}"
-          file_pattern: ${{ matrix.file }}
+          commit_message: "chore(cd): update test image tags to ${{ steps.vars.outputs.image_tag }}"
+          file_pattern: environments/test.yaml
