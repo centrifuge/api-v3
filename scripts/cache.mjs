@@ -93,6 +93,9 @@ export async function restorePonderSync(connectionString, filePath) {
       if (trimmed.startsWith("\\")) {
         return;
       }
+      if (trimmed.startsWith("SET transaction_timeout")) {
+        return;
+      }
       if (trimmed.startsWith("COPY ") && trimmed.endsWith("FROM stdin;")) {
         await flushSql();
         copyStream = client.query(copyFrom(trimmed));

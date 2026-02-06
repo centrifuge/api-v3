@@ -3,7 +3,7 @@ volumes:
 
 services:
   db:
-    image: postgres:17
+    image: postgres:16
     volumes:
       - pgData:/var/lib/postgresql/data
     ports:
