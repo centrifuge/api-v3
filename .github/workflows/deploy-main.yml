@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   deploy-main:
@@ -37,8 +38,23 @@ jobs:
         with:
           cmd: yq -i '.query.image.tag = strenv(IMAGE_TAG)' environments/main.yaml
 
-      - name: Commit mainnet environment tags
-        uses: stefanzweifel/git-auto-commit-action@v5
+      - name: Open deployment PR
+        id: cpr
+        uses: peter-evans/create-pull-request@v6
         with:
-          commit_message: "chore(cd): update main image tags to ${{ steps.vars.outputs.image_tag }}"
-          file_pattern: environments/main.yaml
+          branch: deployment
+          delete-branch: false
+          base: main
+          commit-message: "chore(cd): update main image tags to ${{ steps.vars.outputs.image_tag }}"
+          title: "chore(cd): update deployment env tags"
+          body: |
+            Automated environment tag update for main.
+          labels: |
+            deployment
+          add-paths: environments/main.yaml
+
+      - name: Enable auto-merge (squash)
+        if: ${{ steps.cpr.outputs.pull-request-number != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge ${{ steps.cpr.outputs.pull-request-number }} --auto --squash

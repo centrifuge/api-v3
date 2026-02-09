@@ -132,7 +132,7 @@ export const endpoints = {
   ],
   999: [
     `https://hyperliquid-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-    `https://${process.env.QUICKNODE_API_NAME}.hype-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/evm`,
+    `https://${process.env.QUICKNODE_API_NAME}.hype-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/nanoreth`,
   ],
 };
 
