@@ -22,10 +22,17 @@ query:
         paths:
           - path: /
             pathType: Prefix
+      - host: api-v3-main-migration.cfg.embrio.tech
+        paths:
+          - path: /
+            pathType: Prefix
     tls:
       - secretName: cfg-api-v3-main-tls
         hosts:
           - api-v3-main.cfg.embrio.tech
+      - secretName: cfg-api-v3-main-migration-tls
+        hosts:
+          - api-v3-main-migration.cfg.embrio.tech
 
 cacheJob:
   enabled: false
