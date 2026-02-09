@@ -617,6 +617,7 @@ export function getContractNameForAddress(
 
     // Directly access the chain by chainId (more efficient than iterating all chains)
     const chain = registry.chains[chainId.toString() as keyof typeof registry.chains];
+    if (!chain) continue;
 
     // Iterate through all contracts in this chain
     const contractEntries = Object.entries(chain.contracts) as Entries<typeof chain.contracts>;
