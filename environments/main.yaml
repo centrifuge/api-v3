@@ -8,12 +8,12 @@ global:
 indexer:
   enabled: true
   image:
-    tag: sha-2b5f2bc
+    tag: sha-bc927ec
 
 query:
   enabled: true
   image:
-    tag: sha-2b5f2bc
+    tag: sha-bc927ec
   replicaCount: 2
   ingress:
     enabled: true

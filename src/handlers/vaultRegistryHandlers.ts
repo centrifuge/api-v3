@@ -26,8 +26,9 @@ export async function deployVault({
   } = event.args;
 
   const contractName = getContractNameForAddress(context.chain.id, event.log.address);
+  if (!contractName) return serviceError(`Contract name not found. Cannot deploy vault`);
   const vaultKind = VaultKinds[kind];
-  if (!vaultKind) return serviceError("Invalid vault kind");
+  if (!vaultKind) return serviceError("Invalid vault kind. Cannot deploy vault");
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
