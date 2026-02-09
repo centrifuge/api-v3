@@ -32,3 +32,5 @@ cacheJob:
 
 postgres:
   enabled: true
+  cluster:
+    instances: 2
