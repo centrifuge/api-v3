@@ -1,4 +1,4 @@
-name: Deploy Main Environment
+name: Deploy Production Environments
 
 on:
   workflow_run:
@@ -7,12 +7,16 @@ on:
     types:
       - completed
 
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  deploy-main:
+  deploy-production:
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
     runs-on: ubuntu-latest
     steps:
@@ -48,6 +52,20 @@ jobs:
         with:
           cmd: yq -i '.query.image.tag = strenv(IMAGE_TAG)' environments/main.yaml
 
+      - name: Update testnet indexer image tag
+        uses: mikefarah/yq@v4
+        env:
+          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
+        with:
+          cmd: yq -i '.indexer.image.tag = strenv(IMAGE_TAG)' environments/test.yaml
+
+      - name: Update testnet query image tag
+        uses: mikefarah/yq@v4
+        env:
+          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
+        with:
+          cmd: yq -i '.query.image.tag = strenv(IMAGE_TAG)' environments/test.yaml
+
       - name: Open deployment PR
         id: cpr
         uses: peter-evans/create-pull-request@v6
@@ -56,13 +74,15 @@ jobs:
           branch: deployment
           delete-branch: false
           base: main
-          commit-message: "chore(cd): update main image tags to ${{ steps.vars.outputs.image_tag }}"
+          commit-message: "chore(cd): update production env tags to ${{ steps.vars.outputs.image_tag }}"
           title: "chore(cd): update deployment env tags"
           body: |
-            Automated environment tag update for main.
+            Automated environment tag update for main and test.
           labels: |
             deployment
-          add-paths: environments/main.yaml
+          add-paths: |
+            environments/main.yaml
+            environments/test.yaml
 
       - name: Enable auto-merge (squash)
         if: ${{ steps.cpr.outputs.pull-request-number != '' }}
