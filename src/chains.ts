@@ -234,7 +234,7 @@ export const explorerUrls = {
   "56": "https://bscscan.com",
   "143": "https://monad.socialscan.io",
   "999": "https://hyperevmscan.io",
-  "10": "https://explorer.optimism.io",
+  "10": "https://optimistic.etherscan.io/",
 };
 
 // Icons definitions
