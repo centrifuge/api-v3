@@ -4,16 +4,14 @@ global:
     SELECTED_NETWORKS: "42161,8453,1,98866,43114,56,10,143,999"
     REGISTRY_URL: "https://ipfs.centrifuge.io/ipfs/bafybeie27jsvvh3ajzlpdhy7d7ez5xcemeyvdpox6zttbyufm62uobcdze"
   apiSecretName: cfg-api-v3-rpc-keys
-
 indexer:
   enabled: true
   image:
-    tag: sha-bc927ec
-
+    tag: sha-f12edcb
 query:
   enabled: true
   image:
-    tag: sha-bc927ec
+    tag: sha-f12edcb
   replicaCount: 2
   ingress:
     enabled: true
@@ -33,10 +31,8 @@ query:
       - secretName: cfg-api-v3-main-migration-tls
         hosts:
           - api-v3-main-migration.cfg.embrio.tech
-
 cacheJob:
   enabled: false
-
 postgres:
   enabled: true
   cluster:
