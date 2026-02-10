@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.0.1](https://github.com/centrifuge/api-v3/compare/v3.0.0...v3.0.1) (2026-02-10)
+
+
+### Bug Fixes
+
+* added correct Optimism explorer link ([#249](https://github.com/centrifuge/api-v3/issues/249)) ([f12edcb](https://github.com/centrifuge/api-v3/commit/f12edcb6e921c5c10f5bf75b47f54fd0d9c788f5))
+* chain not found on new 3_1  deploy vaults ([#247](https://github.com/centrifuge/api-v3/issues/247)) ([bc927ec](https://github.com/centrifuge/api-v3/commit/bc927eca91c730cbb1c65e0f3ca77543e431b4dc))
+* little change to test ci ([6a7c01b](https://github.com/centrifuge/api-v3/commit/6a7c01b556aa5a9db851b73a727f4d5458cd4c30))
+
 ## [3.0.0](https://github.com/centrifuge/api-v3/compare/v2.1.0...v3.0.0) (2026-02-06)
 
 
