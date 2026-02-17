@@ -17,6 +17,8 @@ import {
 } from "ponder:schema";
 import { snapshotter } from "../helpers/snapshotter";
 import { blocks } from "../chains";
+import { computeYields } from "../helpers/yieldCalculator";
+import { eq, and } from "drizzle-orm";
 
 const timekeeper = Timekeeper.start();
 
@@ -58,6 +60,26 @@ async function processBlock(args: { event: Event; context: Context }) {
 
   await snapshotter(context, event, `${chainName}:NewPeriod`, pools, PoolSnapshot);
   await snapshotter(context, event, `${chainName}:NewPeriod`, tokens, TokenSnapshot);
+
+  const db = context.db.sql;
+  const blockTimestamp = new Date(Number(event.block.timestamp) * 1000);
+  const trigger = `${chainName}:NewPeriod`;
+  for (const token of tokens) {
+    const { id: tokenId, tokenPrice } = token.read();
+    if (!tokenPrice || tokenPrice === 0n) continue;
+    const yields = await computeYields(db, tokenId, tokenPrice, blockTimestamp);
+    await db
+      .update(TokenSnapshot)
+      .set(yields)
+      .where(
+        and(
+          eq(TokenSnapshot.id, tokenId),
+          eq(TokenSnapshot.blockNumber, Number(event.block.number)),
+          eq(TokenSnapshot.trigger, trigger)
+        )
+      );
+  }
+
   await snapshotter(
     context,
     event,
