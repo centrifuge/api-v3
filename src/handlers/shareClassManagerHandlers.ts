@@ -171,7 +171,7 @@ multiMapper("shareClassManager:UpdatePricePoolPerShare", async ({ event, context
 
   const db = context.db.sql;
   const blockTimestamp = new Date(Number(event.block.timestamp) * 1000);
-  const yields = await computeYields(db, tokenId, tokenPrice, blockTimestamp);
+  const yields = await computeYields(db, tokenId, tokenPrice, computedAt);
   await db
     .update(TokenSnapshot)
     .set(yields)
