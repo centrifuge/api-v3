@@ -4,6 +4,8 @@ import { expandInlineObject, logEvent, serviceError } from "../helpers/logger";
 import { TokenService, BlockchainService, PoolService } from "../services";
 import { snapshotter } from "../helpers/snapshotter";
 import { TokenSnapshot } from "ponder:schema";
+import { computeYields, recalculateAffectedYields } from "../helpers/yieldCalculator";
+import { eq, and } from "drizzle-orm";
 import {
   approveRedeems,
   claimDeposit,
@@ -124,6 +126,20 @@ multiMapper("shareClassManager:UpdateShareClass", async ({ event, context }) => 
   await token.setTokenPrice(tokenPrice);
   await token.save(event);
   await snapshotter(context, event, "shareClassManagerV3:UpdateShareClass", [token], TokenSnapshot);
+
+  const db = context.db.sql;
+  const blockTimestamp = new Date(Number(event.block.timestamp) * 1000);
+  const yields = await computeYields(db, tokenId, tokenPrice, blockTimestamp);
+  await db
+    .update(TokenSnapshot)
+    .set(yields)
+    .where(
+      and(
+        eq(TokenSnapshot.id, tokenId),
+        eq(TokenSnapshot.blockNumber, Number(event.block.number)),
+        eq(TokenSnapshot.trigger, "shareClassManagerV3:UpdateShareClass")
+      )
+    );
 });
 
 multiMapper("shareClassManager:UpdatePricePoolPerShare", async ({ event, context }) => {
@@ -152,6 +168,26 @@ multiMapper("shareClassManager:UpdatePricePoolPerShare", async ({ event, context
     [token],
     TokenSnapshot
   );
+
+  const db = context.db.sql;
+  const blockTimestamp = new Date(Number(event.block.timestamp) * 1000);
+  const yields = await computeYields(db, tokenId, tokenPrice, blockTimestamp);
+  await db
+    .update(TokenSnapshot)
+    .set(yields)
+    .where(
+      and(
+        eq(TokenSnapshot.id, tokenId),
+        eq(TokenSnapshot.blockNumber, Number(event.block.number)),
+        eq(TokenSnapshot.trigger, "shareClassManagerV3_1:UpdatePricePoolPerShare")
+      )
+    );
+
+  // Correction detection: if computedAt is > 1 day before block timestamp, treat as retroactive
+  const ONE_DAY_MS = 86400 * 1000;
+  if (blockTimestamp.getTime() - computedAt.getTime() > ONE_DAY_MS) {
+    await recalculateAffectedYields(db, tokenId, computedAt);
+  }
 });
 
 multiMapper("shareClassManager:UpdateDepositRequest", updateDepositRequest);

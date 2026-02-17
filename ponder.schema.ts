@@ -1316,14 +1316,22 @@ export const PoolSnapshotRelations = relations(PoolSnapshot, ({ one }) => ({
 
 export const TokenSnapshot = onchainTable(
   "token_snapshot",
-  snapshotColumns(TokenColumns, [
-    "id",
-    "tokenPrice",
-    "totalIssuance",
-    "tokenPriceComputedAt",
-  ] as const),
+  (t) => ({
+    ...snapshotColumns(TokenColumns, [
+      "id",
+      "tokenPrice",
+      "totalIssuance",
+      "tokenPriceComputedAt",
+    ] as const)(t),
+    yield7d365: t.bigint(),
+    yield7d360: t.bigint(),
+    yield30d365: t.bigint(),
+    yield30d360: t.bigint(),
+    yieldTtm: t.bigint(),
+  }),
   (t) => ({
     id: primaryKey({ columns: [t.id, t.blockNumber, t.trigger] }),
+    idTimestampIdx: index().on(t.id, t.timestamp),
   })
 );
 
