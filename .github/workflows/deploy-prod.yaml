@@ -71,6 +71,7 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ steps.app-token.outputs.token }}
+          author: "api-gitops[bot] <${{ secrets.DEPLOYMENT_APP_ID }}+api-gitops[bot]@users.noreply.github.com>"
           branch: deployment
           delete-branch: false
           base: main
