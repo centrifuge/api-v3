@@ -2,6 +2,7 @@ import type { Event } from "ponder:registry";
 import { VaultRedeemOrder } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
 import { serviceLog } from "../helpers/logger";
+import { bigintMax } from "../helpers/bigintMath";
 
 /**
  * Service class for managing VaultRedeem entities.
@@ -23,8 +24,9 @@ export class VaultRedeemOrderService extends mixinCommonStatics(
    */
   public redeemRequest(requestedSharesAmount: bigint) {
     serviceLog(`Adding requested shares amount ${requestedSharesAmount} to vault redeem order`);
-    this.data.requestedSharesAmount =
-      (this.data.requestedSharesAmount ?? 0n) + requestedSharesAmount;
+    const previousRequestedSharesAmount = this.data.requestedSharesAmount ?? 0n;
+    const newRequestedSharesAmount = previousRequestedSharesAmount + requestedSharesAmount;
+    this.data.requestedSharesAmount = newRequestedSharesAmount;
     return this;
   }
 
@@ -35,8 +37,9 @@ export class VaultRedeemOrderService extends mixinCommonStatics(
    */
   public claimableRedeem(claimableSharesAmount: bigint) {
     serviceLog(`Adding claimable shares amount ${claimableSharesAmount} to vault redeem order`);
-    this.data.claimableSharesAmount =
-      (this.data.claimableSharesAmount ?? 0n) + claimableSharesAmount;
+    const previousClaimableSharesAmount = this.data.claimableSharesAmount ?? 0n;
+    const newClaimableSharesAmount = previousClaimableSharesAmount + claimableSharesAmount;
+    this.data.claimableSharesAmount = newClaimableSharesAmount;
     return this;
   }
 
@@ -47,8 +50,12 @@ export class VaultRedeemOrderService extends mixinCommonStatics(
    */
   public redeem(sharesAmount: bigint) {
     serviceLog(`Redeeming shares amount ${sharesAmount} from vault redeem order`);
-    this.data.requestedSharesAmount = (this.data.requestedSharesAmount ?? 0n) - sharesAmount;
-    this.data.claimableSharesAmount = (this.data.claimableSharesAmount ?? 0n) - sharesAmount;
+    const previousRequestedSharesAmount = this.data.requestedSharesAmount ?? 0n;
+    const newRequestedSharesAmount = previousRequestedSharesAmount - sharesAmount;
+    this.data.requestedSharesAmount = bigintMax(newRequestedSharesAmount, 0n);
+    const previousClaimableSharesAmount = this.data.claimableSharesAmount ?? 0n;
+    const newClaimableSharesAmount = previousClaimableSharesAmount - sharesAmount;
+    this.data.claimableSharesAmount = bigintMax(newClaimableSharesAmount, 0n);
     return this;
   }
 
