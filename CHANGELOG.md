@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.2](https://github.com/centrifuge/api-v3/compare/v3.0.1...v3.0.2) (2026-02-24)
+
+
+### Bug Fixes
+
+* minor upgrade for hono ([#258](https://github.com/centrifuge/api-v3/issues/258)) ([6c426ba](https://github.com/centrifuge/api-v3/commit/6c426ba3e5a751235a902be278dedc1be9437c1b)), closes [#253](https://github.com/centrifuge/api-v3/issues/253)
+
 ## [3.0.1](https://github.com/centrifuge/api-v3/compare/v3.0.0...v3.0.1) (2026-02-10)
 
 
