@@ -2,6 +2,7 @@ import { VaultInvestOrder } from "ponder:schema";
 import type { Event } from "ponder:registry";
 import { Service, mixinCommonStatics } from "./Service";
 import { serviceLog } from "../helpers/logger";
+import { bigintMax } from "../helpers/bigintMath";
 
 /**
  * Service class for managing VaultInvestOrder entities.
@@ -23,8 +24,9 @@ export class VaultInvestOrderService extends mixinCommonStatics(
    */
   public depositRequest(requestedAssetsAmount: bigint) {
     serviceLog(`Adding requested assets amount ${requestedAssetsAmount} to vault invest order`);
-    this.data.requestedAssetsAmount =
-      (this.data.requestedAssetsAmount ?? 0n) + requestedAssetsAmount;
+    const previousRequestedAssetsAmount = this.data.requestedAssetsAmount ?? 0n;
+    const newRequestedAssetsAmount = previousRequestedAssetsAmount + requestedAssetsAmount;
+    this.data.requestedAssetsAmount = newRequestedAssetsAmount;
     return this;
   }
 
@@ -35,8 +37,9 @@ export class VaultInvestOrderService extends mixinCommonStatics(
    */
   public claimableDeposit(claimableAssetsAmount: bigint) {
     serviceLog(`Adding claimable assets amount ${claimableAssetsAmount} to vault invest order`);
-    this.data.claimableAssetsAmount =
-      (this.data.claimableAssetsAmount ?? 0n) + claimableAssetsAmount;
+    const previousClaimableAssetsAmount = this.data.claimableAssetsAmount ?? 0n;
+    const newClaimableAssetsAmount = previousClaimableAssetsAmount + claimableAssetsAmount;
+    this.data.claimableAssetsAmount = newClaimableAssetsAmount;
     return this;
   }
 
@@ -47,8 +50,12 @@ export class VaultInvestOrderService extends mixinCommonStatics(
    */
   public deposit(assetsAmount: bigint) {
     serviceLog(`Depositing assets amount ${assetsAmount} into vault invest order`);
-    this.data.requestedAssetsAmount = (this.data.requestedAssetsAmount ?? 0n) - assetsAmount;
-    this.data.claimableAssetsAmount = (this.data.claimableAssetsAmount ?? 0n) - assetsAmount;
+    const previousRequestedAssetsAmount = this.data.requestedAssetsAmount ?? 0n;
+    const newRequestedAssetsAmount = previousRequestedAssetsAmount - assetsAmount;
+    this.data.requestedAssetsAmount = bigintMax(newRequestedAssetsAmount, 0n);
+    const previousClaimableAssetsAmount = this.data.claimableAssetsAmount ?? 0n;
+    const newClaimableAssetsAmount = previousClaimableAssetsAmount - assetsAmount;
+    this.data.claimableAssetsAmount = bigintMax(newClaimableAssetsAmount, 0n);
     return this;
   }
 
