@@ -73,7 +73,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           author: "api-gitops[bot] <${{ secrets.DEPLOYMENT_APP_ID }}+api-gitops[bot]@users.noreply.github.com>"
           branch: deployment
-          delete-branch: false
+          delete-branch: true
           base: main
           commit-message: "chore(cd): update production env tags to ${{ steps.vars.outputs.image_tag }}"
           title: "chore(cd): update deployment env tags"
