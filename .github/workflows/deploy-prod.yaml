@@ -22,13 +22,13 @@ jobs:
     steps:
       - name: Create GitHub App token
         id: app-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2.2.1
         with:
           app-id: ${{ secrets.DEPLOYMENT_APP_ID }}
           private-key: ${{ secrets.DEPLOYMENT_APP_PRIVATE_KEY }}
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.2
         with:
           token: ${{ steps.app-token.outputs.token }}
 
@@ -39,28 +39,28 @@ jobs:
         run: echo "image_tag=sha-${HEAD_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Update mainnet indexer image tag
-        uses: mikefarah/yq@v4
+        uses: mikefarah/yq@v4.52.4
         env:
           IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
         with:
           cmd: yq -i '.indexer.image.tag = strenv(IMAGE_TAG)' environments/main.yaml
 
       - name: Update mainnet query image tag
-        uses: mikefarah/yq@v4
+        uses: mikefarah/yq@v4.52.4
         env:
           IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
         with:
           cmd: yq -i '.query.image.tag = strenv(IMAGE_TAG)' environments/main.yaml
 
       - name: Update testnet indexer image tag
-        uses: mikefarah/yq@v4
+        uses: mikefarah/yq@v4.52.4
         env:
           IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
         with:
           cmd: yq -i '.indexer.image.tag = strenv(IMAGE_TAG)' environments/test.yaml
 
       - name: Update testnet query image tag
-        uses: mikefarah/yq@v4
+        uses: mikefarah/yq@v4.52.4
         env:
           IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
         with:
@@ -68,7 +68,7 @@ jobs:
 
       - name: Open deployment PR
         id: cpr
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8.1.0
         with:
           token: ${{ steps.app-token.outputs.token }}
           author: "api-gitops[bot] <${{ secrets.DEPLOYMENT_APP_ID }}+api-gitops[bot]@users.noreply.github.com>"
