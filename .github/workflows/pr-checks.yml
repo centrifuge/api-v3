@@ -36,7 +36,7 @@ jobs:
         run: pnpm run format:check
 
       - name: Typecheck
-        run: pnpm run typecheck
+        run: pnpm run update-registry && pnpm run typecheck
 
   commitlint:
     name: Commit message lint
