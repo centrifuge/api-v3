@@ -886,9 +886,7 @@ function getRequestCallbackMessageType(callbackType: number): RequestCallbackMes
  * @param payloadBuffer - The buffer containing the request callback message payload
  * @returns An object with the decoded callback type and data, or null if decoding fails
  */
-function decodeRequestCallbackPayload(
-  payloadBuffer: Buffer
-): {
+function decodeRequestCallbackPayload(payloadBuffer: Buffer): {
   type: RequestCallbackMessageTypeKey;
   data: DecodedRequestCallbackMessageTypes[RequestCallbackMessageTypeKey];
 } | null {
@@ -953,9 +951,7 @@ function getUpdateRestrictionMessageType(restrictionType: number): UpdateRestric
  * @param payloadBuffer - The buffer containing the update restriction message payload
  * @returns An object with the decoded restriction type and data, or null if decoding fails
  */
-function decodeUpdateRestrictionPayload(
-  payloadBuffer: Buffer
-): {
+function decodeUpdateRestrictionPayload(payloadBuffer: Buffer): {
   type: UpdateRestrictionMessageTypeKey;
   data: DecodedUpdateRestrictionMessageTypes[UpdateRestrictionMessageTypeKey];
 } | null {
