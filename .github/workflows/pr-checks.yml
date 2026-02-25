@@ -8,8 +8,8 @@ permissions:
   contents: read
 
 jobs:
-  lint-and-typecheck:
-    name: Lint, format & typecheck
+  lint-and-format:
+    name: Lint & format
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
