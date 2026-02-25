@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.3](https://github.com/centrifuge/api-v3/compare/v3.0.2...v3.0.3) (2026-02-25)
+
+
+### Bug Fixes
+
+* saturate vaultInvestOrders and vaultRedeemOrders at zero ([#261](https://github.com/centrifuge/api-v3/issues/261)) ([74bafbf](https://github.com/centrifuge/api-v3/commit/74bafbf134e2b3edae2a0b5b5f162fdf8326f17b))
+
 ## [3.0.2](https://github.com/centrifuge/api-v3/compare/v3.0.1...v3.0.2) (2026-02-24)
 
 
