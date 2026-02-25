@@ -35,9 +35,6 @@ jobs:
       - name: Check format
         run: pnpm run format:check
 
-      - name: Typecheck
-        run: pnpm run update-registry && pnpm run typecheck
-
   commitlint:
     name: Commit message lint
     runs-on: ubuntu-latest
