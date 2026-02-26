@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.4](https://github.com/centrifuge/api-v3/compare/v3.0.3...v3.0.4) (2026-02-26)
+
+
+### Bug Fixes
+
+* security improvements ([#264](https://github.com/centrifuge/api-v3/issues/264)) ([995aa34](https://github.com/centrifuge/api-v3/commit/995aa344425a18b17f663bf86312c662f6656a1b))
+
 ## [3.0.3](https://github.com/centrifuge/api-v3/compare/v3.0.2...v3.0.3) (2026-02-25)
 
 
