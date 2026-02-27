@@ -83,9 +83,8 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
     const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0), versionIndex);
     const messagePayload = messageBuffer.subarray(1);
 
-    const messageId = getMessageId(fromCentrifugeId, toCentrifugeId.toString(), message);
-
     const messageHash = getMessageHash(message);
+    const messageId = getMessageId(fromCentrifugeId, toCentrifugeId.toString(), messageHash);
 
     const pendingMessage = await CrosschainMessageService.getFromAwaitingBatchDeliveryQueue(
       context,

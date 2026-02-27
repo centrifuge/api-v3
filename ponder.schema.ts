@@ -78,6 +78,7 @@ export const Pool = onchainTable("pool", PoolColumns, (t) => ({
   id: primaryKey({ columns: [t.id] }),
   isActiveIdx: index().on(t.isActive),
   centrifugeIdIdx: index().on(t.centrifugeId),
+  centrifugeIdIsActiveIdx: index().on(t.centrifugeId, t.isActive),
 }));
 
 export const PoolRelations = relations(Pool, ({ one, many }) => ({
@@ -149,6 +150,7 @@ export const Token = onchainTable("token", TokenColumns, (t) => ({
   id: primaryKey({ columns: [t.id] }),
   poolIdx: index().on(t.poolId),
   centrifugeIdIdx: index().on(t.centrifugeId),
+  centrifugeIdIsActiveIdx: index().on(t.centrifugeId, t.isActive),
 }));
 
 export const TokenRelations = relations(Token, ({ one, many }) => ({
@@ -339,6 +341,7 @@ export const OutstandingInvest = onchainTable(
   (t) => ({
     id: primaryKey({ columns: [t.tokenId, t.assetId, t.account] }),
     epochIndexIdx: index().on(t.epochIndex),
+    tokenIdAssetIdIdx: index().on(t.tokenId, t.assetId),
   })
 );
 
@@ -375,6 +378,7 @@ export const OutstandingRedeem = onchainTable(
   (t) => ({
     id: primaryKey({ columns: [t.tokenId, t.assetId, t.account] }),
     epochIndexIdx: index().on(t.epochIndex),
+    tokenIdAssetIdIdx: index().on(t.tokenId, t.assetId),
   })
 );
 
@@ -432,6 +436,11 @@ export const PendingInvestOrder = onchainTable(
   PendingInvestOrderColumns,
   (t) => ({
     id: primaryKey({ columns: [t.tokenId, t.assetId, t.account] }),
+    tokenIdAssetIdPendingAmountIdx: index().on(
+      t.tokenId,
+      t.assetId,
+      t.pendingAssetsAmount
+    ),
   })
 );
 
@@ -468,6 +477,7 @@ export const InvestOrder = onchainTable("invest_order", InvestOrderColumns, (t) 
   tokenIdx: index().on(t.tokenId),
   assetIdx: index().on(t.assetId),
   accountIdx: index().on(t.account),
+  tokenIdAssetIdIndexIdx: index().on(t.tokenId, t.assetId, t.index),
 }));
 
 export const InvestOrderRelations = relations(InvestOrder, ({ one }) => ({
@@ -526,6 +536,11 @@ export const PendingRedeemOrder = onchainTable(
   PendingRedeemOrderColumns,
   (t) => ({
     id: primaryKey({ columns: [t.tokenId, t.assetId, t.account] }),
+    tokenIdAssetIdPendingAmountIdx: index().on(
+      t.tokenId,
+      t.assetId,
+      t.pendingSharesAmount
+    ),
   })
 );
 
@@ -564,6 +579,7 @@ export const RedeemOrder = onchainTable("redeem_order", RedeemOrderColumns, (t) 
   tokenIdx: index().on(t.tokenId),
   assetIdx: index().on(t.assetId),
   accountIdx: index().on(t.account),
+  tokenIdAssetIdIndexIdx: index().on(t.tokenId, t.assetId, t.index),
 }));
 
 export const RedeemOrderRelations = relations(RedeemOrder, ({ one }) => ({
@@ -769,6 +785,7 @@ export const Asset = onchainTable("asset", AssetColumns, (t) => ({
   id: primaryKey({ columns: [t.id] }),
   centrifugeIdIdx: index().on(t.centrifugeId),
   addressIdx: index().on(t.address),
+  centrifugeIdAddressIdx: index().on(t.centrifugeId, t.address),
 }));
 export const AssetRelations = relations(Asset, ({ one, many }) => ({
   blockchain: one(Blockchain, {
@@ -793,6 +810,8 @@ export const TokenInstanceColumns = (t: PgColumnsBuilders) => ({
 export const TokenInstance = onchainTable("token_instance", TokenInstanceColumns, (t) => ({
   id: primaryKey({ columns: [t.centrifugeId, t.tokenId] }),
   addressIdx: index().on(t.address),
+  addressCentrifugeIdIdx: index().on(t.address, t.centrifugeId),
+  centrifugeIdIsActiveIdx: index().on(t.centrifugeId, t.isActive),
 }));
 export const TokenInstanceRelations = relations(TokenInstance, ({ one, many }) => ({
   blockchain: one(Blockchain, {
@@ -908,6 +927,8 @@ export const HoldingEscrow = onchainTable("holding_escrow", HoldingEscrowColumns
   poolIdx: index().on(t.poolId),
   tokenIdx: index().on(t.tokenId),
   assetIdx: index().on(t.assetId),
+  centrifugeIdIdx: index().on(t.centrifugeId),
+  tokenIdAssetAmountIdx: index().on(t.tokenId, t.assetAmount),
 }));
 export const HoldingEscrowRelations = relations(HoldingEscrow, ({ one }) => ({
   blockchain: one(Blockchain, {
@@ -1103,9 +1124,11 @@ export const CrosschainPayload = onchainTable(
     id: primaryKey({ columns: [t.id, t.index] }),
     idIdx: index().on(t.id),
     indexIdx: index().on(t.index),
-    poolIdx: index().on(t.id),
+    poolIdIdx: index().on(t.poolId),
     fromCentrifugeIdIdx: index().on(t.fromCentrifugeId),
     toCentrifugeIdIdx: index().on(t.toCentrifugeId),
+    statusIdx: index().on(t.status),
+    idIndexIdx: index().on(t.id, t.index),
   })
 );
 
@@ -1168,6 +1191,9 @@ export const CrosschainMessage = onchainTable(
     indexIdx: index().on(t.index),
     payloadIdx: index().on(t.payloadId),
     poolIdx: index().on(t.poolId),
+    statusIdx: index().on(t.status),
+    payloadIdPayloadIndexIdx: index().on(t.payloadId, t.payloadIndex),
+    idIndexIdx: index().on(t.id, t.index),
   })
 );
 
@@ -1267,6 +1293,7 @@ export const AdapterParticipation = onchainTable(
     }),
     payloadIdIdx: index().on(t.payloadId),
     payloadIndexIdx: index().on(t.payloadIndex),
+    payloadIdPayloadIndexIdx: index().on(t.payloadId, t.payloadIndex),
     adapterIdIdx: index().on(t.adapterId),
     centrifugeIdIdx: index().on(t.centrifugeId),
     fromCentrifugeIdIdx: index().on(t.fromCentrifugeId),

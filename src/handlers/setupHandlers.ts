@@ -1,5 +1,4 @@
-import { RegistryChains, type RegistryVersions, type Registry } from "../chains";
-import registries from "../../generated";
+import { RegistryChains, chainContracts } from "../chains";
 import { AdapterService, DeploymentService, WhitelistedInvestorService } from "../services";
 import { V2_POOLS, V2_MIGRATION_BLOCK, V2_MIGRATION_TIMESTAMP } from "../config";
 import { serviceLog } from "../helpers/logger";
@@ -10,11 +9,13 @@ multiMapper("multiAdapter:setup", async ({ context }) => {
   const chainId = context.chain.id;
   const currentChain = RegistryChains.find((chain) => chain.network.chainId === chainId);
   if (!currentChain) throw new Error(`Chain ${chainId} not found in registry`);
+  const contracts = chainContracts(chainId);
+  console.log(`contracts for chainId ${chainId}:`, contracts);
   const centrifugeId = currentChain.network.centrifugeId;
   const adapters = Object.fromEntries(
-    Object.entries(currentChain.contracts)
+    Object.entries(contracts)
       .filter(([key]) => key.endsWith("Adapter") && key !== "multiAdapter")
-      .map(([key, value]) => [key.replace("Adapter", ""), value.address.toLowerCase()])
+      .map(([key, address]) => [key.replace("Adapter", ""), address.toLowerCase()])
   );
   for (const [adapterName, adapterAddress] of Object.entries(adapters)) {
     serviceLog(
@@ -24,7 +25,7 @@ multiMapper("multiAdapter:setup", async ({ context }) => {
       context,
       {
         name: adapterName,
-        address: adapterAddress,
+        address: adapterAddress as `0x${string}`,
         centrifugeId: centrifugeId.toString(),
         createdAt: new Date(currentChain.deployment.deployedAt * 1000),
         createdAtBlock: currentChain.deployment.startBlock,
@@ -44,26 +45,7 @@ multiMapper("hubRegistry:setup", async ({ context }) => {
   const currentChain = RegistryChains.find((chain) => chain.network.chainId === chainId);
   if (!currentChain) throw new Error(`Chain ${chainId} not found in registry`);
 
-  // Collect contracts from all registry versions, keeping the latest version for each contract name
-  const versions = Object.keys(registries) as RegistryVersions[];
-  const contractsMap = new Map<string, `0x${string}`>();
-
-  // Iterate through all versions (later versions will overwrite earlier ones for same contract names)
-  for (const version of versions) {
-    const registry = registries[version] as Registry<RegistryVersions>;
-    const chain = registry.chains[chainId.toString() as keyof typeof registry.chains];
-    if (chain && chain.contracts) {
-      const contractKeys = Object.keys(chain.contracts) as Array<keyof typeof chain.contracts>;
-      for (const contractName of contractKeys) {
-        const contract = chain.contracts[contractName];
-        if (contract && "address" in contract) {
-          contractsMap.set(contractName as string, contract.address as `0x${string}`);
-        }
-      }
-    }
-  }
-
-  const contracts = Object.fromEntries(contractsMap);
+  const contracts = chainContracts(chainId);
   const _deployment = await DeploymentService.upsert(
     context,
     {

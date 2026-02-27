@@ -221,6 +221,33 @@ export function getContractNames(): string[] {
   return Array.from(contractNamesSet);
 }
 
+/**
+ * Gets all contract addresses for a chain across all registry versions.
+ * Later versions override earlier ones for the same contract name.
+ * @param chainId - The chain ID (number or string).
+ * @returns Record of contract name to address for the chain.
+ */
+export function chainContracts(chainId: number | string): Record<string, `0x${string}`> {
+  const versions = Object.keys(registries) as RegistryVersions[];
+  const contractsMap = new Map<string, `0x${string}`>();
+
+  for (const version of versions) {
+    const registry = registries[version] as Registry<RegistryVersions>;
+    const chain = registry.chains[chainId.toString() as keyof typeof registry.chains];
+    if (chain?.contracts) {
+      const contractKeys = Object.keys(chain.contracts) as Array<keyof typeof chain.contracts>;
+      for (const contractName of contractKeys) {
+        const contract = chain.contracts[contractName];
+        if (contract && "address" in contract) {
+          contractsMap.set(contractName as string, contract.address.toLowerCase() as `0x${string}`);
+        }
+      }
+    }
+  }
+
+  return Object.fromEntries(contractsMap);
+}
+
 // Explorer URLs definitions
 export const explorerUrls = {
   "84532": "https://sepolia.basescan.org",
