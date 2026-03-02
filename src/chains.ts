@@ -225,13 +225,22 @@ export function getContractNames(): string[] {
  * Gets all contract addresses for a chain across all registry versions.
  * Later versions override earlier ones for the same contract name.
  * @param chainId - The chain ID (number or string).
+ * @param versionIndex - Optional. If given, only contracts for the registry at this index are returned (no overrides).
  * @returns Record of contract name to address for the chain.
  */
-export function chainContracts(chainId: number | string): Record<string, `0x${string}`> {
+export function chainContracts(
+  chainId: number | string,
+  versionIndex?: number
+): Record<string, `0x${string}`> {
   const versions = Object.keys(registries) as RegistryVersions[];
   const contractsMap = new Map<string, `0x${string}`>();
 
-  for (const version of versions) {
+  const versionsToUse =
+    versionIndex !== undefined
+      ? ([versions[versionIndex]].filter((v): v is RegistryVersions => v != null) as RegistryVersions[])
+      : versions;
+
+  for (const version of versionsToUse) {
     const registry = registries[version] as Registry<RegistryVersions>;
     const chain = registry.chains[chainId.toString() as keyof typeof registry.chains];
     if (chain?.contracts) {
