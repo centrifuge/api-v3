@@ -237,7 +237,9 @@ export function chainContracts(
 
   const versionsToUse =
     versionIndex !== undefined
-      ? ([versions[versionIndex]].filter((v): v is RegistryVersions => v != null) as RegistryVersions[])
+      ? ([versions[versionIndex]].filter(
+          (v): v is RegistryVersions => v != null
+        ) as RegistryVersions[])
       : versions;
 
   for (const version of versionsToUse) {
