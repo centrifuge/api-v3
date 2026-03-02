@@ -7,11 +7,11 @@ global:
 indexer:
   enabled: true
   image:
-    tag: sha-995aa34
+    tag: sha-b399830
 query:
   enabled: true
   image:
-    tag: sha-995aa34
+    tag: sha-b399830
   replicaCount: 2
   ingress:
     enabled: true
