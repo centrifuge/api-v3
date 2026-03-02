@@ -282,21 +282,21 @@ const CrosschainMessageType = [
     NotifyPricePoolPerAsset: 65,
     NotifyShareMetadata: 185,
     UpdateShareHook: 57,
-    InitiateTransferShares: 91,
-    ExecuteTransferShares: 73,
-    UpdateRestriction: dynamicLengthDecoder(25),
-    UpdateVault: 74,
+    InitiateTransferShares: 107,
+    ExecuteTransferShares: 89,
+    UpdateRestriction: dynamicLengthDecoder(41),
+    UpdateVault: 90,
     UpdateBalanceSheetManager: 42,
     UpdateGatewayManager: 42,
-    UpdateHoldingAmount: 91,
-    UpdateShares: 59,
+    UpdateHoldingAmount: 107,
+    UpdateShares: 75,
     SetMaxAssetPriceAge: 49,
     SetMaxSharePriceAge: 33,
-    Request: dynamicLengthDecoder(41),
-    RequestCallback: dynamicLengthDecoder(41),
-    SetRequestManager: 73,
-    TrustedContractUpdate: dynamicLengthDecoder(57),
-    UntrustedContractUpdate: dynamicLengthDecoder(89),
+    Request: dynamicLengthDecoder(57),
+    RequestCallback: dynamicLengthDecoder(57),
+    SetRequestManager: 41,
+    TrustedContractUpdate: dynamicLengthDecoder(73),
+    UntrustedContractUpdate: dynamicLengthDecoder(105),
   } as const,
 ] as const;
 
@@ -573,6 +573,7 @@ const messageDecoders = [
       { name: "centrifugeId", decoder: "uint16" },
       { name: "receiver", decoder: "bytes32" },
       { name: "amount", decoder: "uint128" },
+      { name: "remoteExtraGasLimit", decoder: "uint128" },
       { name: "extraGasLimit", decoder: "uint128" },
     ],
     ExecuteTransferShares: [
@@ -580,10 +581,12 @@ const messageDecoders = [
       { name: "scId", decoder: "bytes16" },
       { name: "receiver", decoder: "bytes32" },
       { name: "amount", decoder: "uint128" },
+      { name: "extraGasLimit", decoder: "uint128" },
     ],
     UpdateRestriction: [
       { name: "poolId", decoder: "uint64" },
       { name: "scId", decoder: "bytes16" },
+      { name: "extraGasLimit", decoder: "uint128" },
       { name: "payload", decoder: "bytes" }, // Dynamic length
     ],
     UpdateVault: [
@@ -592,6 +595,7 @@ const messageDecoders = [
       { name: "assetId", decoder: "uint128" },
       { name: "vaultOrFactory", decoder: "bytes32" },
       { name: "kind", decoder: "uint8" },
+      { name: "extraGasLimit", decoder: "uint128" },
     ],
     UpdateBalanceSheetManager: [
       { name: "poolId", decoder: "uint64" },
@@ -613,6 +617,7 @@ const messageDecoders = [
       { name: "isIncrease", decoder: "bool" },
       { name: "isSnapshot", decoder: "bool" },
       { name: "nonce", decoder: "uint64" },
+      { name: "extraGasLimit", decoder: "uint128" },
     ],
     UpdateShares: [
       { name: "poolId", decoder: "uint64" },
@@ -622,6 +627,7 @@ const messageDecoders = [
       { name: "isIssuance", decoder: "bool" },
       { name: "isSnapshot", decoder: "bool" },
       { name: "nonce", decoder: "uint64" },
+      { name: "extraGasLimit", decoder: "uint128" },
     ],
     SetMaxAssetPriceAge: [
       { name: "poolId", decoder: "uint64" },
@@ -638,12 +644,14 @@ const messageDecoders = [
       { name: "poolId", decoder: "uint64" },
       { name: "scId", decoder: "bytes16" },
       { name: "assetId", decoder: "uint128" },
+      { name: "extraGasLimit", decoder: "uint128" },
       { name: "payload", decoder: "bytes" }, // Dynamic length
     ],
     RequestCallback: [
       { name: "poolId", decoder: "uint64" },
       { name: "scId", decoder: "bytes16" },
       { name: "assetId", decoder: "uint128" },
+      { name: "extraGasLimit", decoder: "uint128" },
       { name: "payload", decoder: "bytes" }, // Dynamic length
     ],
     SetRequestManager: [
@@ -654,6 +662,7 @@ const messageDecoders = [
       { name: "poolId", decoder: "uint64" },
       { name: "scId", decoder: "bytes16" },
       { name: "target", decoder: "bytes32" },
+      { name: "extraGasLimit", decoder: "uint128" },
       { name: "payload", decoder: "bytes" }, // Dynamic length
     ],
     UntrustedContractUpdate: [
@@ -661,6 +670,7 @@ const messageDecoders = [
       { name: "scId", decoder: "bytes16" },
       { name: "target", decoder: "bytes32" },
       { name: "sender", decoder: "bytes32" },
+      { name: "extraGasLimit", decoder: "uint128" },
       { name: "payload", decoder: "bytes" }, // Dynamic length
     ],
   } as const,

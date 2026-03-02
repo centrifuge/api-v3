@@ -30,6 +30,7 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
     context.chain.id,
     event.log.address
   );
+
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const messages = extractMessagesFromPayload(payloadData, versionIndex);
@@ -77,7 +78,7 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
     {
       payloadId,
       payloadIndex,
-      adapterId: adapter,
+      adapterId: (adapter as string).toLowerCase(),
       centrifugeId: fromCentrifugeId,
       fromCentrifugeId: fromCentrifugeId,
       toCentrifugeId: toCentrifugeId.toString(),
@@ -113,7 +114,7 @@ multiMapper("multiAdapter:SendProof", async ({ event, context }) => {
     {
       payloadId,
       payloadIndex,
-      adapterId: adapter,
+      adapterId: (adapter as string).toLowerCase(),
       centrifugeId: fromCentrifugeId,
       fromCentrifugeId: fromCentrifugeId.toString(),
       toCentrifugeId: toCentrifugeId.toString(),
@@ -144,12 +145,10 @@ multiMapper("multiAdapter:HandlePayload", async ({ event, context }) => {
     context,
     payloadId
   )) as CrosschainPayloadService | null;
-  if (!payload) {
-    serviceError(
+  if (!payload)
+    return serviceError(
       `CrosschainPayload not found in InTransit or Delivered queue. Cannot handle payload`
     );
-    return;
-  }
 
   const { index: payloadIndex } = payload.read();
   const _adapterParticipation = (await AdapterParticipationService.insert(
@@ -157,7 +156,7 @@ multiMapper("multiAdapter:HandlePayload", async ({ event, context }) => {
     {
       payloadId,
       payloadIndex,
-      adapterId: adapter,
+      adapterId: (adapter as string).toLowerCase(),
       centrifugeId: toCentrifugeId.toString(),
       fromCentrifugeId: fromCentrifugeId.toString(),
       toCentrifugeId: toCentrifugeId.toString(),
@@ -211,7 +210,7 @@ multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
     {
       payloadId,
       payloadIndex,
-      adapterId: adapter,
+      adapterId: (adapter as string).toLowerCase(),
       centrifugeId: toCentrifugeId.toString(),
       fromCentrifugeId: fromCentrifugeId.toString(),
       toCentrifugeId: toCentrifugeId.toString(),
