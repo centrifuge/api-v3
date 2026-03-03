@@ -436,11 +436,7 @@ export const PendingInvestOrder = onchainTable(
   PendingInvestOrderColumns,
   (t) => ({
     id: primaryKey({ columns: [t.tokenId, t.assetId, t.account] }),
-    tokenIdAssetIdPendingAmountIdx: index().on(
-      t.tokenId,
-      t.assetId,
-      t.pendingAssetsAmount
-    ),
+    tokenIdAssetIdPendingAmountIdx: index().on(t.tokenId, t.assetId, t.pendingAssetsAmount),
   })
 );
 
@@ -536,11 +532,7 @@ export const PendingRedeemOrder = onchainTable(
   PendingRedeemOrderColumns,
   (t) => ({
     id: primaryKey({ columns: [t.tokenId, t.assetId, t.account] }),
-    tokenIdAssetIdPendingAmountIdx: index().on(
-      t.tokenId,
-      t.assetId,
-      t.pendingSharesAmount
-    ),
+    tokenIdAssetIdPendingAmountIdx: index().on(t.tokenId, t.assetId, t.pendingSharesAmount),
   })
 );
 
@@ -1111,6 +1103,8 @@ const CrosschainPayloadColumns = (t: PgColumnsBuilders) => ({
   rawData: t.hex().notNull(),
   poolId: t.bigint(),
   status: CrosschainPayloadStatus("crosschain_payload_status").notNull(),
+  gasLimit: t.bigint(),
+  gasPaid: t.bigint(),
   ...timestamperFields(t, "delivered"),
   ...timestamperFields(t, "completed"),
   ...timestamperFields(t, "prepared", true),

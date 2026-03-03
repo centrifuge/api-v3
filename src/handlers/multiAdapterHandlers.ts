@@ -25,6 +25,9 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
     // refund,
   } = event.args;
 
+  const gasLimit = "gasLimit" in event.args ? event.args.gasLimit : null;
+  const gasPaid = "gasPaid" in event.args ? event.args.gasPaid : null;
+
   const versionIndex = getVersionIndexForContract(
     "multiAdapter",
     context.chain.id,
@@ -66,6 +69,8 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
         toCentrifugeId: toCentrifugeId.toString(),
         fromCentrifugeId: fromCentrifugeId,
         poolId,
+        gasLimit,
+        gasPaid,
         ...timestamper("prepared", event),
       },
       event
