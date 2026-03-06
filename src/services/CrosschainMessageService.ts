@@ -139,9 +139,10 @@ export class CrosschainMessageService extends mixinCommonStatics(
     messageIds: `0x${string}`[],
     payloadId: `0x${string}`,
     payloadIndex: number
-  ) {
+  ): Promise<[poolId: bigint | null, tokenId: `0x${string}` | null]> {
     const crosschainMessageSaves = [];
     const poolIdSet = new Set<bigint>();
+    const tokenIdSet = new Set<`0x${string}`>();
     for (const messageId of messageIds) {
       const crosschainMessages = (await CrosschainMessageService.query(context, {
         id: messageId,
@@ -154,15 +155,17 @@ export class CrosschainMessageService extends mixinCommonStatics(
         continue;
       }
       const crosschainMessage = crosschainMessages.shift()!;
-      const { poolId } = crosschainMessage.read();
+      const { poolId, tokenId } = crosschainMessage.read();
       crosschainMessage.setPayloadId(payloadId, payloadIndex);
       crosschainMessageSaves.push(crosschainMessage.save(event));
       if (poolId) poolIdSet.add(poolId);
+      if (tokenId) tokenIdSet.add(tokenId);
     }
     await Promise.all(crosschainMessageSaves);
     const poolIds = Array.from(poolIdSet);
+    const tokenIds = Array.from(tokenIdSet);
     if (poolIds.length > 1) throw new Error("Multiple pools found among messages");
-    return poolIds.pop() ?? null;
+    return [poolIds.pop() ?? null, tokenIds.pop() ?? null];
   }
 
   /**

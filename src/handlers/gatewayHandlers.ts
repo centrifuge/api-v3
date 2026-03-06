@@ -36,6 +36,7 @@ multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
 
   const rawData = `0x${Buffer.from(messageBuffer.toString("hex"))}` as `0x${string}`;
   const data = decodeMessage(messageType, messagePayload, versionIndex);
+  const tokenId = data && "scId" in data ? (data.scId! as `0x${string}`) : null;
 
   const _crosschainMessage = (await CrosschainMessageService.insert(
     context,
@@ -43,6 +44,7 @@ multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
       id: messageId,
       index: messageCount,
       poolId: poolId || null,
+      tokenId,
       fromCentrifugeId,
       toCentrifugeId: toCentrifugeId.toString(),
       messageType: messageType,
@@ -77,6 +79,7 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
   });
 
   const poolIdSet = new Set<bigint>();
+  const tokenIdSet = new Set<`0x${string}`>();
   const messages = extractMessagesFromPayload(batch, versionIndex);
   for (const message of messages) {
     const messageBuffer = Buffer.from(message.substring(2), "hex");
@@ -116,12 +119,16 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
     const poolId = "poolId" in data ? BigInt(data.poolId!) : null;
     if (poolId) poolIdSet.add(poolId);
 
+    const tokenId = "scId" in data ? (data.scId as `0x${string}`) : null;
+    if (tokenId) tokenIdSet.add(tokenId);
+
     const _crosschainMessage = (await CrosschainMessageService.insert(
       context,
       {
         id: messageId,
         index: messageIndex,
         poolId,
+        tokenId,
         fromCentrifugeId,
         toCentrifugeId: toCentrifugeId.toString(),
         messageType: messageType,
@@ -142,6 +149,7 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
     return;
   }
   const poolId = Array.from(poolIdSet).pop() ?? null;
+  const tokenId = Array.from(tokenIdSet).pop() ?? null;
 
   const crosschainPayload = (await CrosschainPayloadService.insert(
     context,
@@ -149,6 +157,7 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
       id: payloadId,
       index: payloadIndex,
       poolId,
+      tokenId,
       rawData: batch,
       toCentrifugeId: toCentrifugeId.toString(),
       fromCentrifugeId: fromCentrifugeId,

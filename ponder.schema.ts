@@ -1102,6 +1102,7 @@ const CrosschainPayloadColumns = (t: PgColumnsBuilders) => ({
   toCentrifugeId: t.text().notNull(),
   rawData: t.hex().notNull(),
   poolId: t.bigint(),
+  tokenId: t.hex(),
   status: CrosschainPayloadStatus("crosschain_payload_status").notNull(),
   gasLimit: t.bigint(),
   gasPaid: t.bigint(),
@@ -1142,6 +1143,10 @@ export const CrosschainPayloadRelations = relations(CrosschainPayload, ({ one, m
     fields: [CrosschainPayload.poolId],
     references: [Pool.id],
   }),
+  token: one(Token, {
+    fields: [CrosschainPayload.tokenId],
+    references: [Token.id],
+  }),
   adapterParticipations: many(AdapterParticipation, {
     relationName: "adapterParticipations",
   }),
@@ -1162,6 +1167,7 @@ const CrosschainMessageColumns = (t: PgColumnsBuilders) => ({
   id: t.hex().notNull(),
   index: t.integer().notNull().default(0),
   poolId: t.bigint(),
+  tokenId: t.hex(),
   payloadId: t.hex(),
   payloadIndex: t.integer(),
   messageType: t.text().notNull(),
@@ -1199,6 +1205,10 @@ export const CrosschainMessageRelations = relations(CrosschainMessage, ({ one })
   pool: one(Pool, {
     fields: [CrosschainMessage.poolId],
     references: [Pool.id],
+  }),
+  token: one(Token, {
+    fields: [CrosschainMessage.tokenId],
+    references: [Token.id],
   }),
   fromBlockchain: one(Blockchain, {
     fields: [CrosschainMessage.fromCentrifugeId],
