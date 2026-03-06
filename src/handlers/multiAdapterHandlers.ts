@@ -52,7 +52,7 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
     const payloadIndex = await CrosschainPayloadService.count(context, {
       id: payloadId,
     });
-    const poolId = await CrosschainMessageService.linkMessagesToPayload(
+    const [poolId, tokenId] = await CrosschainMessageService.linkMessagesToPayload(
       context,
       event,
       messageIds,
@@ -69,6 +69,7 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
         toCentrifugeId: toCentrifugeId.toString(),
         fromCentrifugeId: fromCentrifugeId,
         poolId,
+        tokenId,
         gasLimit,
         gasPaid,
         ...timestamper("prepared", event),
