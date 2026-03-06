@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.1.0](https://github.com/centrifuge/api-v3/compare/v3.0.3...v3.1.0) (2026-03-06)
+
+
+### Features
+
+* add tokenId and token to crosschainPayloads ([#275](https://github.com/centrifuge/api-v3/issues/275)) ([5a52c22](https://github.com/centrifuge/api-v3/commit/5a52c2255dcc704f03776774ecab1b29a0f9166b)), closes [#274](https://github.com/centrifuge/api-v3/issues/274)
+
+
+### Bug Fixes
+
+* 267 missing adapter participations indexer side ([#268](https://github.com/centrifuge/api-v3/issues/268)) ([b399830](https://github.com/centrifuge/api-v3/commit/b39983087f5e95b97bf200cc65e83f3d70c609a9))
+* add gasLimit and gasPaid ([#270](https://github.com/centrifuge/api-v3/issues/270)) ([136c3d5](https://github.com/centrifuge/api-v3/commit/136c3d53d2bb8f4eb2052e6ee6766e79badd2e29)), closes [#157](https://github.com/centrifuge/api-v3/issues/157)
+* security improvements ([#264](https://github.com/centrifuge/api-v3/issues/264)) ([995aa34](https://github.com/centrifuge/api-v3/commit/995aa344425a18b17f663bf86312c662f6656a1b))
+
 ## [3.0.3](https://github.com/centrifuge/api-v3/compare/v3.0.2...v3.0.3) (2026-02-25)
 
 
