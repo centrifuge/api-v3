@@ -1143,6 +1143,10 @@ export const CrosschainPayloadRelations = relations(CrosschainPayload, ({ one, m
     fields: [CrosschainPayload.poolId],
     references: [Pool.id],
   }),
+  token: one(Token, {
+    fields: [CrosschainPayload.tokenId],
+    references: [Token.id],
+  }),
   adapterParticipations: many(AdapterParticipation, {
     relationName: "adapterParticipations",
   }),
@@ -1201,6 +1205,10 @@ export const CrosschainMessageRelations = relations(CrosschainMessage, ({ one })
   pool: one(Pool, {
     fields: [CrosschainMessage.poolId],
     references: [Pool.id],
+  }),
+  token: one(Token, {
+    fields: [CrosschainMessage.tokenId],
+    references: [Token.id],
   }),
   fromBlockchain: one(Blockchain, {
     fields: [CrosschainMessage.fromCentrifugeId],
