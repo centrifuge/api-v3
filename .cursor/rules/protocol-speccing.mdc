@@ -1,0 +1,49 @@
+---
+description: Guidelines for speccing on-chain protocol indexing tasks.
+globs: issues/*.md
+alwaysApply: false
+---
+
+# Protocol Speccing Guidelines
+
+When creating issue specifications for the `cfg-api-v3` indexer to track updates from `cfg-protocol-v3`, follow these strict guidelines to ensure accuracy and consistency. The events might be local to a single domain or span across Hub and Spoke.
+
+## 1. Issue Structure
+
+- **No Solution Design**: Do not provide indexer solution design or architectural details in the issue unless specifically requested. Stick purely to on-chain specifications.
+- **Clear Headings**: Use predictable sections like `## Description`, `## On-Chain Specifications`, `## Data Type Notes`, and `## Indexer Requirements`.
+
+## 2. On-Chain Flow
+
+Break the event flow down according to the required domains (Hub, Spoke, or both).
+
+### For Cross-Chain Flows (e.g., Hub to Spoke, or Spoke to Hub)
+
+Define the process across the two domains:
+
+- **Initiating Domain**: Identify the Contract (e.g., `Hub.sol` or `Spoke.sol`), Function, and the initiating Event (e.g., `UpdateContract`). If it uses a payload, detail the `abi.decode` shape and `enum` values.
+- **Finalizing Domain**: Identify the finalizing Contract (e.g., `Spoke.sol`, `Hub.sol`, or manager contracts), Function (e.g., `trustedCall` or message handler), and the emitted Event upon completion.
+
+### For Single-Chain Flows
+
+Define the process within its specific domain:
+
+- **Domain (Hub or Spoke)**: Identify the Contract.
+- Identify the **Function** executing the state change.
+- Identify the **Event Emitted**.
+- Describe the chronological order if multiple events are triggered sequentially.
+
+## 3. Data Type Notes
+
+Explicitly highlight internal data types, and specific mapping operations. If spanning domains, highlight the differences:
+
+- **Assets**: The protocol often uses `AssetId` (a custom type mapped to `uint128`). This may need to be resolved to `address asset` and `uint256 tokenId`.
+- **Addresses**: Be aware of encoding addresses as `bytes32` (common in cross-chain payloads) which are later resolved to standard `address` types.
+
+## 4. Indexer Requirements
+
+Limit the indexer instructions to strictly what needs to be listened to and linked:
+
+- State exactly which events need to be indexed.
+- Instruct the indexer to correlate the lifecycle of the update (especially if initiating on the Hub and finalizing on the Spoke).
+- Mention any necessary payload decoding.
