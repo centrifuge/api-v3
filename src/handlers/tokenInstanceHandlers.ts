@@ -8,6 +8,7 @@ import {
   AccountService,
   TokenService,
   InvestorTransactionService,
+  EscrowService,
 } from "../services";
 import { initialisePosition } from "../services";
 
@@ -30,6 +31,10 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
   }
   const { tokenId } = tokenInstance.read();
 
+  const token = (await TokenService.get(context, { id: tokenId })) as TokenService | null;
+  if (!token) return serviceError(`Token not found. Cannot retrieve poolId`);
+  const { poolId } = token.read();
+
   const [isFromNull, isToNull] = [BigInt(from) === 0n, BigInt(to) === 0n];
 
   const deployment = (await DeploymentService.get(context, {
@@ -40,7 +45,6 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
     return;
   }
 
-  // TODO: Implement filtering based on poolEscrows for V3.1
   const { globalEscrow } = deployment.read();
   if (!globalEscrow) {
     serviceLog(`Global escrow not found. Fall back to tracking all transfers.`);
@@ -51,9 +55,16 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
     !!globalEscrow && BigInt(to) === BigInt(globalEscrow.toLowerCase()),
   ];
 
+  const poolEscrowsQuery = await EscrowService.query(context, { centrifugeId, poolId });
+  const poolEscrows = poolEscrowsQuery.map((escrow) => BigInt(escrow.read().address));
+  const [isFromPoolEscrow, isToPoolEscrow] = [
+    poolEscrows.includes(BigInt(from)),
+    poolEscrows.includes(BigInt(to)),
+  ];
+
   const [isFromUserAccount, isToUserAccount] = [
-    !isFromNull && !isFromGlobalEscrow,
-    !isToNull && !isToGlobalEscrow,
+    !isFromNull && !isFromGlobalEscrow && !isFromPoolEscrow,
+    !isToNull && !isToGlobalEscrow && !isToPoolEscrow,
   ];
 
   if (isFromUserAccount) {
@@ -98,14 +109,6 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
     }
     if (createdAtBlock < Number(event.block.number)) toPosition.addBalance(amount);
     await toPosition.save(event);
-  }
-
-  const token = (await TokenService.get(context, {
-    id: tokenId,
-  })) as TokenService | null;
-  if (!token) {
-    serviceError(`Token not found. Cannot update total issuance`);
-    return;
   }
 
   // Handle tokenInstance and token total issuance change
