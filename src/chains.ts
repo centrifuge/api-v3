@@ -88,53 +88,70 @@ export const endpoints = {
   84532: [
     `https://base-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.base-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/base/${process.env.DRPC_API_KEY}`,
   ],
   421614: [
     `https://arb-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.arbitrum-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/arbitrum-sepolia/${process.env.DRPC_API_KEY}`,
   ],
   11155111: [
     `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.ethereum-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/sepolia/${process.env.DRPC_API_KEY}`,
   ],
   42161: [
     `https://arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.arbitrum-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/arbitrum/${process.env.DRPC_API_KEY}`,
   ],
   43114: [
     `https://avax-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.avalanche-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/ext/bc/C/rpc/`,
+    `https://lb.drpc.live/avalanche/${process.env.DRPC_API_KEY}`,
   ],
   8453: [
     `https://base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.base-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/base/${process.env.DRPC_API_KEY}`,
   ],
   1: [
     `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/ethereum/${process.env.DRPC_API_KEY}`,
   ],
-  98866: [`https://rpc.plume.org/${process.env.CONDUIT_API_KEY}`],
+  98866: [
+    `https://rpc.plume.org/${process.env.CONDUIT_API_KEY}`,
+    `https://lb.drpc.live/plume/${process.env.DRPC_API_KEY}`,
+  ],
   56: [
     `https://bnb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.bsc.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/bsc/${process.env.DRPC_API_KEY}`,
   ],
   998: [
     `https://hyperliquid-testnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-    `https://${process.env.QUICKNODE_API_NAME}.hype-testnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/nanoreth`,
+    `https://${process.env.QUICKNODE_API_NAME}.hype-testnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/evm`,
+    `https://lb.drpc.live/hyperliquid-testnet/${process.env.DRPC_API_KEY}`,
   ],
   10: [
     `https://opt-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.optimism.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/optimism/${process.env.DRPC_API_KEY}`,
   ],
   143: [
     `https://monad-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.monad-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/monad-mainnet/${process.env.DRPC_API_KEY}`,
   ],
   999: [
     `https://hyperliquid-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-    `https://${process.env.QUICKNODE_API_NAME}.hype-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/nanoreth`,
+    `https://${process.env.QUICKNODE_API_NAME}.hype-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/evm`,
+    `https://lb.drpc.live/hyperliquid/${process.env.DRPC_API_KEY}`,
   ],
 };
+
+const getLogsBlockRange = {};
 
 // Package loadedChains into a ChainConfig object for ponder to consume
 const chains = Object.fromEntries(
@@ -145,7 +162,9 @@ const chains = Object.fromEntries(
     const rpc = envRpc
       ? envRpc.split(",").map((r) => r.trim())
       : endpoints[chainId as keyof typeof endpoints];
-    return [networkName, { id: chain.network.chainId, rpc }] as [
+    const ethGetLogsBlockRange =
+      getLogsBlockRange[chainId.toString() as keyof typeof getLogsBlockRange];
+    return [networkName, { id: chain.network.chainId, rpc, ethGetLogsBlockRange }] as [
       NetworkNames<RegistryVersions>,
       ChainConfig,
     ];
@@ -176,6 +195,7 @@ export const skipBlocks = {
   "10": 1800,
   "143": 9000,
   "999": 18000,
+  "998": 18000,
 };
 
 const blocks = Object.fromEntries(
