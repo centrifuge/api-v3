@@ -110,17 +110,17 @@ multiMapper("balanceSheet:UpdateManager", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const { who: manager, poolId, canManage } = event.args;
+  const { who: _manager, poolId, canManage } = event.args;
 
-  const account = (await AccountService.getOrInit(
+  const managerAddress = _manager.toLowerCase().substring(0, 42) as `0x${string}`;
+
+  const _account = (await AccountService.getOrInit(
     context,
     {
-      address: manager,
+      address: managerAddress,
     },
     event
   )) as AccountService;
-
-  const { address: managerAddress } = account.read();
 
   const poolManager = (await PoolManagerService.getOrInit(
     context,
@@ -129,8 +129,10 @@ multiMapper("balanceSheet:UpdateManager", async ({ event, context }) => {
       centrifugeId,
       poolId,
     },
-    event
+    event,
+    undefined,
+    true
   )) as PoolManagerService;
-  poolManager.setIsBalancesheetManager(canManage);
-  await poolManager.save(event);
+
+  await poolManager.setCrosschainInProgress().setIsBalancesheetManager(canManage).save(event);
 });

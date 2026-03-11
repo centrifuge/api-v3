@@ -941,12 +941,19 @@ export const HoldingEscrowRelations = relations(HoldingEscrow, ({ one }) => ({
   }),
 }));
 
+export const PoolManagerCrosschainInProgressTypes = [`CanManage`, `CanNotManage`] as const;
+export const PoolManagerCrosschainInProgress = onchainEnum(
+  "pool_manager_crosschain_in_progress",
+  PoolManagerCrosschainInProgressTypes
+);
+
 const PoolManagerColumns = (t: PgColumnsBuilders) => ({
   address: t.hex().notNull(),
   centrifugeId: t.text().notNull(),
   poolId: t.bigint().notNull(),
   isHubManager: t.boolean().notNull().default(false),
   isBalancesheetManager: t.boolean().notNull().default(false),
+  crosschainInProgress: PoolManagerCrosschainInProgress("pool_manager_crosschain_in_progress"),
   ...defaultColumns(t),
 });
 

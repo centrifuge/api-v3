@@ -1,5 +1,6 @@
-import { PoolManager } from "ponder:schema";
+import { PoolManager, PoolManagerCrosschainInProgressTypes } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
+import { serviceLog } from "../helpers/logger";
 
 /**
  * Service class for managing PoolManager entities.
@@ -27,6 +28,7 @@ export class PoolManagerService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public setIsHubManager(isHubManager: boolean) {
+    serviceLog(`Setting isHubManager to ${isHubManager}`);
     this.data.isHubManager = isHubManager;
     return this;
   }
@@ -38,7 +40,22 @@ export class PoolManagerService extends mixinCommonStatics(
    * @returns The service instance for method chaining
    */
   public setIsBalancesheetManager(isBalancesheetManager: boolean) {
+    serviceLog(`Setting isBalancesheetManager to ${isBalancesheetManager}`);
     this.data.isBalancesheetManager = isBalancesheetManager;
+    return this;
+  }
+
+  /**
+   * Sets the crosschain progress for the manager.
+   *
+   * @param crosschainProgress - The value to set for crosschainProgress
+   * @returns The service instance for method chaining
+   */
+  public setCrosschainInProgress(
+    crosschainInProgress?: (typeof PoolManagerCrosschainInProgressTypes)[number]
+  ) {
+    this.data.crosschainInProgress = crosschainInProgress ?? null;
+    serviceLog(`Setting crosschainInProgress to ${crosschainInProgress}`);
     return this;
   }
 }
