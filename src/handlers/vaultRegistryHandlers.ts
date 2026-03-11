@@ -44,15 +44,10 @@ export async function deployVault({
     address: assetAddress,
     centrifugeId,
   });
-  if (!asset) {
-    serviceError(`Asset not found. Cannot retrieve assetId for vault deployment`);
-    return;
-  }
+  if (!asset) return serviceError(`Asset not found. Cannot retrieve assetId for vault deployment`);
+
   const { id: assetId } = asset.read();
-  if (!assetId) {
-    serviceError(`Asset ID not found. Cannot deploy vault`);
-    return;
-  }
+  if (!assetId) return serviceError(`Asset ID not found. Cannot deploy vault`);
 
   const _vault = (await VaultService.upsert(
     context,
@@ -68,6 +63,7 @@ export async function deployVault({
       manager,
       isActive: true,
       status: "Unlinked",
+      crosschainInProgress: null,
     },
     event
   )) as VaultService;
@@ -100,8 +96,7 @@ export async function linkVault({
     serviceError(`Vault not found. Cannot link vault`);
     return;
   }
-  vault.setStatus("Linked");
-  await vault.save(event);
+  await vault.setStatus("Linked").setCrosschainInProgress().save(event);
 }
 
 multiMapper("vaultRegistry:UnlinkVault", unlinkVault);
@@ -122,6 +117,5 @@ export async function unlinkVault({
     centrifugeId,
   })) as VaultService;
   if (!vault) return serviceError(`Vault not found. Cannot unlink vault`);
-  vault.setStatus("Unlinked");
-  await vault.save(event);
+  await vault.setStatus("Unlinked").setCrosschainInProgress().save(event);
 }

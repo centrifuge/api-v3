@@ -6,7 +6,10 @@ import {
   PoolSpokeBlockchainService,
   PoolManagerService,
   AccountService,
+  centrifugeIdFromAssetId,
+  VaultService,
 } from "../services";
+import { VaultCrosschainInProgressTypes } from "ponder:schema";
 
 multiMapper("hub:NotifyPool", async ({ event, context }) => {
   logEvent(event, context, "hub:NotifyPool");
@@ -94,6 +97,32 @@ multiMapper("hub:UpdateBalanceSheetManager", async ({ event, context }) => {
   )) as PoolManagerService;
   poolManager.setCrosschainInProgress(canManage ? `CanManage` : `CanNotManage`);
   await poolManager.save(event);
+});
+
+multiMapper("hub:UpdateVault", async ({ event, context }) => {
+  logEvent(event, context, "hub:UpdateVault");
+  const { assetId, kind, vaultOrFactory, poolId, scId } = event.args;
+  const destCentrifugeId = centrifugeIdFromAssetId(assetId);
+  if (!destCentrifugeId)
+    return serviceError(`Invalid assetId. Cannot retrieve destCentrifugeId for vault update`);
+  if (kind === 0) return;
+  const vaultUpdateKind = VaultCrosschainInProgressTypes[kind];
+  if (!vaultUpdateKind) return serviceError(`Invalid vault update kind. Cannot update vault`);
+
+  const vault = (await VaultService.getOrInit(
+    context,
+    {
+      id: vaultOrFactory.toLowerCase().substring(0, 42) as `0x${string}`,
+      centrifugeId: destCentrifugeId,
+      poolId,
+      tokenId: scId,
+      assetId,
+    },
+    event,
+    undefined,
+    true
+  )) as VaultService;
+  await vault.setCrosschainInProgress(vaultUpdateKind).save(event);
 });
 
 enum RestrictionType {
