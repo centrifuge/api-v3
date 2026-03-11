@@ -1,6 +1,12 @@
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceError } from "../helpers/logger";
-import { WhitelistedInvestorService, TokenService, PoolSpokeBlockchainService } from "../services";
+import {
+  WhitelistedInvestorService,
+  TokenService,
+  PoolSpokeBlockchainService,
+  PoolManagerService,
+  AccountService,
+} from "../services";
 
 multiMapper("hub:NotifyPool", async ({ event, context }) => {
   logEvent(event, context, "hub:NotifyPool");
@@ -64,6 +70,30 @@ multiMapper("hub:UpdateRestriction", async ({ event, context }) => {
     default:
       break;
   }
+});
+
+multiMapper("hub:UpdateBalanceSheetManager", async ({ event, context }) => {
+  logEvent(event, context, "hub:UpdateBalanceSheetManager");
+  const { poolId, manager: _manager, canManage, centrifugeId: spokeCentrifugeId } = event.args;
+  const manager = _manager.toLowerCase().substring(0, 42) as `0x${string}`;
+
+  const _account = (await AccountService.getOrInit(
+    context,
+    {
+      address: manager,
+    },
+    event
+  )) as AccountService;
+
+  const poolManager = (await PoolManagerService.getOrInit(
+    context,
+    { poolId, centrifugeId: spokeCentrifugeId.toString(), address: manager },
+    event,
+    undefined,
+    true
+  )) as PoolManagerService;
+  poolManager.setCrosschainInProgress(canManage ? `CanManage` : `CanNotManage`);
+  await poolManager.save(event);
 });
 
 enum RestrictionType {
