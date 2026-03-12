@@ -5,7 +5,7 @@
   "private": false,
   "type": "module",
   "scripts": {
-    "predev": "pnpm update-registry && docker compose up -d",
+    "predev": "docker compose up -d",
     "dev": "ponder dev --port 8000 --disable-ui",
     "postdev": "docker compose down",
     "prestart": "pnpm update-registry",

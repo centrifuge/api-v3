@@ -55,7 +55,10 @@ export class VaultService extends mixinCommonStatics(Service<typeof Vault>, Vaul
 /** Normalizes scId to bytes16 hex for protocol salt/constructor encoding (ShareClassId type). */
 function scIdToBytes16(scId: bigint | Hex): Hex {
   const hex = typeof scId === "bigint" ? toHex(scId) : scId;
-  return padHex(hex, { size: 16 }) as Hex;
+  const raw = hex.slice(2);
+  // ABI bytes16 may be decoded as 32-byte (64 hex chars); use rightmost 16 bytes for ShareClassId.
+  const size16Hex = raw.length > 32 ? raw.slice(-32) : raw;
+  return padHex(`0x${size16Hex}` as Hex, { size: 16 }) as Hex;
 }
 
 /**
@@ -96,7 +99,7 @@ export function predictVaultIdAsync(
     from: factoryAddress,
     salt,
     bytecodeHash: initCodeHash,
-  });
+  }).toLowerCase() as Address;
 }
 
 /**
@@ -139,7 +142,7 @@ export function predictVaultIdSyncDeposit(
     from: factoryAddress,
     salt,
     bytecodeHash: initCodeHash,
-  });
+  }).toLowerCase() as Address;
 }
 
 /** Registry contract name used as vault root (spoke) for CREATE2 prediction. */
@@ -163,6 +166,7 @@ export function predictVaultId(
   const resolved = getContractNameAndVersionForAddress(chainId, factoryAddress);
   if (!resolved) return null;
   const { contractName, versionIndex } = resolved;
+  serviceLog(`Resolved factory as ${contractName} (versionIndex ${versionIndex})`);
 
   const addresses = getContractAddressesForChain(chainId, versionIndex);
   if (!addresses) return null;
@@ -173,7 +177,7 @@ export function predictVaultId(
   if (contractName === "asyncVaultFactory") {
     const asyncRequestManager = addresses["asyncRequestManager"];
     if (!asyncRequestManager) return null;
-    return predictVaultIdAsync(
+    const predicted = predictVaultIdAsync(
       factoryAddress,
       poolId,
       scId,
@@ -182,13 +186,15 @@ export function predictVaultId(
       root,
       asyncRequestManager
     );
+    serviceLog(`Predicted async vault id: ${predicted}`);
+    return predicted;
   }
 
   if (contractName === "syncDepositVaultFactory") {
     const syncDepositManager = addresses["syncManager"];
     const asyncRedeemManager = addresses["asyncRequestManager"];
     if (!syncDepositManager || !asyncRedeemManager) return null;
-    return predictVaultIdSyncDeposit(
+    const predicted = predictVaultIdSyncDeposit(
       factoryAddress,
       poolId,
       scId,
@@ -198,6 +204,8 @@ export function predictVaultId(
       syncDepositManager,
       asyncRedeemManager
     );
+    serviceLog(`Predicted syncDeposit vault id: ${predicted}`);
+    return predicted;
   }
 
   return null;

@@ -11,6 +11,11 @@ const inMemoryChainId = Object.fromEntries(
   RegistryChains.map((chain) => [chain.network.chainId, chain.network.centrifugeId])
 ) as InMemoryChainId;
 
+/** centrifugeId -> chainId for the chain that has that centrifugeId (e.g. spoke chain). */
+const centrifugeIdToChainId = Object.fromEntries(
+  RegistryChains.map((chain) => [String(chain.network.centrifugeId), chain.network.chainId])
+) as Record<string, number>;
+
 /**
  * Service class for managing blockchain-related operations and data.
  *
@@ -36,6 +41,15 @@ export class BlockchainService extends mixinCommonStatics(
     if (typeof chainId !== "number") throw new Error("Chain ID is not a number");
     if (!(chainId in inMemoryChainId)) throw new Error("Chain ID not found in inMemoryChainId");
     return String(inMemoryChainId[chainId as keyof InMemoryChainId]);
+  }
+
+  /**
+   * Gets the chain ID for a given centrifuge ID (e.g. spoke chain).
+   * Use when the event is on the hub but the vault is deployed on the spoke.
+   */
+  static getChainIdFromCentrifugeId(centrifugeId: string): number | null {
+    const chainId = centrifugeIdToChainId[centrifugeId];
+    return chainId != null ? chainId : null;
   }
   /**
    * Sets the last period start date for the blockchain.

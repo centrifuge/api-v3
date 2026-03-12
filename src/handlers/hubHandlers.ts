@@ -8,12 +8,8 @@ import {
   AccountService,
   centrifugeIdFromAssetId,
   VaultService,
-  predictVaultId,
-  AssetService,
-  TokenInstanceService,
 } from "../services";
 import { VaultCrosschainInProgressTypes } from "ponder:schema";
-import { getContractNameForAddress, getVersionForContract } from "../contracts";
 
 multiMapper("hub:NotifyPool", async ({ event, context }) => {
   logEvent(event, context, "hub:NotifyPool");
@@ -105,48 +101,17 @@ multiMapper("hub:UpdateBalanceSheetManager", async ({ event, context }) => {
 
 multiMapper("hub:UpdateVault", async ({ event, context }) => {
   logEvent(event, context, "hub:UpdateVault");
+
   const { assetId, kind, vaultOrFactory, poolId, scId: tokenId } = event.args;
+  // Only track in progress for Link (1) and Unlink (2). Skip Deploy (0) for now.
+  if (kind == 0)
+    return serviceLog(`Skipping vault update: only Link/Unlink tracked (kind=${kind})`);
 
   const destCentrifugeId = centrifugeIdFromAssetId(assetId);
   if (!destCentrifugeId)
     return serviceError(`Invalid assetId. Cannot retrieve destCentrifugeId for vault update`);
 
-  const asset = (await AssetService.get(context, {
-    id: assetId,
-    centrifugeId: destCentrifugeId,
-  })) as AssetService | null;
-  if (!asset) return serviceError(`Asset not found. Cannot retrieve assetAddress for vault update`);
-  const { address: assetAddress } = asset.read();
-  if (!assetAddress)
-    return serviceError(`Asset address not found. Cannot retrieve assetAddress for vault update`);
-
-  let vaultAddress: `0x${string}` = vaultOrFactory;
-  if (kind === 0) {
-    const factoryName = getContractNameForAddress(context.chain.id, vaultOrFactory);
-    if (!factoryName) return serviceError(`Factory name not found. Cannot update vault`);
-    const factoryVersion = getVersionForContract(factoryName, context.chain.id, vaultOrFactory);
-    if (factoryVersion !== "V3_1") return serviceLog(`Factory version not supported.`);
-
-    const tokenInstance = (await TokenInstanceService.get(context, {
-      tokenId,
-      centrifugeId: destCentrifugeId,
-    })) as TokenInstanceService | null;
-    if (!tokenInstance)
-      return serviceError(`TokenInstance not found. Cannot retrieve tokenAddress for vault update`);
-    const { address: tokenAddress } = tokenInstance.read();
-
-    const predictedVaultAddress = predictVaultId(
-      context.chain.id,
-      vaultOrFactory,
-      poolId,
-      tokenId,
-      assetAddress,
-      tokenAddress
-    );
-    if (!predictedVaultAddress)
-      return serviceError(`Failed to predict vault address. Cannot update vault`);
-    vaultAddress = predictedVaultAddress;
-  }
+  const vaultAddress: `0x${string}` = vaultOrFactory.substring(0, 42) as `0x${string}`;
 
   const vaultUpdateKind = VaultCrosschainInProgressTypes[kind];
   if (!vaultUpdateKind) return serviceError(`Invalid vault update kind. Cannot update vault`);
@@ -159,7 +124,6 @@ multiMapper("hub:UpdateVault", async ({ event, context }) => {
       poolId,
       tokenId,
       assetId,
-      assetAddress,
     },
     event,
     undefined,
