@@ -7,7 +7,7 @@ settings:
 overrides:
   '@hono/node-server': ^1.10.2
   hono: ^4.11.10
-  tar: ^7.5.8
+  tar: ^7.5.11
   minimatch: ^9.0.6
   ajv: ^8.18.0
   eslint>ajv: ^6.12.6
@@ -55,8 +55,8 @@ importers:
         specifier: ^13.1.3
         version: 13.1.3
       ponder:
-        specifier: ^0.16.3
-        version: 0.16.3(@opentelemetry/api@1.9.0)(@types/node@22.19.2)(@types/pg@8.16.0)(hono@4.12.2)(typescript@5.9.3)(viem@2.37.11(typescript@5.9.3))
+        specifier: ^0.16.2
+        version: 0.16.2(@opentelemetry/api@1.9.0)(@types/node@22.19.2)(@types/pg@8.16.0)(hono@4.12.2)(typescript@5.9.3)(viem@2.37.11(typescript@5.9.3))
       viem:
         specifier: ^2.37.11
         version: 2.37.11(typescript@5.9.3)
@@ -1866,6 +1866,7 @@ packages:
 
   glob@10.5.0:
     resolution: {integrity: sha512-DfXN8DfhJ7NH3Oe7cFmu3NCu1wKbkReJ8TorzSAFbSKrlNaQSKfIzqYqVY8zlbs2NLBbWpRiU52GX2PbaBVNkg==}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   glob@7.2.3:
@@ -2407,8 +2408,8 @@ packages:
     resolution: {integrity: sha512-ip4qdzjkAyDDZklUaZkcRFb2iA118H9SgRh8yzTkSQK8HilsOJF7rSY8HoW5+I0M46AZgX/pxbprf2vvzQCE0Q==}
     hasBin: true
 
-  ponder@0.16.3:
-    resolution: {integrity: sha512-QwAg5eFUujWR87ZMeTTKmF17q9IVTew26tpdaTfQrrtJVf/oU8ZN1qu7ZcP2SPtK5oScblJMWQm9zfwst6tJcg==}
+  ponder@0.16.2:
+    resolution: {integrity: sha512-cUTtcrGxSt5ReJc0z7UuJWirHtQZ33KAepaIrp2W+Smzi8FJ2Odm5TedrtdlmHnaagUpl8eagpRUBsoXrPYXYw==}
     engines: {node: '>=18.14'}
     hasBin: true
     peerDependencies:
@@ -2645,8 +2646,8 @@ packages:
     resolution: {integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==}
     engines: {node: '>=8'}
 
-  tar@7.5.9:
-    resolution: {integrity: sha512-BTLcK0xsDh2+PUe9F6c2TlRp4zOOBMTkoQHQIWSIzI0R7KG46uEwq4OPk2W7bZcprBMsuaeFsqwYr7pjh6CuHg==}
+  tar@7.5.11:
+    resolution: {integrity: sha512-ChjMH33/KetonMTAtpYdgUFr0tbz69Fp2v7zWxQfYZX4g5ZN2nOBXm1R2xyA+lMIKrLKIoKAwFj93jE/avX9cQ==}
     engines: {node: '>=18'}
 
   tdigest@0.1.2:
@@ -3163,7 +3164,7 @@ snapshots:
 
   '@dfatwork-pkgs/oras-client@0.1.0':
     dependencies:
-      tar: 7.5.9
+      tar: 7.5.11
     optionalDependencies:
       '@dfatwork-pkgs/oras-client-darwin-arm64': 0.1.0
       '@dfatwork-pkgs/oras-client-darwin-x64': 0.1.0
@@ -5298,7 +5299,7 @@ snapshots:
       sonic-boom: 3.8.1
       thread-stream: 2.7.0
 
-  ponder@0.16.3(@opentelemetry/api@1.9.0)(@types/node@22.19.2)(@types/pg@8.16.0)(hono@4.12.2)(typescript@5.9.3)(viem@2.37.11(typescript@5.9.3)):
+  ponder@0.16.2(@opentelemetry/api@1.9.0)(@types/node@22.19.2)(@types/pg@8.16.0)(hono@4.12.2)(typescript@5.9.3)(viem@2.37.11(typescript@5.9.3)):
     dependencies:
       '@babel/code-frame': 7.29.0
       '@commander-js/extra-typings': 12.1.0(commander@12.1.0)
@@ -5586,7 +5587,7 @@ snapshots:
     dependencies:
       has-flag: 4.0.0
 
-  tar@7.5.9:
+  tar@7.5.11:
     dependencies:
       '@isaacs/fs-minipass': 4.0.1
       chownr: 3.0.0
