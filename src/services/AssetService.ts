@@ -51,3 +51,15 @@ export class AssetService extends mixinCommonStatics(Service<typeof Asset>, Asse
     return decimals;
   }
 }
+
+/**
+ * Decodes the centrifuge chain ID from an AssetId (high 16 bits of the uint128).
+ * Matches the protocol's AssetId.sol centrifugeId(AssetId) logic.
+ * @param assetId - The raw AssetId as bigint (uint128).
+ * @returns The centrifugeId as string, or null for zero assetId.
+ */
+export function centrifugeIdFromAssetId(assetId: bigint): string | null {
+  if (assetId === 0n) return null;
+  const centrifugeId = Number((assetId >> 112n) & 0xffffn);
+  return String(centrifugeId);
+}

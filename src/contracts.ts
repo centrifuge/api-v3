@@ -594,9 +594,39 @@ export function getVersionForContract(
 }
 
 /**
+ * Finds the contract name and version index for a given chainId and address across all versions.
+ * Returns the first matching contract name and its registry version index.
+ * @param chainId - The chain ID as a number (e.g., 1, 8453, 42161).
+ * @param contractAddress - The address of the contract (case-insensitive comparison).
+ * @returns The contract name (contract case) and version index, or null if not found.
+ */
+export function getContractNameAndVersionForAddress(
+  chainId: number,
+  contractAddress: `0x${string}`
+): { contractName: string; versionIndex: number } | null {
+  const normalizedAddress = contractAddress.toLowerCase() as `0x${string}`;
+  const versions = REGISTRY_VERSION_ORDER;
+  for (let i = 0; i < versions.length; i++) {
+    const version = versions[i];
+    if (!version) continue;
+    const registry = fullRegistry[version as RegistryVersions] as Registry<RegistryVersions>;
+    const chain = registry.chains[chainId.toString() as keyof typeof registry.chains];
+    if (!chain) continue;
+    const contractEntries = Object.entries(chain.contracts) as Entries<typeof chain.contracts>;
+    for (const [contractName, contract] of contractEntries) {
+      if (!contract) continue;
+      const contractAddr = contract.address as `0x${string}`;
+      if (contractAddr.toLowerCase() === normalizedAddress) {
+        return { contractName, versionIndex: i };
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Finds the contract name for a given chainId and address across all versions.
  * Returns the first matching contract name found.
- * Optimized for runtime efficiency by directly accessing the chain by chainId.
  * @param chainId - The chain ID as a number (e.g., 1, 8453, 42161).
  * @param contractAddress - The address of the contract (case-insensitive comparison).
  * @returns The contract name (in contract case, e.g., "gateway") of the first matching contract, or null if not found.
@@ -605,35 +635,48 @@ export function getContractNameForAddress(
   chainId: number,
   contractAddress: `0x${string}`
 ): string | null {
-  // Normalize the address to lowercase for comparison
-  const normalizedAddress = contractAddress.toLowerCase() as `0x${string}`;
+  const result = getContractNameAndVersionForAddress(chainId, contractAddress);
+  return result ? result.contractName : null;
+}
 
-  // Get all versions
-  const versions = Object.keys(fullRegistry) as RegistryVersions[];
-
-  // Iterate through each version
-  for (const version of versions) {
-    const registry = fullRegistry[version] as Registry<RegistryVersions>;
-
-    // Directly access the chain by chainId (more efficient than iterating all chains)
-    const chain = registry.chains[chainId.toString() as keyof typeof registry.chains];
-    if (!chain) continue;
-
-    // Iterate through all contracts in this chain
-    const contractEntries = Object.entries(chain.contracts) as Entries<typeof chain.contracts>;
-
-    for (const [contractName, contract] of contractEntries) {
-      if (!contract) continue;
-
-      // Compare addresses (case-insensitive)
-      const contractAddr = contract.address as `0x${string}`;
-      if (contractAddr.toLowerCase() === normalizedAddress) {
-        // Return the first matching contract name (in contract case)
-        return contractName;
-      }
-    }
+/**
+ * Returns all contract addresses for a chain from the registry at the given version index.
+ * @param chainId - The chain ID as a number (e.g., 1, 8453, 42161).
+ * @param versionIndex - Index into REGISTRY_VERSION_ORDER (e.g. 0 for v3, 1 for v3_1).
+ * @returns Map of contract name (contract case) to address, or null if chain not in that version or index out of range.
+ */
+export function getContractAddressesForChain(
+  chainId: number,
+  versionIndex: number
+): Record<string, `0x${string}`> | null {
+  const versions = REGISTRY_VERSION_ORDER;
+  if (versionIndex < 0 || versionIndex >= versions.length) return null;
+  const version = versions[versionIndex];
+  if (!version) return null;
+  const registry = fullRegistry[version as RegistryVersions] as Registry<RegistryVersions>;
+  const chain = registry.chains[chainId.toString() as keyof typeof registry.chains];
+  if (!chain) return null;
+  const entries = Object.entries(chain.contracts) as Entries<typeof chain.contracts>;
+  const result: Record<string, `0x${string}`> = {};
+  for (const [name, contract] of entries) {
+    if (contract?.address) result[name] = contract.address as `0x${string}`;
   }
+  return result;
+}
 
-  // Contract not found in any version
-  return null;
+/**
+ * Returns the contract address for a given chainId, version index, and contract name.
+ * @param chainId - The chain ID as a number (e.g., 1, 8453, 42161).
+ * @param versionIndex - Index into REGISTRY_VERSION_ORDER (e.g. 0 for v3, 1 for v3_1).
+ * @param contractName - The contract name in contract case (e.g., "asyncRequestManager", "syncManager").
+ * @returns The contract address, or null if not found.
+ */
+export function getContractAddressForChain(
+  chainId: number,
+  versionIndex: number,
+  contractName: string
+): `0x${string}` | null {
+  const addresses = getContractAddressesForChain(chainId, versionIndex);
+  if (!addresses) return null;
+  return addresses[contractName] ?? null;
 }

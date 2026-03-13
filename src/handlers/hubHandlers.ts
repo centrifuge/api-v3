@@ -1,12 +1,15 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { logEvent, serviceError } from "../helpers/logger";
+import { logEvent, serviceError, serviceLog } from "../helpers/logger";
 import {
   WhitelistedInvestorService,
   TokenService,
   PoolSpokeBlockchainService,
   PoolManagerService,
   AccountService,
+  centrifugeIdFromAssetId,
+  VaultService,
 } from "../services";
+import { VaultCrosschainInProgressTypes } from "ponder:schema";
 
 multiMapper("hub:NotifyPool", async ({ event, context }) => {
   logEvent(event, context, "hub:NotifyPool");
@@ -94,6 +97,39 @@ multiMapper("hub:UpdateBalanceSheetManager", async ({ event, context }) => {
   )) as PoolManagerService;
   poolManager.setCrosschainInProgress(canManage ? `CanManage` : `CanNotManage`);
   await poolManager.save(event);
+});
+
+multiMapper("hub:UpdateVault", async ({ event, context }) => {
+  logEvent(event, context, "hub:UpdateVault");
+
+  const { assetId, kind, vaultOrFactory, poolId, scId: tokenId } = event.args;
+  // Only track in progress for Link (1) and Unlink (2). Skip Deploy (0) for now.
+  if (kind == 0)
+    return serviceLog(`Skipping vault update: only Link/Unlink tracked (kind=${kind})`);
+
+  const destCentrifugeId = centrifugeIdFromAssetId(assetId);
+  if (!destCentrifugeId)
+    return serviceError(`Invalid assetId. Cannot retrieve destCentrifugeId for vault update`);
+
+  const vaultAddress: `0x${string}` = vaultOrFactory.substring(0, 42) as `0x${string}`;
+
+  const vaultUpdateKind = VaultCrosschainInProgressTypes[kind];
+  if (!vaultUpdateKind) return serviceError(`Invalid vault update kind. Cannot update vault`);
+
+  const vault = (await VaultService.getOrInit(
+    context,
+    {
+      id: vaultAddress,
+      centrifugeId: destCentrifugeId,
+      poolId,
+      tokenId,
+      assetId,
+    },
+    event,
+    undefined,
+    true
+  )) as VaultService;
+  await vault.setCrosschainInProgress(vaultUpdateKind).save(event);
 });
 
 enum RestrictionType {
