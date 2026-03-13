@@ -166,7 +166,7 @@ const chains = Object.fromEntries(
       getLogsBlockRange[chainId.toString() as keyof typeof getLogsBlockRange];
     return [
       networkName,
-      { id: chain.network.chainId, rpc, ethGetLogsBlockRange, pollingInterval: 20_000 },
+      { id: chain.network.chainId, rpc, ethGetLogsBlockRange, pollingInterval: 3_000 },
     ] as [NetworkNames<RegistryVersions>, ChainConfig];
   })
 ) as ChainsConfig<RegistryVersions>;
