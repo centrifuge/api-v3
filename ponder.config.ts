@@ -19,6 +19,7 @@ export const contractsV3 = decorateDeploymentContracts(
     "PoolEscrowFactory",
     "ShareClassManager",
     "Spoke",
+    "SyncManager",
   ] as const,
   {
     vaultV3: {
@@ -82,6 +83,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
     "ShareClassManager",
     "Spoke",
     "VaultRegistry",
+    "SyncManager",
   ] as const,
   {
     vaultV3_1: {
