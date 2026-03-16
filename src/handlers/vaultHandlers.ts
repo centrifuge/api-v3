@@ -588,3 +588,25 @@ function getSharePrice(
   if (sharesAmount === 0n) return null;
   return (assetsAmount * 10n ** BigInt(18 - assetDecimals + shareDecimals)) / sharesAmount;
 }
+
+multiMapper("syncManager:SetMaxReserve", async ({ event, context }) => {
+  logEvent(event, context, "syncManager:SetMaxReserve");
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const {
+    poolId,
+    scId: tokenId,
+    asset: assetAddress,
+    tokenId: _assetTokenId,
+    maxReserve,
+  } = event.args;
+
+  const vault = (await VaultService.get(context, {
+    centrifugeId,
+    poolId,
+    tokenId,
+    assetAddress,
+  })) as VaultService | null;
+  if (!vault) return serviceError(`Vault not found. Cannot retrieve vault`);
+
+  await vault.setMaxReserve(maxReserve).setCrosschainInProgress().save(event);
+});
