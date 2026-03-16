@@ -586,11 +586,11 @@ export function getVersionForContract(
   contractName: string,
   chainId: number,
   contractAddress: `0x${string}`
-): string | null {
+): RegistryVersions | null {
   const index = getVersionIndexForContract(contractName, chainId, contractAddress);
   if (index < 0) return null;
   const version = REGISTRY_VERSION_ORDER[index];
-  return version ? version.toUpperCase() : null;
+  return version ? (version as RegistryVersions) : null;
 }
 
 /**
