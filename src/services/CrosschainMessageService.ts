@@ -4,6 +4,7 @@ import { serviceError } from "../helpers/logger";
 import { encodePacked, keccak256 } from "viem";
 import { Event, Context } from "ponder:registry";
 import { timestamper } from "../helpers/timestamper";
+import { RegistryVersions } from "../chains";
 
 /**
  * Service class for managing CrosschainMessage entities.
@@ -226,9 +227,9 @@ export class CrosschainMessageService extends mixinCommonStatics(
   }
 }
 
-const CrosschainMessageType = [
+const CrosschainMessageType = {
   // V3 Message Types
-  {
+  v3: {
     /// @dev Placeholder for null message type
     _Invalid: undefined,
     // -- Pool independent messages
@@ -269,7 +270,7 @@ const CrosschainMessageType = [
     SetRequestManager: 73,
   } as const,
   // V3_1 Message Types
-  {
+  v3_1: {
     /// @dev Placeholder for null message type
     _Invalid: undefined,
     // -- Pool independent messages
@@ -301,7 +302,7 @@ const CrosschainMessageType = [
     TrustedContractUpdate: dynamicLengthDecoder(73),
     UntrustedContractUpdate: dynamicLengthDecoder(105),
   } as const,
-] as const;
+} as const;
 
 type BufferDecoderEntry<T = unknown> = [decoder: (_m: Buffer) => T, length: number];
 
@@ -334,7 +335,6 @@ const MessageDecoders = {
   bytes: [(m) => `0x${m.toString("hex")}`, 0],
 } as const satisfies Record<string, BufferDecoderEntry>;
 
-// eslint-disable-next-line no-unused-vars
 interface DecoderConfig {
   name: string;
   decoder: keyof typeof MessageDecoders;
@@ -346,7 +346,7 @@ type DecoderReturnTypes = {
 };
 
 // Helper type to extract decoder config from a specific version
-type MessageDecoderConfig<T extends number> = (typeof messageDecoders)[T];
+type MessageDecoderConfig<T extends keyof typeof messageDecoders> = (typeof messageDecoders)[T];
 
 // Helper type to map a single decoder config to its return type
 type DecoderConfigToType<C extends DecoderConfig> = C extends { decoder: infer D }
@@ -357,7 +357,7 @@ type DecoderConfigToType<C extends DecoderConfig> = C extends { decoder: infer D
 
 // Type that maps message type names to their decoded parameter types
 // Generic over version index to work with both V3 and V3_1
-type DecodedMessageTypes<T extends number = 0> = {
+type DecodedMessageTypes<T extends keyof typeof messageDecoders> = {
   [K in keyof MessageDecoderConfig<T>]: MessageDecoderConfig<T>[K] extends readonly DecoderConfig[]
     ? {
         [P in MessageDecoderConfig<T>[K][number] as P["name"]]: DecoderConfigToType<P>;
@@ -365,9 +365,18 @@ type DecodedMessageTypes<T extends number = 0> = {
     : never;
 };
 
-const messageDecoders = [
+/**
+ * Distributive helper over version union: when V is "v3" | "v3_1", produces
+ * DecodedMessageTypes<"v3">[T] | DecodedMessageTypes<"v3_1">[T] (all possible combinations).
+ */
+type DecodedMessageResult<
+  V extends keyof typeof messageDecoders,
+  T extends keyof (typeof messageDecoders)[V],
+> = V extends keyof typeof messageDecoders ? DecodedMessageTypes<V>[T] : never;
+
+const messageDecoders = {
   // V3 Message Decoders
-  {
+  v3: {
     _Invalid: [],
     ScheduleUpgrade: [{ name: "target", decoder: "bytes32" }],
     CancelUpgrade: [{ name: "target", decoder: "bytes32" }],
@@ -513,9 +522,9 @@ const messageDecoders = [
       { name: "assetId", decoder: "uint128" },
       { name: "manager", decoder: "bytes32" },
     ],
-  } as const,
+  },
   // V3_1 Message Decoders
-  {
+  v3_1: {
     _Invalid: [],
     ScheduleUpgrade: [{ name: "target", decoder: "bytes32" }],
     CancelUpgrade: [{ name: "target", decoder: "bytes32" }],
@@ -676,8 +685,13 @@ const messageDecoders = [
       { name: "extraGasLimit", decoder: "uint128" },
       { name: "payload", decoder: "bytes" }, // Dynamic length
     ],
-  } as const,
-];
+  },
+} as const;
+
+/** Union of all decoded message payload types across all registry versions */
+export type DecodedMessageData = {
+  [V in keyof typeof messageDecoders]: DecodedMessageTypes<V>[keyof DecodedMessageTypes<V>];
+}[keyof typeof messageDecoders];
 
 /**
  * Creates a function that decodes the length of a dynamic length message
@@ -706,7 +720,10 @@ function setPoolAdaptersLengthDecoder(message: Buffer) {
  * @param versionIndex - The index in the CrosschainMessageType array (0 for V3, 1 for V3_1, defaults to 0)
  * @returns The string name of the message type
  */
-export function getCrosschainMessageType(messageType: number, versionIndex: number) {
+export function getCrosschainMessageType(
+  messageType: number,
+  versionIndex: keyof typeof CrosschainMessageType
+) {
   const messageTypes = CrosschainMessageType[versionIndex];
   if (!messageTypes) {
     return "_Invalid" as const;
@@ -724,7 +741,7 @@ export function getCrosschainMessageType(messageType: number, versionIndex: numb
 export function getCrosschainMessageLength(
   messageType: number,
   message: Buffer,
-  versionIndex: number
+  versionIndex: keyof typeof CrosschainMessageType
 ) {
   const messageTypes = CrosschainMessageType[versionIndex];
   if (!messageTypes) {
@@ -992,20 +1009,19 @@ function decodeUpdateRestrictionPayload(payloadBuffer: Buffer): {
  * Decodes a cross-chain message into its parameters
  * @param messageType - The type of the message
  * @param messageBuffer - The buffer containing the message
- * @param versionIndex - The index in the messageDecoders array (0 for V3, 1 for V3_1, defaults to 0)
+ * @param version - The version key ("v3" or "v3_1") selecting the decoder set
  * @returns The decoded parameters as a properly typed object
  */
-export function decodeMessage<T extends keyof (typeof messageDecoders)[number]>(
-  messageType: T,
-  messageBuffer: Buffer,
-  versionIndex: number
-): DecodedMessageTypes<0>[T] | DecodedMessageTypes<1>[T] | null {
-  const decoders = messageDecoders[versionIndex];
+export function decodeMessage<
+  V extends RegistryVersions,
+  T extends keyof (typeof messageDecoders)[V] = keyof (typeof messageDecoders)[V],
+>(messageType: T, messageBuffer: Buffer, version: V): DecodedMessageResult<V, T> | null {
+  const decoders = messageDecoders[version];
   if (!decoders) {
-    serviceError(`Invalid version index: ${versionIndex}`);
+    serviceError(`Invalid version: ${version}`);
     return null;
   }
-  const messageSpec = decoders[messageType];
+  const messageSpec = decoders[messageType] as readonly DecoderConfig[];
   if (!messageSpec) {
     serviceError(`Invalid message type: ${String(messageType)}`);
     return null;
@@ -1055,5 +1071,5 @@ export function decodeMessage<T extends keyof (typeof messageDecoders)[number]>(
     }
   }
 
-  return decodedData as DecodedMessageTypes<0>[T] | DecodedMessageTypes<1>[T];
+  return decodedData as DecodedMessageResult<V, T>;
 }

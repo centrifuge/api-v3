@@ -5,6 +5,7 @@ import { getCrosschainMessageLength } from ".";
 import { keccak256, encodePacked } from "viem";
 import { serviceError } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
+import { RegistryVersions } from "../chains";
 
 /**
  * Service class for managing CrosschainPayload entities.
@@ -209,7 +210,7 @@ export class CrosschainPayloadService extends mixinCommonStatics(
  * const messages = extractMessagesFromPayload(payload)
  * // Returns: ['0x21...', '0x33...'] // Individual message bytes
  */
-export function extractMessagesFromPayload(payload: `0x${string}`, versionIndex: number) {
+export function extractMessagesFromPayload(payload: `0x${string}`, version: RegistryVersions) {
   const payloadBuffer = Buffer.from(payload.substring(2), "hex");
   const messages: `0x${string}`[] = [];
   let offset = 0;
@@ -218,7 +219,7 @@ export function extractMessagesFromPayload(payload: `0x${string}`, versionIndex:
     const messageType = payloadBuffer.readUInt8(offset);
     // Pass the buffer slice starting from current offset
     const currentBuffer = payloadBuffer.subarray(offset);
-    const messageLength = getCrosschainMessageLength(messageType, currentBuffer, versionIndex);
+    const messageLength = getCrosschainMessageLength(messageType, currentBuffer, version);
     if (!messageLength) {
       serviceError(`Invalid message type: ${messageType}`);
       break;
