@@ -179,7 +179,7 @@ export const VaultKinds = ["Async", "Sync", "SyncDepositAsyncRedeem"] as const;
 export const VaultKind = onchainEnum("vault_kind", VaultKinds);
 export const VaultStatuses = ["LinkInProgress", "UnlinkInProgress", "Linked", "Unlinked"] as const;
 export const VaultStatus = onchainEnum("vault_status", VaultStatuses);
-export const VaultCrosschainInProgressTypes = [`Deploy`, `Link`, `Unlink`] as const;
+export const VaultCrosschainInProgressTypes = [`Deploy`, `Link`, `Unlink`, `MaxReserve`] as const;
 export const VaultCrosschainInProgress = onchainEnum(
   "vault_crosschain_in_progress",
   VaultCrosschainInProgressTypes
@@ -196,7 +196,9 @@ const VaultColumns = (t: PgColumnsBuilders) => ({
   assetAddress: t.hex(),
   factory: t.text(),
   manager: t.text(),
+  maxReserve: t.bigint().default(0n),
   crosschainInProgress: VaultCrosschainInProgress("vault_crosschain_in_progress"),
+  crosschainInProgressValue: t.bigint(),
   ...defaultColumns(t),
 });
 export const Vault = onchainTable("vault", VaultColumns, (t) => ({
