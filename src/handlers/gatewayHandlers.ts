@@ -15,14 +15,17 @@ import {
   getPayloadId,
   extractMessagesFromPayload,
 } from "../services/CrosschainPayloadService";
-import { getVersionIndexForContract } from "../contracts";
+import { getVersionForContract } from "../contracts";
 
 multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
   logEvent(event, context, "gateway:PrepareMessage");
   const { centrifugeId: toCentrifugeId, poolId, message } = event.args;
-  const versionIndex = getVersionIndexForContract("gateway", context.chain.id, event.log.address);
+
+  const version = getVersionForContract("gateway", context.chain.id, event.log.address);
+  if (!version) return serviceError("Failed to get registry version");
+
   const messageBuffer = Buffer.from(message.substring(2), "hex");
-  const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0), versionIndex);
+  const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0), version);
   const messagePayload = messageBuffer.subarray(1);
 
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -35,7 +38,7 @@ multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
   });
 
   const rawData = `0x${Buffer.from(messageBuffer.toString("hex"))}` as `0x${string}`;
-  const data = decodeMessage(messageType, messagePayload, versionIndex);
+  const data = decodeMessage(messageType, messagePayload, version);
   const tokenId = data && "scId" in data ? (data.scId! as `0x${string}`) : null;
 
   const _crosschainMessage = (await CrosschainMessageService.insert(
@@ -60,7 +63,10 @@ multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
 multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
   logEvent(event, context, "gateway:UnderpaidBatch");
   const { centrifugeId: toCentrifugeId, batch } = event.args;
-  const versionIndex = getVersionIndexForContract("gateway", context.chain.id, event.log.address);
+
+  const version = getVersionForContract("gateway", context.chain.id, event.log.address);
+  if (!version) return serviceError("Failed to get registry version");
+
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const payloadId = getPayloadId(fromCentrifugeId, toCentrifugeId.toString(), batch);
@@ -80,10 +86,10 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
 
   const poolIdSet = new Set<bigint>();
   const tokenIdSet = new Set<`0x${string}`>();
-  const messages = extractMessagesFromPayload(batch, versionIndex);
+  const messages = extractMessagesFromPayload(batch, version);
   for (const message of messages) {
     const messageBuffer = Buffer.from(message.substring(2), "hex");
-    const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0), versionIndex);
+    const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0), version);
     const messagePayload = messageBuffer.subarray(1);
 
     const messageHash = getMessageHash(message);
@@ -110,13 +116,13 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
 
     const rawData = `0x${Buffer.from(messageBuffer.toString("hex"))}` as `0x${string}`;
 
-    const data = decodeMessage(messageType, messagePayload, versionIndex);
+    const data = decodeMessage(messageType, messagePayload, version);
     if (!data) {
       serviceError(`Failed to decode message. Cannot process message data`);
       return;
     }
 
-    const poolId = "poolId" in data ? BigInt(data.poolId!) : null;
+    const poolId = "poolId" in data ? BigInt(data.poolId) : null;
     if (poolId) poolIdSet.add(poolId);
 
     const tokenId = "scId" in data ? (data.scId as `0x${string}`) : null;

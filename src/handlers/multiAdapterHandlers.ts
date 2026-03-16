@@ -12,7 +12,7 @@ import {
   extractMessagesFromPayload,
 } from "../services";
 import { timestamper } from "../helpers/timestamper";
-import { getVersionIndexForContract } from "../contracts";
+import { getVersionForContract } from "../contracts";
 
 multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
   logEvent(event, context, "multiAdapterSendPayload");
@@ -28,22 +28,19 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
   const gasLimit = "gasLimit" in event.args ? event.args.gasLimit : null;
   const gasPaid = "gasPaid" in event.args ? event.args.gasPaid : null;
 
-  const versionIndex = getVersionIndexForContract(
-    "multiAdapter",
-    context.chain.id,
-    event.log.address
-  );
+  const version = getVersionForContract("multiAdapter", context.chain.id, event.log.address);
+  if (!version) return serviceError("Failed to get registry version");
 
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const messages = extractMessagesFromPayload(payloadData, versionIndex);
+  const messages = extractMessagesFromPayload(payloadData, version);
   const messageIds = messages.map((message) =>
     getMessageId(fromCentrifugeId, toCentrifugeId.toString(), getMessageHash(message))
   );
 
   let payload: CrosschainPayloadService | null = null;
 
-  if (versionIndex === 0)
+  if (version === "v3")
     payload = await CrosschainPayloadService.getUnderpaidFromQueue(context, payloadId);
   else
     payload = await CrosschainPayloadService.getUnderpaidOrInTransitFromQueue(context, payloadId);
