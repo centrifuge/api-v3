@@ -1,5 +1,5 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { logEvent, serviceError } from "../helpers/logger";
+import { logEvent, serviceError, serviceLog } from "../helpers/logger";
 import {
   AccountService,
   AssetService,
@@ -606,7 +606,8 @@ multiMapper("syncManager:SetMaxReserve", async ({ event, context }) => {
     tokenId,
     assetAddress,
   })) as VaultService | null;
-  if (!vault) return serviceError(`Vault not found. Cannot retrieve vault`);
+  if (!vault)
+    return serviceLog(`Vault not found. Cannot retrieve vault. Maybe it's not deployed yet?`);
 
   await vault.setMaxReserve(maxReserve).setCrosschainInProgress().save(event);
 });

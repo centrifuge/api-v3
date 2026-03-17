@@ -64,6 +64,7 @@ export async function deployVault({
       isActive: true,
       status: "Unlinked",
       crosschainInProgress: null,
+      maxReserve: 2n ** 128n - 1n,
     },
     event
   )) as VaultService;
