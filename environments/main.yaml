@@ -3,6 +3,15 @@ global:
     ENVIRONMENT: "mainnet"
     SELECTED_NETWORKS: "42161,8453,1,98866,43114,56,10,143,999"
     REGISTRY_URL: "https://ipfs.centrifuge.io/ipfs/bafybeie27jsvvh3ajzlpdhy7d7ez5xcemeyvdpox6zttbyufm62uobcdze"
+    PONDER_RPC_URL_1: "http://cfg-api-erpc:4000/main/evm/1"
+    PONDER_RPC_URL_10: "http://cfg-api-erpc:4000/main/evm/10"
+    PONDER_RPC_URL_8453: "http://cfg-api-erpc:4000/main/evm/8453"
+    PONDER_RPC_URL_98866: "http://cfg-api-erpc:4000/main/evm/98866"
+    PONDER_RPC_URL_43114: "http://cfg-api-erpc:4000/main/evm/43114"
+    PONDER_RPC_URL_56: "http://cfg-api-erpc:4000/main/evm/56"
+    PONDER_RPC_URL_143: "http://cfg-api-erpc:4000/main/evm/143"
+    PONDER_RPC_URL_999: "http://cfg-api-erpc:4000/main/evm/999"
+    PONDER_RPC_URL_42161: "http://cfg-api-erpc:4000/main/evm/42161"
   apiSecretName: cfg-api-v3-rpc-keys
 indexer:
   enabled: true
