@@ -32,11 +32,9 @@ export class AdapterParticipationService extends mixinCommonStatics(
   }
 
   /**
-   * Checks if a payload is verified
-   * @param context - The database and client context
-   * @param payloadId - The ID of the payload to check
-   * @param payloadIndex - The index of the payload to check
-   * @returns True if the payload is verified, false otherwise
+   * True when every `SEND` participation (payload and, for **v3 only**, proof rows) has a matching
+   * `HANDLE` count for the same `payloadId` + `payloadIndex`. **v3_1** uses payload participations
+   * only — the protocol has no adapter proof round.
    */
   static async checkPayloadVerified(
     context: Context,

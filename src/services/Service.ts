@@ -14,6 +14,8 @@ import {
   gte,
   lt,
   gt,
+  sql,
+  getTableColumns,
 } from "drizzle-orm";
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
 import { expandInlineObject, serviceLog, serviceError } from "../helpers/logger";
@@ -168,6 +170,85 @@ export function mixinCommonStatics<
     }
 
     /**
+     * One multi-row `INSERT … ON CONFLICT DO UPDATE` (same semantics as {@link Service#save}).
+     * Do not use `sql\`excluded.${col}\`` here: Drizzle expands it to `excluded.schema.table.col`,
+     * which Ponder’s PG proxy rejects (“cross-database references are not implemented”). Use
+     * `sql.raw(\`excluded."column"\`)` with the column’s DB name instead.
+     */
+    static async saveMany(
+      context: Context,
+      instances: InstanceType<C>[],
+      event: Event | null
+    ): Promise<InstanceType<C>[]> {
+      if (instances.length === 0) return [];
+      if (!("insert" in context.db.sql)) throw new Error(`Read only database`);
+
+      const rows = instances.map((inst) => {
+        const svc = inst as InstanceType<C> & Service<T>;
+        return event ? updateDefaults(table, svc.read(), event) : { ...svc.read() };
+      }) as T["$inferInsert"][];
+
+      const pkNames = getPrimaryKeysFieldNames(table);
+      const pkSet = new Set(pkNames.map((k) => String(k)));
+      const pkTarget = pkNames.map((key) => table[key]);
+      const createdNulls = timestamper("created", undefined);
+      const columns = getTableColumns(table);
+      const conflictSet: Record<string, unknown> = { ...createdNulls };
+      for (const [key, col] of Object.entries(columns)) {
+        if (pkSet.has(key)) continue;
+        if (Object.prototype.hasOwnProperty.call(createdNulls, key)) continue;
+        const pgName = (col as { name: string }).name;
+        const quoted = `"${pgName.replace(/"/g, '""')}"`;
+        conflictSet[key] = sql.raw(`excluded.${quoted}`);
+      }
+
+      const returned = await context.db.sql
+        .insert(table as OnchainTable)
+        .values(rows)
+        .onConflictDoUpdate({
+          target: pkTarget,
+          set: conflictSet as T["$inferInsert"],
+        })
+        .returning();
+
+      serviceLog(`saveMany ${name} count=${returned.length}`);
+      if (returned.length !== instances.length) {
+        throw new Error(
+          `saveMany ${name}: expected ${instances.length} rows, got ${returned.length}`
+        );
+      }
+
+      for (let i = 0; i < instances.length; i++) {
+        applySaveManyReturningToInstance(
+          instances[i] as InstanceType<C> & Service<T>,
+          returned[i]! as T["$inferSelect"]
+        );
+      }
+      return instances;
+    }
+
+    /**
+     * Batch insert with `onConflictDoNothing`, same defaults as {@link insert}. Returns one instance per inserted row.
+     */
+    static async insertMany(
+      context: Context,
+      rows: DataWithoutDefaults<T>[],
+      event: Event | null
+    ): Promise<InstanceType<C>[]> {
+      if (rows.length === 0) return [];
+      const withDefaults = event
+        ? rows.map((data) => insertDefaults(table, data, event))
+        : (rows as T["$inferInsert"][]);
+      const inserted = await context.db.sql
+        .insert(table as OnchainTable)
+        .values(withDefaults)
+        .onConflictDoNothing()
+        .returning();
+      serviceLog(`insertMany ${name} count=${inserted.length}`);
+      return inserted.map((row) => new this(table, name, context, row) as InstanceType<C>);
+    }
+
+    /**
      * Finds an existing record in the database by query criteria.
      *
      * @param context - Database and client context
@@ -181,10 +262,16 @@ export function mixinCommonStatics<
     ) {
       const db = "sql" in context.db ? context.db.sql : context.db;
       serviceLog("get", name, expandInlineObject(query));
+      const filter = queryToFilter(table, query);
+      if (filter === undefined) {
+        throw new Error(
+          `${name}.get requires at least one defined query field (empty object or only undefined values)`
+        );
+      }
       const [entity] = await db
         .select()
         .from(table as OnchainTable)
-        .where(queryToFilter(table, query))
+        .where(filter)
         .limit(1);
       if (!entity) return null;
       serviceLog(`Found ${name}: `, expandInlineObject(entity));
@@ -365,7 +452,7 @@ export function getPrimaryKeysFieldNames<T extends OnchainTable>(table: T) {
   const compositePkNames = primaryKeys.flatMap((pk) =>
     pk.columns.map((col) => toCamelCase(col.name))
   );
-  const primaryKeysFieldNames = [...directPkNames, ...compositePkNames];
+  const primaryKeysFieldNames = [...new Set([...directPkNames, ...compositePkNames])];
   return primaryKeysFieldNames as (keyof T["$inferSelect"])[];
 }
 
@@ -455,13 +542,17 @@ type ExtendedQuery<T> = {
  * @template T - The PostgreSQL table type
  * @param table - The table to create the filter for
  * @param query - The query object containing field-value pairs
- * @returns Drizzle ORM filter condition combining all query conditions
+ * @returns Drizzle filter, or `undefined` when there is nothing to filter on (e.g. `{}` or only
+ *   `undefined` values). Callers that need a predicate (`get`) must handle `undefined`; `count` /
+ *   `query` omit `.where()` and match all rows.
  */
 function queryToFilter<T extends OnchainTable>(
   table: T,
   query: Partial<ExtendedQuery<T["$inferInsert"]>>
 ) {
-  const queryEntries = Object.entries(query).filter(([key]) => !key.startsWith("_"));
+  const queryEntries = Object.entries(query).filter(
+    ([key, value]) => !key.startsWith("_") && value !== undefined
+  );
   const queries = queryEntries.map(([column, value]) => {
     if (value === null) {
       if (column.endsWith("_not")) return isNotNull(table[column.slice(0, -4) as keyof T]);
@@ -475,11 +566,13 @@ function queryToFilter<T extends OnchainTable>(
     if (column.endsWith("_gt")) return gt(table[column.slice(0, -3) as keyof T], value);
     return eq(table[column as keyof T], value);
   });
-  if (queries.length > 1) {
-    return and(...queries);
-  } else {
-    return queries[0];
+  if (queries.length === 0) {
+    return undefined;
   }
+  if (queries.length === 1) {
+    return queries[0]!;
+  }
+  return and(...queries);
 }
 
 /**
@@ -529,4 +622,12 @@ function updateDefaults<T extends OnchainTable>(
   if ("updatedAtTxHash" in table && "transaction" in event)
     dataWithDefaults.updatedAtTxHash = event.transaction.hash as `0x${string}`;
   return dataWithDefaults;
+}
+
+/** Refreshes in-memory row after `saveMany` `RETURNING` (not exported; avoids a public instance mutator). */
+function applySaveManyReturningToInstance<T extends OnchainTable>(
+  inst: Service<T>,
+  row: T["$inferSelect"]
+): void {
+  (inst as Service<T> & { data: T["$inferSelect"] }).data = row;
 }

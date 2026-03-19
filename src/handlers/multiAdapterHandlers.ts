@@ -14,6 +14,18 @@ import {
 import { timestamper } from "../helpers/timestamper";
 import { getVersionForContract } from "../contracts";
 
+/**
+ * Multi-adapter cross-chain delivery differs by registry version:
+ *
+ * **v3** — One payload per `payloadId` for the underpaid → in-transit leg (see `getUnderpaidFromQueue`
+ * in `SendPayload`), plus **0..n** adapter **proof** rounds (`SendProof` / `HandleProof`) that count
+ * toward `AdapterParticipationService.checkPayloadVerified` together with payload sends/handles.
+ *
+ * **v3_1** — **1..n** payload rows can share the same `payloadId` (different `payloadIndex`);
+ * `SendPayload` may attach to an existing in-transit row. There is **no** proof phase on the protocol;
+ * `SendProof` / `HandleProof` exit early when the emitting contract is `v3_1`.
+ */
+
 multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
   logEvent(event, context, "multiAdapterSendPayload");
   const {
@@ -40,13 +52,14 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
 
   let payload: CrosschainPayloadService | null = null;
 
-  if (version === "v3")
-    payload = await CrosschainPayloadService.getUnderpaidFromQueue(context, payloadId);
-  else
+  // v3: at most one underpaid row per payloadId before adapters send. v3_1: multiple indices / resend.
+  if (version === "v3_1")
     payload = await CrosschainPayloadService.getUnderpaidOrInTransitFromQueue(context, payloadId);
+  else payload = await CrosschainPayloadService.getUnderpaidFromQueue(context, payloadId);
 
+  let payloadIndex: number;
   if (!payload) {
-    const payloadIndex = await CrosschainPayloadService.count(context, {
+    payloadIndex = await CrosschainPayloadService.count(context, {
       id: payloadId,
     });
     const [poolId, tokenId] = await CrosschainMessageService.linkMessagesToPayload(
@@ -73,10 +86,17 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
       },
       event
     )) as CrosschainPayloadService;
+  } else {
+    payloadIndex = payload.read().index;
+    await CrosschainMessageService.linkMessagesToPayload(
+      context,
+      event,
+      messageIds,
+      payloadId,
+      payloadIndex
+    );
   }
-
-  const { index: payloadIndex } = payload.read();
-  const adapterParticipation = (await AdapterParticipationService.insert(
+  await AdapterParticipationService.insert(
     context,
     {
       payloadId,
@@ -92,12 +112,17 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
       transactionHash: event.transaction.hash,
     },
     event
-  )) as AdapterParticipationService | null;
-  if (!adapterParticipation) serviceError("Failed to initialize adapter participation");
+  );
 });
 
 multiMapper("multiAdapter:SendProof", async ({ event, context }) => {
   logEvent(event, context, "multiAdapterSendProof");
+
+  const version = getVersionForContract("multiAdapter", context.chain.id, event.log.address);
+  if (!version) return serviceError("Failed to get registry version");
+  if (version === "v3_1")
+    return logEvent(event, context, "multiAdapter:SendProof skipped (v3_1 has no adapter proofs)");
+
   const { payloadId, adapter, centrifugeId: toCentrifugeId } = event.args;
 
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -112,7 +137,7 @@ multiMapper("multiAdapter:SendProof", async ({ event, context }) => {
   }
   const { index: payloadIndex } = payload.read();
 
-  const _adapterParticipation = (await AdapterParticipationService.insert(
+  await AdapterParticipationService.insert(
     context,
     {
       payloadId,
@@ -128,7 +153,7 @@ multiMapper("multiAdapter:SendProof", async ({ event, context }) => {
       transactionHash: event.transaction.hash,
     },
     event
-  )) as AdapterParticipationService;
+  );
 });
 
 multiMapper("multiAdapter:HandlePayload", async ({ event, context }) => {
@@ -154,7 +179,7 @@ multiMapper("multiAdapter:HandlePayload", async ({ event, context }) => {
     );
 
   const { index: payloadIndex } = payload.read();
-  const _adapterParticipation = (await AdapterParticipationService.insert(
+  await AdapterParticipationService.insert(
     context,
     {
       payloadId,
@@ -170,7 +195,7 @@ multiMapper("multiAdapter:HandlePayload", async ({ event, context }) => {
       transactionHash: event.transaction.hash,
     },
     event
-  )) as AdapterParticipationService;
+  );
 
   const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(
     context,
@@ -194,7 +219,17 @@ multiMapper("multiAdapter:HandlePayload", async ({ event, context }) => {
 });
 
 multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
-  logEvent(event, context, "multiAdapterHandleProof"); //RECEIVING CHAIN
+  logEvent(event, context, "multiAdapterHandleProof"); // RECEIVING CHAIN
+
+  const version = getVersionForContract("multiAdapter", context.chain.id, event.log.address);
+  if (!version) return serviceError("Failed to get registry version");
+  if (version === "v3_1")
+    return logEvent(
+      event,
+      context,
+      "multiAdapter:HandleProof skipped (v3_1 has no adapter proofs)"
+    );
+
   const { payloadId, adapter, centrifugeId: fromCentrifugeId } = event.args;
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -208,7 +243,7 @@ multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
   }
   const { index: payloadIndex } = crosschainPayload.read();
 
-  const _adapterParticipation = (await AdapterParticipationService.insert(
+  await AdapterParticipationService.insert(
     context,
     {
       payloadId,
@@ -224,7 +259,7 @@ multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
       transactionHash: event.transaction.hash,
     },
     event
-  )) as AdapterParticipationService;
+  );
 
   const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(
     context,
