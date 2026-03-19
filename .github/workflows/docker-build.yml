@@ -28,7 +28,7 @@ jobs:
 
       - name: Paths filter (push to main only)
         if: github.event_name == 'push'
-        uses: dorny/paths-filter@de02644031bf314604db492de19146b196a45f2
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d
         id: filter
         with:
           filters: |
