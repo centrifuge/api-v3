@@ -163,7 +163,9 @@ export class CrosschainPayloadService extends mixinCommonStatics(
    */
   public delivered(
     event: Event<
-      "multiAdapterV3:HandlePayload" | "multiAdapterV3:HandleProof" | "multiAdapterV3_1:HandlePayload"
+      | "multiAdapterV3:HandlePayload"
+      | "multiAdapterV3:HandleProof"
+      | "multiAdapterV3_1:HandlePayload"
     >
   ) {
     this.data = {
