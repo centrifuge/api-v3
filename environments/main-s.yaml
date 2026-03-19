@@ -13,6 +13,7 @@ global:
     PONDER_RPC_URL_999: "http://cfg-api-erpc:4000/main/evm/999"
     PONDER_RPC_URL_42161: "http://cfg-api-erpc:4000/main/evm/42161"
   apiSecretName: cfg-api-v3-rpc-keys
+  dbSecretName: cfg-api-v3-main-postgres-app
 indexer:
   enabled: true
   image:
@@ -21,21 +22,19 @@ query:
   enabled: true
   image:
     tag: sha-b6b1f37
-  replicaCount: 2
+  replicaCount: 1
   ingress:
     enabled: true
     hosts:
-      - host: api-v3-main.cfg.embrio.tech
+      - host: api-v3-main-s.cfg.embrio.tech
         paths:
           - path: /
             pathType: Prefix
     tls:
-      - secretName: cfg-api-v3-main-tls
+      - secretName: cfg-api-v3-main-s-tls
         hosts:
-          - api-v3-main.cfg.embrio.tech
+          - api-v3-main-s.cfg.embrio.tech
 cacheJob:
   enabled: false
 postgres:
-  enabled: true
-  cluster:
-    instances: 1
+  enabled: false

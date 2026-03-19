@@ -1,0 +1,100 @@
+name: Deploy Staging Environments
+
+on:
+  workflow_run:
+    workflows:
+      - Build and Push Docker Image
+    types:
+      - completed
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  deploy-staging:
+    if: >-
+      ${{
+        github.event.workflow_run.conclusion == 'success'
+        && (
+          github.event.workflow_run.head_branch == 'main'
+          || github.event.workflow_run.event == 'release'
+        )
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf
+        with:
+          app-id: ${{ secrets.DEPLOYMENT_APP_ID }}
+          private-key: ${{ secrets.DEPLOYMENT_APP_PRIVATE_KEY }}
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          ref: main
+
+      - name: Set image tag (short SHA)
+        id: vars
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: echo "image_tag=sha-${HEAD_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Update staging envs and indexer guard
+        env:
+          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+          sync_staging() {
+            local staging="$1"
+            local prod="$2"
+            yq -i ".indexer.image.tag = strenv(IMAGE_TAG)" "$staging"
+            yq -i ".query.image.tag = strenv(IMAGE_TAG)" "$staging"
+            local prod_tag
+            prod_tag="$(yq '.indexer.image.tag' "$prod")"
+            if [ "$IMAGE_TAG" = "$prod_tag" ]; then
+              echo "Tag clash with prod ($prod): disabling indexer on $staging"
+              yq -i '.indexer.enabled = false' "$staging"
+            else
+              yq -i '.indexer.enabled = true' "$staging"
+            fi
+          }
+          sync_staging environments/main-s.yaml environments/main.yaml
+          sync_staging environments/test-s.yaml environments/test.yaml
+
+      - name: Open staging deployment PR
+        id: cpr
+        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          author: "api-gitops[bot] <${{ secrets.DEPLOYMENT_APP_ID }}+api-gitops[bot]@users.noreply.github.com>"
+          branch: gitops/staging
+          delete-branch: true
+          base: main
+          commit-message: "chore(cd): update staging env tags to ${{ steps.vars.outputs.image_tag }}"
+          title: "chore(cd): update staging (main-s / test-s) image tags"
+          body: |
+            Automated **staging** image tag update (`main-s.yaml`, `test-s.yaml`) for the latest Docker build.
+
+            - Tag: `${{ steps.vars.outputs.image_tag }}`
+            - Triggering workflow run: ${{ github.event.workflow_run.html_url }}
+
+            If this tag matched production (`main.yaml` / `test.yaml`) for an environment, **indexer** was set to `enabled: false` on that staging file to avoid duplicate indexers on the same version.
+          labels: |
+            deployment
+            staging
+          add-paths: |
+            environments/main-s.yaml
+            environments/test-s.yaml
+
+      - name: Enable auto-merge (squash)
+        if: ${{ steps.cpr.outputs.pull-request-number != '' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: gh pr merge ${{ steps.cpr.outputs.pull-request-number }} --auto --squash

@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.2.0](https://github.com/centrifuge/api-v3/compare/v3.1.0...v3.2.0) (2026-03-18)
+
+
+### Features
+
+* in progress for vault operations ([#292](https://github.com/centrifuge/api-v3/issues/292)) ([ad84994](https://github.com/centrifuge/api-v3/commit/ad84994df3d7e4766ebcaba335bfbf94bc3c8c58))
+* inprogress update of balance sheet managers ([#289](https://github.com/centrifuge/api-v3/issues/289)) ([84e175d](https://github.com/centrifuge/api-v3/commit/84e175d67b05ecaf03bbc23e0f91468e08a79ef9)), closes [#277](https://github.com/centrifuge/api-v3/issues/277)
+* ponder 0.16 upgrade ([b6b1f37](https://github.com/centrifuge/api-v3/commit/b6b1f37df5f87c437728115010de2babb11c4895))
+
+
+### Bug Fixes
+
+* message decoding for single version registry ([ba933e7](https://github.com/centrifuge/api-v3/commit/ba933e7573c8243bf6c703d1065194dc6d5cf501))
+
 ## [3.1.0](https://github.com/centrifuge/api-v3/compare/v3.0.3...v3.1.0) (2026-03-06)
 
 

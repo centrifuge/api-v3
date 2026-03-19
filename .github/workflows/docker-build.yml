@@ -4,24 +4,62 @@ on:
   push:
     branches:
       - main
-    paths:
-      - src/**
-      - scripts/**
-      - Dockerfile
   release:
-    types: [published, created]  # Add 'created' to trigger on release creation
+    types: [published, created]
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
-jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+permissions:
+  contents: read
+  packages: write
 
+jobs:
+  # Classify push so release-please-only merges can retag the last code image instead of rebuilding.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      build_code: ${{ steps.result.outputs.build_code }}
+      release_bump: ${{ steps.result.outputs.release_bump }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Paths filter (push to main only)
+        if: github.event_name == 'push'
+        uses: dorny/paths-filter@de02644031bf314604db492de19146b196a45f2
+        id: filter
+        with:
+          filters: |
+            build_code:
+              - 'src/**'
+              - 'scripts/**'
+              - 'Dockerfile'
+            release_bump:
+              - 'package.json'
+              - 'CHANGELOG.md'
+
+      - name: Emit change flags
+        id: result
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "build_code=true" >> "$GITHUB_OUTPUT"
+            echo "release_bump=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build_code=${{ steps.filter.outputs.build_code }}" >> "$GITHUB_OUTPUT"
+            echo "release_bump=${{ steps.filter.outputs.release_bump }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-and-push:
+    needs: changes
+    if: >-
+      github.event_name == 'release'
+      || (
+        github.event_name == 'push'
+        && needs.changes.outputs.build_code == 'true'
+      )
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -69,3 +107,72 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # After release-please merges (version/changelog only), point semver + merge SHA tags at the
+  # image already built for github.event.before (pre-merge main tip).
+  retag-release-image:
+    needs: changes
+    if: >-
+      github.event_name == 'push'
+      && needs.changes.outputs.build_code != 'true'
+      && needs.changes.outputs.release_bump == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install crane
+        env:
+          CRANE_VERSION: v0.20.3
+        run: |
+          set -euo pipefail
+          curl -sSL "https://github.com/google/go-containerregistry/releases/download/${CRANE_VERSION}/go-containerregistry_Linux_x86_64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin crane
+          crane version
+
+      - name: Retag existing image with release version and merge SHA
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          MERGE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            echo "::error::github.event.before is empty; cannot locate the pre-merge image to retag."
+            exit 1
+          fi
+          SRC_TAG="sha-${BEFORE_SHA:0:7}"
+          MERGE_TAG="sha-${MERGE_SHA:0:7}"
+          VERSION="$(node -p "require('./package.json').version")"
+          # Strip prerelease/build for x.y rolling tags (same idea as docker/metadata semver flavor)
+          BASE="${VERSION%%-*}"
+          MAJOR="${BASE%%.*}"
+          REST="${BASE#*.}"
+          MINOR="${REST%%.*}"
+
+          IMAGE_LC="$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')"
+          SRC_REF="${IMAGE_LC}:${SRC_TAG}"
+
+          echo "Source image (pre-merge build): ${SRC_REF}"
+          crane digest "$SRC_REF" >/dev/null
+
+          mapfile -t NEW_TAGS < <(printf '%s\n' \
+            "$VERSION" \
+            "${MAJOR}.${MINOR}" \
+            "$MAJOR" \
+            "$MERGE_TAG" \
+            latest \
+            main | awk 'NF && !seen[$0]++')
+
+          for t in "${NEW_TAGS[@]}"; do
+            echo "Tagging ${SRC_REF} -> ${IMAGE_LC}:${t}"
+            crane copy "$SRC_REF" "${IMAGE_LC}:${t}"
+          done
+
+          echo "Retag complete for: ${NEW_TAGS[*]}"
