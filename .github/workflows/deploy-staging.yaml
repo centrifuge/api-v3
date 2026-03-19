@@ -1,5 +1,7 @@
 name: Deploy Staging Environments
 
+# Depends on Docker build: this workflow only starts after "Build and Push Docker Image" completes
+# (GitHub has no cross-workflow `needs:`; `workflow_run` is the supported dependency).
 on:
   workflow_run:
     workflows:
@@ -17,14 +19,8 @@ permissions:
 
 jobs:
   verify-docker-build-ran:
-    if: >-
-      ${{
-        github.event.workflow_run.conclusion == 'success'
-        && (
-          github.event.workflow_run.head_branch == 'main'
-          || github.event.workflow_run.event == 'release'
-        )
-      }}
+    # Gated on the triggering run: only proceed when that Docker workflow run succeeded overall.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     outputs:
       image_built: ${{ steps.check.outputs.image_built }}
@@ -37,73 +33,26 @@ jobs:
           set -euo pipefail
           RUN_ID="${{ github.event.workflow_run.id }}"
           REPO="${{ github.repository }}"
-          # Only update staging tags when a new image was built — skip retag-only / changes-only runs.
-          if gh api "repos/${REPO}/actions/runs/${RUN_ID}/jobs?per_page=100" \
-            --jq '.jobs[] | select(.name == "build-and-push" and .conclusion == "success") | .name' \
-            | head -1 | grep -q .; then
+          echo "::group::Jobs in triggering workflow run ${RUN_ID}"
+          gh api "repos/${REPO}/actions/runs/${RUN_ID}/jobs?per_page=100" --jq '.jobs[] | "\(.name) -> \(.conclusion)"' || true
+          echo "::endgroup::"
+          # Match default job id "build-and-push" (exact) or names GitHub may emit for that job.
+          match="$(
+            gh api "repos/${REPO}/actions/runs/${RUN_ID}/jobs?per_page=100" \
+              --jq '.jobs[] | select(.conclusion == "success") | select(.name == "build-and-push" or (.name | startswith("build-and-push"))) | .name' \
+              | head -1
+          )"
+          if [ -n "$match" ]; then
             echo "image_built=true" >> "$GITHUB_OUTPUT"
-            echo "Docker build-and-push succeeded; will refresh staging image tags."
+            echo "Docker image build job succeeded (matched: $match); will refresh staging image tags."
           else
             echo "image_built=false" >> "$GITHUB_OUTPUT"
             echo "::notice::Skipping staging tag update: no successful build-and-push job in this workflow run (no new image built)."
           fi
 
-  patch-staging-yaml:
+  staging-gitops-pr:
     needs: verify-docker-build-ran
     if: needs.verify-docker-build-ran.outputs.image_built == 'true'
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - name: api-v3-main-s
-            staging: environments/main-s.yaml
-            prod: environments/main.yaml
-          - name: api-v3-test-s
-            staging: environments/test-s.yaml
-            prod: environments/test.yaml
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          ref: main
-
-      - name: Set image tag (short SHA)
-        id: vars
-        env:
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: echo "image_tag=sha-${HEAD_SHA::7}" >> "$GITHUB_OUTPUT"
-
-      - name: Update staging env and indexer guard
-        env:
-          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
-          STAGING: ${{ matrix.staging }}
-          PROD: ${{ matrix.prod }}
-        run: |
-          set -euo pipefail
-          yq -i ".indexer.image.tag = strenv(IMAGE_TAG)" "$STAGING"
-          yq -i ".query.image.tag = strenv(IMAGE_TAG)" "$STAGING"
-          prod_tag="$(yq '.indexer.image.tag' "$PROD")"
-          if [ "$IMAGE_TAG" = "$prod_tag" ]; then
-            echo "Tag clash with prod ($PROD): disabling indexer on $STAGING"
-            yq -i '.indexer.enabled = false' "$STAGING"
-          else
-            yq -i '.indexer.enabled = true' "$STAGING"
-          fi
-
-      - name: Upload patched values file
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.name }}
-          path: ${{ matrix.staging }}
-
-  open-staging-pr:
-    needs: [verify-docker-build-ran, patch-staging-yaml]
-    if: >-
-      needs.verify-docker-build-ran.outputs.image_built == 'true'
-      && needs.patch-staging-yaml.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -122,22 +71,33 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           ref: main
 
-      - name: Download api-v3-main-s values
-        uses: actions/download-artifact@v4
-        with:
-          name: api-v3-main-s
-          path: .
-      - name: Download api-v3-test-s values
-        uses: actions/download-artifact@v4
-        with:
-          name: api-v3-test-s
-          path: .
-
-      - name: Set image tag (for PR message)
+      - name: Set image tag (short SHA)
         id: vars
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: echo "image_tag=sha-${HEAD_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Update staging envs and indexer guard
+        env:
+          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+          sync_staging() {
+            local staging="$1"
+            local prod="$2"
+            yq -i ".indexer.image.tag = strenv(IMAGE_TAG)" "$staging"
+            yq -i ".query.image.tag = strenv(IMAGE_TAG)" "$staging"
+            local prod_tag
+            prod_tag="$(yq '.indexer.image.tag' "$prod")"
+            if [ "$IMAGE_TAG" = "$prod_tag" ]; then
+              echo "Tag clash with prod ($prod): disabling indexer on $staging"
+              yq -i '.indexer.enabled = false' "$staging"
+            else
+              yq -i '.indexer.enabled = true' "$staging"
+            fi
+          }
+          sync_staging environments/main-s.yaml environments/main.yaml
+          sync_staging environments/test-s.yaml environments/test.yaml
 
       - name: Open staging deployment PR
         id: cpr
