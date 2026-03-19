@@ -13,9 +13,10 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
-  patch-staging-yaml:
+  verify-docker-build-ran:
     if: >-
       ${{
         github.event.workflow_run.conclusion == 'success'
@@ -24,6 +25,32 @@ jobs:
           || github.event.workflow_run.event == 'release'
         )
       }}
+    runs-on: ubuntu-latest
+    outputs:
+      image_built: ${{ steps.check.outputs.image_built }}
+    steps:
+      - name: Check build-and-push job succeeded
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RUN_ID="${{ github.event.workflow_run.id }}"
+          REPO="${{ github.repository }}"
+          # Only update staging tags when a new image was built — skip retag-only / changes-only runs.
+          if gh api "repos/${REPO}/actions/runs/${RUN_ID}/jobs?per_page=100" \
+            --jq '.jobs[] | select(.name == "build-and-push" and .conclusion == "success") | .name' \
+            | head -1 | grep -q .; then
+            echo "image_built=true" >> "$GITHUB_OUTPUT"
+            echo "Docker build-and-push succeeded; will refresh staging image tags."
+          else
+            echo "image_built=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping staging tag update: no successful build-and-push job in this workflow run (no new image built)."
+          fi
+
+  patch-staging-yaml:
+    needs: verify-docker-build-ran
+    if: needs.verify-docker-build-ran.outputs.image_built == 'true'
     strategy:
       fail-fast: true
       matrix:
@@ -31,18 +58,12 @@ jobs:
           - name: api-v3-main-s
             staging: environments/main-s.yaml
             prod: environments/main.yaml
-            url: https://api-v3-main-s.cfg.embrio.tech
           - name: api-v3-test-s
             staging: environments/test-s.yaml
             prod: environments/test.yaml
-            url: https://api-v3-test-s.cfg.embrio.tech
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ matrix.name }}
-      url: ${{ matrix.url }}
     permissions:
       contents: read
-      deployments: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -79,8 +100,10 @@ jobs:
           path: ${{ matrix.staging }}
 
   open-staging-pr:
-    needs: patch-staging-yaml
-    if: success()
+    needs: [verify-docker-build-ran, patch-staging-yaml]
+    if: >-
+      needs.verify-docker-build-ran.outputs.image_built == 'true'
+      && needs.patch-staging-yaml.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write

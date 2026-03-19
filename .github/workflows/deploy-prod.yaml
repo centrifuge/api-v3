@@ -3,6 +3,9 @@ name: Deploy Production Environments
 # Amends the open release-please PR: copy `sha-*` image tags from staging (`*-s`) into
 # production yamls on whatever is currently on that branch, then disable staging indexers
 # when prod matches (always true after a verbatim promote).
+#
+# GitHub deployment environments are recorded in record-deployment-environments.yaml
+# when this lands on main — not when committing to the release-please branch.
 
 on:
   push:
@@ -19,12 +22,6 @@ permissions:
 jobs:
   promote-api-v3-main:
     runs-on: ubuntu-latest
-    environment:
-      name: api-v3-main
-      url: https://api-v3-main.cfg.embrio.tech
-    permissions:
-      contents: write
-      deployments: write
     steps:
       - name: Create GitHub App token
         id: app-token
@@ -73,12 +70,6 @@ jobs:
   promote-api-v3-test:
     needs: promote-api-v3-main
     runs-on: ubuntu-latest
-    environment:
-      name: api-v3-test
-      url: https://api-v3-test.cfg.embrio.tech
-    permissions:
-      contents: write
-      deployments: write
     steps:
       - name: Create GitHub App token
         id: app-token
