@@ -7,6 +7,7 @@ global:
     PONDER_RPC_URL_84532: "http://cfg-api-erpc:4000/main/evm/84532"
     PONDER_RPC_URL_421614: "http://cfg-api-erpc:4000/main/evm/421614"
   apiSecretName: cfg-api-v3-rpc-keys
+  dbSecretName: cfg-api-v3-test-postgres-app
 indexer:
   enabled: true
   image:
