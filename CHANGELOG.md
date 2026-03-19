@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.3.0](https://github.com/centrifuge/api-v3/compare/v3.2.0...v3.3.0) (2026-03-19)
+
+
+### Features
+
+* track in-progress set max reserve ([81d2f42](https://github.com/centrifuge/api-v3/commit/81d2f42cc29d52b0a5de5d4ea0929ebd76650ab8))
+
+
+### Bug Fixes
+
+* failing crosschain messaging reconciliation ([#302](https://github.com/centrifuge/api-v3/issues/302)) ([c4b7b12](https://github.com/centrifuge/api-v3/commit/c4b7b12db6d811cfcf77ea0647279efc2b12935f))
+
 ## [3.2.0](https://github.com/centrifuge/api-v3/compare/v3.1.0...v3.2.0) (2026-03-18)
 
 
