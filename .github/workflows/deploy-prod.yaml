@@ -1,23 +1,23 @@
 name: Deploy Production Environments
 
+# Amends the open release-please PR: copy `sha-*` image tags from staging (`*-s`) into
+# production yamls on whatever is currently on that branch, then disable staging indexers
+# when prod matches (always true after a verbatim promote).
+
 on:
-  workflow_run:
-    workflows:
-      - Build and Push Docker Image
-    types:
-      - completed
+  push:
+    branches:
+      - "release-please--**"
 
 concurrency:
-  group: deploy-production
+  group: deploy-prod-release-please-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
-  deploy-production:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+  promote-prod-from-staging:
     runs-on: ubuntu-latest
     steps:
       - name: Create GitHub App token
@@ -27,66 +27,46 @@ jobs:
           app-id: ${{ secrets.DEPLOYMENT_APP_ID }}
           private-key: ${{ secrets.DEPLOYMENT_APP_PRIVATE_KEY }}
 
-      - name: Checkout repository
+      - name: Checkout release-please branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           token: ${{ steps.app-token.outputs.token }}
+          ref: ${{ github.ref }}
 
-      - name: Set image tag
-        id: vars
+      - name: Promote staging image tags to production yamls
+        run: |
+          set -euo pipefail
+          promote_pair() {
+            local staging="$1"
+            local prod="$2"
+            local idx qry
+            idx="$(yq '.indexer.image.tag' "$staging")"
+            qry="$(yq '.query.image.tag' "$staging")"
+            export IDX_TAG="$idx" QRY_TAG="$qry"
+            yq -i '.indexer.image.tag = strenv(IDX_TAG)' "$prod"
+            yq -i '.query.image.tag = strenv(QRY_TAG)' "$prod"
+            # Prod now runs this build; avoid duplicate indexers on staging for the same tag.
+            local prod_idx
+            prod_idx="$(yq '.indexer.image.tag' "$prod")"
+            if [ "$idx" = "$prod_idx" ]; then
+              yq -i '.indexer.enabled = false' "$staging"
+            fi
+          }
+          promote_pair environments/main-s.yaml environments/main.yaml
+          promote_pair environments/test-s.yaml environments/test.yaml
+
+      - name: Commit and push to release-please branch
         env:
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: echo "image_tag=sha-${HEAD_SHA::7}" >> "$GITHUB_OUTPUT"
-
-      - name: Update mainnet indexer image tag
-        uses: mikefarah/yq@5a7e72a743649b1b3a47d1a1d8214f3453173c51
-        env:
-          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
-        with:
-          cmd: yq -i '.indexer.image.tag = strenv(IMAGE_TAG)' environments/main.yaml
-
-      - name: Update mainnet query image tag
-        uses: mikefarah/yq@5a7e72a743649b1b3a47d1a1d8214f3453173c51
-        env:
-          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
-        with:
-          cmd: yq -i '.query.image.tag = strenv(IMAGE_TAG)' environments/main.yaml
-
-      - name: Update testnet indexer image tag
-        uses: mikefarah/yq@5a7e72a743649b1b3a47d1a1d8214f3453173c51
-        env:
-          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
-        with:
-          cmd: yq -i '.indexer.image.tag = strenv(IMAGE_TAG)' environments/test.yaml
-
-      - name: Update testnet query image tag
-        uses: mikefarah/yq@5a7e72a743649b1b3a47d1a1d8214f3453173c51
-        env:
-          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
-        with:
-          cmd: yq -i '.query.image.tag = strenv(IMAGE_TAG)' environments/test.yaml
-
-      - name: Open deployment PR
-        id: cpr
-        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          author: "api-gitops[bot] <${{ secrets.DEPLOYMENT_APP_ID }}+api-gitops[bot]@users.noreply.github.com>"
-          branch: deployment
-          delete-branch: true
-          base: main
-          commit-message: "chore(cd): update production env tags to ${{ steps.vars.outputs.image_tag }}"
-          title: "chore(cd): update deployment env tags"
-          body: |
-            Automated environment tag update for main and test.
-          labels: |
-            deployment
-          add-paths: |
-            environments/main.yaml
-            environments/test.yaml
-
-      - name: Enable auto-merge (squash)
-        if: ${{ steps.cpr.outputs.pull-request-number != '' }}
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: gh pr merge ${{ steps.cpr.outputs.pull-request-number }} --auto --squash
+          GIT_AUTHOR_NAME: api-gitops[bot]
+          GIT_AUTHOR_EMAIL: ${{ secrets.DEPLOYMENT_APP_ID }}+api-gitops[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: api-gitops[bot]
+          GIT_COMMITTER_EMAIL: ${{ secrets.DEPLOYMENT_APP_ID }}+api-gitops[bot]@users.noreply.github.com
+        run: |
+          set -euo pipefail
+          git add environments/main.yaml environments/test.yaml environments/main-s.yaml environments/test-s.yaml
+          if git diff --staged --quiet; then
+            echo "No environment changes to commit (already promoted)."
+            exit 0
+          fi
+          git commit -m "chore(cd): promote prod image tags from staging yamls"
+          git push origin "HEAD:${{ github.ref_name }}"
