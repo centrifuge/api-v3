@@ -12,11 +12,10 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
-  deploy-staging:
+  patch-staging-yaml:
     if: >-
       ${{
         github.event.workflow_run.conclusion == 'success'
@@ -25,7 +24,67 @@ jobs:
           || github.event.workflow_run.event == 'release'
         )
       }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - name: api-v3-main-s
+            staging: environments/main-s.yaml
+            prod: environments/main.yaml
+            url: https://api-v3-main-s.cfg.embrio.tech
+          - name: api-v3-test-s
+            staging: environments/test-s.yaml
+            prod: environments/test.yaml
+            url: https://api-v3-test-s.cfg.embrio.tech
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ matrix.name }}
+      url: ${{ matrix.url }}
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: main
+
+      - name: Set image tag (short SHA)
+        id: vars
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: echo "image_tag=sha-${HEAD_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Update staging env and indexer guard
+        env:
+          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
+          STAGING: ${{ matrix.staging }}
+          PROD: ${{ matrix.prod }}
+        run: |
+          set -euo pipefail
+          yq -i ".indexer.image.tag = strenv(IMAGE_TAG)" "$STAGING"
+          yq -i ".query.image.tag = strenv(IMAGE_TAG)" "$STAGING"
+          prod_tag="$(yq '.indexer.image.tag' "$PROD")"
+          if [ "$IMAGE_TAG" = "$prod_tag" ]; then
+            echo "Tag clash with prod ($PROD): disabling indexer on $STAGING"
+            yq -i '.indexer.enabled = false' "$STAGING"
+          else
+            yq -i '.indexer.enabled = true' "$STAGING"
+          fi
+
+      - name: Upload patched values file
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.staging }}
+
+  open-staging-pr:
+    needs: patch-staging-yaml
+    if: success()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Create GitHub App token
         id: app-token
@@ -40,33 +99,22 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           ref: main
 
-      - name: Set image tag (short SHA)
+      - name: Download api-v3-main-s values
+        uses: actions/download-artifact@v4
+        with:
+          name: api-v3-main-s
+          path: .
+      - name: Download api-v3-test-s values
+        uses: actions/download-artifact@v4
+        with:
+          name: api-v3-test-s
+          path: .
+
+      - name: Set image tag (for PR message)
         id: vars
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: echo "image_tag=sha-${HEAD_SHA::7}" >> "$GITHUB_OUTPUT"
-
-      - name: Update staging envs and indexer guard
-        env:
-          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
-        run: |
-          set -euo pipefail
-          sync_staging() {
-            local staging="$1"
-            local prod="$2"
-            yq -i ".indexer.image.tag = strenv(IMAGE_TAG)" "$staging"
-            yq -i ".query.image.tag = strenv(IMAGE_TAG)" "$staging"
-            local prod_tag
-            prod_tag="$(yq '.indexer.image.tag' "$prod")"
-            if [ "$IMAGE_TAG" = "$prod_tag" ]; then
-              echo "Tag clash with prod ($prod): disabling indexer on $staging"
-              yq -i '.indexer.enabled = false' "$staging"
-            else
-              yq -i '.indexer.enabled = true' "$staging"
-            fi
-          }
-          sync_staging environments/main-s.yaml environments/main.yaml
-          sync_staging environments/test-s.yaml environments/test.yaml
 
       - name: Open staging deployment PR
         id: cpr

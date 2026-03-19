@@ -17,8 +17,14 @@ permissions:
   contents: write
 
 jobs:
-  promote-prod-from-staging:
+  promote-api-v3-main:
     runs-on: ubuntu-latest
+    environment:
+      name: api-v3-main
+      url: https://api-v3-main.cfg.embrio.tech
+    permissions:
+      contents: write
+      deployments: write
     steps:
       - name: Create GitHub App token
         id: app-token
@@ -33,29 +39,22 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           ref: ${{ github.ref }}
 
-      - name: Promote staging image tags to production yamls
+      - name: Promote mainnet (main-s → main)
         run: |
           set -euo pipefail
-          promote_pair() {
-            local staging="$1"
-            local prod="$2"
-            local idx qry
-            idx="$(yq '.indexer.image.tag' "$staging")"
-            qry="$(yq '.query.image.tag' "$staging")"
-            export IDX_TAG="$idx" QRY_TAG="$qry"
-            yq -i '.indexer.image.tag = strenv(IDX_TAG)' "$prod"
-            yq -i '.query.image.tag = strenv(QRY_TAG)' "$prod"
-            # Prod now runs this build; avoid duplicate indexers on staging for the same tag.
-            local prod_idx
-            prod_idx="$(yq '.indexer.image.tag' "$prod")"
-            if [ "$idx" = "$prod_idx" ]; then
-              yq -i '.indexer.enabled = false' "$staging"
-            fi
-          }
-          promote_pair environments/main-s.yaml environments/main.yaml
-          promote_pair environments/test-s.yaml environments/test.yaml
+          staging="environments/main-s.yaml"
+          prod="environments/main.yaml"
+          idx="$(yq '.indexer.image.tag' "$staging")"
+          qry="$(yq '.query.image.tag' "$staging")"
+          export IDX_TAG="$idx" QRY_TAG="$qry"
+          yq -i '.indexer.image.tag = strenv(IDX_TAG)' "$prod"
+          yq -i '.query.image.tag = strenv(QRY_TAG)' "$prod"
+          prod_idx="$(yq '.indexer.image.tag' "$prod")"
+          if [ "$idx" = "$prod_idx" ]; then
+            yq -i '.indexer.enabled = false' "$staging"
+          fi
 
-      - name: Commit and push to release-please branch
+      - name: Commit and push (mainnet)
         env:
           GIT_AUTHOR_NAME: api-gitops[bot]
           GIT_AUTHOR_EMAIL: ${{ secrets.DEPLOYMENT_APP_ID }}+api-gitops[bot]@users.noreply.github.com
@@ -63,10 +62,67 @@ jobs:
           GIT_COMMITTER_EMAIL: ${{ secrets.DEPLOYMENT_APP_ID }}+api-gitops[bot]@users.noreply.github.com
         run: |
           set -euo pipefail
-          git add environments/main.yaml environments/test.yaml environments/main-s.yaml environments/test-s.yaml
+          git add environments/main.yaml environments/main-s.yaml
           if git diff --staged --quiet; then
-            echo "No environment changes to commit (already promoted)."
+            echo "No mainnet env changes to commit."
             exit 0
           fi
-          git commit -m "chore(cd): promote prod image tags from staging yamls"
+          git commit -m "chore(cd): promote api-v3-main from staging yamls"
+          git push origin "HEAD:${{ github.ref_name }}"
+
+  promote-api-v3-test:
+    needs: promote-api-v3-main
+    runs-on: ubuntu-latest
+    environment:
+      name: api-v3-test
+      url: https://api-v3-test.cfg.embrio.tech
+    permissions:
+      contents: write
+      deployments: write
+    steps:
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf
+        with:
+          app-id: ${{ secrets.DEPLOYMENT_APP_ID }}
+          private-key: ${{ secrets.DEPLOYMENT_APP_PRIVATE_KEY }}
+
+      - name: Checkout release-please branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          ref: ${{ github.ref }}
+
+      - name: Pull latest (includes mainnet promotion commit)
+        run: git pull origin "${{ github.ref_name }}"
+
+      - name: Promote testnet (test-s → test)
+        run: |
+          set -euo pipefail
+          staging="environments/test-s.yaml"
+          prod="environments/test.yaml"
+          idx="$(yq '.indexer.image.tag' "$staging")"
+          qry="$(yq '.query.image.tag' "$staging")"
+          export IDX_TAG="$idx" QRY_TAG="$qry"
+          yq -i '.indexer.image.tag = strenv(IDX_TAG)' "$prod"
+          yq -i '.query.image.tag = strenv(QRY_TAG)' "$prod"
+          prod_idx="$(yq '.indexer.image.tag' "$prod")"
+          if [ "$idx" = "$prod_idx" ]; then
+            yq -i '.indexer.enabled = false' "$staging"
+          fi
+
+      - name: Commit and push (testnet)
+        env:
+          GIT_AUTHOR_NAME: api-gitops[bot]
+          GIT_AUTHOR_EMAIL: ${{ secrets.DEPLOYMENT_APP_ID }}+api-gitops[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: api-gitops[bot]
+          GIT_COMMITTER_EMAIL: ${{ secrets.DEPLOYMENT_APP_ID }}+api-gitops[bot]@users.noreply.github.com
+        run: |
+          set -euo pipefail
+          git add environments/test.yaml environments/test-s.yaml
+          if git diff --staged --quiet; then
+            echo "No testnet env changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(cd): promote api-v3-test from staging yamls"
           git push origin "HEAD:${{ github.ref_name }}"
