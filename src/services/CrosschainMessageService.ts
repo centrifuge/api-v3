@@ -1,5 +1,5 @@
 import { CrosschainMessage, CrosschainMessageStatuses } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service, mixinCommonStatics, type ReadOnlyContext } from "./Service";
 import { serviceError } from "../helpers/logger";
 import { encodePacked, keccak256 } from "viem";
 import { Event, Context } from "ponder:registry";
@@ -19,6 +19,55 @@ export class CrosschainMessageService extends mixinCommonStatics(
   CrosschainMessage,
   "CrosschainMessage"
 ) {
+  /**
+   * Groups rows by message `id`, each group sorted by `index` (for in-memory use after a batched query).
+   */
+  static groupRowsByMessageId(rows: CrosschainMessageService[]) {
+    const map = new Map<`0x${string}`, CrosschainMessageService[]>();
+    for (const row of rows) {
+      const id = row.read().id as `0x${string}`;
+      const list = map.get(id) ?? [];
+      list.push(row);
+      map.set(id, list);
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => a.read().index - b.read().index);
+    }
+    return map;
+  }
+
+  /**
+   * First row that is `AwaitingBatchDelivery` with no `payloadId` (`rows` must be sorted by index).
+   */
+  static getFirstUnlinkedAwaiting(rows: CrosschainMessageService[] | undefined) {
+    if (!rows) return null;
+    for (const row of rows) {
+      const d = row.read();
+      if (d.status === "AwaitingBatchDelivery" && d.payloadId == null) return row;
+    }
+    return null;
+  }
+
+  /**
+   * One query: all **CrosschainMessage** rows whose primary-key `id` is in `messageIds` (deduped),
+   * returned as `Map<messageId, rows[]>` (each list sorted by `index`).
+   */
+  static async loadCrosschainMessagesByMessageIds(
+    context: Context | ReadOnlyContext,
+    messageIds: readonly `0x${string}`[]
+  ) {
+    const unique = [...new Set(messageIds)];
+    if (unique.length === 0) return new Map<`0x${string}`, CrosschainMessageService[]>();
+    const rows = (await CrosschainMessageService.query(context, {
+      id_in: unique,
+      _sort: [
+        { field: "id", direction: "asc" },
+        { field: "index", direction: "asc" },
+      ],
+    })) as CrosschainMessageService[];
+    return CrosschainMessageService.groupRowsByMessageId(rows);
+  }
+
   /**
    * Gets the first message from the awaiting batch delivery queue for a given message ID
    * @param context - The database and client context
@@ -108,22 +157,19 @@ export class CrosschainMessageService extends mixinCommonStatics(
   }
 
   /**
-   * Checks if a payload is fully executed
-   * @param context - The database and client context
-   * @param payloadId - The ID of the payload to check
-   * @param payloadIndex - The index of the payload to check
-   * @returns True if the payload is fully executed, false otherwise
+   * True when every message for this payload row is executed. Uses two aggregate counts (in parallel)
+   * instead of loading all message rows.
    */
   static async checkPayloadFullyExecuted(
     context: Context,
     payloadId: `0x${string}`,
     payloadIndex: number
   ) {
-    const crosschaMassages = (await CrosschainMessageService.query(context, {
-      payloadId,
-      payloadIndex,
-    })) as CrosschainMessageService[];
-    return crosschaMassages.every((message) => message.read().status === "Executed");
+    const [total, executed] = await Promise.all([
+      CrosschainMessageService.countPayloadMessages(context, payloadId, payloadIndex),
+      CrosschainMessageService.countPayloadExecutedMessages(context, payloadId, payloadIndex),
+    ]);
+    return total > 0 && executed === total;
   }
 
   /**
@@ -141,28 +187,38 @@ export class CrosschainMessageService extends mixinCommonStatics(
     payloadId: `0x${string}`,
     payloadIndex: number
   ): Promise<[poolId: bigint | null, tokenId: `0x${string}` | null]> {
-    const crosschainMessageSaves = [];
+    const uniqueIds = [...new Set(messageIds)];
+    const unlinkedRows =
+      uniqueIds.length === 0
+        ? []
+        : ((await CrosschainMessageService.query(context, {
+            id_in: uniqueIds,
+            payloadId: null,
+            payloadIndex: null,
+            _sort: [
+              { field: "id", direction: "asc" },
+              { field: "index", direction: "asc" },
+            ],
+          })) as CrosschainMessageService[]);
+
+    const queueById = CrosschainMessageService.groupRowsByMessageId(unlinkedRows);
+
+    const toSave: CrosschainMessageService[] = [];
     const poolIdSet = new Set<bigint>();
     const tokenIdSet = new Set<`0x${string}`>();
     for (const messageId of messageIds) {
-      const crosschainMessages = (await CrosschainMessageService.query(context, {
-        id: messageId,
-        payloadId: null,
-        payloadIndex: null,
-        _sort: [{ field: "index", direction: "asc" }],
-      })) as CrosschainMessageService[];
-      if (crosschainMessages.length === 0) {
-        serviceError(`CrosschainMessage with id ${messageId} not found`);
-        continue;
-      }
-      const crosschainMessage = crosschainMessages.shift()!;
+      const q = queueById.get(messageId);
+      const crosschainMessage = q?.shift();
+      if (!crosschainMessage) continue;
       const { poolId, tokenId } = crosschainMessage.read();
       crosschainMessage.setPayloadId(payloadId, payloadIndex);
-      crosschainMessageSaves.push(crosschainMessage.save(event));
+      toSave.push(crosschainMessage);
       if (poolId) poolIdSet.add(poolId);
       if (tokenId) tokenIdSet.add(tokenId);
     }
-    await Promise.all(crosschainMessageSaves);
+    if (toSave.length > 0) {
+      await CrosschainMessageService.saveMany(context, toSave, event);
+    }
     const poolIds = Array.from(poolIdSet);
     const tokenIds = Array.from(tokenIdSet);
     if (poolIds.length > 1) throw new Error("Multiple pools found among messages");

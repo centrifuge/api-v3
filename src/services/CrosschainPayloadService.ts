@@ -8,10 +8,11 @@ import { timestamper } from "../helpers/timestamper";
 import { RegistryVersions } from "../chains";
 
 /**
- * Service class for managing CrosschainPayload entities.
+ * Service class for managing CrosschainPayload entities (primary key `id` + `payloadIndex`).
  *
- * This service handles operations related to CrosschainPayload entities,
- * including creation, updating, and querying.
+ * **v3:** Typically one active row per `payloadId` through underpaid → in-transit; adapters may add
+ * proof rounds (see multi-adapter handlers). **v3_1:** Multiple rows per `payloadId` (1..n indices)
+ * are normal; there is no adapter proof phase.
  *
  * @extends {Service<typeof CrosschainPayload>}
  */
@@ -160,7 +161,11 @@ export class CrosschainPayloadService extends mixinCommonStatics(
    * @param {Event} event - The event that marks the CrosschainPayload as delivered
    * @returns {CrosschainPayloadService} Returns the current instance for method chaining
    */
-  public delivered(event: Event<"multiAdapterV3:HandlePayload" | "multiAdapterV3:HandleProof">) {
+  public delivered(
+    event: Event<
+      "multiAdapterV3:HandlePayload" | "multiAdapterV3:HandleProof" | "multiAdapterV3_1:HandlePayload"
+    >
+  ) {
     this.data = {
       ...this.data,
       status: "Delivered",
