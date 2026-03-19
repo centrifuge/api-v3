@@ -40,10 +40,26 @@ export class VaultService extends mixinCommonStatics(Service<typeof Vault>, Vaul
    * @returns The service instance for method chaining
    */
   public setCrosschainInProgress(
-    crosschainInProgress?: (typeof VaultCrosschainInProgressTypes)[number]
+    crosschainInProgress?: (typeof VaultCrosschainInProgressTypes)[number],
+    crosschainInProgressValue?: bigint
   ) {
     this.data.crosschainInProgress = crosschainInProgress ?? null;
-    serviceLog(`Setting crosschainInProgress to ${crosschainInProgress}`);
+    this.data.crosschainInProgressValue = crosschainInProgressValue ?? null;
+    serviceLog(
+      `Setting crosschainInProgress to ${crosschainInProgress} with value ${crosschainInProgressValue}`
+    );
+    return this;
+  }
+
+  /**
+   * Sets the max reserve for the vault.
+   *
+   * @param maxReserve - The value to set for maxReserve
+   * @returns The service instance for method chaining
+   */
+  public setMaxReserve(maxReserve: bigint) {
+    this.data.maxReserve = maxReserve;
+    serviceLog(`Setting maxReserve to ${maxReserve}`);
     return this;
   }
 }

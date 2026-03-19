@@ -41,7 +41,7 @@ type ExtractNetworkNamesFromKeys<K> = K extends keyof typeof networkNames
   ? (typeof networkNames)[K]
   : never;
 
-export type NetworkNames<V> = V extends RegistryVersions
+export type NetworkNames<V extends RegistryVersions> = V extends RegistryVersions
   ? ExtractNetworkNamesFromKeys<RegistryChainsKeys<V>>
   : never;
 

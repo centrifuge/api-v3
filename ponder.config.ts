@@ -82,6 +82,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
     "ShareClassManager",
     "Spoke",
     "VaultRegistry",
+    "SyncManager",
   ] as const,
   {
     vaultV3_1: {

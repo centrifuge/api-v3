@@ -18,3 +18,13 @@ export function formatBigIntToDecimal(value: bigint, decimals: number = 18): str
 
   return `${integerStr}.${remainderStr}`;
 }
+
+/**
+ * Formats a bytes32 value as a 0x address.
+ *
+ * @param value - The bytes32 value to format
+ * @returns The formatted 0x address
+ */
+export function formatBytes32ToAddress(value: `0x${string}`): `0x${string}` {
+  return value.substring(0, 42).toLowerCase() as `0x${string}`;
+}
