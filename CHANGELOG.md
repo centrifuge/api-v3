@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.1](https://github.com/centrifuge/api-v3/compare/v3.3.0...v3.3.1) (2026-03-20)
+
+
+### Bug Fixes
+
+* updateContract decoding ([0bca82a](https://github.com/centrifuge/api-v3/commit/0bca82a4109a69bd19245c465c85e503770806c6))
+
 ## [3.3.0](https://github.com/centrifuge/api-v3/compare/v3.2.0...v3.3.0) (2026-03-19)
 
 
