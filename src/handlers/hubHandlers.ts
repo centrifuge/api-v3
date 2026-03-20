@@ -277,10 +277,14 @@ export function decodeUpdateContract(payload: `0x${string}`): DecodedUpdateContr
   const b = Buffer.from(payload.slice(2), "hex");
   if (b.length < WORD_SIZE) return null;
   const kindValue = decodeAtWord(b, 0, decodeUint8InWord);
-  const kind = Object.keys(UpdateContractPayloadKind)[kindValue] as
-    | keyof typeof UpdateContractPayloadKind
-    | undefined;
-  if (kind === undefined) return null;
+  // Numeric TS enums list reverse-mapping keys ("0","1",…) first in Object.keys — use enum[value] for the name.
+  if (
+    kindValue < UpdateContractPayloadKind.Valuation ||
+    kindValue > UpdateContractPayloadKind.Withdraw
+  ) {
+    return null;
+  }
+  const kind = UpdateContractPayloadKind[kindValue] as DecodedUpdateContract["kind"];
 
   const result: DecodedUpdateContract = {
     kind,
