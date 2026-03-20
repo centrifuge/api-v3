@@ -109,7 +109,8 @@ jobs:
           cache-to: type=gha,mode=max
 
   # After release-please merges (version/changelog only), point semver + merge SHA tags at the
-  # image already built for github.event.before (pre-merge main tip).
+  # same image as the last commit that actually got a build (github.event.before may be a
+  # release-only merge with no sha-* tag in GHCR — walk first-parent chain until crane finds one).
   retag-release-image:
     needs: changes
     if: >-
@@ -120,6 +121,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
 
       - name: Log in to Container Registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
@@ -147,7 +150,6 @@ jobs:
             echo "::error::github.event.before is empty; cannot locate the pre-merge image to retag."
             exit 1
           fi
-          SRC_TAG="sha-${BEFORE_SHA:0:7}"
           MERGE_TAG="sha-${MERGE_SHA:0:7}"
           VERSION="$(node -p "require('./package.json').version")"
           # Strip prerelease/build for x.y rolling tags (same idea as docker/metadata semver flavor)
@@ -157,10 +159,27 @@ jobs:
           MINOR="${REST%%.*}"
 
           IMAGE_LC="$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')"
-          SRC_REF="${IMAGE_LC}:${SRC_TAG}"
 
-          echo "Source image (pre-merge build): ${SRC_REF}"
-          crane digest "$SRC_REF" >/dev/null
+          # BEFORE_SHA often has no image (release-only / docs-only commits). Walk first-parent
+          # chain until we find a sha-* tag that exists in GHCR (matches docker/metadata).
+          CURRENT="$BEFORE_SHA"
+          MAX_WALK=50
+          SRC_REF=""
+          for _ in $(seq 1 "$MAX_WALK"); do
+            TAG="sha-${CURRENT:0:7}"
+            REF="${IMAGE_LC}:${TAG}"
+            if crane digest "$REF" >/dev/null 2>&1; then
+              SRC_REF="$REF"
+              echo "Using existing image tag $TAG (commit $CURRENT) as retag source."
+              break
+            fi
+            echo "No image for $TAG, walking parent..."
+            CURRENT="$(git rev-parse "${CURRENT}^" 2>/dev/null)" || break
+          done
+          if [ -z "$SRC_REF" ]; then
+            echo "::error::No sha-* tag found in GHCR walking back up to $MAX_WALK commits from $BEFORE_SHA. Push a change that runs build-and-push on main, then retry the release merge."
+            exit 1
+          fi
 
           mapfile -t NEW_TAGS < <(printf '%s\n' \
             "$VERSION" \
