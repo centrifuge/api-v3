@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.4.0](https://github.com/centrifuge/api-v3/compare/v3.3.1...v3.4.0) (2026-03-23)
+
+
+### Features
+
+* default logs range ([f25e4e2](https://github.com/centrifuge/api-v3/commit/f25e4e276a21c5927ec16cad425b5b9429ab4d74))
+
 ## [3.3.1](https://github.com/centrifuge/api-v3/compare/v3.3.0...v3.3.1) (2026-03-20)
 
 
