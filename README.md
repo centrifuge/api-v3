@@ -91,6 +91,16 @@ pnpm start
 
 (`prestart` runs `update-registry` before `ponder start`.)
 
+### Ponder sync (`pnpm sync`)
+
+`pnpm sync` runs [`scripts/cache.mjs`](scripts/cache.mjs): it downloads the published **ponder-sync** snapshot from GitHub Container Registry (`ghcr.io`, artifact name `ponder-sync`) and restores it into the database given by **`DATABASE_URL`**.
+
+**Mainnet only.** The script requires `ENVIRONMENT=mainnet`. If `ENVIRONMENT` is missing or set to anything else (including `testnet`), it prints `Skipping cache download: ENVIRONMENT is not mainnet.` and exits without downloading or restoring. This is stricter than `update-registry`, which defaults to mainnet when `ENVIRONMENT` is unset.
+
+Optional artifact tag: pass `--tag <tag>`, `-t <tag>`, or a single positional argument; `latest` or a numeric tag (see script validation).
+
+Related maintainer scripts: `pnpm sync:export` (dump `ponder_sync` schema from the local Docker Postgres) and `pnpm sync:push` (publish a snapshot to GHCR).
+
 ## Database schema
 
 The indexer maintains structured tables for pools, tokens, vaults, epochs, investor flows, holdings, escrows, cross-chain payloads, and related entities. See the Ponder schema in the repo and the GraphQL schema Ponder serves when running.
