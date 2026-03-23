@@ -10,145 +10,109 @@ A blockchain event indexer for the Centrifuge protocol, built with [Ponder](http
 
 ## Overview
 
-This project indexes EVM events from smart contracts in the Centrifuge protocol, maintaining a structured database of pools, share classes, and investment transactions.
+This project indexes EVM events from smart contracts in the Centrifuge protocol, maintains a PostgreSQL database of pools, vaults, share classes, holdings, cross-chain messaging, and related entities, and exposes a GraphQL API.
 
-## Key Components
+## Handlers vs services
 
-### Event Handlers
+**Handlers** are Ponder entry points: they subscribe to contract logs (and blocks where used), decode `event.args`, and orchestrate what happens for each on-chain event. They live under `src/handlers/` and should stay thin—parse the event, load any needed context, then delegate to services.
 
-- **Vault Handlers**: Process deposit/withdrawal requests and executions
-- **MultiShareClass Handlers**: Manage share class lifecycle, epoch transitions, and investor orders
-- **PoolRegistry Handlers**: Track pool creation and configuration
-- **PoolManager Handlers**: Handle vault deployment for share classes
+**Services** are the domain and persistence layer. Each service typically wraps one Ponder/Drizzle table (or a focused set of operations) with typed helpers: query, get-or-create, updates, and business rules shared across handlers. They live under `src/services/`, often extending the shared `Service` base class for common CRUD patterns.
 
-### Services
+In short: **handlers react to the chain; services own the database model and reusable logic.**
 
-The project uses several services to maintain data consistency:
-
-- `PoolService`: Manages investment pools
-- `ShareClassService`: Handles share class configuration and metadata
-- `EpochService`: Tracks investment epochs
-- `InvestorTransactionService`: Processes user deposits and redemptions
-- `OutstandingOrderService`: Tracks pending investment orders
-
-## Getting Started
+## Getting started
 
 ### Prerequisites
 
-- Node.js (v22+)
-- Ethereum RPC endpoint
+- Node.js 22+
+- [pnpm](https://pnpm.io/) (Corepack is enough: `corepack enable`)
+- Docker (for local PostgreSQL)
 
-### Installation
+### Local database (Docker Compose)
+
+Development uses a Postgres 16 container defined in [`compose.yaml`](compose.yaml) (`postgres` user/password/database, port **5432**).
+
+- Starting the dev server runs `docker compose up -d` automatically (`predev` in `package.json`).
+- When you stop `pnpm dev`, `postdev` runs `docker compose down`.
+
+To manage the database manually:
 
 ```bash
-# Install dependencies
+docker compose up -d    # start Postgres
+docker compose down     # stop and remove containers (volume persists unless removed)
+```
+
+Point Ponder at the database with `DATABASE_URL` in `.env` or `.env.local`, for example:
+
+```bash
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres
+```
+
+### Install and run
+
+```bash
 pnpm install --frozen-lockfile
 
-# Create .env file with your configuration
+# Environment (see .env.example): RPC keys, DATABASE_URL, optional ENVIRONMENT, etc.
 cp .env.example .env.local
-# Edit .env with your settings (RPC endpoint and API key)
 
-# Fetch the registry data at build time
+# Registry and ABIs (compile-time); set ENVIRONMENT=mainnet|testnet as needed
 pnpm run update-registry
 
-# Generate Ponder schema
 pnpm run codegen
-```
 
-### Configuration
-
-The indexer uses a compile-time registry system that loads chain and ABI configurations:
-
-- **REGISTRY_HASH** (optional): Set this environment variable before running `pnpm run update-registry` to specify the IPFS hash of the registry JSON file. If not set, defaults to `https://registry.centrifuge.io/`
-- **ENVIRONMENT**: Set to `mainnet` or `testnet` to select which chains to index (defaults to `mainnet`)
-
-### Updating Registry Data
-
-The registry data (chains and ABIs) is fetched at build time, not at runtime. This ensures:
-
-- Full TypeScript typing support
-- No runtime network dependencies
-- Indexer can start reliably even with network issues
-
-To update the registry data:
-
-```bash
-# Fetch latest registry from default URL
-pnpm run update-registry
-
-# Or fetch from a specific IPFS hash
-REGISTRY_HASH=<ipfs-hash> pnpm run update-registry
-```
-
-This generates `src/registry.generated.ts` which contains all chain configurations and ABIs with full type safety.
-
-### Running the Indexer
-
-```bash
-# Start the development server
+# Starts Docker Postgres, then Ponder dev (port 8000, UI disabled)
 pnpm dev
+```
 
-# Build for production
+### Configuration notes
+
+- **REGISTRY_URL** / **IPFS_GATEWAY**: optional overrides for where the registry JSON is fetched from (see [`scripts/fetch-registry.mjs`](scripts/fetch-registry.mjs)).
+- **IPFS_HASH** (optional): if set, the registry is loaded from `{IPFS_GATEWAY}/{IPFS_HASH}` instead of the default `REGISTRY_URL` for the network.
+- **ENVIRONMENT**: `mainnet` or `testnet`—chooses the default registry host (`https://registry.centrifuge.io/` vs `https://registry.testnet.centrifuge.io/`). Defaults to `mainnet` if unset.
+
+### Updating registry data
+
+Registry data is fetched at build time (and on container start in production), not at runtime, so types and ABIs stay stable.
+
+```bash
+pnpm run update-registry
+# or: IPFS_HASH=<cid> pnpm run update-registry
+```
+
+This refreshes generated registry TypeScript under `generated/`.
+
+### Production-style run (local)
+
+```bash
 pnpm build
-
-# Start production server
 pnpm start
 ```
 
-## Database Schema
+(`prestart` runs `update-registry` before `ponder start`.)
 
-The indexer builds and maintains a structured database with the following primary entities:
+## Database schema
 
-- Pools
-- ShareClasses
-- Epochs
-- InvestorTransactions
-- OutstandingOrders
+The indexer maintains structured tables for pools, tokens, vaults, epochs, investor flows, holdings, escrows, cross-chain payloads, and related entities. See the Ponder schema in the repo and the GraphQL schema Ponder serves when running.
 
 ## API
 
-Once running, the Ponder indexer provides a GraphQL API for querying indexed data. URL printed on start.
+While the process is running, Ponder serves a GraphQL API; the URL is printed in the logs (dev default port **8000**).
 
-## Entity Relationships
+The public production GraphQL endpoint used for schema checks in this repo is [https://api.centrifuge.io](https://api.centrifuge.io).
 
-```mermaid
-erDiagram
-  direction LR
-  Blockchain ||--o{ Pool : ""
-  Blockchain ||--o{ Vault : ""
-  Blockchain ||--o{ Asset : ""
-  Blockchain ||--o{ TokenInstance : ""
-  Blockchain ||--o{ AssetRegistration : ""
+## Deployment environments
 
-  Pool ||--o{ PoolSnapshot : ""
-  Pool ||--o{ Token : ""
-  Pool ||--o{ Epoch : ""
+Helm values in [`environments/`](environments/) describe how the app is deployed (indexer + query, ingress hosts, env vars). Summary:
 
-  Asset }o--|| Blockchain : ""
-  Asset }o--|| AssetRegistration : ""
+| Environment | Network   | GraphQL host (ingress)          |
+| ----------- | --------- | ------------------------------- |
+| `main`      | `mainnet` | `api-v3-main.cfg.embrio.tech`   |
+| `main-s`    | `mainnet` | `api-v3-main-s.cfg.embrio.tech` |
+| `test`      | `testnet` | `api-v3-test.cfg.embrio.tech`   |
+| `test-s`    | `testnet` | `api-v3-test-s.cfg.embrio.tech` |
 
-
-  TokenInstance }o--|| Blockchain : ""
-  TokenInstance }o--|| Token : ""
-
-  Vault }o--|| Blockchain : ""
-  Vault }o--|| Token : ""
-  Vault }o--|| Asset : ""
-  Vault }o--|| TokenInstance : ""
-
-  InvestorTransaction }o--|| Pool : ""
-  InvestorTransaction }o--|| Epoch : ""
-  InvestorTransaction }o--|| Token : ""
-
-  OutstandingOrder }o--|| Token : ""
-
-  Holding }o--|| Token : ""
-  Holding  }o--|| HoldingAccount : ""
-
-  HoldingEscrow }o--|| Holding : ""
-  HoldingEscrow }o--|| Asset : ""
-  HoldingEscrow }o--|| Escrow : ""
-```
+Container images are built and pushed to **GitHub Container Registry** (`ghcr.io/centrifuge/api-v3`) on pushes to `main` and on releases (see [`.github/workflows/docker-build.yml`](.github/workflows/docker-build.yml)). The production image sets `DATABASE_SCHEMA=app` and runs `fetch-registry` on entry.
 
 ## Contributing
 
