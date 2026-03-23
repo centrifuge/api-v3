@@ -66,10 +66,19 @@ USING _ponder_purge_from p
 WHERE rr.chain_id = p.chain_id
   AND (rr.block_number IS NULL OR rr.block_number >= p.purge_from);
 
--- No trimming: drop interval rows that overlap the purged block range
-DELETE FROM ponder_sync.intervals i
-USING _ponder_purge_from p
+-- Intervals: trim the tail from the multirange only — do NOT delete whole rows.
+-- If you DELETE rows that overlap [purge_from, ∞), any single range [start, tip) is
+-- removed entirely and Ponder loses completed coverage for [start, purge_from), so it
+-- refetches from filter start (no cache). Subtracting preserves the prefix in `blocks`.
+UPDATE ponder_sync.intervals i
+SET blocks = i.blocks - nummultirange(
+  numrange(p.purge_from::numeric, NULL::numeric, '[)')
+)
+FROM _ponder_purge_from p
 WHERE i.chain_id = p.chain_id
   AND i.blocks && nummultirange(numrange(p.purge_from::numeric, NULL::numeric, '[)'));
+
+DELETE FROM ponder_sync.intervals
+WHERE blocks = '{}'::nummultirange;
 
 COMMIT;

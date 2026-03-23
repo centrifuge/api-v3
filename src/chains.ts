@@ -151,7 +151,9 @@ export const endpoints = {
   ],
 };
 
-const getLogsBlockRange = {};
+const getLogsBlockRange = {
+  "*": 10000,
+};
 
 // Package loadedChains into a ChainConfig object for ponder to consume
 const chains = Object.fromEntries(
@@ -163,7 +165,8 @@ const chains = Object.fromEntries(
       ? envRpc.split(",").map((r) => r.trim())
       : endpoints[chainId as keyof typeof endpoints];
     const ethGetLogsBlockRange =
-      getLogsBlockRange[chainId.toString() as keyof typeof getLogsBlockRange];
+      getLogsBlockRange[chainId.toString() as keyof typeof getLogsBlockRange] ??
+      getLogsBlockRange["*"];
     return [
       networkName,
       { id: chain.network.chainId, rpc, ethGetLogsBlockRange, pollingInterval: 3_000 },
