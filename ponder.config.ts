@@ -1,7 +1,8 @@
 import { createConfig } from "ponder";
 import { chains, blocks } from "./src/chains";
-import { decorateDeploymentContracts } from "./src/contracts";
+import { decorateDeploymentContracts, decorateWardContracts } from "./src/contracts";
 import { ERC20Abi } from "./abis/ERC20";
+import { WardAbi } from "./abis/Ward";
 import { V3_1_MIGRATION_BLOCKS } from "./src/config";
 
 export const contractsV3 = decorateDeploymentContracts(
@@ -128,7 +129,96 @@ export const contractsV3_1 = decorateDeploymentContracts(
   } as const
 );
 
-export const contracts = { ...contractsV3, ...contractsV3_1 };
+const wardContractsV3 = decorateWardContracts(
+  "v3",
+  [
+    "BalanceSheet",
+    "Gateway",
+    "Holdings",
+    "HubRegistry",
+    "Hub",
+    "MerkleProofManagerFactory",
+    "MessageDispatcher",
+    "MultiAdapter",
+    "OnOfframpManagerFactory",
+    "PoolEscrowFactory",
+    "ShareClassManager",
+    "Spoke",
+  ],
+  {
+    vault: { factoryAbi: "Spoke", eventName: "DeployVault", eventParameter: "vault" },
+    poolEscrow: {
+      factoryAbi: "PoolEscrowFactory",
+      eventName: "DeployPoolEscrow",
+      eventParameter: "escrow",
+    },
+    onOfframpManager: {
+      factoryAbi: "OnOfframpManagerFactory",
+      eventName: "DeployOnOfframpManager",
+      eventParameter: "manager",
+    },
+    merkleProofManager: {
+      factoryAbi: "MerkleProofManagerFactory",
+      eventName: "DeployMerkleProofManager",
+      eventParameter: "manager",
+    },
+    tokenInstance: { factoryAbi: "Spoke", eventName: "AddShareClass", eventParameter: "token" },
+  },
+  WardAbi,
+  V3_1_MIGRATION_BLOCKS
+);
+
+const wardContractsV3_1 = decorateWardContracts(
+  "v3_1",
+  [
+    "BalanceSheet",
+    "BatchRequestManager",
+    "Gateway",
+    "Holdings",
+    "HubRegistry",
+    "Hub",
+    "MerkleProofManagerFactory",
+    "MessageDispatcher",
+    "MultiAdapter",
+    "OnOfframpManagerFactory",
+    "PoolEscrowFactory",
+    "ShareClassManager",
+    "Spoke",
+    "VaultRegistry",
+    "SyncManager",
+  ],
+  {
+    vault: {
+      factoryAbi: "VaultRegistry",
+      eventName: "DeployVault",
+      eventParameter: "vault",
+    },
+    poolEscrow: {
+      factoryAbi: "PoolEscrowFactory",
+      eventName: "DeployPoolEscrow",
+      eventParameter: "escrow",
+    },
+    onOfframpManager: {
+      factoryAbi: "OnOfframpManagerFactory",
+      eventName: "DeployOnOfframpManager",
+      eventParameter: "manager",
+    },
+    merkleProofManager: {
+      factoryAbi: "MerkleProofManagerFactory",
+      eventName: "DeployMerkleProofManager",
+      eventParameter: "manager",
+    },
+    tokenInstance: { factoryAbi: "Spoke", eventName: "AddShareClass", eventParameter: "token" },
+  },
+  WardAbi
+);
+
+export const contracts = {
+  ...contractsV3,
+  ...contractsV3_1,
+  ...wardContractsV3,
+  ...wardContractsV3_1,
+};
 
 const config = createConfig({
   ordering: "omnichain",
