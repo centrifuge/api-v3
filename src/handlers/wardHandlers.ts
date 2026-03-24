@@ -1,4 +1,3 @@
-import type { Context } from "ponder:registry";
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent } from "../helpers/logger";
 import {
@@ -7,14 +6,6 @@ import {
   SmartContractWardService,
 } from "../services";
 import { getContractNameForAddress } from "../contracts";
-
-// Ward events have a known shape but aren't in Ponder's typed event union
-// (ward contract keys are dynamically computed strings). This interface
-// captures the Rely/Deny event shape for type safety within the handler.
-interface WardEvent {
-  log: { address: `0x${string}` };
-  args: { user: `0x${string}` };
-}
 
 // All ward contract base names (unversioned) for multiMapper registration.
 // Registry contracts
@@ -48,12 +39,15 @@ const factoryWardContracts = [
 
 const allWardContracts = [...registryWardContracts, ...factoryWardContracts];
 
+// Ward event args: { log: { address }, args: { user } }
+// Typed as `any` because ward contract keys are dynamically computed and
+// not present in Ponder's ContractEvents union type.
 async function handleRelyDeny(
-  { event, context }: { event: WardEvent; context: Context },
+  { event, context }: { event: any; context: any },
   isActive: boolean
 ) {
-  const contractAddress = event.log.address;
-  const userAddress = event.args.user;
+  const contractAddress = event.log.address as `0x${string}`;
+  const userAddress = event.args.user as `0x${string}`;
   const chainId = context.chain.id;
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 

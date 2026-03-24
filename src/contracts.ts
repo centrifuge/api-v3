@@ -562,6 +562,15 @@ export function decorateWardContracts<
   wardAbi: Abi,
   endblocks?: Partial<Record<keyof typeof networkNames, number>>
 ): Record<string, { abi: Abi; chain: Record<string, unknown> }> {
+  // Validate registry version exists (same guard as decorateDeploymentContracts)
+  const abis = Abis[registryVersion];
+  if (!abis) {
+    process.stdout.write(
+      `Registry version "${registryVersion}" not found in Abis. Available versions: ${Object.keys(Abis).join(", ")} skipping ward contracts...\n`
+    );
+    return {};
+  }
+
   const result: Record<string, { abi: Abi; chain: Record<string, unknown> }> = {};
 
   // Registry contracts: same static address, WardAbi
