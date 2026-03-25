@@ -80,8 +80,6 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
         fromCentrifugeId: fromCentrifugeId,
         poolId,
         tokenId,
-        gasLimit,
-        gasPaid,
         ...timestamper("prepared", event),
       },
       event
@@ -107,6 +105,8 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
       toCentrifugeId: toCentrifugeId.toString(),
       side: "SEND",
       type: "PAYLOAD",
+      gasLimit,
+      gasPaid,
       timestamp: new Date(Number(event.block.timestamp) * 1000),
       blockNumber: Number(event.block.number),
       transactionHash: event.transaction.hash,
