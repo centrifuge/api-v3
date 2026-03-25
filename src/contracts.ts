@@ -537,6 +537,71 @@ function computeEndBlock(
   return nextContractStartBlock - 1;
 }
 
+// ============================================================================
+// Ward Contract Decoration
+// ============================================================================
+
+/**
+ * Generates ward contract configs for listening to Rely/Deny events on
+ * both registry (static address) and factory-deployed contracts.
+ * Ward contracts share the same addresses as the originals but use the WardAbi.
+ *
+ * Registry contract names and factory ABI names are compile-time checked
+ * against the registry to catch typos at build time.
+ */
+export function decorateWardContracts<
+  V extends RegistryVersions,
+  const A extends readonly AbiName<V>[],
+>(
+  registryVersion: V,
+  registryContractNames: A,
+  factoryMappings: Record<
+    string,
+    { factoryAbi: AbiName<V>; eventName: string; eventParameter: string }
+  >,
+  wardAbi: Abi,
+  endblocks?: Partial<Record<keyof typeof networkNames, number>>
+): Record<string, { abi: Abi; chain: Record<string, unknown> }> {
+  // Validate registry version exists (same guard as decorateDeploymentContracts)
+  const abis = Abis[registryVersion];
+  if (!abis) {
+    process.stdout.write(
+      `Registry version "${registryVersion}" not found in Abis. Available versions: ${Object.keys(Abis).join(", ")} skipping ward contracts...\n`
+    );
+    return {};
+  }
+
+  const result: Record<string, { abi: Abi; chain: Record<string, unknown> }> = {};
+
+  // Registry contracts: same static address, WardAbi
+  for (const abiName of registryContractNames) {
+    const key = `ward${abiName}${registryVersion.toUpperCase()}`;
+    result[key] = {
+      abi: wardAbi,
+      chain: getContractChain(registryVersion, abiName, endblocks),
+    };
+  }
+
+  // Factory-deployed contracts: same factory config, WardAbi
+  for (const [name, config] of Object.entries(factoryMappings)) {
+    const capitalName = name.charAt(0).toUpperCase() + name.slice(1);
+    const key = `ward${capitalName}${registryVersion.toUpperCase()}`;
+    result[key] = {
+      abi: wardAbi,
+      chain: getContractChain(registryVersion, config.factoryAbi, endblocks, {
+        event: config.eventName as AbiEventName<V, AbiName<V>>,
+        parameter: config.eventParameter as AbiEventParameter<
+          V,
+          AbiName<V>,
+          AbiEventName<V, AbiName<V>>
+        >,
+      }),
+    };
+  }
+
+  return result;
+}
+
 /** Ordered registry version keys (e.g. ["v3", "v3_1"]) for use as message/payload version index. */
 export const REGISTRY_VERSION_ORDER = Object.keys(fullRegistry) as string[];
 

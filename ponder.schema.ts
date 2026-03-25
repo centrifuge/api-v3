@@ -1472,6 +1472,58 @@ export const MerkleProofManagerRelations = relations(MerkleProofManager, ({ one 
   }),
 }));
 
+const SmartContractColumns = (t: PgColumnsBuilders) => ({
+  centrifugeId: t.text().notNull(),
+  address: t.hex().notNull(),
+  name: t.text(),
+  ...defaultColumns(t),
+});
+
+export const SmartContract = onchainTable("smart_contract", SmartContractColumns, (t) => ({
+  id: primaryKey({ columns: [t.centrifugeId, t.address] }),
+  centrifugeIdIdx: index().on(t.centrifugeId),
+  addressIdx: index().on(t.address),
+}));
+
+export const SmartContractRelations = relations(SmartContract, ({ many }) => ({
+  wardsGranted: many(SmartContractWard, { relationName: "wardsGranted" }),
+  wardsReceived: many(SmartContractWard, { relationName: "wardsReceived" }),
+}));
+
+const SmartContractWardColumns = (t: PgColumnsBuilders) => ({
+  centrifugeId: t.text().notNull(),
+  fromAddress: t.hex().notNull(),
+  toAddress: t.hex().notNull(),
+  isActive: t.boolean().notNull().default(false),
+  ...defaultColumns(t),
+});
+
+export const SmartContractWard = onchainTable(
+  "smart_contract_ward",
+  SmartContractWardColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.centrifugeId, t.fromAddress, t.toAddress] }),
+    centrifugeIdIdx: index().on(t.centrifugeId),
+    fromAddressIdx: index().on(t.fromAddress),
+    toAddressIdx: index().on(t.toAddress),
+    fromAddressCentrifugeIdIdx: index().on(t.fromAddress, t.centrifugeId),
+    toAddressCentrifugeIdIdx: index().on(t.toAddress, t.centrifugeId),
+  })
+);
+
+export const SmartContractWardRelations = relations(SmartContractWard, ({ one }) => ({
+  from: one(SmartContract, {
+    fields: [SmartContractWard.centrifugeId, SmartContractWard.fromAddress],
+    references: [SmartContract.centrifugeId, SmartContract.address],
+    relationName: "wardsGranted",
+  }),
+  to: one(SmartContract, {
+    fields: [SmartContractWard.centrifugeId, SmartContractWard.toAddress],
+    references: [SmartContract.centrifugeId, SmartContract.address],
+    relationName: "wardsReceived",
+  }),
+}));
+
 /**
  * Creates a snapshot schema by selecting specific columns from a base table schema
  * @param columns - The base table column definition function
