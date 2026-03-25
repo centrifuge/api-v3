@@ -588,19 +588,14 @@ export function decorateWardContracts<
     const key = `ward${capitalName}${registryVersion.toUpperCase()}`;
     result[key] = {
       abi: wardAbi,
-      chain: getContractChain(
-        registryVersion,
-        config.factoryAbi,
-        endblocks,
-        {
-          event: config.eventName as AbiEventName<V, AbiName<V>>,
-          parameter: config.eventParameter as AbiEventParameter<
-            V,
-            AbiName<V>,
-            AbiEventName<V, AbiName<V>>
-          >,
-        }
-      ),
+      chain: getContractChain(registryVersion, config.factoryAbi, endblocks, {
+        event: config.eventName as AbiEventName<V, AbiName<V>>,
+        parameter: config.eventParameter as AbiEventParameter<
+          V,
+          AbiName<V>,
+          AbiEventName<V, AbiName<V>>
+        >,
+      }),
     };
   }
 

@@ -1,10 +1,6 @@
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent } from "../helpers/logger";
-import {
-  BlockchainService,
-  SmartContractService,
-  SmartContractWardService,
-} from "../services";
+import { BlockchainService, SmartContractService, SmartContractWardService } from "../services";
 import { getContractNameForAddress } from "../contracts";
 
 // All ward contract base names (unversioned) for multiMapper registration.
@@ -42,10 +38,7 @@ const allWardContracts = [...registryWardContracts, ...factoryWardContracts];
 // Ward event args: { log: { address }, args: { user } }
 // Typed as `any` because ward contract keys are dynamically computed and
 // not present in Ponder's ContractEvents union type.
-async function handleRelyDeny(
-  { event, context }: { event: any; context: any },
-  isActive: boolean
-) {
+async function handleRelyDeny({ event, context }: { event: any; context: any }, isActive: boolean) {
   const contractAddress = event.log.address as `0x${string}`;
   const userAddress = event.args.user as `0x${string}`;
   const chainId = context.chain.id;
