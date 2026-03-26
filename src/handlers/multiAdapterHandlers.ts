@@ -11,6 +11,7 @@ import {
   getMessageHash,
   extractMessagesFromPayload,
 } from "../services";
+import { effectiveGasPriceFromEvent } from "../helpers/effectiveGasPrice";
 import { timestamper } from "../helpers/timestamper";
 import { getVersionForContract } from "../contracts";
 
@@ -39,6 +40,7 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
 
   const gasLimit = "gasLimit" in event.args ? event.args.gasLimit : null;
   const gasPaid = "gasPaid" in event.args ? event.args.gasPaid : null;
+  const gasPrice = effectiveGasPriceFromEvent(event);
 
   const version = getVersionForContract("multiAdapter", context.chain.id, event.log.address);
   if (!version) return serviceError("Failed to get registry version");
@@ -80,6 +82,8 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
         fromCentrifugeId: fromCentrifugeId,
         poolId,
         tokenId,
+        gasLimit,
+        gasPrice,
         ...timestamper("prepared", event),
       },
       event
@@ -105,7 +109,6 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
       toCentrifugeId: toCentrifugeId.toString(),
       side: "SEND",
       type: "PAYLOAD",
-      gasLimit,
       gasPaid,
       timestamp: new Date(Number(event.block.timestamp) * 1000),
       blockNumber: Number(event.block.number),
