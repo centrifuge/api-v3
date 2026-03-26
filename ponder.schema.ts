@@ -1120,7 +1120,7 @@ const CrosschainPayloadColumns = (t: PgColumnsBuilders) => ({
   tokenId: t.hex(),
   status: CrosschainPayloadStatus("crosschain_payload_status").notNull(),
   gasLimit: t.bigint(),
-  gasPaid: t.bigint(),
+  gasPrice: t.bigint(),
   ...timestamperFields(t, "delivered"),
   ...timestamperFields(t, "completed"),
   ...timestamperFields(t, "prepared", true),
@@ -1298,9 +1298,11 @@ const AdapterParticipationColumns = (t: PgColumnsBuilders) => ({
   toCentrifugeId: t.text().notNull(),
   type: AdapterParticipationType("adapter_participation_type").notNull(),
   side: AdapterParticipationSide("adapter_participation_side").notNull(),
+  gasPaid: t.bigint(),
   timestamp: t.timestamp().notNull(),
   blockNumber: t.integer().notNull(),
   transactionHash: t.text().notNull(),
+  ...defaultColumns(t, false),
 });
 
 export const AdapterParticipation = onchainTable(
