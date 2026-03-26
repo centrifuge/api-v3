@@ -41,7 +41,11 @@ export function effectiveGasPriceFromEvent(event: {
   return null;
 }
 
-function eip1559EffectiveGasPrice(baseFeePerGas: bigint, maxFeePerGas: bigint, maxPriorityFeePerGas: bigint) {
+function eip1559EffectiveGasPrice(
+  baseFeePerGas: bigint,
+  maxFeePerGas: bigint,
+  maxPriorityFeePerGas: bigint
+) {
   const maxPriority = maxPriorityFeePerGas;
   const capped =
     maxFeePerGas - baseFeePerGas < maxPriority ? maxFeePerGas - baseFeePerGas : maxPriority;
