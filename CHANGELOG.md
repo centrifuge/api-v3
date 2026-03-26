@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.4.1](https://github.com/centrifuge/api-v3/compare/v3.4.0...v3.4.1) (2026-03-26)
+
+
+### Bug Fixes
+
+* refactor gasLimit and gasPrice to payload ([#321](https://github.com/centrifuge/api-v3/issues/321)) ([2a1c93f](https://github.com/centrifuge/api-v3/commit/2a1c93fa4cb9e5a276e96edbdbe283e03d8551bf))
+
 ## [3.4.0](https://github.com/centrifuge/api-v3/compare/v3.3.1...v3.4.0) (2026-03-23)
 
 
