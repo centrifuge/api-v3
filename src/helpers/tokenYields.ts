@@ -1,47 +1,35 @@
 /**
- * Token yield **pure math**, snapshot column naming, and snapshot-history helpers (no DB).
- * Period specs: {@link ../config/tokenYield.ts}; bigint / Ray: {@link ./bigintMath.ts}.
+ * Token snapshot yields (Ray), history helpers. Config: {@link ../config/tokenYield.ts}.
  */
 
+import BN from "bn.js";
 import { TOKEN_YIELD_SPECS, tokenYieldFieldName } from "../config/tokenYield";
-import {
-  PG_NUMERIC_78_MAX_ABS,
-  RAY,
-  RAY_TAIL,
-  YIELD_MS_PER_DAY,
-} from "./bigintMath";
-import { compoundAnnualizedRayFromPrices } from "./tokenYieldCompound";
+import { PG_NUMERIC_78_MAX_ABS, RAY, RAY_TAIL, WAD, YIELD_MS_PER_DAY } from "./bigintMath";
 import { serviceError } from "./logger";
 
-/**
- * Trailing-twelve-month lookback in UTC calendar days: `yieldTtm` uses price at or before `asOf - N days`.
- * (Spec entries with `dayCount` `360`/`365` are annualized; `dayCount` `null` is `yieldNd` simple total return.)
- */
+/** Lookback calendar days for `yieldTtm`. */
 export const YIELD_TTM_LOOKBACK_DAYS = 365;
 
-/**
- * Fixed snapshot columns: **simple total return** in Ray (same as `simpleTotalReturnRay`), not annualized.
- * From {@link TOKEN_YIELD_SPECS}: names ending in `360`/`365` are annualized; plain `yieldNd` (no suffix) are simple total return.
- */
+/** Fixed snapshot columns (simple total return, Ray). */
 export const FIXED_TOKEN_YIELD_COLUMNS = ["yieldTtm", "yieldSinceInception", "yieldYtd"] as const;
 
-export type FixedTokenYieldColumn = (typeof FIXED_TOKEN_YIELD_COLUMNS)[number];
-
-export const CONFIGURED_TOKEN_YIELD_COLUMN_NAMES = TOKEN_YIELD_SPECS.map((s) =>
+const CONFIGURED_TOKEN_YIELD_COLUMN_NAMES = TOKEN_YIELD_SPECS.map((s) =>
   tokenYieldFieldName(s)
 ) as readonly string[];
 
+/** All yield column names on `token_snapshot` (configured + fixed). */
 export const ALL_TOKEN_YIELD_SNAPSHOT_COLUMN_NAMES = [
   ...CONFIGURED_TOKEN_YIELD_COLUMN_NAMES,
   ...FIXED_TOKEN_YIELD_COLUMNS,
 ] as const;
 
-export type TokenYieldSnapshotColumnName = (typeof ALL_TOKEN_YIELD_SNAPSHOT_COLUMN_NAMES)[number];
+type TokenYieldSnapshotColumnName = (typeof ALL_TOKEN_YIELD_SNAPSHOT_COLUMN_NAMES)[number];
 
+/** Partial row of yield bigint columns. */
 export type TokenYieldSnapshotFields = Partial<Record<TokenYieldSnapshotColumnName, bigint | null>>;
 
-/** All configured + fixed yield keys initialized to `null`. */
-export function emptyTokenYieldSnapshotFields(): Record<string, bigint | null> {
+/** All yield keys set to null. */
+function emptyTokenYieldSnapshotFields(): Record<string, bigint | null> {
   const o: Record<string, bigint | null> = {};
   for (const spec of TOKEN_YIELD_SPECS) {
     o[tokenYieldFieldName(spec)] = null;
@@ -52,28 +40,25 @@ export function emptyTokenYieldSnapshotFields(): Record<string, bigint | null> {
   return o;
 }
 
-/** One observation from `token_snapshot` for yield history. */
+/** Snapshot row fields used when building yield price history. */
 export type TokenSnapshotPricePoint = {
   timestamp: Date;
   tokenPrice: bigint | null;
   blockNumber: number;
 };
 
-/** Whole UTC calendar days between `from` (inclusive) and `to` (inclusive span floor). */
-export function daysUtcFloor(from: Date, to: Date): number {
+/** Floor of UTC calendar days between `from` and `to`. */
+function daysUtcFloor(from: Date, to: Date): number {
   if (to.getTime() < from.getTime()) return 0;
   return Math.floor((to.getTime() - from.getTime()) / YIELD_MS_PER_DAY);
 }
 
-/** Dedup key aligned with {@link sortTokenYieldPricePoints} (timestamp, then block). */
+/** Dedup key: timestamp + block (see {@link sortTokenYieldPricePoints}). */
 export function yieldSnapshotPointKey(p: TokenSnapshotPricePoint): string {
   return `${p.timestamp.getTime()}\0${p.blockNumber}`;
 }
 
-/**
- * Distinct UTC caps where yield math needs “latest strictly positive `tokenPrice` at or before T”
- * (see {@link priceAtOrBeforePositivePrice}), plus YTD start.
- */
+/** Distinct “cap” times for bounded history fetch (windows, TTM, Jan 1). */
 export function yieldSnapshotCapTimes(asOf: Date): Date[] {
   const periodDays = new Set(TOKEN_YIELD_SPECS.map((spec) => spec.periodDays));
   const caps: Date[] = [...periodDays].map(
@@ -84,7 +69,7 @@ export function yieldSnapshotCapTimes(asOf: Date): Date[] {
   return [...new Map(caps.map((d) => [d.getTime(), d])).values()];
 }
 
-/** Stable ascending order for snapshot history. */
+/** Sort by `timestamp` then `blockNumber` ascending. */
 export function sortTokenYieldPricePoints(points: TokenSnapshotPricePoint[]): TokenSnapshotPricePoint[] {
   return [...points].sort((a, b) => {
     const td = a.timestamp.getTime() - b.timestamp.getTime();
@@ -93,7 +78,7 @@ export function sortTokenYieldPricePoints(points: TokenSnapshotPricePoint[]): To
   });
 }
 
-/** Last strictly positive `tokenPrice` at or before `when` (points sorted ascending). */
+/** Last strictly positive `tokenPrice` at or before `when` (`pointsAsc` sorted). */
 export function priceAtOrBeforePositivePrice(
   pointsAsc: TokenSnapshotPricePoint[],
   when: Date
@@ -107,7 +92,7 @@ export function priceAtOrBeforePositivePrice(
   return best;
 }
 
-/** Earliest strictly positive `tokenPrice` in history (same units as live `tokenPrice`). */
+/** First strictly positive `tokenPrice` in ascending `pointsAsc`. */
 export function firstPositiveTokenYieldPricePoint(
   pointsAsc: TokenSnapshotPricePoint[]
 ): { price: bigint; at: Date } | null {
@@ -119,11 +104,8 @@ export function firstPositiveTokenYieldPricePoint(
   return null;
 }
 
-/**
- * Linear annualized return in Ray: `(P_end - P_start) / P_start * (dayCount / actualDays)`.
- * All multiplications first, one final `/` (truncates toward zero, same as Solidity signed div).
- */
-export function simpleAnnualizedYieldRay(
+/** Simple annualized return in Ray. */
+function simpleAnnualizedYieldRay(
   P_start: bigint,
   P_end: bigint,
   actualDays: number,
@@ -139,31 +121,112 @@ export function simpleAnnualizedYieldRay(
   return num / den;
 }
 
-/**
- * Simple (non-annualized) return in Ray: `(P_end - P_start) / P_start`, i.e. `delta * RAY / P_start`
- * (truncates toward zero, same style as {@link simpleAnnualizedYieldRay} without a day-count factor).
- */
-export function simpleTotalReturnRay(P_start: bigint, P_end: bigint): bigint | null {
+/** Simple total return `(P_end - P_start) / P_start` in Ray. */
+function simpleTotalReturnRay(P_start: bigint, P_end: bigint): bigint | null {
   if (P_start <= 0n || P_end <= 0n) return null;
   const delta = P_end - P_start;
   return (delta * RAY) / P_start;
 }
 
-/** CAGR-style annualized return in Ray; fixed-point `ln`/`exp` via {@link compoundAnnualizedRayFromPrices}. */
-export function compoundAnnualizedYieldRay(
+const COMPOUND_SCALE = 54;
+const COMPOUND_ONE = new BN(10).pow(new BN(COMPOUND_SCALE));
+const LN2 = new BN("693147180559945309417232121458176568075500134360255254");
+const WAD_BN = new BN(WAD.toString());
+const RAY_TAIL_BN = new BN(RAY_TAIL.toString());
+const MAX_EXP_ABS = COMPOUND_ONE.muln(48);
+const LN_ITER = 160;
+const EXP_ITER = 256;
+
+/** ln(R) with R = P_end/P_start scaled to COMPOUND_ONE (bn.js). */
+function lnRatioFromScaledR(R: BN): BN {
+  const W = COMPOUND_ONE;
+  const twoW = W.add(W);
+  let x = R.clone();
+  let k = 0;
+
+  while (x.cmp(twoW) >= 0) {
+    x = x.shrn(1);
+    k += 1;
+  }
+  while (x.cmp(W) < 0) {
+    x = x.add(x);
+    k -= 1;
+  }
+
+  const uNum = x.sub(W);
+  const uDen = x.add(W);
+  let t = uNum.mul(COMPOUND_ONE).div(uDen);
+  let acc = new BN(0);
+
+  for (let i = 0; i < LN_ITER; i++) {
+    const coef = 2 * i + 1;
+    acc = acc.add(t.divn(coef));
+    const tNext = t.mul(uNum).div(uDen).mul(uNum).div(uDen);
+    if (tNext.isZero()) break;
+    t = tNext;
+  }
+
+  const lnY = acc.add(acc);
+  return lnY.add(LN2.mul(new BN(k)));
+}
+
+/** exp(E/COMPOUND_ONE) * COMPOUND_ONE; truncated series. */
+function expScaled(E: BN): BN | null {
+  if (E.abs().cmp(MAX_EXP_ABS) > 0) return null;
+
+  if (E.isNeg()) {
+    const pos = expScaled(E.neg());
+    if (pos === null) return null;
+    if (pos.isZero()) return new BN(0);
+    return COMPOUND_ONE.mul(COMPOUND_ONE).div(pos);
+  }
+
+  let term = new BN(COMPOUND_ONE);
+  let sum = new BN(COMPOUND_ONE);
+  for (let k = 1; k < EXP_ITER; k++) {
+    term = term.mul(E).div(COMPOUND_ONE);
+    if (term.isZero()) break;
+    term = term.divn(k);
+    sum = sum.add(term);
+    if (sum.bitLength() > 8000) return null;
+  }
+  return sum;
+}
+
+/** Compound annualized: (P_end/P_start)^(dayCount/actualDays) − 1 in Ray. */
+function compoundAnnualizedRayFromPrices(
   P_start: bigint,
   P_end: bigint,
   actualDays: number,
   dayCount: number
 ): bigint | null {
-  return compoundAnnualizedRayFromPrices(P_start, P_end, actualDays, dayCount);
+  if (P_start <= 0n || P_end <= 0n || actualDays < 1) return null;
+
+  const p0 = new BN(P_start.toString(10));
+  const p1 = new BN(P_end.toString(10));
+  const R = p1.mul(COMPOUND_ONE).div(p0);
+  if (R.isZero()) return null;
+
+  const lnR = lnRatioFromScaledR(R);
+  const E = lnR.muln(dayCount).divn(actualDays);
+
+  const growthScaled = expScaled(E);
+  if (growthScaled === null) return null;
+
+  const growthWad = growthScaled.mul(WAD_BN).div(COMPOUND_ONE);
+  const annualWad = growthWad.sub(WAD_BN);
+  const ray = annualWad.mul(RAY_TAIL_BN);
+
+  try {
+    return BigInt(ray.toString(10));
+  } catch {
+    return null;
+  }
 }
 
 /**
- * Fills all snapshot yield keys (Ray or `null`).
- * **Annualized** (simple or compound): spec keys whose names end with `360` or `365` (e.g. `yield7d365`, `yield30dComp360`).
- * **Simple total return** (`simpleTotalReturnRay`): `yieldNd` with no day-count suffix, plus `yieldTtm`, `yieldYtd`, `yieldSinceInception`.
- * `yieldSinceInception` uses the **earliest strictly positive** `tokenPrice` in snapshot history as `P_start`.
+ * All `token_snapshot` yield fields for end price `liveTokenPrice` at `asOf`.
+ * Names ending in 360/365: annualized; `yieldNd` (no suffix), TTM/YTD/since inception: simple total return.
  */
 export function computeTokenYieldSnapshotFields(
   liveTokenPrice: bigint | null,
@@ -190,7 +253,7 @@ export function computeTokenYieldSnapshotFields(
       continue;
     }
     fields[name] = spec.compounded
-      ? compoundAnnualizedYieldRay(P_start, P_end, d, spec.dayCount)
+      ? compoundAnnualizedRayFromPrices(P_start, P_end, d, spec.dayCount)
       : simpleAnnualizedYieldRay(P_start, P_end, d, spec.dayCount);
   }
 
@@ -217,7 +280,7 @@ export function computeTokenYieldSnapshotFields(
   return fields;
 }
 
-/** Returns `null` if the Ray rate cannot be stored in `numeric(78)`. */
+/** null if |ray| exceeds Postgres numeric(78). */
 export function clampYieldRayForPg(ray: bigint | null): bigint | null {
   if (ray === null) return null;
   if (ray > PG_NUMERIC_78_MAX_ABS || ray < -PG_NUMERIC_78_MAX_ABS) {
@@ -227,7 +290,7 @@ export function clampYieldRayForPg(ray: bigint | null): bigint | null {
   return ray;
 }
 
-/** Clamps every yield column so snapshot inserts never overflow `numeric(78)`. */
+/** Clamp each value with {@link clampYieldRayForPg}. */
 export function sanitizeTokenYieldSnapshotFields(
   fields: Record<string, bigint | null>
 ): Record<string, bigint | null> {
@@ -236,33 +299,4 @@ export function sanitizeTokenYieldSnapshotFields(
     out[k] = clampYieldRayForPg(v);
   }
   return out;
-}
-
-/**
- * Converts a finite decimal annualized rate (e.g. `0.05` → 5%) to signed Ray.
- * Avoids `Number(RAY)` (10^27 is not exactly representable in IEEE-754): rounds `|rate| * 10^18` in float,
- * then multiplies by `10^9` in `bigint` to reach 27 decimals.
- */
-export function toRay(rate: number): bigint | null {
-  if (!Number.isFinite(rate)) return null;
-  if (rate === 0) return 0n;
-  const sign = rate < 0 ? -1n : 1n;
-  const abs = Math.abs(rate);
-  const scaled18 = abs * 1e18;
-  if (!Number.isFinite(scaled18) || scaled18 > Number.MAX_SAFE_INTEGER) return null;
-  const q = BigInt(Math.round(scaled18));
-  return sign * (q * RAY_TAIL);
-}
-
-/**
- * Approximate `ray / RAY` as a JS number. Integer part is exact when `|ray / RAY| < 2^53`;
- * fractional part uses `fraction * 1e-27` (still approximate for huge fractions).
- */
-export function fromRay(ray: bigint): number {
-  if (ray === 0n) return 0;
-  const sign = ray < 0n ? -1 : 1;
-  const x = ray < 0n ? -ray : ray;
-  const whole = x / RAY;
-  const frac = x % RAY;
-  return sign * (Number(whole) + Number(frac) * 1e-27);
 }

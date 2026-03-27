@@ -174,12 +174,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
     }, 0n);
   }
 
-  /**
-   * Loads the minimal `token_snapshot` rows needed for yield math: earliest positive price (inception)
-   * and, for each configured window cap, the latest positive price at or before that instant.
-   * Equivalent to scanning all rows ≤ `asOf` for yield price-point helpers in `tokenYields.ts`,
-   * but bounded in row count (≤ one row per cap per token, plus inception).
-   */
+  /** Bounded distinct-on load: inception + latest price at each yield cap ≤ `asOf`. */
   static async loadTokenSnapshotHistoryForYields(
     context: Context | ReadOnlyContext,
     tokenIds: readonly `0x${string}`[],
@@ -276,10 +271,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
     return result;
   }
 
-  /**
-   * Ray yield snapshot fields for one historical row: uses that row’s `tokenPrice` and `timestamp`
-   * as end price / as-of (not live `token` state).
-   */
+  /** Yield fields for one snapshot row (`tokenPrice` + `timestamp` as end/as-of). */
   static async computeSnapshotYieldFields(
     context: Context | ReadOnlyContext,
     tokenId: `0x${string}`,
@@ -293,10 +285,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
     );
   }
 
-  /**
-   * Recomputes Ray yield columns on all `token_snapshot` rows for `tokenId` with
-   * `timestamp >= fromTimestamp` and positive `tokenPrice`, then persists in one batch upsert.
-   */
+  /** Batch-recompute yields for snapshots at/after `fromTimestamp` with positive `tokenPrice`. */
   static async recalculateTokenSnapshotYieldsFromTimestamp(
     context: Context,
     event: Event,
@@ -340,9 +329,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
     await TokenSnapshotRows.saveMany(context, instances, event);
   }
 
-  /**
-   * Computes Ray-encoded yields for each token from preloaded snapshot history (does not persist on `token`).
-   */
+  /** Yields from preloaded history; does not write `token` table. */
   static computeYieldsBatch(
     tokens: TokenService[],
     asOf: Date,
@@ -364,7 +351,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
   }
 }
 
-/** File-local mixin for `token_snapshot` `query` / `saveMany` only — not exported as an entity service. */
+/** Internal: `token_snapshot` query/saveMany only. */
 class TokenSnapshotRows extends mixinCommonStatics(
   Service<typeof TokenSnapshot>,
   TokenSnapshot,

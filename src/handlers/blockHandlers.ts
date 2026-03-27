@@ -20,13 +20,7 @@ import { blocks } from "../chains";
 
 const timekeeper = Timekeeper.start();
 
-/**
- * Processes a new block and creates snapshots if a new period has started
- * @param args - Event arguments containing context and event details
- * @param args.context - Ponder context object containing chain information
- * @param args.event - Block event containing block details
- * @returns Promise that resolves when processing is complete
- */
+/** New-period snapshots when the timekeeper rolls the chain period. */
 async function processBlock(args: { event: Event; context: Context }) {
   const chainName = args.context.chain.name;
   const { event, context } = args;
