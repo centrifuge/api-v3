@@ -127,9 +127,16 @@ multiMapper("shareClassManager:UpdateShareClass", async ({ event, context }) => 
   const asOf = new Date(Number(event.block.timestamp) * 1000);
   const history = await TokenService.loadTokenSnapshotHistoryForYields(context, [tokenId], asOf);
   const yields = TokenService.computeYieldsBatch([token], asOf, history);
-  await snapshotter(context, event, "shareClassManagerV3:UpdateShareClass", [token], TokenSnapshot, {
-    augment: (tok) => yields.get(tok.read().id) ?? {},
-  });
+  await snapshotter(
+    context,
+    event,
+    "shareClassManagerV3:UpdateShareClass",
+    [token],
+    TokenSnapshot,
+    {
+      augment: (tok) => yields.get(tok.read().id) ?? {},
+    }
+  );
 });
 
 multiMapper("shareClassManager:UpdatePricePoolPerShare", async ({ event, context }) => {

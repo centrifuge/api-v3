@@ -53,11 +53,22 @@ async function processBlock(args: { event: Event; context: Context }) {
   const blockTime = new Date(Number(event.block.timestamp) * 1000);
   const asOf = getPeriodStart(blockTime);
   const tokenIds = tokens.map((t) => t.read().id);
-  const tokenHistory = await TokenService.loadTokenSnapshotHistoryForYields(context, tokenIds, asOf);
+  const tokenHistory = await TokenService.loadTokenSnapshotHistoryForYields(
+    context,
+    tokenIds,
+    asOf
+  );
   const tokenYields = TokenService.computeYieldsBatch(tokens, asOf, tokenHistory);
 
   const periodSnapshotOpts = { timestamp: asOf };
-  await snapshotter(context, event, `${chainName}:NewPeriod`, pools, PoolSnapshot, periodSnapshotOpts);
+  await snapshotter(
+    context,
+    event,
+    `${chainName}:NewPeriod`,
+    pools,
+    PoolSnapshot,
+    periodSnapshotOpts
+  );
   await snapshotter(context, event, `${chainName}:NewPeriod`, tokens, TokenSnapshot, {
     ...periodSnapshotOpts,
     augment: (tok) => tokenYields.get(tok.read().id) ?? {},

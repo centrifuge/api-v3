@@ -34,8 +34,7 @@ export async function snapshotter<
   // @ts-ignore - transaction is not typed
   const { transaction } = event;
   const chainId = (context.chain.id as number).toString();
-  const timestamp =
-    options?.timestamp ?? new Date(Number(event.block.timestamp) * 1000);
+  const timestamp = options?.timestamp ?? new Date(Number(event.block.timestamp) * 1000);
   const blockNumber = Number(event.block.number);
 
   const rows = entities.map((entity) => {
@@ -57,5 +56,8 @@ export async function snapshotter<
     `snapshotting ${entities.length} row(s) into ${getTableName(snapshotTable)} sampleId=${String(sampleId)}`
   );
 
-  await context.db.sql.insert(snapshotTable).values(rows as any).onConflictDoNothing();
+  await context.db.sql
+    .insert(snapshotTable)
+    .values(rows as any)
+    .onConflictDoNothing();
 }

@@ -61,16 +61,16 @@ export function yieldSnapshotPointKey(p: TokenSnapshotPricePoint): string {
 /** Distinct “cap” times for bounded history fetch (windows, TTM, Jan 1). */
 export function yieldSnapshotCapTimes(asOf: Date): Date[] {
   const periodDays = new Set(TOKEN_YIELD_SPECS.map((spec) => spec.periodDays));
-  const caps: Date[] = [...periodDays].map(
-    (d) => new Date(asOf.getTime() - d * YIELD_MS_PER_DAY)
-  );
+  const caps: Date[] = [...periodDays].map((d) => new Date(asOf.getTime() - d * YIELD_MS_PER_DAY));
   caps.push(new Date(asOf.getTime() - YIELD_TTM_LOOKBACK_DAYS * YIELD_MS_PER_DAY));
   caps.push(new Date(Date.UTC(asOf.getUTCFullYear(), 0, 1)));
   return [...new Map(caps.map((d) => [d.getTime(), d])).values()];
 }
 
 /** Sort by `timestamp` then `blockNumber` ascending. */
-export function sortTokenYieldPricePoints(points: TokenSnapshotPricePoint[]): TokenSnapshotPricePoint[] {
+export function sortTokenYieldPricePoints(
+  points: TokenSnapshotPricePoint[]
+): TokenSnapshotPricePoint[] {
   return [...points].sort((a, b) => {
     const td = a.timestamp.getTime() - b.timestamp.getTime();
     if (td !== 0) return td;
@@ -259,13 +259,11 @@ export function computeTokenYieldSnapshotFields(
 
   const ttmStart = new Date(asOf.getTime() - YIELD_TTM_LOOKBACK_DAYS * YIELD_MS_PER_DAY);
   const P_ttm_start = priceAtOrBeforePositivePrice(pointsAsc, ttmStart);
-  fields.yieldTtm =
-    P_ttm_start === null ? null : simpleTotalReturnRay(P_ttm_start, P_end);
+  fields.yieldTtm = P_ttm_start === null ? null : simpleTotalReturnRay(P_ttm_start, P_end);
 
   const yStart = new Date(Date.UTC(asOf.getUTCFullYear(), 0, 1));
   const P_ytd_start = priceAtOrBeforePositivePrice(pointsAsc, yStart);
-  fields.yieldYtd =
-    P_ytd_start === null ? null : simpleTotalReturnRay(P_ytd_start, P_end);
+  fields.yieldYtd = P_ytd_start === null ? null : simpleTotalReturnRay(P_ytd_start, P_end);
 
   const inception = firstPositiveTokenYieldPricePoint(pointsAsc);
   if (inception === null) {
