@@ -1,8 +1,22 @@
-import { Token } from "ponder:schema";
-import { Context } from "ponder:registry";
+import { Token, TokenSnapshot } from "ponder:schema";
+import type { Context, Event } from "ponder:registry";
+import type { ReadOnlyContext } from "./Service";
+import { and, asc, desc, gt, inArray, isNotNull, lte } from "drizzle-orm";
 import { Service, mixinCommonStatics } from "./Service";
 import { serviceLog } from "../helpers/logger";
-import { ReadOnlyContext } from "./Service";
+import {
+  ALL_TOKEN_YIELD_SNAPSHOT_COLUMN_NAMES,
+  type TokenSnapshotPricePoint,
+  type TokenYieldSnapshotFields,
+  computeTokenYieldSnapshotFields,
+  sanitizeTokenYieldSnapshotFields,
+  sortTokenYieldPricePoints,
+  yieldSnapshotCapTimes,
+  yieldSnapshotPointKey,
+} from "../helpers/tokenYields";
+import { expandInlineObject } from "../helpers/logger";
+
+export type { TokenSnapshotPricePoint };
 
 /**
  * Service class for managing Token entities.
@@ -159,4 +173,200 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
       return acc + totalIssuance * 10n ** BigInt(18 - decimals);
     }, 0n);
   }
+
+  /**
+   * Loads the minimal `token_snapshot` rows needed for yield math: earliest positive price (inception)
+   * and, for each configured window cap, the latest positive price at or before that instant.
+   * Equivalent to scanning all rows ≤ `asOf` for yield price-point helpers in `tokenYields.ts`,
+   * but bounded in row count (≤ one row per cap per token, plus inception).
+   */
+  static async loadTokenSnapshotHistoryForYields(
+    context: Context | ReadOnlyContext,
+    tokenIds: readonly `0x${string}`[],
+    asOf: Date
+  ): Promise<Map<`0x${string}`, TokenSnapshotPricePoint[]>> {
+    const result = new Map<`0x${string}`, TokenSnapshotPricePoint[]>();
+    if (tokenIds.length === 0) return result;
+    const uniqueIds = [...new Set(tokenIds)] as `0x${string}`[];
+    const caps = yieldSnapshotCapTimes(asOf);
+    serviceLog(
+      "loadTokenSnapshotHistoryForYields",
+      expandInlineObject({ tokenCount: uniqueIds.length, capCount: caps.length + 1 })
+    );
+    const db = "sql" in context.db ? context.db.sql : context.db;
+    const idFilter = inArray(TokenSnapshot.id, uniqueIds);
+    const positivePrice = and(
+      isNotNull(TokenSnapshot.tokenPrice),
+      gt(TokenSnapshot.tokenPrice, 0n)
+    );
+    const yieldFields = {
+      id: TokenSnapshot.id,
+      timestamp: TokenSnapshot.timestamp,
+      tokenPrice: TokenSnapshot.tokenPrice,
+      blockNumber: TokenSnapshot.blockNumber,
+    };
+
+    const rowToPoint = (row: {
+      timestamp: Date;
+      tokenPrice: bigint | null;
+      blockNumber: number;
+    }): TokenSnapshotPricePoint => ({
+      timestamp: row.timestamp,
+      tokenPrice: row.tokenPrice,
+      blockNumber: row.blockNumber,
+    });
+
+    const inceptionRows = await db
+      .selectDistinctOn([TokenSnapshot.id], yieldFields)
+      .from(TokenSnapshot)
+      .where(and(idFilter, lte(TokenSnapshot.timestamp, asOf), positivePrice))
+      .orderBy(
+        asc(TokenSnapshot.id),
+        asc(TokenSnapshot.timestamp),
+        asc(TokenSnapshot.blockNumber),
+        asc(TokenSnapshot.trigger)
+      );
+
+    const capQueries = caps.map((cap) =>
+      db
+        .selectDistinctOn([TokenSnapshot.id], yieldFields)
+        .from(TokenSnapshot)
+        .where(
+          and(
+            idFilter,
+            lte(TokenSnapshot.timestamp, cap),
+            lte(TokenSnapshot.timestamp, asOf),
+            positivePrice
+          )
+        )
+        .orderBy(
+          asc(TokenSnapshot.id),
+          desc(TokenSnapshot.timestamp),
+          desc(TokenSnapshot.blockNumber),
+          desc(TokenSnapshot.trigger)
+        )
+    );
+
+    const capRowSets = await Promise.all(capQueries);
+
+    const byId = new Map<`0x${string}`, Map<string, TokenSnapshotPricePoint>>();
+    const addRow = (id: `0x${string}`, point: TokenSnapshotPricePoint) => {
+      let m = byId.get(id);
+      if (!m) {
+        m = new Map();
+        byId.set(id, m);
+      }
+      m.set(yieldSnapshotPointKey(point), point);
+    };
+
+    for (const row of inceptionRows) {
+      addRow(row.id as `0x${string}`, rowToPoint(row));
+    }
+    for (const rowset of capRowSets) {
+      for (const row of rowset) {
+        addRow(row.id as `0x${string}`, rowToPoint(row));
+      }
+    }
+
+    for (const id of uniqueIds) {
+      const m = byId.get(id);
+      const arr = m ? sortTokenYieldPricePoints([...m.values()]) : [];
+      result.set(id, arr);
+    }
+    return result;
+  }
+
+  /**
+   * Ray yield snapshot fields for one historical row: uses that row’s `tokenPrice` and `timestamp`
+   * as end price / as-of (not live `token` state).
+   */
+  static async computeSnapshotYieldFields(
+    context: Context | ReadOnlyContext,
+    tokenId: `0x${string}`,
+    snapshotTokenPrice: bigint | null,
+    snapshotAsOf: Date
+  ): Promise<Record<string, bigint | null>> {
+    const history = await this.loadTokenSnapshotHistoryForYields(context, [tokenId], snapshotAsOf);
+    const sorted = sortTokenYieldPricePoints(history.get(tokenId) ?? []);
+    return sanitizeTokenYieldSnapshotFields(
+      computeTokenYieldSnapshotFields(snapshotTokenPrice, snapshotAsOf, sorted)
+    );
+  }
+
+  /**
+   * Recomputes Ray yield columns on all `token_snapshot` rows for `tokenId` with
+   * `timestamp >= fromTimestamp` and positive `tokenPrice`, then persists in one batch upsert.
+   */
+  static async recalculateTokenSnapshotYieldsFromTimestamp(
+    context: Context,
+    event: Event,
+    tokenId: `0x${string}`,
+    fromTimestamp: Date
+  ): Promise<void> {
+    const snapshots = (await TokenSnapshotRows.query(context, {
+      id: tokenId,
+      timestamp_gte: fromTimestamp,
+      tokenPrice_gt: 0n,
+      _sort: [{ field: "timestamp", direction: "asc" }],
+    })) as InstanceType<typeof TokenSnapshotRows>[];
+    if (snapshots.length === 0) {
+      serviceLog(
+        "TokenService.recalculateTokenSnapshotYieldsFromTimestamp",
+        expandInlineObject({ tokenId, count: 0 })
+      );
+      return;
+    }
+    serviceLog(
+      "TokenService.recalculateTokenSnapshotYieldsFromTimestamp",
+      expandInlineObject({ tokenId, fromTs: fromTimestamp.getTime(), count: snapshots.length })
+    );
+    const instances = await Promise.all(
+      snapshots.map(async (snap) => {
+        const row = snap.read();
+        const yields = await TokenService.computeSnapshotYieldFields(
+          context,
+          tokenId,
+          row.tokenPrice,
+          row.timestamp
+        );
+        const yieldPatch: TokenYieldSnapshotFields = {};
+        for (const col of ALL_TOKEN_YIELD_SNAPSHOT_COLUMN_NAMES) {
+          yieldPatch[col] = yields[col] ?? null;
+        }
+        const merged = { ...row, ...yieldPatch };
+        return new TokenSnapshotRows(TokenSnapshot, "TokenSnapshot", context, merged);
+      })
+    );
+    await TokenSnapshotRows.saveMany(context, instances, event);
+  }
+
+  /**
+   * Computes Ray-encoded yields for each token from preloaded snapshot history (does not persist on `token`).
+   */
+  static computeYieldsBatch(
+    tokens: TokenService[],
+    asOf: Date,
+    historyByTokenId: Map<`0x${string}`, TokenSnapshotPricePoint[]>
+  ): Map<`0x${string}`, Record<string, bigint | null>> {
+    serviceLog("computeYieldsBatch", expandInlineObject({ count: tokens.length }));
+    const out = new Map<`0x${string}`, Record<string, bigint | null>>();
+    for (const token of tokens) {
+      const id = token.read().id;
+      const raw = historyByTokenId.get(id) ?? [];
+      const sorted = sortTokenYieldPricePoints(raw);
+      const { tokenPrice } = token.read();
+      out.set(
+        id,
+        sanitizeTokenYieldSnapshotFields(computeTokenYieldSnapshotFields(tokenPrice, asOf, sorted))
+      );
+    }
+    return out;
+  }
 }
+
+/** File-local mixin for `token_snapshot` `query` / `saveMany` only — not exported as an entity service. */
+class TokenSnapshotRows extends mixinCommonStatics(
+  Service<typeof TokenSnapshot>,
+  TokenSnapshot,
+  "TokenSnapshot"
+) {}
