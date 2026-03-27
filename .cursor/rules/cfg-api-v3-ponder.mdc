@@ -1,0 +1,20 @@
+---
+description: cfg-api-v3 — Ponder schema, config, and chains
+globs:
+  - ponder.schema.ts
+  - ponder.config.ts
+  - src/chains.ts
+  - src/contracts.ts
+  - src/config.ts
+alwaysApply: false
+---
+
+# Ponder schema, config, and registries
+
+- **Do not hand-edit [`generated/`](generated/).** Registry JSON/TS comes from **`pnpm update-registry`** (see README).
+- After changing **`ponder.schema.ts`**, **`ponder.config.ts`**, or anything that affects Ponder codegen output, run **`pnpm codegen`** and commit generated outputs if the repo expects them updated.
+- **Contract versions:** [`ponder.config.ts`](ponder.config.ts) defines **`contractsV3`** and **`contractsV3_1`**; merged `contracts` drives `multiMapper` version discovery. Deployment/migration tuning: [`src/config.ts`](src/config.ts) (e.g. `V3_1_MIGRATION_BLOCKS`).
+- **ABI/address wiring:** [`src/contracts.ts`](src/contracts.ts) (`decorateDeploymentContracts`); chain RPCs and **`blocks`** for block handlers: [`src/chains.ts`](src/chains.ts).
+- **Historical snapshots:** period boundaries via **`Timekeeper`** + [`src/handlers/blockHandlers.ts`](src/handlers/blockHandlers.ts); event-driven snapshots via **`snapshotter`** (see [CLAUDE.md](CLAUDE.md)).
+
+When adding a new onchain table, add the **`onchainTable`** in `ponder.schema.ts`, then implement the matching **`EntityService`**, export it, and wire handlers with **`multiMapper`** where applicable.

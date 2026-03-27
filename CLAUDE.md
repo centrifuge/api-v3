@@ -1,6 +1,6 @@
 # cfg-api-v3 — AI & contributor guide
 
-This document describes how this codebase is structured and the rules we follow when changing it. For setup, environment variables, Docker, and operational scripts, see [README.md](README.md).
+This document describes how this codebase is structured and the rules we follow when changing it. For setup, environment variables, Docker, and operational scripts, see [README.md](README.md). **Cursor** loads extra, scoped rules from [`.cursor/rules/*.mdc`](.cursor/rules/) (see `cfg-api-v3-core.mdc` for the always-on summary).
 
 ## What this project is
 
@@ -98,6 +98,24 @@ We use a **snapshot pattern** for point-in-time copies of entity state:
 - Use narrow types, early returns, and small functions. Keep side effects in services; handlers stay declarative orchestration.
 - Match existing naming, imports, and JSDoc level when extending the codebase.
 
+## Agent workflow (quick wins)
+
+These habits reduce broken PRs and wasted review cycles when assistants (or humans) change the indexer:
+
+1. **Verify before you stop** — After non-trivial edits, run **`pnpm typecheck`** and **`pnpm lint`** from the repo root. Fix all reported issues unless the task explicitly excludes them.
+
+2. **Schema and codegen** — If you change [`ponder.schema.ts`](ponder.schema.ts) or Ponder-facing config, run **`pnpm codegen`** so `ponder:schema` / GraphQL artifacts stay aligned (see Ponder docs for when codegen is required).
+
+3. **Copy a proven pattern** — Before adding a new handler or service method, open the **closest existing** file (same contract family or same table shape) and mirror structure: `multiMapper` strings, service calls, batch vs single-row saves, snapshot usage.
+
+4. **Wire new services** — New entity services should be **exported** from [`src/services/index.ts`](src/services/index.ts) when other modules need them (match existing export style).
+
+5. **Keep diffs focused** — One logical change per task; avoid drive-by formatting or unrelated refactors (easier for agents to review and revert).
+
+6. **Discover events and names** — Ripgrep across [`src/handlers/`](src/handlers/) and [`generated/`](generated/) for existing `multiMapper("Contract:Event"` strings and ABI names. For **log files** from a running indexer, [`scripts/evgrep.sh`](scripts/evgrep.sh) filters whole “Received event …” blocks (see script usage).
+
+7. **Document assumptions in the PR/commit** — If behavior depends on registry version, chain id, or migration blocks, say so in the description so the next agent does not “fix” working code.
+
 ## Helpers vs services
 
 [`src/helpers/`](src/helpers/) holds cross-cutting utilities: **`serviceLog` / `serviceError`** and related helpers in [`logger.ts`](src/helpers/logger.ts), formatting, `multiMapper`, `timekeeper`, `snapshotter`, IPFS helpers, etc. They complement services but **do not replace** per-entity services for normal CRUD and domain rules. For high-level “we received this chain event” lines in handlers, **`logEvent`** from the same logger module is available where appropriate.
@@ -106,6 +124,7 @@ We use a **snapshot pattern** for point-in-time copies of entity state:
 
 | Area | File |
 |------|------|
+| Cursor / Agent rules | [`.cursor/rules/`](.cursor/rules/) (`*.mdc`) |
 | Generated (do not edit) | [`generated/`](generated/) |
 | Ponder app config | [`ponder.config.ts`](ponder.config.ts) |
 | Schema | [`ponder.schema.ts`](ponder.schema.ts) |

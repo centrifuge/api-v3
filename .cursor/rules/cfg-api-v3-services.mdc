@@ -1,0 +1,16 @@
+---
+description: cfg-api-v3 — entity services and Service base (src/services)
+globs: src/services/**/*.ts
+alwaysApply: false
+---
+
+# Services (`src/services/`)
+
+- **Pattern:** `export class EntityService extends mixinCommonStatics(Service<typeof Table>, Table, "EntityName") {}` — see [`AdapterService.ts`](src/services/AdapterService.ts) and [`Service.ts`](src/services/Service.ts).
+- **New services:** export from [`src/services/index.ts`](src/services/index.ts) when used outside the service file.
+- **Logging:** use **`serviceLog`** (progress, context) and **`serviceError`** (failures, bad state) from [`src/helpers/logger.ts`](src/helpers/logger.ts). Any **public/static method that does meaningful work** (DB, side effects, non-trivial branching) should log at least once; skip trivial pure accessors like `read()`. Use **`expandInlineObject`** for row-shaped payloads where appropriate.
+- **Batch APIs:** prefer **`insertMany`** / **`saveMany`** from the mixin when writing many rows; align semantics (`onConflictDoNothing` vs upsert) with existing callers.
+- **Extending batch upserts:** follow the **`saveMany` / `excluded`** comment in `Service.ts` (Ponder PG proxy — use `sql.raw(\`excluded."column"\`)` for column refs, not broken `excluded.*` expansions).
+- **DB implementation:** handlers never call `context.db` directly; services use the patterns encapsulated in **`Service`** (`context.db.sql`, and `context.db.find` inside `getOrInit` only).
+
+Add **public** methods on the entity service for logic reused by multiple handlers.
