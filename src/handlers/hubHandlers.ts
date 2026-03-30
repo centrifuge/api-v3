@@ -10,6 +10,7 @@ import {
   VaultService,
   AssetService,
   OffRampAddressService,
+  OffRampRelayerService,
 } from "../services";
 import { VaultCrosschainInProgressTypes } from "ponder:schema";
 
@@ -161,6 +162,25 @@ multiMapper("hub:UpdateContract", async ({ event, context }) => {
     if (!vault) return serviceError(`Vault not found. Cannot update maxReserve`);
     await vault.setMaxReserve(maxReserve).setCrosschainInProgress().save(event);
   }
+
+  if (decoded.kind === "MaxReserve" && "relayerAddress" in decoded.payload) {
+    const { relayerAddress, isEnabled } = decoded.payload;
+    const offrampRelayer = (await OffRampRelayerService.getOrInit(
+      context,
+      {
+        poolId,
+        centrifugeId: destCentrifugeId.toString(),
+        tokenId,
+        address: relayerAddress,
+      },
+      event,
+      undefined,
+      true
+    )) as OffRampRelayerService;
+    await offrampRelayer
+      .setCrosschainInProgress(isEnabled ? "Enabled" : "Disabled")
+      .save(event);
+  }
   if (decoded.kind === "Offramp" && "receiverAddress" in decoded.payload) {
     const { assetId, receiverAddress, isEnabled } = decoded.payload as {
       assetId: bigint;
@@ -248,9 +268,9 @@ const decodeUint8InWord = (chunk: Buffer): number => chunk.readUInt8(WORD_SIZE -
 /** Decoder: right-aligned uint128 in a 32-byte word (bytes 16–31, big-endian). */
 const decodeUint128InWord = (chunk: Buffer): bigint =>
   (chunk.readBigUInt64BE(16) << 64n) | chunk.readBigUInt64BE(24);
-/** Decoder: bytes32 as 20-byte address (right-padded, bytes 12–31). */
+/** Decoder: bytes32 as 20-byte address (right-padded, bytes 12–31), lowercase hex for stable IDs. */
 const decodeBytes32Address = (chunk: Buffer): `0x${string}` =>
-  `0x${chunk.subarray(12, 32).toString("hex")}` as `0x${string}`;
+  `0x${chunk.subarray(12, 32).toString("hex")}`.toLowerCase() as `0x${string}`;
 /** Payload kind (uint8) in UpdateContract; matches SyncManager / OnOfframpManager / BaseTransferHook TrustedCall. */
 enum UpdateContractPayloadKind {
   "Valuation", // SyncManager.Valuation | OnOfframpManager.Onramp | BaseTransferHook.UpdateHookManager
