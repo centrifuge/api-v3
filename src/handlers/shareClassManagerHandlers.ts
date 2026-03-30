@@ -175,14 +175,15 @@ multiMapper("shareClassManager:UpdatePricePoolPerShare", async ({ event, context
       augment: (tok) => yields.get(tok.read().id) ?? {},
     }
   );
-  if (getPeriodStart(computedAt).getTime() !== getPeriodStart(asOf).getTime()) {
-    await TokenService.recalculateTokenSnapshotYieldsFromTimestamp(
-      context,
-      event,
-      tokenId,
-      computedAt
-    );
-  }
+
+  if (getPeriodStart(computedAt).getTime() === getPeriodStart(asOf).getTime()) return;
+
+  await TokenService.recalculateTokenSnapshotYieldsFromTimestamp(
+    context,
+    event,
+    tokenId,
+    computedAt
+  );
 });
 
 multiMapper("shareClassManager:UpdateDepositRequest", updateDepositRequest);
