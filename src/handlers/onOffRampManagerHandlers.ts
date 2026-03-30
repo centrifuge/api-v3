@@ -128,7 +128,9 @@ multiMapper("onOfframpManager:UpdateOfframp", async ({ event, context }) => {
       assetAddress: asset,
       receiverAddress,
     },
-    event
+    event,
+    undefined,
+    true
   )) as OffRampAddressService;
-  await offRampAddress.save(event);
+  await offRampAddress.setCrosschainInProgress().save(event);
 });
