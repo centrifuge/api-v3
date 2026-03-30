@@ -34,10 +34,14 @@ async function addShareClassLong({
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
   const pool = (await PoolService.get(context, {
     id: poolId,
-  })) as PoolService;
+  })) as PoolService | null;
+  if (!pool) {
+    return serviceError("Pool not found. Cannot add share class");
+  }
   const { decimals: poolDecimals } = pool.read();
-  if (typeof poolDecimals !== "number")
-    serviceError("Pool decimals is not a initialised", expandInlineObject(pool.read()));
+  if (typeof poolDecimals !== "number") {
+    return serviceError("Pool decimals is not a initialised", expandInlineObject(pool.read()));
+  }
 
   const _token = (await TokenService.upsert(
     context,

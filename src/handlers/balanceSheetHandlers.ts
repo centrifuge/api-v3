@@ -42,7 +42,9 @@ multiMapper("balanceSheet:NoteDeposit", async ({ event, context }) => {
       assetId,
       escrowAddress,
     },
-    event
+    event,
+    undefined,
+    true
   )) as HoldingEscrowService;
 
   await holdingEscrow.increaseAssetAmount(amount);
@@ -89,7 +91,9 @@ multiMapper("balanceSheet:Withdraw", async ({ event, context }) => {
       assetId,
       escrowAddress,
     },
-    event
+    event,
+    undefined,
+    true
   )) as HoldingEscrowService;
 
   await holdingEscrow.decreaseAssetAmount(amount);

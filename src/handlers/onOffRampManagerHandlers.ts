@@ -95,7 +95,7 @@ multiMapper("onOfframpManager:UpdateOnramp", async ({ event, context }) => {
 
 multiMapper("onOfframpManager:UpdateOfframp", async ({ event, context }) => {
   logEvent(event, context, "onOffRampManager:UpdateOfframp");
-  const { asset, receiver } = event.args;
+  const { asset, receiver, isEnabled } = event.args;
   const manager = event.log.address;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -128,7 +128,9 @@ multiMapper("onOfframpManager:UpdateOfframp", async ({ event, context }) => {
       assetAddress: asset,
       receiverAddress,
     },
-    event
+    event,
+    undefined,
+    true
   )) as OffRampAddressService;
-  await offRampAddress.save(event);
+  await offRampAddress.setCrosschainInProgress().setEnabled(isEnabled).save(event);
 });

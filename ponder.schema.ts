@@ -1052,12 +1052,22 @@ export const OnRampAssetRelations = relations(OnRampAsset, ({ one }) => ({
   }),
 }));
 
+export const OffRampAddressCrosschainInProgressTypes = [`Enabled`, `Disabled`] as const;
+export const OffRampAddressCrosschainInProgress = onchainEnum(
+  "off_ramp_address_crosschain_in_progress",
+  OffRampAddressCrosschainInProgressTypes
+);
+
 const OffRampAddressColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   tokenId: t.hex().notNull(),
   centrifugeId: t.text().notNull(),
   assetAddress: t.hex().notNull(),
   receiverAddress: t.hex().notNull(),
+  isEnabled: t.boolean().default(false),
+  crosschainInProgress: OffRampAddressCrosschainInProgress(
+    "off_ramp_address_crosschain_in_progress"
+  ),
   ...defaultColumns(t),
 });
 export const OffRampAddress = onchainTable("off_ramp_address", OffRampAddressColumns, (t) => ({

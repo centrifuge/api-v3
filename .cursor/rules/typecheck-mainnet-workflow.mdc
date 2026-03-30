@@ -1,0 +1,21 @@
+---
+description: Run typecheck against mainnet registry workflow
+alwaysApply: true
+---
+
+# Typecheck Workflow
+
+Before running `typecheck` in this project:
+
+1. Confirm `.env.local` is set to mainnet.
+2. Run `pnpm update-registry`.
+3. Then run the typecheck command.
+
+Use this order:
+
+```sh
+pnpm update-registry
+pnpm run typecheck
+```
+
+Do not run `pnpm run typecheck` against stale registry data or a non-mainnet `.env.local` setup.
