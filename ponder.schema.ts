@@ -1064,6 +1064,7 @@ const OffRampAddressColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   assetAddress: t.hex().notNull(),
   receiverAddress: t.hex().notNull(),
+  isEnabled: t.boolean().default(false),
   crosschainInProgress: OffRampAddressCrosschainInProgress(
     "off_ramp_address_crosschain_in_progress"
   ),

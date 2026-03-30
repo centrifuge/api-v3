@@ -1,7 +1,4 @@
-import {
-  OffRampAddress,
-  OffRampAddressCrosschainInProgressTypes,
-} from "ponder:schema";
+import { OffRampAddress, OffRampAddressCrosschainInProgressTypes } from "ponder:schema";
 import { serviceLog } from "../helpers/logger";
 import { Service, mixinCommonStatics } from "./Service";
 
@@ -25,6 +22,18 @@ export class OffRampAddressService extends mixinCommonStatics(
   ) {
     this.data.crosschainInProgress = crosschainInProgress ?? null;
     serviceLog(`Setting crosschainInProgress to ${crosschainInProgress}`);
+    return this;
+  }
+
+  /**
+   * Sets the enabled status for the off-ramp address.
+   *
+   * @param isEnabled - The value to set for isEnabled
+   * @returns The service instance for method chaining
+   */
+  public setEnabled(isEnabled: boolean) {
+    this.data.isEnabled = isEnabled;
+    serviceLog(`Setting isEnEbled to ${isEnabled}`);
     return this;
   }
 }
