@@ -9,6 +9,7 @@ import {
   centrifugeIdFromAssetId,
   VaultService,
   AssetService,
+  OffRampAddressService,
 } from "../services";
 import { VaultCrosschainInProgressTypes } from "ponder:schema";
 
@@ -157,6 +158,36 @@ multiMapper("hub:UpdateContract", async ({ event, context }) => {
     })) as VaultService | null;
     if (!vault) return serviceError(`Vault not found. Cannot update maxReserve`);
     await vault.setMaxReserve(maxReserve).setCrosschainInProgress().save(event);
+  }
+
+  if (decoded.kind === "Offramp" && "receiverAddress" in decoded.payload) {
+    const { assetId, receiverAddress, isEnabled } = decoded.payload as {
+      assetId: bigint;
+      receiverAddress: `0x${string}`;
+      isEnabled: boolean;
+    };
+    const asset = await AssetService.get(context, { id: assetId });
+    if (!asset)
+      return serviceError(`Asset not found for assetId ${assetId}. Cannot update offramp`);
+    const assetAddress = asset.read().address as `0x${string}`;
+    if (!assetAddress) return serviceError(`Asset has no address for assetId ${assetId}`);
+
+    const offRampAddress = (await OffRampAddressService.getOrInit(
+      context,
+      {
+        poolId,
+        centrifugeId: destCentrifugeId.toString(),
+        tokenId,
+        assetAddress,
+        receiverAddress,
+      },
+      event,
+      undefined,
+      true
+    )) as OffRampAddressService;
+    await offRampAddress
+      .setCrosschainInProgress(isEnabled ? "Enabled" : "Disabled")
+      .save(event);
   }
 });
 

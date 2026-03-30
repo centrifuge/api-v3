@@ -1,5 +1,7 @@
 import { onchainTable, onchainEnum, relations, primaryKey, index } from "ponder";
 import { getContractNames } from "./src/chains";
+import { TOKEN_YIELD_SPECS, tokenYieldFieldName } from "./src/config/tokenYield";
+import { FIXED_TOKEN_YIELD_COLUMNS } from "./src/helpers/tokenYields";
 import { type NotNull } from "drizzle-orm";
 
 type PgColumnsFunction = Extract<Parameters<typeof onchainTable>[1], Function>;
@@ -1050,12 +1052,21 @@ export const OnRampAssetRelations = relations(OnRampAsset, ({ one }) => ({
   }),
 }));
 
+export const OffRampAddressCrosschainInProgressTypes = [`Enabled`, `Disabled`] as const;
+export const OffRampAddressCrosschainInProgress = onchainEnum(
+  "off_ramp_address_crosschain_in_progress",
+  OffRampAddressCrosschainInProgressTypes
+);
+
 const OffRampAddressColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   tokenId: t.hex().notNull(),
   centrifugeId: t.text().notNull(),
   assetAddress: t.hex().notNull(),
   receiverAddress: t.hex().notNull(),
+  crosschainInProgress: OffRampAddressCrosschainInProgress(
+    "off_ramp_address_crosschain_in_progress"
+  ),
   ...defaultColumns(t),
 });
 export const OffRampAddress = onchainTable("off_ramp_address", OffRampAddressColumns, (t) => ({
@@ -1362,16 +1373,31 @@ export const PoolSnapshotRelations = relations(PoolSnapshot, ({ one }) => ({
   }),
 }));
 
+function tokenYieldSnapshotColumns(t: PgColumnsBuilders) {
+  const cols: Record<string, ReturnType<PgColumnsBuilders["bigint"]>> = {};
+  for (const spec of TOKEN_YIELD_SPECS) {
+    cols[tokenYieldFieldName(spec)] = t.bigint();
+  }
+  for (const name of FIXED_TOKEN_YIELD_COLUMNS) {
+    cols[name] = t.bigint();
+  }
+  return cols;
+}
+
 export const TokenSnapshot = onchainTable(
   "token_snapshot",
-  snapshotColumns(TokenColumns, [
-    "id",
-    "tokenPrice",
-    "totalIssuance",
-    "tokenPriceComputedAt",
-  ] as const),
+  (t) => ({
+    ...snapshotColumns(TokenColumns, [
+      "id",
+      "tokenPrice",
+      "totalIssuance",
+      "tokenPriceComputedAt",
+    ] as const)(t),
+    ...tokenYieldSnapshotColumns(t),
+  }),
   (t) => ({
     id: primaryKey({ columns: [t.id, t.blockNumber, t.trigger] }),
+    tokenIdTimestampIdx: index().on(t.id, t.timestamp),
   })
 );
 
