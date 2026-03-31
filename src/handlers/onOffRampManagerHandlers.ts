@@ -47,18 +47,20 @@ multiMapper("onOfframpManager:UpdateRelayer", async ({ event, context }) => {
   }
   const { poolId, tokenId } = onOffRampManager.read();
 
-  const offRampRelayer = (await OffRampRelayerService.upsert(
+  const relayerAddress = relayer.substring(0, 42).toLowerCase() as `0x${string}`;
+  const offRampRelayer = (await OffRampRelayerService.getOrInit(
     context,
     {
-      address: relayer,
+      poolId,
       centrifugeId,
       tokenId,
-      poolId,
-      isEnabled,
+      address: relayerAddress,
     },
-    event
-  )) as OffRampRelayerService | null;
-  if (!offRampRelayer) serviceError("Failed to upsert OffRampRelayer");
+    event,
+    undefined,
+    true
+  )) as OffRampRelayerService;
+  await offRampRelayer.setCrosschainInProgress().setEnabled(isEnabled).save(event);
 });
 
 multiMapper("onOfframpManager:UpdateOnramp", async ({ event, context }) => {

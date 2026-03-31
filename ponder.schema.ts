@@ -1009,12 +1009,21 @@ export const OnOffRampManagerRelations = relations(OnOffRampManager, ({ one }) =
   }),
 }));
 
+export const OfframpRelayerCrosschainInProgressTypes = [`Enabled`, `Disabled`] as const;
+export const OfframpRelayerCrosschainInProgress = onchainEnum(
+  "offramp_relayer_crosschain_in_progress",
+  OfframpRelayerCrosschainInProgressTypes
+);
+
 const OfframpRelayerColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   tokenId: t.hex().notNull(),
   poolId: t.bigint().notNull(),
   address: t.hex().notNull(),
   isEnabled: t.boolean().notNull().default(false),
+  crosschainInProgress: OfframpRelayerCrosschainInProgress(
+    "offramp_relayer_crosschain_in_progress"
+  ),
   ...defaultColumns(t),
 });
 

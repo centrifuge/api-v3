@@ -47,9 +47,7 @@ multiMapper("balanceSheet:NoteDeposit", async ({ event, context }) => {
     true
   )) as HoldingEscrowService;
 
-  await holdingEscrow.increaseAssetAmount(amount);
-  await holdingEscrow.setAssetPrice(pricePoolPerAsset);
-  await holdingEscrow.save(event);
+  await holdingEscrow.increaseAssetAmount(amount).setAssetPrice(pricePoolPerAsset).save(event);
 
   await snapshotter(
     context,
