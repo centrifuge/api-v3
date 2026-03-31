@@ -31,8 +31,7 @@ export class HoldingEscrowService extends mixinCommonStatics(
    */
   public increaseAssetAmount(amount: bigint) {
     serviceLog("Increasing asset amount by: ", amount);
-    if (this.data.assetAmount === null) throw new Error("HoldingEscrow not initialized");
-    this.data.assetAmount += amount;
+    this.data.assetAmount = this.data.assetAmount ?? 0n + amount;
     return this;
   }
 
@@ -51,8 +50,7 @@ export class HoldingEscrowService extends mixinCommonStatics(
    */
   public decreaseAssetAmount(amount: bigint) {
     serviceLog("Decreasing asset amount by: ", amount);
-    if (this.data.assetAmount === null) throw new Error("HoldingEscrow not initialized");
-    this.data.assetAmount -= amount;
+    this.data.assetAmount = this.data.assetAmount ?? 0n - amount;
     return this;
   }
 
