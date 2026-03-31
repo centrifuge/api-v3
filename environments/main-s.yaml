@@ -17,11 +17,11 @@ global:
 indexer:
   enabled: true
   image:
-    tag: sha-a924abf
+    tag: sha-41144fd
 query:
   enabled: true
   image:
-    tag: sha-a924abf
+    tag: sha-41144fd
   replicaCount: 1
   ingress:
     enabled: true
