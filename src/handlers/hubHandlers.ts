@@ -177,9 +177,7 @@ multiMapper("hub:UpdateContract", async ({ event, context }) => {
       undefined,
       true
     )) as OffRampRelayerService;
-    await offrampRelayer
-      .setCrosschainInProgress(isEnabled ? "Enabled" : "Disabled")
-      .save(event);
+    await offrampRelayer.setCrosschainInProgress(isEnabled ? "Enabled" : "Disabled").save(event);
   }
   if (decoded.kind === "Offramp" && "receiverAddress" in decoded.payload) {
     const { assetId, receiverAddress, isEnabled } = decoded.payload as {
