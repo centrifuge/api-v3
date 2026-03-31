@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable jsdoc/require-jsdoc */
 import { createReadStream } from "fs";
-import { mkdir, readFile, rename, unlink } from "fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "fs/promises";
 import { join, resolve, sep } from "path";
 import { StringDecoder } from "string_decoder";
 import { finished } from "stream/promises";
@@ -9,17 +9,70 @@ import { createGunzip } from "zlib";
 import { Client } from "pg";
 import { from as copyFrom } from "pg-copy-streams";
 import dotenv from "dotenv";
-import { createRequire } from "module";
 
 dotenv.config({ path: [".env.local", ".env"] });
 
-const REGISTRY_HOST = "ghcr.io";
 const ARTIFACT_NAME = "ponder-sync";
 const OUTPUT_DIR = ".ponder";
-const ARTIFACT_FILENAME = "ponder_sync.sql.gz";
 
-const require = createRequire(import.meta.url);
-const { OrasClient } = require("@dfatwork-pkgs/oras-client");
+async function getGhcrBearerToken(artifact) {
+  const scope = `repository:${artifact}:pull`;
+  const tokenUrl = new URL("https://ghcr.io/token");
+  tokenUrl.searchParams.set("service", "ghcr.io");
+  tokenUrl.searchParams.set("scope", scope);
+  tokenUrl.searchParams.set("client_id", "cfg-api-v3-sync");
+
+  const headers = {};
+  const githubToken = process.env.GITHUB_TOKEN;
+  if (githubToken && githubToken.trim().length > 0) {
+    headers.authorization = `Basic ${Buffer.from(`foo:${githubToken}`).toString("base64")}`;
+  }
+
+  const response = await fetch(tokenUrl, { headers });
+  if (!response.ok) {
+    throw new Error(`Failed to request GHCR token (${response.status})`);
+  }
+
+  const payload = await response.json();
+  const token = payload.token ?? payload.access_token;
+  if (!token) {
+    throw new Error("GHCR token response did not include a bearer token");
+  }
+  return token;
+}
+
+async function pullArtifactBlob(artifact, tag, outputPath) {
+  const bearer = await getGhcrBearerToken(artifact);
+  const base = `https://ghcr.io/v2/${artifact}`;
+  const manifestResponse = await fetch(`${base}/manifests/${tag}`, {
+    headers: {
+      accept: [
+        "application/vnd.oci.image.manifest.v1+json",
+        "application/vnd.oci.artifact.manifest.v1+json",
+      ].join(", "),
+      authorization: `Bearer ${bearer}`,
+    },
+  });
+  if (!manifestResponse.ok) {
+    throw new Error(`Failed to fetch manifest (${manifestResponse.status})`);
+  }
+
+  const manifest = await manifestResponse.json();
+  const layer = manifest.layers?.[0];
+  if (!layer?.digest) {
+    throw new Error("Manifest does not contain a pullable layer");
+  }
+
+  const blobResponse = await fetch(`${base}/blobs/${layer.digest}`, {
+    headers: { authorization: `Bearer ${bearer}` },
+  });
+  if (!blobResponse.ok) {
+    throw new Error(`Failed to fetch blob (${blobResponse.status})`);
+  }
+
+  const blobBuffer = Buffer.from(await blobResponse.arrayBuffer());
+  await writeFile(outputPath, blobBuffer);
+}
 
 function requireMainnet() {
   if (process.env.ENVIRONMENT !== "mainnet") {
@@ -142,19 +195,14 @@ export async function pullPonderSync(tag) {
   if (resolvedTag !== "latest" && !/^\d+$/.test(resolvedTag)) {
     throw new Error("Invalid tag format");
   }
-  const client = new OrasClient();
   await mkdir(OUTPUT_DIR, { recursive: true });
-  await client.pullArtifact(`${REGISTRY_HOST}/${artifact}:${resolvedTag}`, OUTPUT_DIR);
-  const pulledPath = join(OUTPUT_DIR, ARTIFACT_FILENAME);
   const outputPath = join(OUTPUT_DIR, `${resolvedTag}_ponder_sync.sql.gz`);
-  if (pulledPath !== outputPath) {
-    try {
-      await unlink(outputPath);
-    } catch {
-      // ignore missing destination
-    }
-    await rename(pulledPath, outputPath);
+  try {
+    await unlink(outputPath);
+  } catch {
+    // ignore missing destination
   }
+  await pullArtifactBlob(artifact, resolvedTag, outputPath);
   console.log(`Downloaded ${artifact}:${resolvedTag} to ${outputPath}`);
   return outputPath;
 }

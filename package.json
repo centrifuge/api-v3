@@ -30,7 +30,6 @@
     "sync:push": "LATEST=$(ls -t .ponder/*_ponder_sync.sql.gz 2>/dev/null | head -n 1); TAG=$(basename \"$LATEST\" | sed 's/_ponder_sync.sql.gz$//'); cp \"$LATEST\" ponder_sync.sql.gz; REPO=$(node -p \"(() => { const repo=require('./package.json').repository; const url=typeof repo==='string'?repo:repo?.url; return new URL(url).pathname.replace(/^\\\\//,'').replace(/\\\\.git$/,''); })()\"); USER=$(gh api user -q .login); gh auth token | oras login ghcr.io -u \"$USER\" --password-stdin; oras push ghcr.io/$REPO/ponder-sync:$TAG ponder_sync.sql.gz:application/gzip; oras tag ghcr.io/$REPO/ponder-sync:$TAG latest; rm -f ponder_sync.sql.gz"
   },
   "dependencies": {
-    "@dfatwork-pkgs/oras-client": "^0.1.0",
     "@ponder/utils": "0.2.18",
     "bn.js": "^5.2.3",
     "dotenv": "^16.3.1",
