@@ -138,9 +138,11 @@ multiMapper("spoke:UpdateSharePrice", async ({ event, context }) => {
   })) as TokenInstanceService;
   if (!tokenInstance) return serviceError(`TokenInstance not found. Cannot update token price`);
 
-  await tokenInstance.setTokenPrice(tokenPrice);
-  await tokenInstance.setComputedAt(computedAt);
-  await tokenInstance.save(event);
+  await tokenInstance
+    .setTokenPrice(tokenPrice)
+    .setComputedAt(computedAt)
+    .setCrosschainInProgress()
+    .save(event);
 });
 
 multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
@@ -200,8 +202,7 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
     event
   )) as HoldingEscrowService;
 
-  await holdingEscrow.setAssetPrice(assetPrice);
-  await holdingEscrow.save(event);
+  await holdingEscrow.setAssetPrice(assetPrice).setCrosschainInProgress().save(event);
 
   await snapshotter(
     context,
