@@ -49,7 +49,9 @@ multiMapper("hub:NotifyAssetPrice", async ({ event, context }) => {
 
   const assetAddress = asset.read().address as `0x${string}`;
   if (!assetAddress)
-    return serviceError(`Asset has no address for assetId ${assetId}. Cannot track NotifyAssetPrice`);
+    return serviceError(
+      `Asset has no address for assetId ${assetId}. Cannot track NotifyAssetPrice`
+    );
 
   const escrow = (await EscrowService.get(context, {
     poolId,
