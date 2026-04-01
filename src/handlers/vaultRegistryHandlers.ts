@@ -4,6 +4,7 @@ import { logEvent, serviceError } from "../helpers/logger";
 import { VaultKinds } from "ponder:schema";
 import { BlockchainService, AssetService, VaultService } from "../services";
 import { getContractNameForAddress } from "../contracts";
+import { readContractSafe } from "../helpers/readContractSafe";
 
 multiMapper("vaultRegistry:DeployVault", deployVault);
 export async function deployVault({
@@ -32,13 +33,21 @@ export async function deployVault({
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const { client, contracts } = context;
-  const manager = await client.readContract({
-    abi: contractName === "vaultRegistry" ? contracts.vaultV3_1.abi : contracts.vaultV3.abi,
-    address: vaultId,
-    functionName: contractName === "vaultRegistry" ? "baseManager" : "manager",
-    args: [],
-  });
+  const { contracts } = context;
+  const manager =
+    contractName === "vaultRegistry"
+      ? await readContractSafe(context, event, {
+          abi: contracts.vaultV3_1.abi,
+          address: vaultId,
+          functionName: "baseManager",
+          args: [],
+        })
+      : await readContractSafe(context, event, {
+          abi: contracts.vaultV3.abi,
+          address: vaultId,
+          functionName: "manager",
+          args: [],
+        });
 
   const asset = await AssetService.get(context, {
     address: assetAddress,

@@ -1098,18 +1098,26 @@ export const OffRampAddressRelations = relations(OffRampAddress, ({ one }) => ({
   }),
 }));
 
+export const PolicyCrosschainInProgressTypes = [`UpdatePolicy`] as const;
+export const PolicyCrosschainInProgress = onchainEnum(
+  "policy_crosschain_in_progress",
+  PolicyCrosschainInProgressTypes
+);
+
 const PolicyColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   centrifugeId: t.text().notNull(),
   strategistAddress: t.hex().notNull(),
-  root: t.hex().notNull(),
+  root: t.hex(),
+  crosschainInProgress: PolicyCrosschainInProgress("policy_crosschain_in_progress"),
   ...defaultColumns(t),
 });
 
 export const Policy = onchainTable("policy", PolicyColumns, (t) => ({
-  id: primaryKey({ columns: [t.poolId, t.centrifugeId] }),
+  id: primaryKey({ columns: [t.poolId, t.centrifugeId, t.strategistAddress] }),
   poolIdx: index().on(t.poolId),
   centrifugeIdIdx: index().on(t.centrifugeId),
+  strategistIdx: index().on(t.strategistAddress),
 }));
 
 export const PolicyRelations = relations(Policy, ({ one }) => ({

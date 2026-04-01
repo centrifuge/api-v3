@@ -71,7 +71,7 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
     },
     event,
     async (tokenInstancePosition) =>
-      await initialisePosition(context, tokenAddress, tokenInstancePosition)
+      await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
   )) as TokenInstancePositionService;
 
   const asset = (await AssetService.get(context, {

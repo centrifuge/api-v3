@@ -122,19 +122,17 @@ These habits reduce broken PRs and wasted review cycles when assistants (or huma
 
 ## Key files (quick index)
 
-| Area | File |
-|------|------|
-| Cursor / Agent rules | [`.cursor/rules/`](.cursor/rules/) (`*.mdc`) |
-| Generated (do not edit) | [`generated/`](generated/) |
-| Ponder app config | [`ponder.config.ts`](ponder.config.ts) |
-| Schema | [`ponder.schema.ts`](ponder.schema.ts) |
-| Base service / batch APIs | [`src/services/Service.ts`](src/services/Service.ts) |
-| Service barrel | [`src/services/index.ts`](src/services/index.ts) |
-| Service / progress logging | [`src/helpers/logger.ts`](src/helpers/logger.ts) (`serviceLog`, `serviceError`, `expandInlineObject`, `logEvent`) |
-| Multi-version event wiring | [`src/helpers/multiMapper.ts`](src/helpers/multiMapper.ts) |
-| Snapshots | [`src/helpers/snapshotter.ts`](src/helpers/snapshotter.ts) |
+| Area                            | File                                                                                                                       |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Cursor / Agent rules            | [`.cursor/rules/`](.cursor/rules/) (`*.mdc`)                                                                               |
+| Generated (do not edit)         | [`generated/`](generated/)                                                                                                 |
+| Ponder app config               | [`ponder.config.ts`](ponder.config.ts)                                                                                     |
+| Schema                          | [`ponder.schema.ts`](ponder.schema.ts)                                                                                     |
+| Base service / batch APIs       | [`src/services/Service.ts`](src/services/Service.ts)                                                                       |
+| Service barrel                  | [`src/services/index.ts`](src/services/index.ts)                                                                           |
+| Service / progress logging      | [`src/helpers/logger.ts`](src/helpers/logger.ts) (`serviceLog`, `serviceError`, `expandInlineObject`, `logEvent`)          |
+| Multi-version event wiring      | [`src/helpers/multiMapper.ts`](src/helpers/multiMapper.ts)                                                                 |
+| Snapshots                       | [`src/helpers/snapshotter.ts`](src/helpers/snapshotter.ts)                                                                 |
 | Period + block-driven snapshots | [`src/handlers/blockHandlers.ts`](src/handlers/blockHandlers.ts), [`src/helpers/timekeeper.ts`](src/helpers/timekeeper.ts) |
-| Chains / blocks | [`src/chains.ts`](src/chains.ts) |
-| Contract decoration | [`src/contracts.ts`](src/contracts.ts) |
-
-For the short “handlers vs services” summary aimed at humans, see the **Handlers vs services** section in [README.md](README.md).
+| Chains / blocks                 | [`src/chains.ts`](src/chains.ts)                                                                                           |
+| Contract decoration             | [`src/contracts.ts`](src/contracts.ts)                                                                                     |

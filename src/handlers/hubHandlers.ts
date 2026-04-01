@@ -1,5 +1,6 @@
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceError, serviceLog, expandInlineObject } from "../helpers/logger";
+import { formatBytes32ToAddress } from "../helpers/formatter";
 import {
   WhitelistedInvestorService,
   TokenService,
@@ -11,8 +12,14 @@ import {
   AssetService,
   OffRampAddressService,
   OffRampRelayerService,
+  MerkleProofManagerService,
+  PolicyService,
 } from "../services";
 import { VaultCrosschainInProgressTypes } from "ponder:schema";
+
+/** Placeholder root until spoke `UpdatePolicy` finalizes the Merkle root. */
+const ZERO_POLICY_ROOT =
+  "0x0000000000000000000000000000000000000000000000000000000000000000" as const;
 
 multiMapper("hub:NotifyPool", async ({ event, context }) => {
   logEvent(event, context, "hub:NotifyPool");
@@ -137,7 +144,36 @@ multiMapper("hub:UpdateVault", async ({ event, context }) => {
 
 multiMapper("hub:UpdateContract", async ({ event, context }) => {
   logEvent(event, context, "hub:UpdateContract");
-  const { centrifugeId: destCentrifugeId, poolId, scId: tokenId, payload } = event.args;
+  const { centrifugeId: destCentrifugeId, poolId, scId: tokenId, payload, target } = event.args;
+  const mpmAddress = formatBytes32ToAddress(target);
+  const mpm = (await MerkleProofManagerService.get(context, {
+    poolId,
+    address: mpmAddress,
+    centrifugeId: destCentrifugeId.toString(),
+  })) as MerkleProofManagerService | null;
+
+  if (mpm) {
+    const strategistAddress = decodeMerklePolicyUpdatePayload(payload);
+    if (!strategistAddress) {
+      return serviceError(
+        `Invalid Merkle policy update payload for manager ${mpmAddress}: ${payload}`
+      );
+    }
+    const policy = (await PolicyService.getOrInit(
+      context,
+      {
+        poolId,
+        centrifugeId: destCentrifugeId.toString(),
+        strategistAddress,
+        root: ZERO_POLICY_ROOT,
+      },
+      event,
+      undefined,
+      true
+    )) as PolicyService;
+    await policy.setCrosschainInProgress("UpdatePolicy").save(event);
+    return;
+  }
 
   const decoded = decodeUpdateContract(payload);
   if (!decoded || !decoded.payload)
@@ -150,8 +186,9 @@ multiMapper("hub:UpdateContract", async ({ event, context }) => {
     const asset = await AssetService.get(context, { id: assetId });
     if (!asset)
       return serviceError(`Asset not found for assetId ${assetId}. Cannot update vault maxReserve`);
-    const assetAddress = asset.read().address as `0x${string}`;
-    if (!assetAddress) return serviceError(`Asset has no address for assetId ${assetId}`);
+    const rawAssetAddress = asset.read().address as `0x${string}`;
+    if (!rawAssetAddress) return serviceError(`Asset has no address for assetId ${assetId}`);
+    const assetAddress = formatBytes32ToAddress(rawAssetAddress);
 
     const vault = (await VaultService.get(context, {
       centrifugeId: destCentrifugeId.toString(),
@@ -165,13 +202,14 @@ multiMapper("hub:UpdateContract", async ({ event, context }) => {
 
   if (decoded.kind === "MaxReserve" && "relayerAddress" in decoded.payload) {
     const { relayerAddress, isEnabled } = decoded.payload;
+    const relayer = formatBytes32ToAddress(relayerAddress);
     const offrampRelayer = (await OffRampRelayerService.getOrInit(
       context,
       {
         poolId,
         centrifugeId: destCentrifugeId.toString(),
         tokenId,
-        address: relayerAddress,
+        address: relayer,
       },
       event,
       undefined,
@@ -188,8 +226,10 @@ multiMapper("hub:UpdateContract", async ({ event, context }) => {
     const asset = await AssetService.get(context, { id: assetId });
     if (!asset)
       return serviceError(`Asset not found for assetId ${assetId}. Cannot update offramp`);
-    const assetAddress = asset.read().address as `0x${string}`;
-    if (!assetAddress) return serviceError(`Asset has no address for assetId ${assetId}`);
+    const rawAssetAddress = asset.read().address as `0x${string}`;
+    if (!rawAssetAddress) return serviceError(`Asset has no address for assetId ${assetId}`);
+    const assetAddress = formatBytes32ToAddress(rawAssetAddress);
+    const receiver = formatBytes32ToAddress(receiverAddress);
     const offrampAddress = (await OffRampAddressService.getOrInit(
       context,
       {
@@ -197,7 +237,7 @@ multiMapper("hub:UpdateContract", async ({ event, context }) => {
         centrifugeId: destCentrifugeId.toString(),
         tokenId,
         assetAddress,
-        receiverAddress,
+        receiverAddress: receiver,
       },
       event,
       undefined,
@@ -266,9 +306,13 @@ const decodeUint8InWord = (chunk: Buffer): number => chunk.readUInt8(WORD_SIZE -
 /** Decoder: right-aligned uint128 in a 32-byte word (bytes 16–31, big-endian). */
 const decodeUint128InWord = (chunk: Buffer): bigint =>
   (chunk.readBigUInt64BE(16) << 64n) | chunk.readBigUInt64BE(24);
-/** Decoder: bytes32 as 20-byte address (right-padded, bytes 12–31), lowercase hex for stable IDs. */
-const decodeBytes32Address = (chunk: Buffer): `0x${string}` =>
-  `0x${chunk.subarray(12, 32).toString("hex")}`.toLowerCase() as `0x${string}`;
+
+/** True if a 32-byte ABI word is a right-aligned uint8 (`bytes 0..30` zero, kind in byte 31). */
+function isAbiUint8PaddedWord(chunk: Buffer): boolean {
+  for (let i = 0; i < 31; i++) if (chunk[i] !== 0) return false;
+  return true;
+}
+
 /** Payload kind (uint8) in UpdateContract; matches SyncManager / OnOfframpManager / BaseTransferHook TrustedCall. */
 enum UpdateContractPayloadKind {
   "Valuation", // SyncManager.Valuation | OnOfframpManager.Onramp | BaseTransferHook.UpdateHookManager
@@ -315,14 +359,13 @@ function isWordZeroPaddedUint128(b: Buffer, wordIndex: number): boolean {
 }
 
 /**
- * Decodes the update contract payload into its parameters.
- * Does not resolve target address; decoding is based only on payload kind and shape.
- * @param payload - The payload to decode.
- * @returns The decoded parameters.
+ * Decodes TrustedCall-prefixed UpdateContract payloads (leading ABI `uint8` kind).
+ * MerkleProofManager uses raw `abi.encode(bytes32, bytes32)` — handled separately in the hub handler.
  */
 export function decodeUpdateContract(payload: `0x${string}`): DecodedUpdateContract | null {
   const b = Buffer.from(payload.slice(2), "hex");
   if (b.length < WORD_SIZE) return null;
+
   const kindValue = decodeAtWord(b, 0, decodeUint8InWord);
   // Numeric TS enums list reverse-mapping keys ("0","1",…) first in Object.keys — use enum[value] for the name.
   if (
@@ -336,7 +379,7 @@ export function decodeUpdateContract(payload: `0x${string}`): DecodedUpdateContr
   const result: DecodedUpdateContract = {
     kind,
     payload: null,
-  };
+  } as DecodedUpdateContract;
 
   // ABI layout: each slot is 32 bytes; uint8/uint128/bool right-aligned.
   switch (kind) {
@@ -344,7 +387,7 @@ export function decodeUpdateContract(payload: `0x${string}`): DecodedUpdateContr
       // (uint8, bytes32) = 2 words — SyncManager only
       if (b.length === word(2)) {
         result.payload = {
-          valuation: decodeAtWord(b, 1, decodeBytes32Address),
+          valuation: decodeAtWord(b, 1, formatBytes32ToAddress),
         };
       }
       // (uint8, uint128, bool) = 3 words (Onramp) | (uint8, bytes32, bool) = 3 words (UpdateHookManager)
@@ -356,7 +399,7 @@ export function decodeUpdateContract(payload: `0x${string}`): DecodedUpdateContr
       }
       if (b.length === word(3) && !isWordZeroPaddedUint128(b, 1)) {
         result.payload = {
-          manager: decodeAtWord(b, 1, decodeBytes32Address),
+          manager: decodeAtWord(b, 1, formatBytes32ToAddress),
           canManage: decodeAtWord(b, 2, decodeUint8InWord) !== 0,
         };
       }
@@ -371,7 +414,7 @@ export function decodeUpdateContract(payload: `0x${string}`): DecodedUpdateContr
           };
         } else {
           result.payload = {
-            relayerAddress: decodeAtWord(b, 1, decodeBytes32Address),
+            relayerAddress: decodeAtWord(b, 1, formatBytes32ToAddress),
             isEnabled: decodeAtWord(b, 2, decodeUint8InWord) !== 0,
           };
         }
@@ -382,7 +425,7 @@ export function decodeUpdateContract(payload: `0x${string}`): DecodedUpdateContr
       if (b.length === word(4)) {
         result.payload = {
           assetId: decodeAtWord(b, 1, decodeUint128InWord),
-          receiverAddress: decodeAtWord(b, 2, decodeBytes32Address),
+          receiverAddress: decodeAtWord(b, 2, formatBytes32ToAddress),
           isEnabled: decodeAtWord(b, 3, decodeUint8InWord) !== 0,
         };
       }
@@ -393,11 +436,19 @@ export function decodeUpdateContract(payload: `0x${string}`): DecodedUpdateContr
         result.payload = {
           assetId: decodeAtWord(b, 1, decodeUint128InWord),
           amount: decodeAtWord(b, 2, decodeUint128InWord),
-          receiverAddress: decodeAtWord(b, 3, decodeBytes32Address),
+          receiverAddress: decodeAtWord(b, 3, formatBytes32ToAddress),
         };
       }
       break;
   }
 
   return result;
+}
+
+/** `MerkleProofManager.trustedCall` payload: `abi.encode(bytes32 who, bytes32 what)` (no TrustedCall `uint8`). */
+function decodeMerklePolicyUpdatePayload(payload: `0x${string}`): `0x${string}` | null {
+  const b = Buffer.from(payload.slice(2), "hex");
+  if (b.length !== word(2)) return null;
+  if (isAbiUint8PaddedWord(b.subarray(0, WORD_SIZE))) return null;
+  return formatBytes32ToAddress(b.subarray(0, WORD_SIZE));
 }
