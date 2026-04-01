@@ -30,7 +30,11 @@ export function formatBytes32ToAddress(value: Buffer | `0x${string}`): `0x${stri
   hex = hex.toLowerCase();
 
   if (!/^[0-9a-f]+$/.test(hex)) {
-    return `0x${hex.replace(/[^0-9a-f]/g, "").slice(0, 40).padEnd(40, "0").slice(0, 40)}` as `0x${string}`;
+    return `0x${hex
+      .replace(/[^0-9a-f]/g, "")
+      .slice(0, 40)
+      .padEnd(40, "0")
+      .slice(0, 40)}` as `0x${string}`;
   }
   if (hex.length % 2 === 1) hex = `0${hex}`;
 

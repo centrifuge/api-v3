@@ -6,10 +6,7 @@ import type {
   ReadContractParameters,
   ReadContractReturnType,
 } from "viem";
-import {
-  ContractFunctionExecutionError,
-  ContractFunctionZeroDataError,
-} from "viem";
+import { ContractFunctionExecutionError, ContractFunctionZeroDataError } from "viem";
 
 type PonderReadContractArg = Parameters<Context["client"]["readContract"]>[0];
 
@@ -45,9 +42,11 @@ export async function readContractSafe<
   const client = context.client;
   const eventBlockNumber = event.block.number;
   try {
-    return (await client.readContract(
-      args as PonderReadContractArg
-    )) as ReadContractReturnType<abi, functionName, fnArgs>;
+    return (await client.readContract(args as PonderReadContractArg)) as ReadContractReturnType<
+      abi,
+      functionName,
+      fnArgs
+    >;
   } catch (error) {
     const isZeroData =
       error instanceof ContractFunctionExecutionError &&
