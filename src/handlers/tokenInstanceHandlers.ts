@@ -78,7 +78,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
       },
       event,
       async (tokenInstancePosition) =>
-        await initialisePosition(context, tokenAddress, tokenInstancePosition)
+        await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
     )) as TokenInstancePositionService;
     const { createdAtBlock } = fromPosition.read();
     if (!createdAtBlock) {
@@ -100,7 +100,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
       },
       event,
       async (tokenInstancePosition) =>
-        await initialisePosition(context, tokenAddress, tokenInstancePosition)
+        await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
     )) as TokenInstancePositionService;
     const { createdAtBlock } = toPosition.read();
     if (!createdAtBlock) {

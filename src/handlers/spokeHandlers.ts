@@ -18,6 +18,7 @@ import { HoldingEscrowSnapshot } from "ponder:schema";
 import { deployVault, linkVault, unlinkVault } from "./vaultRegistryHandlers";
 import { getInitialHolders } from "../config";
 import { initialisePosition } from "../services";
+import { readContractSafe } from "../helpers/readContractSafe";
 
 multiMapper("spoke:DeployVault", deployVault);
 
@@ -55,11 +56,10 @@ multiMapper("spoke:AddShareClass", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const totalSupply = await context.client.readContract({
+  const totalSupply = await readContractSafe(context, event, {
     abi: ERC20Abi,
     address: tokenAddress,
     functionName: "totalSupply",
-    args: [],
   });
 
   // Get the existing token instance
@@ -109,7 +109,7 @@ multiMapper("spoke:AddShareClass", async ({ event, context }) => {
             },
             event,
             async (tokenInstancePosition) =>
-              await initialisePosition(context, tokenAddress, tokenInstancePosition)
+              await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
           )) as TokenInstancePositionService;
         })
       );
@@ -165,9 +165,12 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
     return;
   }
 
-  const escrowAddress = await context.client.readContract({
-    abi: Abis[indexerVersion as keyof typeof Abis].PoolEscrowFactory,
-    address: poolEscrowFactoryAddress.address,
+  const poolEscrowFactoryAbi = Abis[indexerVersion as keyof typeof Abis].PoolEscrowFactory;
+  const poolEscrowFactoryAddr = poolEscrowFactoryAddress.address;
+
+  const escrowAddress = await readContractSafe(context, event, {
+    abi: poolEscrowFactoryAbi,
+    address: poolEscrowFactoryAddr,
     functionName: "escrow",
     args: [poolId],
   });

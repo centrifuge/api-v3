@@ -1,4 +1,6 @@
 import { multiMapper } from "../helpers/multiMapper";
+import { readContractSafe } from "../helpers/readContractSafe";
+import { formatBytes32ToAddress } from "../helpers/formatter";
 import { logEvent, serviceError } from "../helpers/logger";
 import { BlockchainService, MerkleProofManagerService, PolicyService } from "../services";
 import { Abis, REGISTRY_VERSION_ORDER } from "../contracts";
@@ -11,7 +13,7 @@ multiMapper("merkleProofManagerFactory:DeployMerkleProofManager", async ({ event
   const merkleProofManager = (await MerkleProofManagerService.upsert(
     context,
     {
-      address: manager,
+      address: formatBytes32ToAddress(manager),
       centrifugeId,
       poolId,
     },
@@ -30,21 +32,22 @@ multiMapper("merkleProofManager:UpdatePolicy", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const poolId = await context.client.readContract({
+  const poolId = await readContractSafe(context, event, {
     address: event.log.address,
     abi: Abis[indexerVersion as keyof typeof Abis].MerkleProofManager,
     functionName: "poolId",
   });
 
-  const merkleProofManager = (await PolicyService.getOrInit(
+  const policy = (await PolicyService.getOrInit(
     context,
     {
-      strategistAddress: strategist,
+      strategistAddress: formatBytes32ToAddress(strategist),
       centrifugeId,
       poolId,
-      root: newRoot,
     },
-    event
+    event,
+    undefined,
+    true
   )) as PolicyService;
-  await merkleProofManager.save(event);
+  await policy.setRoot(newRoot).setCrosschainInProgress().save(event);
 });
