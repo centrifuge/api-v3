@@ -10,6 +10,7 @@ import {
   centrifugeIdFromAssetId,
   VaultService,
   AssetService,
+  OnRampAssetService,
   OffRampAddressService,
   OffRampRelayerService,
   MerkleProofManagerService,
@@ -217,6 +218,32 @@ multiMapper("hub:UpdateContract", async ({ event, context }) => {
     )) as OffRampRelayerService;
     await offrampRelayer.setCrosschainInProgress(isEnabled ? "Enabled" : "Disabled").save(event);
   }
+
+  if (decoded.kind === "Valuation" && "assetId" in decoded.payload) {
+    const { assetId, isEnabled } = decoded.payload as {
+      assetId: bigint;
+      isEnabled: boolean;
+    };
+    const asset = await AssetService.get(context, { id: assetId });
+    if (!asset)
+      return serviceError(`Asset not found for assetId ${assetId}. Cannot update onramp`);
+    const assetAddress = asset.read().address as `0x${string}`;
+    if (!assetAddress) return serviceError(`Asset has no address for assetId ${assetId}`);
+    const onRampAsset = (await OnRampAssetService.getOrInit(
+      context,
+      {
+        poolId,
+        centrifugeId: destCentrifugeId.toString(),
+        tokenId,
+        assetAddress,
+      },
+      event,
+      undefined,
+      true
+    )) as OnRampAssetService;
+    await onRampAsset.setCrosschainInProgress(isEnabled ? "Enabled" : "Disabled").save(event);
+  }
+
   if (decoded.kind === "Offramp" && "receiverAddress" in decoded.payload) {
     const { assetId, receiverAddress, isEnabled } = decoded.payload as {
       assetId: bigint;
