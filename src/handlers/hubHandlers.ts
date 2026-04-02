@@ -14,6 +14,9 @@ import {
   OffRampRelayerService,
   MerkleProofManagerService,
   PolicyService,
+  EscrowService,
+  HoldingEscrowService,
+  TokenInstanceService,
 } from "../services";
 import { VaultCrosschainInProgressTypes } from "ponder:schema";
 
@@ -33,6 +36,68 @@ multiMapper("hub:NotifyPool", async ({ event, context }) => {
     },
     event
   );
+});
+
+multiMapper("hub:NotifyAssetPrice", async ({ event, context }) => {
+  logEvent(event, context, "hub:NotifyAssetPrice");
+  const { centrifugeId, poolId, scId: tokenId, assetId } = event.args;
+  const destCentrifugeId = centrifugeId.toString();
+
+  const asset = (await AssetService.get(context, { id: assetId })) as AssetService | null;
+  if (!asset)
+    return serviceError(`Asset not found for assetId ${assetId}. Cannot track NotifyAssetPrice`);
+
+  const assetAddress = asset.read().address as `0x${string}`;
+  if (!assetAddress)
+    return serviceError(
+      `Asset has no address for assetId ${assetId}. Cannot track NotifyAssetPrice`
+    );
+
+  const escrow = (await EscrowService.get(context, {
+    poolId,
+    centrifugeId: destCentrifugeId,
+  })) as EscrowService | null;
+  if (!escrow) {
+    return serviceLog(
+      `Escrow not found for pool ${poolId} on centrifuge ${destCentrifugeId}; skipping NotifyAssetPrice in-progress`
+    );
+  }
+  const { address: escrowAddress } = escrow.read();
+
+  const holdingEscrow = (await HoldingEscrowService.getOrInit(
+    context,
+    {
+      centrifugeId: destCentrifugeId,
+      poolId,
+      tokenId,
+      assetId,
+      assetAddress,
+      escrowAddress,
+    },
+    event,
+    undefined,
+    true
+  )) as HoldingEscrowService;
+
+  await holdingEscrow.setCrosschainInProgress("NotifyAssetPrice").save(event);
+});
+
+multiMapper("hub:NotifySharePrice", async ({ event, context }) => {
+  logEvent(event, context, "hub:NotifySharePrice");
+  const { centrifugeId, scId: tokenId } = event.args;
+  const destCentrifugeId = centrifugeId.toString();
+
+  const tokenInstance = (await TokenInstanceService.get(context, {
+    centrifugeId: destCentrifugeId,
+    tokenId,
+  })) as TokenInstanceService | null;
+  if (!tokenInstance) {
+    return serviceLog(
+      `TokenInstance not found for centrifuge ${destCentrifugeId} token ${tokenId}; skipping NotifySharePrice in-progress`
+    );
+  }
+
+  await tokenInstance.setCrosschainInProgress("NotifySharePrice").save(event);
 });
 
 multiMapper("hub:UpdateRestriction", async ({ event, context }) => {
@@ -186,9 +251,8 @@ multiMapper("hub:UpdateContract", async ({ event, context }) => {
     const asset = await AssetService.get(context, { id: assetId });
     if (!asset)
       return serviceError(`Asset not found for assetId ${assetId}. Cannot update vault maxReserve`);
-    const rawAssetAddress = asset.read().address as `0x${string}`;
-    if (!rawAssetAddress) return serviceError(`Asset has no address for assetId ${assetId}`);
-    const assetAddress = formatBytes32ToAddress(rawAssetAddress);
+    const assetAddress = asset.read().address as `0x${string}`;
+    if (!assetAddress) return serviceError(`Asset has no address for assetId ${assetId}`);
 
     const vault = (await VaultService.get(context, {
       centrifugeId: destCentrifugeId.toString(),
@@ -226,9 +290,8 @@ multiMapper("hub:UpdateContract", async ({ event, context }) => {
     const asset = await AssetService.get(context, { id: assetId });
     if (!asset)
       return serviceError(`Asset not found for assetId ${assetId}. Cannot update offramp`);
-    const rawAssetAddress = asset.read().address as `0x${string}`;
-    if (!rawAssetAddress) return serviceError(`Asset has no address for assetId ${assetId}`);
-    const assetAddress = formatBytes32ToAddress(rawAssetAddress);
+    const assetAddress = asset.read().address as `0x${string}`;
+    if (!assetAddress) return serviceError(`Asset has no address for assetId ${assetId}`);
     const receiver = formatBytes32ToAddress(receiverAddress);
     const offrampAddress = (await OffRampAddressService.getOrInit(
       context,
