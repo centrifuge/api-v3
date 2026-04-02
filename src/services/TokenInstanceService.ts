@@ -1,4 +1,4 @@
-import { TokenInstance } from "ponder:schema";
+import { TokenInstance, TokenInstanceCrosschainInProgressTypes } from "ponder:schema";
 import { Service, mixinCommonStatics } from "./Service";
 import { serviceLog } from "../helpers/logger";
 
@@ -117,6 +117,17 @@ export class TokenInstanceService extends mixinCommonStatics(
   public activate() {
     serviceLog(`Activating token instance ${this.data.centrifugeId}-${this.data.tokenId}`);
     this.data.isActive = true;
+    return this;
+  }
+
+  /**
+   * @param crosschainInProgress - Set when Hub notifies destination of share price update; omit to clear
+   */
+  public setCrosschainInProgress(
+    crosschainInProgress?: (typeof TokenInstanceCrosschainInProgressTypes)[number]
+  ) {
+    this.data.crosschainInProgress = crosschainInProgress ?? null;
+    serviceLog(`Setting crosschainInProgress to ${crosschainInProgress}`);
     return this;
   }
 }
