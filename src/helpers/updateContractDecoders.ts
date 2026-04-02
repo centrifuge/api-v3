@@ -1,9 +1,10 @@
 /**
  * Decoders for `hub:UpdateContract` calldata-style payloads: Merkle policy layout detection,
- * `ISyncManager` trusted calls, and `IOnOfframpManager` trusted calls (via viem + word-layout guards).
+ * `ISyncManager` trusted calls, `IOnOfframpManager` trusted calls, and `hub:UpdateRestriction`
+ * packed payloads (via viem + word-layout guards).
  */
 
-import { decodeAbiParameters } from "viem";
+import { decodeAbiParameters, hexToBigInt, hexToNumber, slice } from "viem";
 import { formatBytes32ToAddress } from "./formatter";
 
 /** Word size in bytes for ABI static encoding (`abi.encode` slots). */
@@ -252,6 +253,73 @@ export function decodeOnOfframpManagerTrustedCall(
       assetId: row[1],
       amount: row[2],
       receiverAddress: formatBytes32ToAddress(row[3]),
+    };
+  }
+
+  return null;
+}
+
+/** Numeric `UpdateRestrictionType` values from `UpdateRestrictionMessageLib` (cfg-protocol). */
+const UPDATE_RESTRICTION_TYPE = {
+  Invalid: 0,
+  Member: 1,
+  Freeze: 2,
+  Unfreeze: 3,
+} as const;
+
+const UPDATE_RESTRICTION_LEN = {
+  /** `abi.encodePacked(uint8, bytes32, uint64)` */
+  Member: 1 + 32 + 8,
+  /** `abi.encodePacked(uint8, bytes32)` */
+  FreezeOrUnfreeze: 1 + 32,
+} as const;
+
+/**
+ * Discriminated union for `hub:UpdateRestriction` payloads: `abi.encodePacked` per
+ * `UpdateRestrictionMessageLib` (Member / Freeze / Unfreeze).
+ */
+export type DecodedUpdateRestriction =
+  | { kind: "Member"; accountAddress: `0x${string}`; validUntil: Date }
+  | { kind: "Freeze"; accountAddress: `0x${string}` }
+  | { kind: "Unfreeze"; accountAddress: `0x${string}` };
+
+/**
+ * Decodes `UpdateRestriction` event `payload` bytes (packed layout from the protocol message lib).
+ * @param payload - `abi.encodePacked` body (`uint8` kind, `bytes32` user, optional `uint64` validUntil).
+ * @returns Parsed variant or `null` for unknown kind or length mismatch.
+ */
+export function decodeUpdateRestriction(payload: `0x${string}`): DecodedUpdateRestriction | null {
+  const b = Buffer.from(payload.slice(2), "hex");
+  if (b.length < 1) return null;
+
+  const kindValue = safeDecode(() => hexToNumber(slice(payload, 0, 1)));
+  if (kindValue === null) return null;
+
+  if (kindValue === UPDATE_RESTRICTION_TYPE.Member) {
+    if (b.length !== UPDATE_RESTRICTION_LEN.Member) return null;
+    const accountAddress = formatBytes32ToAddress(slice(payload, 1, 33));
+    const validUntilSecs = safeDecode(() => hexToBigInt(slice(payload, 33, 41)));
+    if (validUntilSecs === null) return null;
+    const ms = Number(validUntilSecs * 1000n);
+    const validUntil = Number.isSafeInteger(ms)
+      ? new Date(ms)
+      : new Date("9999-12-31T23:59:59Z");
+    return { kind: "Member", accountAddress, validUntil };
+  }
+
+  if (kindValue === UPDATE_RESTRICTION_TYPE.Freeze) {
+    if (b.length !== UPDATE_RESTRICTION_LEN.FreezeOrUnfreeze) return null;
+    return {
+      kind: "Freeze",
+      accountAddress: formatBytes32ToAddress(slice(payload, 1, 33)),
+    };
+  }
+
+  if (kindValue === UPDATE_RESTRICTION_TYPE.Unfreeze) {
+    if (b.length !== UPDATE_RESTRICTION_LEN.FreezeOrUnfreeze) return null;
+    return {
+      kind: "Unfreeze",
+      accountAddress: formatBytes32ToAddress(slice(payload, 1, 33)),
     };
   }
 

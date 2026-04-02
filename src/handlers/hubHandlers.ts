@@ -23,6 +23,7 @@ import {
   decodeMerklePolicyUpdatePayload,
   decodeOnOfframpManagerTrustedCall,
   decodeSyncManagerTrustedCall,
+  decodeUpdateRestriction,
   isMerklePolicyPayloadShape,
 } from "../helpers/updateContractDecoders";
 import { VaultCrosschainInProgressTypes } from "ponder:schema";
@@ -61,7 +62,7 @@ multiMapper("hub:UpdateRestriction", async ({ event, context }) => {
     return;
   }
 
-  const [restrictionType, accountAddress, validUntil] = decodedPayload;
+  const { accountAddress } = decodedPayload;
 
   const whitelistedInvestor = (await WhitelistedInvestorService.getOrInit(
     context,
@@ -74,20 +75,18 @@ multiMapper("hub:UpdateRestriction", async ({ event, context }) => {
     event
   )) as WhitelistedInvestorService;
 
-  switch (restrictionType) {
-    case RestrictionType.Member:
-      whitelistedInvestor.setValidUntil(validUntil);
+  switch (decodedPayload.kind) {
+    case "Member":
+      whitelistedInvestor.setValidUntil(decodedPayload.validUntil);
       await whitelistedInvestor.save(event);
       break;
-    case RestrictionType.Freeze:
+    case "Freeze":
       whitelistedInvestor.freeze();
       await whitelistedInvestor.save(event);
       break;
-    case RestrictionType.Unfreeze:
+    case "Unfreeze":
       whitelistedInvestor.unfreeze();
       await whitelistedInvestor.save(event);
-      break;
-    default:
       break;
   }
 });
@@ -156,80 +155,39 @@ multiMapper("hub:UpdateContract", async ({ event, context }) => {
   const destChainId = BlockchainService.getChainIdFromCentrifugeId(centrifugeId.toString());
   const destCentrifugeId = centrifugeId.toString();
 
-  if (isMerklePolicyPayloadShape(payload)) {
+  if (
     await handleMerklePolicyUpdate(context, event, {
       poolId,
       centrifugeId: destCentrifugeId,
       targetAddr,
       payload,
-    });
+    })
+  )
     return;
-  }
 
-  const registryName =
-    destChainId != null ? getContractNameForAddress(destChainId, targetAddr) : null;
-
-  if (registryName === "syncManager") {
+  if (
     await handleSyncManagerTrustedCall(context, event, {
       poolId,
       tokenId,
       centrifugeId: destCentrifugeId,
       payload,
-    });
+      destChainId,
+      targetAddr,
+    })
+  )
     return;
-  }
 
-  if (registryName !== null) return;
-
-  await handleOnOfframpUpdate(context, event, {
-    poolId,
-    tokenId,
-    centrifugeId: destCentrifugeId,
-    payload,
-    targetAddr,
-  });
+  if (
+    await handleOnOfframpUpdate(context, event, {
+      poolId,
+      tokenId,
+      centrifugeId: destCentrifugeId,
+      payload,
+      targetAddr,
+    })
+  )
+    return;
 });
-
-enum RestrictionType {
-  "Invalid",
-  "Member",
-  "Freeze",
-  "Unfreeze",
-}
-
-/**
- * Decodes the update restriction payload into its parameters.
- * @param payload - The payload to decode.
- * @returns The decoded parameters.
- */
-function decodeUpdateRestriction(
-  payload: `0x${string}`
-):
-  | [
-      restrictionType: (typeof RestrictionType)[keyof typeof RestrictionType],
-      accountAddress: `0x${string}`,
-      validUntil: Date | null,
-    ]
-  | null {
-  const buffer = Buffer.from(payload.slice(2), "hex");
-  const restrictionType = buffer.readUInt8(0);
-  const accountBuffer = buffer.subarray(1, 32);
-  const accountAddress = `0x${accountBuffer.toString("hex").slice(0, 40)}` as `0x${string}`;
-  switch (restrictionType) {
-    case RestrictionType.Member:
-      const _validUntil = Number(buffer.readBigUInt64BE(33) * 1000n);
-      const validUntil = Number.isSafeInteger(_validUntil)
-        ? new Date(Number(_validUntil))
-        : new Date("9999-12-31T23:59:59Z");
-      return [restrictionType, accountAddress, validUntil];
-    case RestrictionType.Freeze:
-      return [restrictionType, accountAddress, null];
-    case RestrictionType.Unfreeze:
-      return [restrictionType, accountAddress, null];
-    default:
-      return null;
-  }
-}
 
 /** Placeholder root until spoke `UpdatePolicy` finalizes the Merkle root. */
 const ZERO_POLICY_ROOT =
@@ -242,20 +200,21 @@ type HubUpdateContractBase = {
   payload: `0x${string}`;
 };
 
-/** Merkle policy path: caller must have matched `isMerklePolicyPayloadShape(payload)` first. */
+/** Merkle policy path: returns `false` if payload is not Merkle-shaped; `true` if handled (including logged errors). */
 async function handleMerklePolicyUpdate(
   context: Context,
   event: Event,
   input: Pick<HubUpdateContractBase, "poolId" | "centrifugeId" | "payload"> & {
     targetAddr: `0x${string}`;
   }
-): Promise<void> {
+): Promise<boolean> {
   const { poolId, centrifugeId, targetAddr, payload } = input;
+  if (!isMerklePolicyPayloadShape(payload)) return false;
+
   const strategistAddress = decodeMerklePolicyUpdatePayload(payload);
   if (!strategistAddress) {
-    return serviceError(
-      `Invalid Merkle policy update payload for manager ${targetAddr}: ${payload}`
-    );
+    serviceError(`Invalid Merkle policy update payload for manager ${targetAddr}: ${payload}`);
+    return true;
   }
   const mpm = (await MerkleProofManagerService.get(context, {
     poolId,
@@ -263,9 +222,8 @@ async function handleMerklePolicyUpdate(
     centrifugeId,
   })) as MerkleProofManagerService | null;
   if (!mpm) {
-    return serviceError(
-      `MerkleProofManager not found for address ${targetAddr}. Cannot update policy`
-    );
+    serviceError(`MerkleProofManager not found for address ${targetAddr}. Cannot update policy`);
+    return true;
   }
   const policy = (await PolicyService.getOrInit(
     context,
@@ -280,25 +238,37 @@ async function handleMerklePolicyUpdate(
     true
   )) as PolicyService;
   await policy.setCrosschainInProgress("UpdatePolicy").save(event);
+  return true;
 }
 
-/** Sync manager trusted call: only `MaxReserve` updates vault state; other decodes no-op. */
+/** Sync manager path: `false` if target is not `syncManager` in the registry; `true` if handled. */
 async function handleSyncManagerTrustedCall(
   context: Context,
   event: Event,
-  input: HubUpdateContractBase
-): Promise<void> {
-  const { poolId, tokenId, centrifugeId, payload } = input;
+  input: HubUpdateContractBase & {
+    destChainId: number | null;
+    targetAddr: `0x${string}`;
+  }
+): Promise<boolean> {
+  const { poolId, tokenId, centrifugeId, payload, destChainId, targetAddr } = input;
+  const registryName =
+    destChainId != null ? getContractNameForAddress(destChainId, targetAddr) : null;
+  if (registryName !== "syncManager") return false;
+
   const decoded = decodeSyncManagerTrustedCall(payload);
-  if (!decoded || decoded.kind !== "MaxReserve") return;
+  if (!decoded || decoded.kind !== "MaxReserve") return true;
 
   const { assetId, maxReserve } = decoded;
   const asset = await AssetService.get(context, { id: assetId });
   if (!asset) {
-    return serviceError(`Asset not found for assetId ${assetId}. Cannot update vault maxReserve`);
+    serviceError(`Asset not found for assetId ${assetId}. Cannot update vault maxReserve`);
+    return true;
   }
   const rawAssetAddress = asset.read().address as `0x${string}`;
-  if (!rawAssetAddress) return serviceError(`Asset has no address for assetId ${assetId}`);
+  if (!rawAssetAddress) {
+    serviceError(`Asset has no address for assetId ${assetId}`);
+    return true;
+  }
   const assetAddress = formatBytes32ToAddress(rawAssetAddress);
 
   const vault = (await VaultService.get(context, {
@@ -307,30 +277,36 @@ async function handleSyncManagerTrustedCall(
     tokenId,
     assetAddress,
   })) as VaultService | null;
-  if (!vault) return serviceError(`Vault not found. Cannot update maxReserve`);
+  if (!vault) {
+    serviceError(`Vault not found. Cannot update maxReserve`);
+    return true;
+  }
   await vault.setMaxReserve(maxReserve).setCrosschainInProgress().save(event);
+  return true;
 }
 
 /**
- * On/off-ramp manager path: requires a row for `(targetAddr, centrifugeId)`; decodes trusted call
- * and updates onramp / relayer / offramp entities when applicable.
+ * On/off-ramp manager path: `false` if there is no indexed manager for `targetAddr` or the payload
+ * is not an on/off-ramp trusted call; `true` if handled. No static-registry guard: manager
+ * addresses are factory-deployed and absent from `chain.contracts`, while hub/vault/etc. are not
+ * stored as `OnOffRampManager` rows.
  */
 async function handleOnOfframpUpdate(
   context: Context,
   event: Event,
   input: HubUpdateContractBase & { targetAddr: `0x${string}` }
-): Promise<void> {
+): Promise<boolean> {
   const { poolId, tokenId, centrifugeId, payload, targetAddr } = input;
 
   const hasOnOffRampManager = await OnOffRampManagerService.get(context, {
     address: targetAddr,
     centrifugeId,
   });
-  if (!hasOnOffRampManager) return;
+  if (!hasOnOffRampManager) return false;
 
   const decoded = decodeOnOfframpManagerTrustedCall(payload);
-  if (!decoded) return;
-  if (decoded.kind === "Withdraw") return;
+  if (!decoded) return false;
+  if (decoded.kind === "Withdraw") return true;
 
   serviceLog(`Decoded OnOfframp UpdateContract payload: ${expandInlineObject(decoded)}`);
 
@@ -338,10 +314,14 @@ async function handleOnOfframpUpdate(
     const { assetId, isEnabled } = decoded;
     const asset = await AssetService.get(context, { id: assetId });
     if (!asset) {
-      return serviceError(`Asset not found for assetId ${assetId}. Cannot update onramp`);
+      serviceError(`Asset not found for assetId ${assetId}. Cannot update onramp`);
+      return true;
     }
     const assetAddress = asset.read().address as `0x${string}`;
-    if (!assetAddress) return serviceError(`Asset has no address for assetId ${assetId}`);
+    if (!assetAddress) {
+      serviceError(`Asset has no address for assetId ${assetId}`);
+      return true;
+    }
     const onRampAsset = (await OnRampAssetService.getOrInit(
       context,
       { poolId, centrifugeId, tokenId, assetAddress },
@@ -350,7 +330,7 @@ async function handleOnOfframpUpdate(
       true
     )) as OnRampAssetService;
     await onRampAsset.setCrosschainInProgress(isEnabled ? "Enabled" : "Disabled").save(event);
-    return;
+    return true;
   }
 
   if (decoded.kind === "Relayer") {
@@ -368,16 +348,20 @@ async function handleOnOfframpUpdate(
       true
     )) as OffRampRelayerService;
     await offrampRelayer.setCrosschainInProgress(isEnabled ? "Enabled" : "Disabled").save(event);
-    return;
+    return true;
   }
 
   const { assetId, receiverAddress, isEnabled } = decoded;
   const asset = await AssetService.get(context, { id: assetId });
   if (!asset) {
-    return serviceError(`Asset not found for assetId ${assetId}. Cannot update offramp`);
+    serviceError(`Asset not found for assetId ${assetId}. Cannot update offramp`);
+    return true;
   }
   const rawAssetAddress = asset.read().address as `0x${string}`;
-  if (!rawAssetAddress) return serviceError(`Asset has no address for assetId ${assetId}`);
+  if (!rawAssetAddress) {
+    serviceError(`Asset has no address for assetId ${assetId}`);
+    return true;
+  }
   const offrampAddress = (await OffRampAddressService.getOrInit(
     context,
     {
@@ -392,4 +376,5 @@ async function handleOnOfframpUpdate(
     true
   )) as OffRampAddressService;
   await offrampAddress.setCrosschainInProgress(isEnabled ? "Enabled" : "Disabled").save(event);
+  return true;
 }
