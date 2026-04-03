@@ -1048,12 +1048,21 @@ export const OfframpRelayer = onchainTable("offramp_relayer", OfframpRelayerColu
   addressIdx: index().on(t.address),
 }));
 
+export const OnRampAssetCrosschainInProgressTypes = [`Enabled`, `Disabled`] as const;
+export const OnRampAssetCrosschainInProgress = onchainEnum(
+  "on_ramp_asset_crosschain_in_progress",
+  OnRampAssetCrosschainInProgressTypes
+);
+
 const OnRampAssetColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   tokenId: t.hex().notNull(),
   centrifugeId: t.text().notNull(),
   assetAddress: t.hex().notNull(),
   isEnabled: t.boolean().notNull().default(false),
+  crosschainInProgress: OnRampAssetCrosschainInProgress(
+    "on_ramp_asset_crosschain_in_progress"
+  ),
   ...defaultColumns(t),
 });
 

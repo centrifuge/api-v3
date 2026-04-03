@@ -1,5 +1,6 @@
+import { OnRampAsset, OnRampAssetCrosschainInProgressTypes } from "ponder:schema";
+import { serviceLog } from "../helpers/logger";
 import { Service, mixinCommonStatics } from "./Service";
-import { OnRampAsset } from "ponder:schema";
 
 /**
  * Service for managing on-ramp assets.
@@ -11,22 +12,28 @@ export class OnRampAssetService extends mixinCommonStatics(
   "OnRampAsset"
 ) {
   /**
-   * Enables the on-ramp asset
+   * Sets the crosschain progress for the on-ramp asset.
    *
+   * @param crosschainInProgress - The value to set; omit to clear
    * @returns The service instance for method chaining
    */
-  public enable() {
-    this.data.isEnabled = true;
+  public setCrosschainInProgress(
+    crosschainInProgress?: (typeof OnRampAssetCrosschainInProgressTypes)[number]
+  ) {
+    this.data.crosschainInProgress = crosschainInProgress ?? null;
+    serviceLog(`Setting crosschainInProgress to ${crosschainInProgress}`);
     return this;
   }
 
   /**
-   * Disables the on-ramp asset
+   * Sets the enabled status for the on-ramp asset.
    *
+   * @param isEnabled - The value to set for isEnabled
    * @returns The service instance for method chaining
    */
-  public disable() {
-    this.data.isEnabled = false;
+  public setEnabled(isEnabled: boolean) {
+    this.data.isEnabled = isEnabled;
+    serviceLog(`Setting isEnabled to ${isEnabled}`);
     return this;
   }
 }
