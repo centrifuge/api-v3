@@ -58,9 +58,7 @@ function decodeLeadingUint8(payload: `0x${string}`): number | null {
   const hex = payload.slice(2);
   if (hex.length < 64) return null;
   const firstWord = `0x${hex.slice(0, 64)}` as `0x${string}`;
-  const row = safeDecode(() =>
-    decodeAbiParameters([{ type: "uint8" }], firstWord)
-  );
+  const row = safeDecode(() => decodeAbiParameters([{ type: "uint8" }], firstWord));
   if (!row) return null;
   return Number(row[0]);
 }
@@ -87,10 +85,7 @@ export function isMerklePolicyPayloadShape(payload: `0x${string}`): boolean {
 export function decodeMerklePolicyUpdatePayload(payload: `0x${string}`): `0x${string}` | null {
   if (!isMerklePolicyPayloadShape(payload)) return null;
   const row = safeDecode(() =>
-    decodeAbiParameters(
-      [{ type: "bytes32" }, { type: "bytes32" }],
-      payload
-    )
+    decodeAbiParameters([{ type: "bytes32" }, { type: "bytes32" }], payload)
   );
   if (!row) return null;
   const [who] = row;
@@ -110,7 +105,9 @@ export type DecodedSyncManagerTrustedCall =
  * @param payload - Full ABI-encoded trusted call body.
  * @returns Parsed variant or `null`.
  */
-export function decodeSyncManagerTrustedCall(payload: `0x${string}`): DecodedSyncManagerTrustedCall | null {
+export function decodeSyncManagerTrustedCall(
+  payload: `0x${string}`
+): DecodedSyncManagerTrustedCall | null {
   const b = Buffer.from(payload.slice(2), "hex");
   if (b.length < WORD_SIZE) return null;
 
@@ -118,10 +115,7 @@ export function decodeSyncManagerTrustedCall(payload: `0x${string}`): DecodedSyn
   if (kindValue === 0) {
     if (b.length !== word(2)) return null;
     const row = safeDecode(() =>
-      decodeAbiParameters(
-        [{ type: "uint8" }, { type: "address" }],
-        payload
-      )
+      decodeAbiParameters([{ type: "uint8" }, { type: "address" }], payload)
     );
     if (!row) return null;
     return {
@@ -130,18 +124,11 @@ export function decodeSyncManagerTrustedCall(payload: `0x${string}`): DecodedSyn
     };
   }
   if (kindValue === 1) {
-    if (
-      b.length !== word(3) ||
-      !isWordZeroPaddedUint128(b, 1) ||
-      !isWordZeroPaddedUint128(b, 2)
-    ) {
+    if (b.length !== word(3) || !isWordZeroPaddedUint128(b, 1) || !isWordZeroPaddedUint128(b, 2)) {
       return null;
     }
     const row = safeDecode(() =>
-      decodeAbiParameters(
-        [{ type: "uint8" }, { type: "uint128" }, { type: "uint128" }],
-        payload
-      )
+      decodeAbiParameters([{ type: "uint8" }, { type: "uint128" }, { type: "uint128" }], payload)
     );
     if (!row) return null;
     return {
@@ -180,10 +167,7 @@ export function decodeOnOfframpManagerTrustedCall(
   if (kindValue === 0) {
     if (b.length !== word(3) || !isWordZeroPaddedUint128(b, 1)) return null;
     const row = safeDecode(() =>
-      decodeAbiParameters(
-        [{ type: "uint8" }, { type: "uint128" }, { type: "bool" }],
-        payload
-      )
+      decodeAbiParameters([{ type: "uint8" }, { type: "uint128" }, { type: "bool" }], payload)
     );
     if (!row) return null;
     return {
@@ -199,10 +183,7 @@ export function decodeOnOfframpManagerTrustedCall(
       return null;
     }
     const row = safeDecode(() =>
-      decodeAbiParameters(
-        [{ type: "uint8" }, { type: "address" }, { type: "bool" }],
-        payload
-      )
+      decodeAbiParameters([{ type: "uint8" }, { type: "address" }, { type: "bool" }], payload)
     );
     if (!row) return null;
     return {
@@ -216,12 +197,7 @@ export function decodeOnOfframpManagerTrustedCall(
     if (b.length !== word(4)) return null;
     const row = safeDecode(() =>
       decodeAbiParameters(
-        [
-          { type: "uint8" },
-          { type: "uint128" },
-          { type: "address" },
-          { type: "bool" },
-        ],
+        [{ type: "uint8" }, { type: "uint128" }, { type: "address" }, { type: "bool" }],
         payload
       )
     );
@@ -238,12 +214,7 @@ export function decodeOnOfframpManagerTrustedCall(
     if (b.length !== word(4)) return null;
     const row = safeDecode(() =>
       decodeAbiParameters(
-        [
-          { type: "uint8" },
-          { type: "uint128" },
-          { type: "uint128" },
-          { type: "address" },
-        ],
+        [{ type: "uint8" }, { type: "uint128" }, { type: "uint128" }, { type: "address" }],
         payload
       )
     );
@@ -301,9 +272,7 @@ export function decodeUpdateRestriction(payload: `0x${string}`): DecodedUpdateRe
     const validUntilSecs = safeDecode(() => hexToBigInt(slice(payload, 33, 41)));
     if (validUntilSecs === null) return null;
     const ms = Number(validUntilSecs * 1000n);
-    const validUntil = Number.isSafeInteger(ms)
-      ? new Date(ms)
-      : new Date("9999-12-31T23:59:59Z");
+    const validUntil = Number.isSafeInteger(ms) ? new Date(ms) : new Date("9999-12-31T23:59:59Z");
     return { kind: "Member", accountAddress, validUntil };
   }
 
