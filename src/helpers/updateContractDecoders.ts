@@ -115,7 +115,7 @@ export function decodeSyncManagerTrustedCall(
   if (kindValue === 0) {
     if (b.length !== word(2)) return null;
     const row = safeDecode(() =>
-      decodeAbiParameters([{ type: "uint8" }, { type: "bytes32" }], payload)
+      decodeAbiParameters([{ type: "uint8" }, { type: "address" }], payload)
     );
     if (!row) return null;
     return {
