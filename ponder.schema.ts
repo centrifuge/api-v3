@@ -799,7 +799,7 @@ export const AssetRelations = relations(Asset, ({ one, many }) => ({
   }),
 }));
 
-export const TokenInstanceCrosschainInProgressTypes = [`NotifySharePrice`] as const;
+export const TokenInstanceCrosschainInProgressTypes = [`NotifySharePrice`, `SetValuation`] as const;
 export const TokenInstanceCrosschainInProgress = onchainEnum(
   "token_instance_crosschain_in_progress",
   TokenInstanceCrosschainInProgressTypes
