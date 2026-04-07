@@ -443,7 +443,14 @@ function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
     );
   }
 
-  const chain = chainEntries.map(([chainId, chainValue]) => {
+  // Filter out chains where the contract was deprecated (null address)
+  const activeChainEntries = chainEntries.filter(([, chainValue]) => {
+    const contract =
+      chainValue.contracts[toContractCase(abiName) as keyof typeof chainValue.contracts];
+    return contract?.address != null;
+  });
+
+  const chain = activeChainEntries.map(([chainId, chainValue]) => {
     const chainName = networkNames[chainId as keyof typeof networkNames];
     const resolvedAddress = chainValue.contracts[
       toContractCase(abiName) as keyof typeof chainValue.contracts
@@ -527,6 +534,12 @@ function computeEndBlock(
   // Check if the contract exists in this version
   const newContract = nextChain.contracts[contractName as keyof typeof nextChain.contracts];
   if (!newContract) return undefined;
+
+  // Deprecated in next version (null address) — stop indexing at this version's deployment block
+  if (newContract.address === null) {
+    const deprecationBlock = nextChain.deployment.startBlock as number;
+    return deprecationBlock ? deprecationBlock - 1 : undefined;
+  }
 
   // Get the block number: use contract.blockNumber if available, otherwise fallback to chain.deployment.startBlock
   const nextContractData = newContract as { blockNumber?: number | null };
