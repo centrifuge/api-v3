@@ -28,4 +28,5 @@ import { Service } from "./Service";
  */
 export class AdapterWiringService extends Service<typeof AdapterWiring> {
   static readonly entityTable = AdapterWiring;
-  static readonly entityName = "AdapterWiring";}
+  static readonly entityName = "AdapterWiring";
+}

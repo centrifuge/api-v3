@@ -78,7 +78,10 @@ app.get("/stats", async (c) => {
 /** Narrow surface for `/stats` entity counts — avoids TS2590 on `Object.values` + polymorphic statics. */
 type ServiceWithEntityCount = {
   readonly name: string;
-  count(context: { db: ReadonlyDrizzle<typeof schema> }, query: Record<string, never>): Promise<number>;
+  count(
+    context: { db: ReadonlyDrizzle<typeof schema> },
+    query: Record<string, never>
+  ): Promise<number>;
 };
 
 /**

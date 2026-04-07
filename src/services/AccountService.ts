@@ -23,4 +23,5 @@ import { Service } from "./Service";
  */
 export class AccountService extends Service<typeof Account> {
   static readonly entityTable = Account;
-  static readonly entityName = "Account";}
+  static readonly entityName = "Account";
+}

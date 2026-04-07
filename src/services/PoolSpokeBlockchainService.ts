@@ -17,4 +17,5 @@ import { Service } from "./Service";
  */
 export class PoolSpokeBlockchainService extends Service<typeof PoolSpokeBlockchain> {
   static readonly entityTable = PoolSpokeBlockchain;
-  static readonly entityName = "PoolSpokeBlockchain";}
+  static readonly entityName = "PoolSpokeBlockchain";
+}

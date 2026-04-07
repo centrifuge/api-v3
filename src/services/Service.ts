@@ -222,7 +222,9 @@ export abstract class Service<T extends OnchainTable> {
 
     serviceLog(`saveMany ${name} count=${returned.length}`);
     if (returned.length !== instances.length) {
-      throw new Error(`saveMany ${name}: expected ${instances.length} rows, got ${returned.length}`);
+      throw new Error(
+        `saveMany ${name}: expected ${instances.length} rows, got ${returned.length}`
+      );
     }
 
     for (let i = 0; i < instances.length; i++) {
@@ -427,10 +429,12 @@ export abstract class Service<T extends OnchainTable> {
     if (filter) q = q.where(filter);
     if (query._sort && query._sort.length > 0)
       q = q.orderBy(
-        ...query._sort.map((sort: { field: keyof TableTypeOf<This>; direction: "asc" | "desc" }) => {
-          const column = table[sort.field];
-          return sort.direction === "asc" ? asc(column) : desc(column);
-        })
+        ...query._sort.map(
+          (sort: { field: keyof TableTypeOf<This>; direction: "asc" | "desc" }) => {
+            const column = table[sort.field];
+            return sort.direction === "asc" ? asc(column) : desc(column);
+          }
+        )
       );
     const results = await q;
     serviceLog(`Found ${results.length} ${name}`);

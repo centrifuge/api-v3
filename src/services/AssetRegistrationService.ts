@@ -14,7 +14,8 @@ import { Service } from "./Service";
  */
 export class AssetRegistrationService extends Service<typeof AssetRegistration> {
   static readonly entityTable = AssetRegistration;
-  static readonly entityName = "AssetRegistration";}
+  static readonly entityName = "AssetRegistration";
+}
 
 /**
  * Extracts the Centrifuge ID from a 128-bit asset ID by performing a right shift operation.

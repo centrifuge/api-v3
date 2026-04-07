@@ -9,4 +9,5 @@ import { Service } from "./Service";
  */
 export class MerkleProofManagerService extends Service<typeof MerkleProofManager> {
   static readonly entityTable = MerkleProofManager;
-  static readonly entityName = "MerkleProofManager";}
+  static readonly entityName = "MerkleProofManager";
+}

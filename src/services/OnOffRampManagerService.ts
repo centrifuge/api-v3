@@ -9,4 +9,5 @@ import { Service } from "./Service";
  */
 export class OnOffRampManagerService extends Service<typeof OnOffRampManager> {
   static readonly entityTable = OnOffRampManager;
-  static readonly entityName = "OnOffRampManager";}
+  static readonly entityName = "OnOffRampManager";
+}
