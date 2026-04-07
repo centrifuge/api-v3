@@ -47,7 +47,7 @@ type ChainContracts<C extends string> = Record<
   C,
   {
     blockNumber: number | null;
-    address: ChainAddress;
+    address: ChainAddress | null;
     txHash: `0x${string}` | null;
   }
 >;
