@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.5.0](https://github.com/centrifuge/api-v3/compare/v3.4.1...v3.5.0) (2026-04-07)
+
+
+### Features
+
+* add several yield calculations to indexer ([#325](https://github.com/centrifuge/api-v3/issues/325)) ([691d650](https://github.com/centrifuge/api-v3/commit/691d6505e654972f4e3c76563053f5c31ab4a68c))
+* **contracts:** support deprecated registry contracts (null address) ([#338](https://github.com/centrifuge/api-v3/issues/338)) ([f06f20e](https://github.com/centrifuge/api-v3/commit/f06f20eda41c5f075f81dd449dd667c322260f5f))
+* in-progress editing of valuation on vaults([#332](https://github.com/centrifuge/api-v3/issues/332)) ([af60cc6](https://github.com/centrifuge/api-v3/commit/af60cc675cc6004f5326409a7d932c4f4bb607ef)), closes [#279](https://github.com/centrifuge/api-v3/issues/279)
+* in-progress tracking of setvaluation ([#336](https://github.com/centrifuge/api-v3/issues/336)) ([8b44bd8](https://github.com/centrifuge/api-v3/commit/8b44bd81e7317b5c81f0e5440b35ac7fb0f8060b))
+* In-progress update of offramprelayers ([#328](https://github.com/centrifuge/api-v3/issues/328)) ([f37723f](https://github.com/centrifuge/api-v3/commit/f37723f4f6a2fd2993c332f4913043a11e8124fc))
+* track asset progress of offramp updates ([#333](https://github.com/centrifuge/api-v3/issues/333)) ([9198de3](https://github.com/centrifuge/api-v3/commit/9198de3f15f1ba7f318eed4f5fb855b4f98909c4))
+* track in progress updates of offramp addresses ([#326](https://github.com/centrifuge/api-v3/issues/326)) ([a924abf](https://github.com/centrifuge/api-v3/commit/a924abf434fd4bc6c72a5e2ecd3b6348ceed25b9))
+
 ## [3.4.1](https://github.com/centrifuge/api-v3/compare/v3.4.0...v3.4.1) (2026-03-26)
 
 
