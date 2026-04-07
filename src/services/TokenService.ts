@@ -2,7 +2,7 @@ import { Token, TokenSnapshot } from "ponder:schema";
 import type { Context, Event } from "ponder:registry";
 import type { ReadOnlyContext } from "./Service";
 import { and, asc, desc, gt, inArray, isNotNull, lte } from "drizzle-orm";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { serviceLog } from "../helpers/logger";
 import {
   ALL_TOKEN_YIELD_SNAPSHOT_COLUMN_NAMES,
@@ -23,9 +23,11 @@ export type { TokenSnapshotPricePoint };
  * Provides methods for activating/deactivating tokens, setting metadata,
  * managing token prices, and controlling total supply.
  *
- * @extends {mixinCommonStatics<Service<typeof Token>, Token, "Token">}
+ * @extends {Service<typeof Token>}
  */
-export class TokenService extends mixinCommonStatics(Service<typeof Token>, Token, "Token") {
+export class TokenService extends Service<typeof Token> {
+  static readonly entityTable = Token;
+  static readonly entityName = "Token";
   /**
    * Get the decimals of a token.
    * @param context - The context.
@@ -352,8 +354,7 @@ export class TokenService extends mixinCommonStatics(Service<typeof Token>, Toke
 }
 
 /** Internal: `token_snapshot` query/saveMany only. */
-class TokenSnapshotRows extends mixinCommonStatics(
-  Service<typeof TokenSnapshot>,
-  TokenSnapshot,
-  "TokenSnapshot"
-) {}
+class TokenSnapshotRows extends Service<typeof TokenSnapshot> {
+  static readonly entityTable = TokenSnapshot;
+  static readonly entityName = "TokenSnapshot";
+}

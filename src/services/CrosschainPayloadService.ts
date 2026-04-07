@@ -1,5 +1,5 @@
 import { CrosschainPayload, CrosschainPayloadStatuses } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { Event, Context } from "ponder:registry";
 import { getCrosschainMessageLength } from ".";
 import { keccak256, encodePacked } from "viem";
@@ -16,11 +16,9 @@ import { RegistryVersions } from "../chains";
  *
  * @extends {Service<typeof CrosschainPayload>}
  */
-export class CrosschainPayloadService extends mixinCommonStatics(
-  Service<typeof CrosschainPayload>,
-  CrosschainPayload,
-  "CrosschainPayload"
-) {
+export class CrosschainPayloadService extends Service<typeof CrosschainPayload> {
+  static readonly entityTable = CrosschainPayload;
+  static readonly entityName = "CrosschainPayload";
   /**
    * Gets the first payload from the queue for a given payload ID
    * @param context - The database and client context

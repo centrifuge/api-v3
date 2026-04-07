@@ -1,16 +1,14 @@
 import { Context } from "ponder:registry";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { AdapterParticipation } from "ponder:schema";
 
 /**
  * Service for managing on-ramp assets.
  *
  */
-export class AdapterParticipationService extends mixinCommonStatics(
-  Service<typeof AdapterParticipation>,
-  AdapterParticipation,
-  "AdapterParticipation"
-) {
+export class AdapterParticipationService extends Service<typeof AdapterParticipation> {
+  static readonly entityTable = AdapterParticipation;
+  static readonly entityName = "AdapterParticipation";
   /**
    * Counts the number of handled adapter proofs for a given payload ID and payload index
    * @param context - The database and client context

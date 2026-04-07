@@ -1,5 +1,5 @@
 import type { Event } from "ponder:registry";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { InvestOrder } from "ponder:schema";
 import { serviceLog, addThousandsSeparator } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
@@ -11,11 +11,9 @@ import { timestamper } from "../helpers/timestamper";
  * including computation of approved amounts and execution of requests.
  * Extends the base Service class with common static methods.
  */
-export class InvestOrderService extends mixinCommonStatics(
-  Service<typeof InvestOrder>,
-  InvestOrder,
-  "InvestOrder"
-) {
+export class InvestOrderService extends Service<typeof InvestOrder> {
+  static readonly entityTable = InvestOrder;
+  static readonly entityName = "InvestOrder";
   /**
    * Approves an invest order with the given approved assets amount.
    *

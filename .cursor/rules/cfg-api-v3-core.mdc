@@ -11,7 +11,7 @@ Before substantive work, read **[CLAUDE.md](CLAUDE.md)** at the repo root. It is
 
 - **Never edit [`generated/`](generated/)** — regenerate via `pnpm update-registry` / `pnpm codegen` and upstream inputs.
 - **Handlers** live only in `src/handlers/`. **No** `context.db.*`, Drizzle, or raw SQL in handlers; use **`src/services/`** (exception: call **`snapshotter`** for snapshot tables, not ad-hoc inserts).
-- **Services** own persistence: extend **`Service`** + **`mixinCommonStatics`** from [`src/services/Service.ts`](src/services/Service.ts); use **`serviceLog`** / **`serviceError`** from [`src/helpers/logger.ts`](src/helpers/logger.ts) on meaningful methods.
+- **Services** own persistence: extend abstract **`Service<typeof Table>`** from [`src/services/Service.ts`](src/services/Service.ts) with **`static readonly entityTable`** / **`entityName`**; use **`serviceLog`** / **`serviceError`** from [`src/helpers/logger.ts`](src/helpers/logger.ts) on meaningful methods.
 - **Multi-version contracts:** register contract events with **`multiMapper`** from [`src/helpers/multiMapper.ts`](src/helpers/multiMapper.ts) when the same logical event exists across `HubV3`, `HubV3_1`, etc.
 - **Batch when possible:** **`insertMany`** / **`saveMany`** on services to reduce DB round-trips.
 

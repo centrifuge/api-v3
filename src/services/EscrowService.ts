@@ -1,5 +1,5 @@
 import { Escrow } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 
 /**
  * Service class for managing Escrow entities in the database.
@@ -27,4 +27,7 @@ import { Service, mixinCommonStatics } from "./Service";
  * const escrows = await EscrowService.query(context, { poolId: 123n });
  * ```
  */
-export class EscrowService extends mixinCommonStatics(Service<typeof Escrow>, Escrow, "Escrow") {}
+export class EscrowService extends Service<typeof Escrow> {
+  static readonly entityTable = Escrow;
+  static readonly entityName = "Escrow";
+}

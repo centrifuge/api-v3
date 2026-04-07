@@ -1,5 +1,5 @@
 import { TokenInstance, TokenInstanceCrosschainInProgressTypes } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { serviceLog } from "../helpers/logger";
 
 /**
@@ -8,13 +8,11 @@ import { serviceLog } from "../helpers/logger";
  * price, issuance amounts, and computation timestamps.
  *
  * Extends the base Service class with TokenInstance-specific functionality
- * and inherits common static methods through mixinCommonStatics.
+ * extending [`Service`](./Service.ts) with the usual entity static methods.
  */
-export class TokenInstanceService extends mixinCommonStatics(
-  Service<typeof TokenInstance>,
-  TokenInstance,
-  "TokenInstance"
-) {
+export class TokenInstanceService extends Service<typeof TokenInstance> {
+  static readonly entityTable = TokenInstance;
+  static readonly entityName = "TokenInstance";
   /**
    * Sets the token ID for the current token instance.
    *

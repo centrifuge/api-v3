@@ -33,18 +33,44 @@ type CreationProps<T extends OnchainTable> = {
 type UpdateProps<T extends OnchainTable> = {
   [K in keyof T]: K extends `${string}UpdatedAt` ? T[K] : never;
 }[keyof T];
-type DataWithoutDefaults<T extends OnchainTable> = Omit<
+export type DataWithoutDefaults<T extends OnchainTable> = Omit<
   T["$inferInsert"],
   keyof (CreationProps<T> & UpdateProps<T>)
 >;
+
+/** Drizzle table type carried by a concrete service class via `static entityTable`. */
+export type TableTypeOf<C> = C extends { readonly entityTable: infer Tab }
+  ? Tab extends OnchainTable
+    ? Tab
+    : never
+  : never;
+
+/**
+ * Constructor type for a concrete entity service: `Service` instance plus `entityTable` / `entityName`.
+ * Static methods use `this: This` with `This extends ServiceSubclass` so callers get `InstanceType<This>`.
+ *
+ * Constructor args are intentionally loose (`...args: any[]`): subclass constructors take a concrete
+ * `T extends OnchainTable`, which is not assignable to `(table: OnchainTable, …)` under strict function
+ * typing, even though call sites always pass `this.entityTable`.
+ *
+ * (Cannot tie this to `Service<T>`'s type parameter `T` — TypeScript disallows static members from
+ * referencing the class generic.)
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ServiceSubclass = (new (...args: any[]) => Service<OnchainTable>) & {
+  readonly entityTable: OnchainTable;
+  readonly entityName: string;
+};
 
 /**
  * Generic service class for managing database operations on PostgreSQL tables.
  * Provides CRUD operations and database interaction utilities.
  *
+ * Each concrete subclass must declare `static readonly entityTable` and `entityName`.
+ *
  * @template T - The PostgreSQL table type extending OnchainTable
  */
-export class Service<T extends OnchainTable> {
+export abstract class Service<T extends OnchainTable> {
   /** The database table instance */
   protected readonly table: T;
   /** Human-readable name for the service entity */
@@ -124,315 +150,320 @@ export class Service<T extends OnchainTable> {
     await this.db.delete(this.table).where(primaryKeyFilter(this.table, this.data));
     return this;
   }
-}
 
-/** Type alias for constructor functions */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Constructor<I> = new (..._args: any[]) => I;
+  static async insert<This extends ServiceSubclass>(
+    this: This,
+    context: Context,
+    data: DataWithoutDefaults<TableTypeOf<This>>,
+    event: Event | null,
+    deferInsert?: boolean
+  ): Promise<InstanceType<This> | null> {
+    const table = this.entityTable as TableTypeOf<This>;
+    const name = this.entityName;
+    const dataWithDefaults = event ? insertDefaults(table, data, event) : { ...data };
+    if (deferInsert ?? false) {
+      serviceLog(`Deferring insert for ${name}`);
+      return new this(table, name, context, dataWithDefaults) as InstanceType<This>;
+    }
+    const [insert] = await context.db.sql
+      .insert(table as OnchainTable)
+      .values(dataWithDefaults)
+      .onConflictDoNothing()
+      .returning();
+    serviceLog(`Inserting ${name}`, expandInlineObject(dataWithDefaults));
+    if (!insert) return null;
+    return new this(table, name, context, insert) as InstanceType<This>;
+  }
 
-/**
- * Mixin function that adds common static methods to a service class.
- * Provides factory methods for creating, finding, and querying service instances.
- *
- * @template C - The constructor type of the service class
- * @template I - The instance type of the service class
- * @template T - The PostgreSQL table type
- * @param service - The service class constructor to extend
- * @param table - The PostgreSQL table to operate on
- * @param name - Human-readable name for the service entity
- * @returns A new class extending the original service with static methods
- */
-export function mixinCommonStatics<
-  C extends Constructor<I>,
-  I extends Service<T>,
-  T extends OnchainTable,
->(service: C, table: T, name: string) {
-  return class extends service {
-    static async insert(
-      context: Context,
-      data: DataWithoutDefaults<T>,
-      event: Event | null,
-      deferInsert?: boolean
-    ): Promise<InstanceType<C> | null> {
-      const dataWithDefaults = event ? insertDefaults(table, data, event) : { ...data };
+  /**
+   * One multi-row `INSERT … ON CONFLICT DO UPDATE` (same semantics as {@link Service#save}).
+   * Do not use `sql\`excluded.${col}\`` here: Drizzle expands it to `excluded.schema.table.col`,
+   * which Ponder’s PG proxy rejects (“cross-database references are not implemented”). Use
+   * `sql.raw(\`excluded."column"\`)` with the column’s DB name instead.
+   */
+  static async saveMany<This extends ServiceSubclass>(
+    this: This,
+    context: Context,
+    instances: InstanceType<This>[],
+    event: Event | null
+  ): Promise<InstanceType<This>[]> {
+    const table = this.entityTable as TableTypeOf<This>;
+    const name = this.entityName;
+    if (instances.length === 0) return [];
+    if (!("insert" in context.db.sql)) throw new Error(`Read only database`);
+
+    const rows = instances.map((inst) => {
+      const svc = inst as InstanceType<This> & Service<TableTypeOf<This>>;
+      return event ? updateDefaults(table, svc.read(), event) : { ...svc.read() };
+    }) as TableTypeOf<This>["$inferInsert"][];
+
+    const pkNames = getPrimaryKeysFieldNames(table);
+    const pkSet = new Set(pkNames.map((k) => String(k)));
+    const pkTarget = pkNames.map((key) => table[key]);
+    const createdNulls = timestamper("created", undefined);
+    const columns = getTableColumns(table);
+    const conflictSet: Record<string, unknown> = { ...createdNulls };
+    for (const [key, col] of Object.entries(columns)) {
+      if (pkSet.has(key)) continue;
+      if (Object.prototype.hasOwnProperty.call(createdNulls, key)) continue;
+      const pgName = (col as { name: string }).name;
+      const quoted = `"${pgName.replace(/"/g, '""')}"`;
+      conflictSet[key] = sql.raw(`excluded.${quoted}`);
+    }
+
+    const returned = await context.db.sql
+      .insert(table as OnchainTable)
+      .values(rows)
+      .onConflictDoUpdate({
+        target: pkTarget,
+        set: conflictSet as TableTypeOf<This>["$inferInsert"],
+      })
+      .returning();
+
+    serviceLog(`saveMany ${name} count=${returned.length}`);
+    if (returned.length !== instances.length) {
+      throw new Error(
+        `saveMany ${name}: expected ${instances.length} rows, got ${returned.length}`
+      );
+    }
+
+    for (let i = 0; i < instances.length; i++) {
+      applySaveManyReturningToInstance(
+        instances[i] as InstanceType<This> & Service<TableTypeOf<This>>,
+        returned[i]! as TableTypeOf<This>["$inferSelect"]
+      );
+    }
+    return instances;
+  }
+
+  /**
+   * Batch insert with `onConflictDoNothing`, same defaults as {@link insert}. Returns one instance per inserted row.
+   */
+  static async insertMany<This extends ServiceSubclass>(
+    this: This,
+    context: Context,
+    rows: DataWithoutDefaults<TableTypeOf<This>>[],
+    event: Event | null
+  ): Promise<InstanceType<This>[]> {
+    const table = this.entityTable as TableTypeOf<This>;
+    const name = this.entityName;
+    if (rows.length === 0) return [];
+    const withDefaults = event
+      ? rows.map((data) => insertDefaults(table, data, event))
+      : (rows as TableTypeOf<This>["$inferInsert"][]);
+    const inserted = await context.db.sql
+      .insert(table as OnchainTable)
+      .values(withDefaults)
+      .onConflictDoNothing()
+      .returning();
+    serviceLog(`insertMany ${name} count=${inserted.length}`);
+    return inserted.map((row) => new this(table, name, context, row) as InstanceType<This>);
+  }
+
+  /**
+   * Finds an existing record in the database by query criteria.
+   *
+   * @param context - Database and client context
+   * @param query - Query criteria to find the record
+   * @returns Promise that resolves to a service instance for the found record
+   * @throws {Error} When no record matches the query criteria
+   */
+  static async get<This extends ServiceSubclass>(
+    this: This,
+    context: Context | ReadOnlyContext,
+    query: Partial<ExtendedQuery<TableTypeOf<This>["$inferInsert"]>>
+  ): Promise<InstanceType<This> | null> {
+    const table = this.entityTable as TableTypeOf<This>;
+    const name = this.entityName;
+    const db = "sql" in context.db ? context.db.sql : context.db;
+    serviceLog("get", name, expandInlineObject(query));
+    const filter = queryToFilter(table, query);
+    if (filter === undefined) {
+      throw new Error(
+        `${name}.get requires at least one defined query field (empty object or only undefined values)`
+      );
+    }
+    const [entity] = await db
+      .select()
+      .from(table as OnchainTable)
+      .where(filter)
+      .limit(1);
+    if (!entity) return null;
+    serviceLog(`Found ${name}: `, expandInlineObject(entity));
+    return new this(table, name, context, entity) as InstanceType<This>;
+  }
+
+  /**
+   * Finds an existing record or creates a new one if it doesn't exist.
+   *
+   * @param context - Database and client context
+   * @param query - Query criteria to find or create the record
+   * @param onInit - Function to execute when the record is not found
+   * @param deferInsert - Whether to defer the insert operation for further processing of the entity
+   * @returns Promise that resolves to a service instance
+   * @throws {Error} When the create operation fails
+   */
+  static async getOrInit<This extends ServiceSubclass>(
+    this: This,
+    context: Context,
+    query: DataWithoutDefaults<TableTypeOf<This>>,
+    event: Event,
+    onInit?: (entity: TableTypeOf<This>["$inferSelect"]) => Promise<void>,
+    deferInsert?: boolean
+  ): Promise<InstanceType<This>>;
+  static async getOrInit<This extends ServiceSubclass>(
+    this: This,
+    context: Context,
+    query: TableTypeOf<This>["$inferInsert"],
+    event: null,
+    onInit?: (entity: TableTypeOf<This>["$inferSelect"]) => Promise<void>,
+    deferInsert?: boolean
+  ): Promise<InstanceType<This>>;
+  static async getOrInit<This extends ServiceSubclass>(
+    this: This,
+    context: Context,
+    query: DataWithoutDefaults<TableTypeOf<This>> | TableTypeOf<This>["$inferInsert"],
+    event: Event | null,
+    onInit?: (entity: TableTypeOf<This>["$inferSelect"]) => Promise<void>,
+    deferInsert?: boolean
+  ): Promise<InstanceType<This>> {
+    const table = this.entityTable as TableTypeOf<This>;
+    const name = this.entityName;
+    const dataWithDefaults = event ? insertDefaults(table, query, event) : { ...query };
+    serviceLog("getOrInit", name, expandInlineObject(dataWithDefaults));
+    let entity = await context.db.find(table as any, dataWithDefaults);
+    serviceLog(`Found ${name}: `, expandInlineObject(entity));
+    if (!entity) {
+      if (onInit) {
+        serviceLog(`Executing onInit for ${name}`);
+        await onInit(dataWithDefaults);
+      }
       if (deferInsert ?? false) {
         serviceLog(`Deferring insert for ${name}`);
-        return new this(table, name, context, dataWithDefaults) as InstanceType<C>;
+        return new this(table, name, context, dataWithDefaults) as InstanceType<This>;
       }
+      serviceLog(`Initialising ${name}: `, expandInlineObject(dataWithDefaults));
       const [insert] = await context.db.sql
         .insert(table as OnchainTable)
         .values(dataWithDefaults)
         .onConflictDoNothing()
         .returning();
-      serviceLog(`Inserting ${name}`, expandInlineObject(dataWithDefaults));
-      if (!insert) return null;
-      return new this(table, name, context, insert) as InstanceType<C>;
+      entity = insert ?? null;
+      if (!entity) throw new Error(`Failed to initialise ${name}: ${expandInlineObject(query)}`);
     }
+    return new this(table, name, context, entity) as InstanceType<This>;
+  }
 
-    /**
-     * One multi-row `INSERT … ON CONFLICT DO UPDATE` (same semantics as {@link Service#save}).
-     * Do not use `sql\`excluded.${col}\`` here: Drizzle expands it to `excluded.schema.table.col`,
-     * which Ponder’s PG proxy rejects (“cross-database references are not implemented”). Use
-     * `sql.raw(\`excluded."column"\`)` with the column’s DB name instead.
-     */
-    static async saveMany(
-      context: Context,
-      instances: InstanceType<C>[],
-      event: Event | null
-    ): Promise<InstanceType<C>[]> {
-      if (instances.length === 0) return [];
-      if (!("insert" in context.db.sql)) throw new Error(`Read only database`);
+  /**
+   * Updates an existing record or creates a new one if it doesn't exist.
+   *
+   * @param context - Database and client context
+   * @param query - Query criteria to find or create the record
+   * @returns Promise that resolves to a service instance
+   * @throws {Error} When the upsert operation fails
+   */
+  static async upsert<This extends ServiceSubclass>(
+    this: This,
+    context: Context,
+    query: TableTypeOf<This>["$inferInsert"],
+    event: null
+  ): Promise<InstanceType<This> | null>;
+  static async upsert<This extends ServiceSubclass>(
+    this: This,
+    context: Context,
+    query: DataWithoutDefaults<TableTypeOf<This>>,
+    event: Event
+  ): Promise<InstanceType<This> | null>;
+  static async upsert<This extends ServiceSubclass>(
+    this: This,
+    context: Context,
+    query: DataWithoutDefaults<TableTypeOf<This>> | TableTypeOf<This>["$inferInsert"],
+    event: Event | null
+  ): Promise<InstanceType<This> | null> {
+    const table = this.entityTable as TableTypeOf<This>;
+    const name = this.entityName;
+    const dataWithDefaults = event ? insertDefaults(table, query, event) : { ...query };
+    serviceLog("upsert", name, expandInlineObject(dataWithDefaults));
+    const [entity] = await context.db.sql
+      .insert(table as OnchainTable)
+      .values(dataWithDefaults)
+      .onConflictDoUpdate({
+        target: getPrimaryKeysFieldNames(table).map((key) => table[key]),
+        set: {
+          ...dataWithDefaults,
+          createdAt: undefined,
+          createdAtBlock: undefined,
+          createdAtTxHash: undefined,
+        },
+      })
+      .returning();
 
-      const rows = instances.map((inst) => {
-        const svc = inst as InstanceType<C> & Service<T>;
-        return event ? updateDefaults(table, svc.read(), event) : { ...svc.read() };
-      }) as T["$inferInsert"][];
-
-      const pkNames = getPrimaryKeysFieldNames(table);
-      const pkSet = new Set(pkNames.map((k) => String(k)));
-      const pkTarget = pkNames.map((key) => table[key]);
-      const createdNulls = timestamper("created", undefined);
-      const columns = getTableColumns(table);
-      const conflictSet: Record<string, unknown> = { ...createdNulls };
-      for (const [key, col] of Object.entries(columns)) {
-        if (pkSet.has(key)) continue;
-        if (Object.prototype.hasOwnProperty.call(createdNulls, key)) continue;
-        const pgName = (col as { name: string }).name;
-        const quoted = `"${pgName.replace(/"/g, '""')}"`;
-        conflictSet[key] = sql.raw(`excluded.${quoted}`);
-      }
-
-      const returned = await context.db.sql
-        .insert(table as OnchainTable)
-        .values(rows)
-        .onConflictDoUpdate({
-          target: pkTarget,
-          set: conflictSet as T["$inferInsert"],
-        })
-        .returning();
-
-      serviceLog(`saveMany ${name} count=${returned.length}`);
-      if (returned.length !== instances.length) {
-        throw new Error(
-          `saveMany ${name}: expected ${instances.length} rows, got ${returned.length}`
-        );
-      }
-
-      for (let i = 0; i < instances.length; i++) {
-        applySaveManyReturningToInstance(
-          instances[i] as InstanceType<C> & Service<T>,
-          returned[i]! as T["$inferSelect"]
-        );
-      }
-      return instances;
+    if (!entity) {
+      serviceError(`Failed to upsert ${name}: ${expandInlineObject(query)}`);
+      return null;
     }
+    return new this(table, name, context, entity) as InstanceType<This>;
+  }
 
-    /**
-     * Batch insert with `onConflictDoNothing`, same defaults as {@link insert}. Returns one instance per inserted row.
-     */
-    static async insertMany(
-      context: Context,
-      rows: DataWithoutDefaults<T>[],
-      event: Event | null
-    ): Promise<InstanceType<C>[]> {
-      if (rows.length === 0) return [];
-      const withDefaults = event
-        ? rows.map((data) => insertDefaults(table, data, event))
-        : (rows as T["$inferInsert"][]);
-      const inserted = await context.db.sql
-        .insert(table as OnchainTable)
-        .values(withDefaults)
-        .onConflictDoNothing()
-        .returning();
-      serviceLog(`insertMany ${name} count=${inserted.length}`);
-      return inserted.map((row) => new this(table, name, context, row) as InstanceType<C>);
-    }
-
-    /**
-     * Finds an existing record in the database by query criteria.
-     *
-     * @param context - Database and client context
-     * @param query - Query criteria to find the record
-     * @returns Promise that resolves to a service instance for the found record
-     * @throws {Error} When no record matches the query criteria
-     */
-    static async get(
-      context: Context | ReadOnlyContext,
-      query: Partial<ExtendedQuery<T["$inferInsert"]>>
-    ) {
-      const db = "sql" in context.db ? context.db.sql : context.db;
-      serviceLog("get", name, expandInlineObject(query));
-      const filter = queryToFilter(table, query);
-      if (filter === undefined) {
-        throw new Error(
-          `${name}.get requires at least one defined query field (empty object or only undefined values)`
-        );
-      }
-      const [entity] = await db
-        .select()
-        .from(table as OnchainTable)
-        .where(filter)
-        .limit(1);
-      if (!entity) return null;
-      serviceLog(`Found ${name}: `, expandInlineObject(entity));
-      return new this(table, name, context, entity);
-    }
-
-    /**
-     * Finds an existing record or creates a new one if it doesn't exist.
-     *
-     * @param context - Database and client context
-     * @param query - Query criteria to find or create the record
-     * @param onInit - Function to execute when the record is not found
-     * @param deferInsert - Whether to defer the insert operation for further processing of the entity
-     * @returns Promise that resolves to a service instance
-     * @throws {Error} When the create operation fails
-     */
-    static async getOrInit(
-      context: Context,
-      query: DataWithoutDefaults<T>,
-      event: Event,
-      onInit?: (entity: T["$inferSelect"]) => Promise<void>,
-      deferInsert?: boolean
-    ): Promise<InstanceType<C>>;
-    static async getOrInit(
-      context: Context,
-      query: T["$inferInsert"],
-      event: null,
-      onInit?: (entity: T["$inferSelect"]) => Promise<void>,
-      deferInsert?: boolean
-    ): Promise<InstanceType<C>>;
-    static async getOrInit(
-      context: Context,
-      query: DataWithoutDefaults<T> | T["$inferInsert"],
-      event: Event | null,
-      onInit?: (entity: T["$inferSelect"]) => Promise<void>,
-      deferInsert?: boolean
-    ): Promise<InstanceType<C>> {
-      const dataWithDefaults = event ? insertDefaults(table, query, event) : { ...query };
-      serviceLog("getOrInit", name, expandInlineObject(dataWithDefaults));
-      let entity = await context.db.find(table as any, dataWithDefaults);
-      serviceLog(`Found ${name}: `, expandInlineObject(entity));
-      if (!entity) {
-        if (onInit) {
-          serviceLog(`Executing onInit for ${name}`);
-          await onInit(dataWithDefaults);
-        }
-        if (deferInsert ?? false) {
-          serviceLog(`Deferring insert for ${name}`);
-          return new this(table, name, context, dataWithDefaults) as InstanceType<C>;
-        }
-        serviceLog(`Initialising ${name}: `, expandInlineObject(dataWithDefaults));
-        const [insert] = await context.db.sql
-          .insert(table as OnchainTable)
-          .values(dataWithDefaults)
-          .onConflictDoNothing()
-          .returning();
-        entity = insert ?? null;
-        if (!entity) throw new Error(`Failed to initialise ${name}: ${expandInlineObject(query)}`);
-      }
-      return new this(table, name, context, entity) as InstanceType<C>;
-    }
-
-    /**
-     * Updates an existing record or creates a new one if it doesn't exist.
-     *
-     * @param context - Database and client context
-     * @param query - Query criteria to find or create the record
-     * @returns Promise that resolves to a service instance
-     * @throws {Error} When the upsert operation fails
-     */
-    static async upsert(
-      context: Context,
-      query: T["$inferInsert"],
-      event: null
-    ): Promise<InstanceType<C> | null>;
-    static async upsert(
-      context: Context,
-      query: DataWithoutDefaults<T>,
-      event: Event
-    ): Promise<InstanceType<C> | null>;
-    static async upsert(
-      context: Context,
-      query: DataWithoutDefaults<T> | T["$inferInsert"],
-      event: Event | null
-    ): Promise<InstanceType<C> | null> {
-      const dataWithDefaults = event ? insertDefaults(table, query, event) : { ...query };
-      serviceLog("upsert", name, expandInlineObject(dataWithDefaults));
-      const [entity] = await context.db.sql
-        .insert(table as OnchainTable)
-        .values(dataWithDefaults)
-        .onConflictDoUpdate({
-          target: getPrimaryKeysFieldNames(table).map((key) => table[key]),
-          set: {
-            ...dataWithDefaults,
-            createdAt: undefined,
-            createdAtBlock: undefined,
-            createdAtTxHash: undefined,
-          },
-        })
-        .returning();
-
-      if (!entity) {
-        serviceError(`Failed to upsert ${name}: ${expandInlineObject(query)}`);
-        return null;
-      }
-      return new this(table, name, context, entity) as InstanceType<C>;
-    }
-
-    /**
-     * Queries the database for multiple records matching the criteria.
-     *
-     * @param context - Database and client context
-     * @param query - Query criteria to filter records
-     * @returns Promise that resolves to an array of service instances
-     */
-    static async query(
-      context: Context | ReadOnlyContext,
-      query: Partial<ExtendedQuery<T["$inferSelect"]>>
-    ) {
-      const db = "sql" in context.db ? context.db.sql : context.db;
-      serviceLog(`Querying ${name}`, expandInlineObject(query));
-      const filter = queryToFilter(table, query);
-      let q = db
-        .select()
-        .from(table as OnchainTable)
-        .$dynamic();
-      if (filter) q = q.where(filter);
-      if (query._sort && query._sort.length > 0)
-        q = q.orderBy(
-          ...query._sort.map((sort: { field: keyof T; direction: "asc" | "desc" }) => {
+  /**
+   * Queries the database for multiple records matching the criteria.
+   *
+   * @param context - Database and client context
+   * @param query - Query criteria to filter records
+   * @returns Promise that resolves to an array of service instances
+   */
+  static async query<This extends ServiceSubclass>(
+    this: This,
+    context: Context | ReadOnlyContext,
+    query: Partial<ExtendedQuery<TableTypeOf<This>["$inferSelect"]>>
+  ): Promise<InstanceType<This>[]> {
+    const table = this.entityTable as TableTypeOf<This>;
+    const name = this.entityName;
+    const db = "sql" in context.db ? context.db.sql : context.db;
+    serviceLog(`Querying ${name}`, expandInlineObject(query));
+    const filter = queryToFilter(table, query);
+    let q = db
+      .select()
+      .from(table as OnchainTable)
+      .$dynamic();
+    if (filter) q = q.where(filter);
+    if (query._sort && query._sort.length > 0)
+      q = q.orderBy(
+        ...query._sort.map(
+          (sort: { field: keyof TableTypeOf<This>; direction: "asc" | "desc" }) => {
             const column = table[sort.field];
             return sort.direction === "asc" ? asc(column) : desc(column);
-          })
-        );
-      const results = await q;
-      serviceLog(`Found ${results.length} ${name}`);
-      return results.map((result) => new this(table, name, context, result));
-    }
+          }
+        )
+      );
+    const results = await q;
+    serviceLog(`Found ${results.length} ${name}`);
+    return results.map((result) => new this(table, name, context, result) as InstanceType<This>);
+  }
 
-    /**
-     * Counts the number of records matching the query criteria.
-     *
-     * @param context - Database and client context
-     * @param query - Query criteria to filter records
-     * @returns Promise that resolves to the count of matching records
-     */
-    static async count(
-      context: Context | ReadOnlyContext,
-      query: Partial<ExtendedQuery<T["$inferSelect"]>>
-    ) {
-      const db = "sql" in context.db ? context.db.sql : context.db;
-      const filter = queryToFilter(table, query);
-      let q = db
-        .select({ count: count() })
-        .from(table as OnchainTable)
-        .$dynamic();
-      if (filter) q = q.where(filter);
-      const [result] = await q;
-      return result?.count ?? 0;
-    }
-  };
+  /**
+   * Counts the number of records matching the query criteria.
+   *
+   * @param context - Database and client context
+   * @param query - Query criteria to filter records
+   * @returns Promise that resolves to the count of matching records
+   */
+  static async count<This extends ServiceSubclass>(
+    this: This,
+    context: Context | ReadOnlyContext,
+    query: Partial<ExtendedQuery<TableTypeOf<This>["$inferSelect"]>>
+  ): Promise<number> {
+    const table = this.entityTable as TableTypeOf<This>;
+    const db = "sql" in context.db ? context.db.sql : context.db;
+    const filter = queryToFilter(table, query);
+    let q = db
+      .select({ count: count() })
+      .from(table as OnchainTable)
+      .$dynamic();
+    if (filter) q = q.where(filter);
+    const [result] = await q;
+    return result?.count ?? 0;
+  }
 }
 
 /**

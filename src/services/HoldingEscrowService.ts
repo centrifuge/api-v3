@@ -1,5 +1,5 @@
 import { HoldingEscrow, HoldingEscrowCrosschainInProgressTypes } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { serviceLog } from "../helpers/logger";
 
 /**
@@ -11,11 +11,9 @@ import { serviceLog } from "../helpers/logger";
  *
  * @extends {Service<typeof HoldingEscrow>}
  */
-export class HoldingEscrowService extends mixinCommonStatics(
-  Service<typeof HoldingEscrow>,
-  HoldingEscrow,
-  "HoldingEscrow"
-) {
+export class HoldingEscrowService extends Service<typeof HoldingEscrow> {
+  static readonly entityTable = HoldingEscrow;
+  static readonly entityName = "HoldingEscrow";
   /**
    * Increases the asset amount in the holding escrow.
    *

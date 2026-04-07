@@ -1,5 +1,5 @@
 import { Holding } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 
 /**
  * Service class for managing Holding entities.
@@ -8,11 +8,9 @@ import { Service, mixinCommonStatics } from "./Service";
  *
  * @extends {Service<typeof Holding>}
  */
-export class HoldingService extends mixinCommonStatics(
-  Service<typeof Holding>,
-  Holding,
-  "Holding"
-) {
+export class HoldingService extends Service<typeof Holding> {
+  static readonly entityTable = Holding;
+  static readonly entityName = "Holding";
   /**
    * Sets the valuation string for this holding.
    *
