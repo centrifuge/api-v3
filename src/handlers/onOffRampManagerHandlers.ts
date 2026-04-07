@@ -81,18 +81,19 @@ multiMapper("onOfframpManager:UpdateOnramp", async ({ event, context }) => {
 
   const { poolId, tokenId } = onOffRampManager.read();
 
-  const onRampAsset = (await OnRampAssetService.upsert(
+  const onRampAsset = (await OnRampAssetService.getOrInit(
     context,
     {
       assetAddress: asset,
       poolId,
       centrifugeId,
       tokenId,
-      isEnabled,
     },
-    event
-  )) as OnRampAssetService | null;
-  if (!onRampAsset) serviceError("Failed to upsert OnRampAsset");
+    event,
+    undefined,
+    true
+  )) as OnRampAssetService;
+  await onRampAsset.setCrosschainInProgress().setEnabled(isEnabled).save(event);
 });
 
 multiMapper("onOfframpManager:UpdateOfframp", async ({ event, context }) => {

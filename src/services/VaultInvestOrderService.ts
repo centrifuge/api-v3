@@ -1,6 +1,6 @@
 import { VaultInvestOrder } from "ponder:schema";
 import type { Event } from "ponder:registry";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { serviceLog } from "../helpers/logger";
 import { bigintMax } from "../helpers/bigintMath";
 
@@ -12,11 +12,9 @@ import { bigintMax } from "../helpers/bigintMath";
  *
  * @extends {Service<typeof VaultInvestOrder>}
  */
-export class VaultInvestOrderService extends mixinCommonStatics(
-  Service<typeof VaultInvestOrder>,
-  VaultInvestOrder,
-  "VaultInvestOrder"
-) {
+export class VaultInvestOrderService extends Service<typeof VaultInvestOrder> {
+  static readonly entityTable = VaultInvestOrder;
+  static readonly entityName = "VaultInvestOrder";
   /**
    * Requests a deposit for the vault invest order.
    * @param requestedAssetsAmount - The amount of assets requested

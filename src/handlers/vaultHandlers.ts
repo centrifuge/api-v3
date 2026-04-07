@@ -1,5 +1,5 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { logEvent, serviceError, serviceLog } from "../helpers/logger";
+import { logEvent, serviceError } from "../helpers/logger";
 import {
   AccountService,
   AssetService,
@@ -71,7 +71,7 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
     },
     event,
     async (tokenInstancePosition) =>
-      await initialisePosition(context, tokenAddress, tokenInstancePosition)
+      await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
   )) as TokenInstancePositionService;
 
   const asset = (await AssetService.get(context, {
@@ -588,26 +588,3 @@ function getSharePrice(
   if (sharesAmount === 0n) return null;
   return (assetsAmount * 10n ** BigInt(18 - assetDecimals + shareDecimals)) / sharesAmount;
 }
-
-multiMapper("syncManager:SetMaxReserve", async ({ event, context }) => {
-  logEvent(event, context, "syncManager:SetMaxReserve");
-  const centrifugeId = await BlockchainService.getCentrifugeId(context);
-  const {
-    poolId,
-    scId: tokenId,
-    asset: assetAddress,
-    tokenId: _assetTokenId,
-    maxReserve,
-  } = event.args;
-
-  const vault = (await VaultService.get(context, {
-    centrifugeId,
-    poolId,
-    tokenId,
-    assetAddress,
-  })) as VaultService | null;
-  if (!vault)
-    return serviceLog(`Vault not found. Cannot retrieve vault. Maybe it's not deployed yet?`);
-
-  await vault.setMaxReserve(maxReserve).setCrosschainInProgress().save(event);
-});

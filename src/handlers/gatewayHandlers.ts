@@ -1,6 +1,8 @@
+import { CrosschainMessage } from "ponder:schema";
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceError } from "../helpers/logger";
 import { BlockchainService } from "../services";
+import type { DataWithoutDefaults } from "../services/Service";
 import { timestamper } from "../helpers/timestamper";
 
 import {
@@ -148,7 +150,7 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
   const pendingInsertsById = new Map<`0x${string}`, number>();
 
   const linkInstances: CrosschainMessageService[] = [];
-  const insertRows: Parameters<typeof CrosschainMessageService.insertMany>[1] = [];
+  const insertRows: DataWithoutDefaults<typeof CrosschainMessage>[] = [];
 
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i]!;

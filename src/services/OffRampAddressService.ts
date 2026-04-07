@@ -1,16 +1,14 @@
 import { OffRampAddress, OffRampAddressCrosschainInProgressTypes } from "ponder:schema";
 import { serviceLog } from "../helpers/logger";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 
 /**
  * Service for managing off-ramp addresses
  *
  */
-export class OffRampAddressService extends mixinCommonStatics(
-  Service<typeof OffRampAddress>,
-  OffRampAddress,
-  "OffRampAddress"
-) {
+export class OffRampAddressService extends Service<typeof OffRampAddress> {
+  static readonly entityTable = OffRampAddress;
+  static readonly entityName = "OffRampAddress";
   /**
    * Sets the crosschain progress for the offramp address.
    *

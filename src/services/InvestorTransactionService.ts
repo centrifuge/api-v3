@@ -1,4 +1,4 @@
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { InvestorTransaction } from "ponder:schema";
 import type { Context, Event } from "ponder:registry";
 import { serviceLog, expandInlineObject } from "../helpers/logger";
@@ -16,11 +16,9 @@ import { serviceLog, expandInlineObject } from "../helpers/logger";
  *   type: "DEPOSIT_REQUEST_UPDATED",
  *   data: {
  */
-export class InvestorTransactionService extends mixinCommonStatics(
-  Service<typeof InvestorTransaction>,
-  InvestorTransaction,
-  "InvestorTransaction"
-) {
+export class InvestorTransactionService extends Service<typeof InvestorTransaction> {
+  static readonly entityTable = InvestorTransaction;
+  static readonly entityName = "InvestorTransaction";
   /**
    * Creates an investor transaction record for an updated deposit request.
    *

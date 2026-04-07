@@ -1,5 +1,5 @@
-import { TokenInstance } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { TokenInstance, TokenInstanceCrosschainInProgressTypes } from "ponder:schema";
+import { Service } from "./Service";
 import { serviceLog } from "../helpers/logger";
 
 /**
@@ -8,13 +8,11 @@ import { serviceLog } from "../helpers/logger";
  * price, issuance amounts, and computation timestamps.
  *
  * Extends the base Service class with TokenInstance-specific functionality
- * and inherits common static methods through mixinCommonStatics.
+ * extending [`Service`](./Service.ts) with the usual entity static methods.
  */
-export class TokenInstanceService extends mixinCommonStatics(
-  Service<typeof TokenInstance>,
-  TokenInstance,
-  "TokenInstance"
-) {
+export class TokenInstanceService extends Service<typeof TokenInstance> {
+  static readonly entityTable = TokenInstance;
+  static readonly entityName = "TokenInstance";
   /**
    * Sets the token ID for the current token instance.
    *
@@ -117,6 +115,17 @@ export class TokenInstanceService extends mixinCommonStatics(
   public activate() {
     serviceLog(`Activating token instance ${this.data.centrifugeId}-${this.data.tokenId}`);
     this.data.isActive = true;
+    return this;
+  }
+
+  /**
+   * @param crosschainInProgress - Set when Hub notifies destination of share price update; omit to clear
+   */
+  public setCrosschainInProgress(
+    crosschainInProgress?: (typeof TokenInstanceCrosschainInProgressTypes)[number]
+  ) {
+    this.data.crosschainInProgress = crosschainInProgress ?? null;
+    serviceLog(`Setting crosschainInProgress to ${crosschainInProgress}`);
     return this;
   }
 }

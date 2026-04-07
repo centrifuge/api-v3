@@ -1,6 +1,6 @@
 import type { Event } from "ponder:registry";
 import { PendingRedeemOrder } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { serviceLog } from "../helpers/logger";
 
 /**
@@ -10,11 +10,9 @@ import { serviceLog } from "../helpers/logger";
  * including computation of approved amounts and execution of requests.
  * Extends the base Service class with common static methods.
  */
-export class PendingRedeemOrderService extends mixinCommonStatics(
-  Service<typeof PendingRedeemOrder>,
-  PendingRedeemOrder,
-  "PendingRedeemOrder"
-) {
+export class PendingRedeemOrderService extends Service<typeof PendingRedeemOrder> {
+  static readonly entityTable = PendingRedeemOrder;
+  static readonly entityName = "PendingRedeemOrder";
   /**
    * Updates the pending shares amount for the pending redeem order.
    * @param pendingSharesAmount - The amount of shares pending

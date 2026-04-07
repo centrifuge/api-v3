@@ -799,6 +799,12 @@ export const AssetRelations = relations(Asset, ({ one, many }) => ({
   }),
 }));
 
+export const TokenInstanceCrosschainInProgressTypes = [`NotifySharePrice`, `SetValuation`] as const;
+export const TokenInstanceCrosschainInProgress = onchainEnum(
+  "token_instance_crosschain_in_progress",
+  TokenInstanceCrosschainInProgressTypes
+);
+
 export const TokenInstanceColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   tokenId: t.hex().notNull(),
@@ -807,6 +813,7 @@ export const TokenInstanceColumns = (t: PgColumnsBuilders) => ({
   tokenPrice: t.bigint().default(0n),
   computedAt: t.timestamp(),
   totalIssuance: t.bigint().default(0n),
+  crosschainInProgress: TokenInstanceCrosschainInProgress("token_instance_crosschain_in_progress"),
   ...defaultColumns(t),
 });
 export const TokenInstance = onchainTable("token_instance", TokenInstanceColumns, (t) => ({
@@ -913,6 +920,12 @@ export const EscrowRelations = relations(Escrow, ({ one, many }) => ({
   holdingEscrows: many(HoldingEscrow, { relationName: "holdingEscrows" }),
 }));
 
+export const HoldingEscrowCrosschainInProgressTypes = [`NotifyAssetPrice`] as const;
+export const HoldingEscrowCrosschainInProgress = onchainEnum(
+  "holding_escrow_crosschain_in_progress",
+  HoldingEscrowCrosschainInProgressTypes
+);
+
 export const HoldingEscrowColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   poolId: t.bigint().notNull(),
@@ -922,6 +935,7 @@ export const HoldingEscrowColumns = (t: PgColumnsBuilders) => ({
   assetAmount: t.bigint().default(0n),
   assetPrice: t.bigint().default(0n),
   escrowAddress: t.hex().notNull(),
+  crosschainInProgress: HoldingEscrowCrosschainInProgress("holding_escrow_crosschain_in_progress"),
   ...defaultColumns(t),
 });
 export const HoldingEscrow = onchainTable("holding_escrow", HoldingEscrowColumns, (t) => ({
@@ -1034,12 +1048,21 @@ export const OfframpRelayer = onchainTable("offramp_relayer", OfframpRelayerColu
   addressIdx: index().on(t.address),
 }));
 
+export const OnRampAssetCrosschainInProgressTypes = [`Enabled`, `Disabled`] as const;
+export const OnRampAssetCrosschainInProgress = onchainEnum(
+  "on_ramp_asset_crosschain_in_progress",
+  OnRampAssetCrosschainInProgressTypes
+);
+
 const OnRampAssetColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   tokenId: t.hex().notNull(),
   centrifugeId: t.text().notNull(),
   assetAddress: t.hex().notNull(),
   isEnabled: t.boolean().notNull().default(false),
+  crosschainInProgress: OnRampAssetCrosschainInProgress(
+    "on_ramp_asset_crosschain_in_progress"
+  ),
   ...defaultColumns(t),
 });
 
@@ -1098,18 +1121,26 @@ export const OffRampAddressRelations = relations(OffRampAddress, ({ one }) => ({
   }),
 }));
 
+export const PolicyCrosschainInProgressTypes = [`UpdatePolicy`] as const;
+export const PolicyCrosschainInProgress = onchainEnum(
+  "policy_crosschain_in_progress",
+  PolicyCrosschainInProgressTypes
+);
+
 const PolicyColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   centrifugeId: t.text().notNull(),
   strategistAddress: t.hex().notNull(),
-  root: t.hex().notNull(),
+  root: t.hex(),
+  crosschainInProgress: PolicyCrosschainInProgress("policy_crosschain_in_progress"),
   ...defaultColumns(t),
 });
 
 export const Policy = onchainTable("policy", PolicyColumns, (t) => ({
-  id: primaryKey({ columns: [t.poolId, t.centrifugeId] }),
+  id: primaryKey({ columns: [t.poolId, t.centrifugeId, t.strategistAddress] }),
   poolIdx: index().on(t.poolId),
   centrifugeIdIdx: index().on(t.centrifugeId),
+  strategistIdx: index().on(t.strategistAddress),
 }));
 
 export const PolicyRelations = relations(Policy, ({ one }) => ({

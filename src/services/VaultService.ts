@@ -1,5 +1,5 @@
 import { Vault, VaultCrosschainInProgressTypes } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { VaultStatuses } from "ponder:schema";
 import { serviceLog } from "../helpers/logger";
 
@@ -11,7 +11,9 @@ import { serviceLog } from "../helpers/logger";
  *
  * @extends {Service<typeof Vault>}
  */
-export class VaultService extends mixinCommonStatics(Service<typeof Vault>, Vault, "Vault") {
+export class VaultService extends Service<typeof Vault> {
+  static readonly entityTable = Vault;
+  static readonly entityName = "Vault";
   /**
    * Sets the status of the vault.
    *

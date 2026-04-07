@@ -1,12 +1,12 @@
 import { PoolManager, PoolManagerCrosschainInProgressTypes } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { serviceLog } from "../helpers/logger";
 
 /**
  * Service class for managing PoolManager entities.
  *
  * Extends the base Service class with PoolManager-specific functionality
- * and inherits common static methods through mixinCommonStatics.
+ * extending [`Service`](./Service.ts) with the usual entity static methods.
  *
  * @example
  * ```typescript
@@ -16,11 +16,9 @@ import { serviceLog } from "../helpers/logger";
  *   centrifugeId: "centrifuge:123",
  *   poolId: 123n,
  */
-export class PoolManagerService extends mixinCommonStatics(
-  Service<typeof PoolManager>,
-  PoolManager,
-  "PoolManager"
-) {
+export class PoolManagerService extends Service<typeof PoolManager> {
+  static readonly entityTable = PoolManager;
+  static readonly entityName = "PoolManager";
   /**
    * Sets the isHubManager property for the manager.
    *

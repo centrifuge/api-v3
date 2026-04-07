@@ -1,5 +1,5 @@
-import { HoldingEscrow } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { HoldingEscrow, HoldingEscrowCrosschainInProgressTypes } from "ponder:schema";
+import { Service } from "./Service";
 import { serviceLog } from "../helpers/logger";
 
 /**
@@ -11,11 +11,9 @@ import { serviceLog } from "../helpers/logger";
  *
  * @extends {Service<typeof HoldingEscrow>}
  */
-export class HoldingEscrowService extends mixinCommonStatics(
-  Service<typeof HoldingEscrow>,
-  HoldingEscrow,
-  "HoldingEscrow"
-) {
+export class HoldingEscrowService extends Service<typeof HoldingEscrow> {
+  static readonly entityTable = HoldingEscrow;
+  static readonly entityName = "HoldingEscrow";
   /**
    * Increases the asset amount in the holding escrow.
    *
@@ -69,6 +67,17 @@ export class HoldingEscrowService extends mixinCommonStatics(
   public setAssetPrice(price: bigint) {
     serviceLog("Setting asset price to: ", price);
     this.data.assetPrice = price;
+    return this;
+  }
+
+  /**
+   * @param crosschainInProgress - Set when Hub notifies destination of asset price update; omit to clear
+   */
+  public setCrosschainInProgress(
+    crosschainInProgress?: (typeof HoldingEscrowCrosschainInProgressTypes)[number]
+  ) {
+    this.data.crosschainInProgress = crosschainInProgress ?? null;
+    serviceLog(`Setting crosschainInProgress to ${crosschainInProgress}`);
     return this;
   }
 }

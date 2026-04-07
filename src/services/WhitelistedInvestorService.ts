@@ -1,5 +1,5 @@
 import { WhitelistedInvestor } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { MAX_UINT64_DATE } from "../config";
 
 /**
@@ -11,11 +11,9 @@ import { MAX_UINT64_DATE } from "../config";
  * @see {@link Service} Base service class for common CRUD operations
  * @see {@link WhitelistedInvestor} Investor whitelist entity schema definition
  */
-export class WhitelistedInvestorService extends mixinCommonStatics(
-  Service<typeof WhitelistedInvestor>,
-  WhitelistedInvestor,
-  "WhitelistedInvestor"
-) {
+export class WhitelistedInvestorService extends Service<typeof WhitelistedInvestor> {
+  static readonly entityTable = WhitelistedInvestor;
+  static readonly entityName = "WhitelistedInvestor";
   /**
    * Freezes the investor whitelist record.
    *

@@ -1,16 +1,14 @@
 import { OfframpRelayer, OfframpRelayerCrosschainInProgressTypes } from "ponder:schema";
 import { serviceLog } from "../helpers/logger";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 
 /**
  * Service for managing off-ramp relayers.
  *
  */
-export class OffRampRelayerService extends mixinCommonStatics(
-  Service<typeof OfframpRelayer>,
-  OfframpRelayer,
-  "OffRampRelayer"
-) {
+export class OffRampRelayerService extends Service<typeof OfframpRelayer> {
+  static readonly entityTable = OfframpRelayer;
+  static readonly entityName = "OffRampRelayer";
   /**
    * Sets the crosschain progress for the offramp relayer.
    *

@@ -1,18 +1,36 @@
+import type { Context, Event } from "ponder:registry";
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceError, serviceLog, expandInlineObject } from "../helpers/logger";
+import { formatBytes32ToAddress } from "../helpers/formatter";
 import {
   WhitelistedInvestorService,
   TokenService,
   PoolSpokeBlockchainService,
   PoolManagerService,
   AccountService,
+  BlockchainService,
   centrifugeIdFromAssetId,
   VaultService,
   AssetService,
+  MerkleProofManagerService,
   OffRampAddressService,
   OffRampRelayerService,
+  OnRampAssetService,
+  OnOffRampManagerService,
+  PolicyService,
+  EscrowService,
+  HoldingEscrowService,
+  TokenInstanceService,
 } from "../services";
+import {
+  decodeMerklePolicyUpdatePayload,
+  decodeOnOfframpManagerTrustedCall,
+  decodeSyncManagerTrustedCall,
+  decodeUpdateRestriction,
+  isMerklePolicyPayloadShape,
+} from "../helpers/updateContractDecoders";
 import { VaultCrosschainInProgressTypes } from "ponder:schema";
+import { getContractNameForAddress } from "../contracts";
 
 multiMapper("hub:NotifyPool", async ({ event, context }) => {
   logEvent(event, context, "hub:NotifyPool");
@@ -26,6 +44,68 @@ multiMapper("hub:NotifyPool", async ({ event, context }) => {
     },
     event
   );
+});
+
+multiMapper("hub:NotifyAssetPrice", async ({ event, context }) => {
+  logEvent(event, context, "hub:NotifyAssetPrice");
+  const { centrifugeId, poolId, scId: tokenId, assetId } = event.args;
+  const destCentrifugeId = centrifugeId.toString();
+
+  const asset = (await AssetService.get(context, { id: assetId })) as AssetService | null;
+  if (!asset)
+    return serviceError(`Asset not found for assetId ${assetId}. Cannot track NotifyAssetPrice`);
+
+  const assetAddress = asset.read().address as `0x${string}`;
+  if (!assetAddress)
+    return serviceError(
+      `Asset has no address for assetId ${assetId}. Cannot track NotifyAssetPrice`
+    );
+
+  const escrow = (await EscrowService.get(context, {
+    poolId,
+    centrifugeId: destCentrifugeId,
+  })) as EscrowService | null;
+  if (!escrow) {
+    return serviceLog(
+      `Escrow not found for pool ${poolId} on centrifuge ${destCentrifugeId}; skipping NotifyAssetPrice in-progress`
+    );
+  }
+  const { address: escrowAddress } = escrow.read();
+
+  const holdingEscrow = (await HoldingEscrowService.getOrInit(
+    context,
+    {
+      centrifugeId: destCentrifugeId,
+      poolId,
+      tokenId,
+      assetId,
+      assetAddress,
+      escrowAddress,
+    },
+    event,
+    undefined,
+    true
+  )) as HoldingEscrowService;
+
+  await holdingEscrow.setCrosschainInProgress("NotifyAssetPrice").save(event);
+});
+
+multiMapper("hub:NotifySharePrice", async ({ event, context }) => {
+  logEvent(event, context, "hub:NotifySharePrice");
+  const { centrifugeId, scId: tokenId } = event.args;
+  const destCentrifugeId = centrifugeId.toString();
+
+  const tokenInstance = (await TokenInstanceService.get(context, {
+    centrifugeId: destCentrifugeId,
+    tokenId,
+  })) as TokenInstanceService | null;
+  if (!tokenInstance) {
+    return serviceLog(
+      `TokenInstance not found for centrifuge ${destCentrifugeId} token ${tokenId}; skipping NotifySharePrice in-progress`
+    );
+  }
+
+  await tokenInstance.setCrosschainInProgress("NotifySharePrice").save(event);
 });
 
 multiMapper("hub:UpdateRestriction", async ({ event, context }) => {
@@ -47,7 +127,7 @@ multiMapper("hub:UpdateRestriction", async ({ event, context }) => {
     return;
   }
 
-  const [restrictionType, accountAddress, validUntil] = decodedPayload;
+  const { accountAddress } = decodedPayload;
 
   const whitelistedInvestor = (await WhitelistedInvestorService.getOrInit(
     context,
@@ -60,20 +140,18 @@ multiMapper("hub:UpdateRestriction", async ({ event, context }) => {
     event
   )) as WhitelistedInvestorService;
 
-  switch (restrictionType) {
-    case RestrictionType.Member:
-      whitelistedInvestor.setValidUntil(validUntil);
+  switch (decodedPayload.kind) {
+    case "Member":
+      whitelistedInvestor.setValidUntil(decodedPayload.validUntil);
       await whitelistedInvestor.save(event);
       break;
-    case RestrictionType.Freeze:
+    case "Freeze":
       whitelistedInvestor.freeze();
       await whitelistedInvestor.save(event);
       break;
-    case RestrictionType.Unfreeze:
+    case "Unfreeze":
       whitelistedInvestor.unfreeze();
       await whitelistedInvestor.save(event);
-      break;
-    default:
       break;
   }
 });
@@ -137,267 +215,254 @@ multiMapper("hub:UpdateVault", async ({ event, context }) => {
 
 multiMapper("hub:UpdateContract", async ({ event, context }) => {
   logEvent(event, context, "hub:UpdateContract");
-  const { centrifugeId: destCentrifugeId, poolId, scId: tokenId, payload } = event.args;
+  const { centrifugeId, poolId, scId: tokenId, payload, target } = event.args;
+  const targetAddr = formatBytes32ToAddress(target);
+  const destChainId = BlockchainService.getChainIdFromCentrifugeId(centrifugeId.toString());
+  const destCentrifugeId = centrifugeId.toString();
 
-  const decoded = decodeUpdateContract(payload);
-  if (!decoded || !decoded.payload)
-    return serviceError(`Invalid update contract payload: ${payload}`);
+  if (
+    await handleMerklePolicyUpdate(context, event, {
+      poolId,
+      centrifugeId: destCentrifugeId,
+      targetAddr,
+      payload,
+    })
+  )
+    return;
 
-  serviceLog(`Decoded update contract payload: ${expandInlineObject(decoded)}`);
+  if (
+    await handleSyncManagerTrustedCall(context, event, {
+      poolId,
+      tokenId,
+      centrifugeId: destCentrifugeId,
+      payload,
+      destChainId,
+      targetAddr,
+    })
+  )
+    return;
 
-  if (decoded.kind === "MaxReserve" && "maxReserve" in decoded.payload) {
-    const { assetId, maxReserve } = decoded.payload as { assetId: bigint; maxReserve: bigint };
+  if (
+    await handleOnOfframpUpdate(context, event, {
+      poolId,
+      tokenId,
+      centrifugeId: destCentrifugeId,
+      payload,
+      targetAddr,
+    })
+  )
+    return;
+});
+
+/** Placeholder root until spoke `UpdatePolicy` finalizes the Merkle root. */
+const ZERO_POLICY_ROOT =
+  "0x0000000000000000000000000000000000000000000000000000000000000000" as const;
+
+type HubUpdateContractBase = {
+  poolId: bigint;
+  tokenId: `0x${string}`;
+  centrifugeId: string;
+  payload: `0x${string}`;
+};
+
+/** Merkle policy path: returns `false` if payload is not Merkle-shaped; `true` if handled (including logged errors). */
+async function handleMerklePolicyUpdate(
+  context: Context,
+  event: Event,
+  input: Pick<HubUpdateContractBase, "poolId" | "centrifugeId" | "payload"> & {
+    targetAddr: `0x${string}`;
+  }
+): Promise<boolean> {
+  const { poolId, centrifugeId, targetAddr, payload } = input;
+  if (!isMerklePolicyPayloadShape(payload)) return false;
+
+  const strategistAddress = decodeMerklePolicyUpdatePayload(payload);
+  if (!strategistAddress) {
+    serviceError(`Invalid Merkle policy update payload for manager ${targetAddr}: ${payload}`);
+    return true;
+  }
+  const mpm = (await MerkleProofManagerService.get(context, {
+    poolId,
+    address: targetAddr,
+    centrifugeId,
+  })) as MerkleProofManagerService | null;
+  if (!mpm) {
+    serviceError(`MerkleProofManager not found for address ${targetAddr}. Cannot update policy`);
+    return true;
+  }
+  const policy = (await PolicyService.getOrInit(
+    context,
+    {
+      poolId,
+      centrifugeId,
+      strategistAddress,
+      root: ZERO_POLICY_ROOT,
+    },
+    event,
+    undefined,
+    true
+  )) as PolicyService;
+  await policy.setCrosschainInProgress("UpdatePolicy").save(event);
+  return true;
+}
+
+/** Sync manager path: `false` if target is not `syncManager` in the registry; `true` if handled. */
+async function handleSyncManagerTrustedCall(
+  context: Context,
+  event: Event,
+  input: HubUpdateContractBase & {
+    destChainId: number | null;
+    targetAddr: `0x${string}`;
+  }
+): Promise<boolean> {
+  const { poolId, tokenId, centrifugeId, payload, destChainId, targetAddr } = input;
+  const registryName =
+    destChainId != null ? getContractNameForAddress(destChainId, targetAddr) : null;
+  if (registryName !== "syncManager") return false;
+
+  const decoded = decodeSyncManagerTrustedCall(payload);
+  if (!decoded) return true;
+
+  if (decoded.kind === "Valuation") {
+    const tokenInstance = (await TokenInstanceService.get(context, {
+      centrifugeId,
+      tokenId,
+    })) as TokenInstanceService | null;
+    if (!tokenInstance) {
+      serviceError(
+        `TokenInstance not found for sync valuation update (centrifugeId=${centrifugeId}, tokenId=${tokenId})`
+      );
+      return true;
+    }
+    await tokenInstance.setCrosschainInProgress("SetValuation").save(event);
+    return true;
+  }
+
+  if (decoded.kind === "MaxReserve") {
+    const { assetId, maxReserve } = decoded;
     const asset = await AssetService.get(context, { id: assetId });
-    if (!asset)
-      return serviceError(`Asset not found for assetId ${assetId}. Cannot update vault maxReserve`);
-    const assetAddress = asset.read().address as `0x${string}`;
-    if (!assetAddress) return serviceError(`Asset has no address for assetId ${assetId}`);
+    if (!asset) {
+      serviceError(`Asset not found for assetId ${assetId}. Cannot update vault maxReserve`);
+      return true;
+    }
+    const rawAssetAddress = asset.read().address as `0x${string}`;
+    if (!rawAssetAddress) {
+      serviceError(`Asset has no address for assetId ${assetId}`);
+      return true;
+    }
+    const assetAddress = formatBytes32ToAddress(rawAssetAddress);
 
     const vault = (await VaultService.get(context, {
-      centrifugeId: destCentrifugeId.toString(),
+      centrifugeId,
       poolId,
       tokenId,
       assetAddress,
     })) as VaultService | null;
-    if (!vault) return serviceError(`Vault not found. Cannot update maxReserve`);
+    if (!vault) {
+      serviceError(`Vault not found. Cannot update maxReserve`);
+      return true;
+    }
     await vault.setMaxReserve(maxReserve).setCrosschainInProgress().save(event);
+    return true;
   }
 
-  if (decoded.kind === "MaxReserve" && "relayerAddress" in decoded.payload) {
-    const { relayerAddress, isEnabled } = decoded.payload;
+  return true;
+}
+
+/**
+ * On/off-ramp manager path: `false` if there is no indexed manager for `targetAddr` or the payload
+ * is not an on/off-ramp trusted call; `true` if handled. No static-registry guard: manager
+ * addresses are factory-deployed and absent from `chain.contracts`, while hub/vault/etc. are not
+ * stored as `OnOffRampManager` rows.
+ */
+async function handleOnOfframpUpdate(
+  context: Context,
+  event: Event,
+  input: HubUpdateContractBase & { targetAddr: `0x${string}` }
+): Promise<boolean> {
+  const { poolId, tokenId, centrifugeId, payload, targetAddr } = input;
+
+  const hasOnOffRampManager = await OnOffRampManagerService.get(context, {
+    address: targetAddr,
+    centrifugeId,
+  });
+  if (!hasOnOffRampManager) return false;
+
+  const decoded = decodeOnOfframpManagerTrustedCall(payload);
+  if (!decoded) return false;
+  if (decoded.kind === "Withdraw") return true;
+
+  serviceLog(`Decoded OnOfframp UpdateContract payload: ${expandInlineObject(decoded)}`);
+
+  if (decoded.kind === "Onramp") {
+    const { assetId, isEnabled } = decoded;
+    const asset = await AssetService.get(context, { id: assetId });
+    if (!asset) {
+      serviceError(`Asset not found for assetId ${assetId}. Cannot update onramp`);
+      return true;
+    }
+    const assetAddress = asset.read().address as `0x${string}`;
+    if (!assetAddress) {
+      serviceError(`Asset has no address for assetId ${assetId}`);
+      return true;
+    }
+    const onRampAsset = (await OnRampAssetService.getOrInit(
+      context,
+      { poolId, centrifugeId, tokenId, assetAddress },
+      event,
+      undefined,
+      true
+    )) as OnRampAssetService;
+    await onRampAsset.setCrosschainInProgress(isEnabled ? "Enabled" : "Disabled").save(event);
+    return true;
+  }
+
+  if (decoded.kind === "Relayer") {
+    const { relayerAddress, isEnabled } = decoded;
     const offrampRelayer = (await OffRampRelayerService.getOrInit(
       context,
       {
         poolId,
-        centrifugeId: destCentrifugeId.toString(),
+        centrifugeId,
         tokenId,
-        address: relayerAddress,
+        address: formatBytes32ToAddress(relayerAddress),
       },
       event,
       undefined,
       true
     )) as OffRampRelayerService;
     await offrampRelayer.setCrosschainInProgress(isEnabled ? "Enabled" : "Disabled").save(event);
+    return true;
   }
-  if (decoded.kind === "Offramp" && "receiverAddress" in decoded.payload) {
-    const { assetId, receiverAddress, isEnabled } = decoded.payload as {
-      assetId: bigint;
-      receiverAddress: `0x${string}`;
-      isEnabled: boolean;
-    };
+
+  if (decoded.kind === "Offramp") {
+    const { assetId, receiverAddress, isEnabled } = decoded;
     const asset = await AssetService.get(context, { id: assetId });
-    if (!asset)
-      return serviceError(`Asset not found for assetId ${assetId}. Cannot update offramp`);
-    const assetAddress = asset.read().address as `0x${string}`;
-    if (!assetAddress) return serviceError(`Asset has no address for assetId ${assetId}`);
+    if (!asset) {
+      serviceError(`Asset not found for assetId ${assetId}. Cannot update offramp`);
+      return true;
+    }
+    const rawAssetAddress = asset.read().address as `0x${string}`;
+    if (!rawAssetAddress) {
+      serviceError(`Asset has no address for assetId ${assetId}`);
+      return true;
+    }
     const offrampAddress = (await OffRampAddressService.getOrInit(
       context,
       {
         poolId,
-        centrifugeId: destCentrifugeId.toString(),
+        centrifugeId,
         tokenId,
-        assetAddress,
-        receiverAddress,
+        assetAddress: formatBytes32ToAddress(rawAssetAddress),
+        receiverAddress: formatBytes32ToAddress(receiverAddress),
       },
       event,
       undefined,
       true
     )) as OffRampAddressService;
     await offrampAddress.setCrosschainInProgress(isEnabled ? "Enabled" : "Disabled").save(event);
-  }
-});
-
-enum RestrictionType {
-  "Invalid",
-  "Member",
-  "Freeze",
-  "Unfreeze",
-}
-
-/**
- * Decodes the update restriction payload into its parameters.
- * @param payload - The payload to decode.
- * @returns The decoded parameters.
- */
-function decodeUpdateRestriction(
-  payload: `0x${string}`
-):
-  | [
-      restrictionType: (typeof RestrictionType)[keyof typeof RestrictionType],
-      accountAddress: `0x${string}`,
-      validUntil: Date | null,
-    ]
-  | null {
-  const buffer = Buffer.from(payload.slice(2), "hex");
-  const restrictionType = buffer.readUInt8(0);
-  const accountBuffer = buffer.subarray(1, 32);
-  const accountAddress = `0x${accountBuffer.toString("hex").slice(0, 40)}` as `0x${string}`;
-  switch (restrictionType) {
-    case RestrictionType.Member:
-      const _validUntil = Number(buffer.readBigUInt64BE(33) * 1000n);
-      const validUntil = Number.isSafeInteger(_validUntil)
-        ? new Date(Number(_validUntil))
-        : new Date("9999-12-31T23:59:59Z");
-      return [restrictionType, accountAddress, validUntil];
-    case RestrictionType.Freeze:
-      return [restrictionType, accountAddress, null];
-    case RestrictionType.Unfreeze:
-      return [restrictionType, accountAddress, null];
-    default:
-      return null;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// UpdateContract: single-pass decoding (SyncManager, OnOfframpManager, BaseTransferHook)
-// ---------------------------------------------------------------------------
-
-/** ABI word size. Solidity abi.encode uses 32-byte words; uint8/uint128/bool are right-aligned. */
-const WORD_SIZE = 32;
-/** Start offset of word N (0-based). */
-const word = (n: number) => n * WORD_SIZE;
-/** Decode a value from the 32-byte ABI word at wordIndex using the given decoder. */
-function decodeAtWord<T>(buffer: Buffer, wordIndex: number, decoder: (chunk: Buffer) => T): T {
-  const start = wordIndex * WORD_SIZE;
-  return decoder(buffer.subarray(start, start + WORD_SIZE));
-}
-/** Decoder: right-aligned uint8 in a 32-byte word (bytes 31). */
-const decodeUint8InWord = (chunk: Buffer): number => chunk.readUInt8(WORD_SIZE - 1);
-/** Decoder: right-aligned uint128 in a 32-byte word (bytes 16–31, big-endian). */
-const decodeUint128InWord = (chunk: Buffer): bigint =>
-  (chunk.readBigUInt64BE(16) << 64n) | chunk.readBigUInt64BE(24);
-/** Decoder: bytes32 as 20-byte address (right-padded, bytes 12–31), lowercase hex for stable IDs. */
-const decodeBytes32Address = (chunk: Buffer): `0x${string}` =>
-  `0x${chunk.subarray(12, 32).toString("hex")}`.toLowerCase() as `0x${string}`;
-/** Payload kind (uint8) in UpdateContract; matches SyncManager / OnOfframpManager / BaseTransferHook TrustedCall. */
-enum UpdateContractPayloadKind {
-  "Valuation", // SyncManager.Valuation | OnOfframpManager.Onramp | BaseTransferHook.UpdateHookManager
-  "MaxReserve", // SyncManager.MaxReserve | OnOfframpManager.Relayer
-  "Offramp", // OnOfframpManager.Offramp
-  "Withdraw", // OnOfframpManager.Withdraw
-}
-
-/** All possible decoded payloads from protocol UpdateContract, by kind. Payload is null when shape is unrecognized. */
-export type DecodedUpdateContract =
-  | {
-      kind: "Valuation";
-      payload:
-        | { valuation: `0x${string}` } // SyncManager
-        | { assetId: bigint; isEnabled: boolean } // OnOfframpManager.Onramp
-        | { manager: `0x${string}`; canManage: boolean } // BaseTransferHook.UpdateHookManager
-        | null;
-    }
-  | {
-      kind: "MaxReserve";
-      payload:
-        | { assetId: bigint; maxReserve: bigint } // SyncManager
-        | { relayerAddress: `0x${string}`; isEnabled: boolean } // OnOfframpManager.Relayer
-        | null;
-    }
-  | {
-      kind: "Offramp";
-      payload:
-        | { assetId: bigint; receiverAddress: `0x${string}`; isEnabled: boolean } // OnOfframpManager.Offramp
-        | null;
-    }
-  | {
-      kind: "Withdraw";
-      payload:
-        | { assetId: bigint; amount: bigint; receiverAddress: `0x${string}` } // OnOfframpManager.Withdraw
-        | null;
-    };
-
-/** True if word at index looks like a right-aligned uint128 (bytes 0–15 zero). */
-function isWordZeroPaddedUint128(b: Buffer, wordIndex: number): boolean {
-  const start = wordIndex * WORD_SIZE;
-  for (let i = 0; i < 16; i++) if (b[start + i] !== 0) return false;
-  return true;
-}
-
-/**
- * Decodes the update contract payload into its parameters.
- * Does not resolve target address; decoding is based only on payload kind and shape.
- * @param payload - The payload to decode.
- * @returns The decoded parameters.
- */
-export function decodeUpdateContract(payload: `0x${string}`): DecodedUpdateContract | null {
-  const b = Buffer.from(payload.slice(2), "hex");
-  if (b.length < WORD_SIZE) return null;
-  const kindValue = decodeAtWord(b, 0, decodeUint8InWord);
-  // Numeric TS enums list reverse-mapping keys ("0","1",…) first in Object.keys — use enum[value] for the name.
-  if (
-    kindValue < UpdateContractPayloadKind.Valuation ||
-    kindValue > UpdateContractPayloadKind.Withdraw
-  ) {
-    return null;
-  }
-  const kind = UpdateContractPayloadKind[kindValue] as DecodedUpdateContract["kind"];
-
-  const result: DecodedUpdateContract = {
-    kind,
-    payload: null,
-  };
-
-  // ABI layout: each slot is 32 bytes; uint8/uint128/bool right-aligned.
-  switch (kind) {
-    case "Valuation":
-      // (uint8, bytes32) = 2 words — SyncManager only
-      if (b.length === word(2)) {
-        result.payload = {
-          valuation: decodeAtWord(b, 1, decodeBytes32Address),
-        };
-      }
-      // (uint8, uint128, bool) = 3 words (Onramp) | (uint8, bytes32, bool) = 3 words (UpdateHookManager)
-      if (b.length === word(3) && isWordZeroPaddedUint128(b, 1)) {
-        result.payload = {
-          assetId: decodeAtWord(b, 1, decodeUint128InWord),
-          isEnabled: decodeAtWord(b, 2, decodeUint8InWord) !== 0,
-        };
-      }
-      if (b.length === word(3) && !isWordZeroPaddedUint128(b, 1)) {
-        result.payload = {
-          manager: decodeAtWord(b, 1, decodeBytes32Address),
-          canManage: decodeAtWord(b, 2, decodeUint8InWord) !== 0,
-        };
-      }
-      break;
-    case "MaxReserve":
-      // (uint8, uint128, uint128) = 3 words (SyncManager) | (uint8, bytes32, bool) = 3 words (Relayer)
-      if (b.length === word(3)) {
-        if (isWordZeroPaddedUint128(b, 1) && isWordZeroPaddedUint128(b, 2)) {
-          result.payload = {
-            assetId: decodeAtWord(b, 1, decodeUint128InWord),
-            maxReserve: decodeAtWord(b, 2, decodeUint128InWord),
-          };
-        } else {
-          result.payload = {
-            relayerAddress: decodeAtWord(b, 1, decodeBytes32Address),
-            isEnabled: decodeAtWord(b, 2, decodeUint8InWord) !== 0,
-          };
-        }
-      }
-      break;
-    case "Offramp":
-      // (uint8, uint128, bytes32, bool) = 4 words
-      if (b.length === word(4)) {
-        result.payload = {
-          assetId: decodeAtWord(b, 1, decodeUint128InWord),
-          receiverAddress: decodeAtWord(b, 2, decodeBytes32Address),
-          isEnabled: decodeAtWord(b, 3, decodeUint8InWord) !== 0,
-        };
-      }
-      break;
-    case "Withdraw":
-      // (uint8, uint128, uint128, bytes32) = 4 words
-      if (b.length === word(4)) {
-        result.payload = {
-          assetId: decodeAtWord(b, 1, decodeUint128InWord),
-          amount: decodeAtWord(b, 2, decodeUint128InWord),
-          receiverAddress: decodeAtWord(b, 3, decodeBytes32Address),
-        };
-      }
-      break;
+    return true;
   }
 
-  return result;
+  return false;
 }

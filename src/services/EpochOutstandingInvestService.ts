@@ -1,5 +1,5 @@
 import type { Event } from "ponder:registry";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { EpochOutstandingInvest } from "ponder:schema";
 import { serviceLog } from "../helpers/logger";
 
@@ -10,11 +10,9 @@ import { serviceLog } from "../helpers/logger";
  * including computation of approved amounts and execution of requests.
  * Extends the base Service class with common static methods.
  */
-export class EpochOutstandingInvestService extends mixinCommonStatics(
-  Service<typeof EpochOutstandingInvest>,
-  EpochOutstandingInvest,
-  "EpochOutstandingInvest"
-) {
+export class EpochOutstandingInvestService extends Service<typeof EpochOutstandingInvest> {
+  static readonly entityTable = EpochOutstandingInvest;
+  static readonly entityName = "EpochOutstandingInvest";
   /**
    * Updates the pending assets amount for the epoch outstanding invest.
    *

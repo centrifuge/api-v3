@@ -1,7 +1,8 @@
 import { TokenInstancePosition } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { ERC20Abi } from "../../abis/ERC20";
 import { Context } from "ponder:registry";
+import { readContractSafe, type ReadContractSafeEvent } from "../helpers/readContractSafe";
 import { serviceLog } from "../helpers/logger";
 
 /**
@@ -19,11 +20,9 @@ import { serviceLog } from "../helpers/logger";
  * @property {number} updatedAtBlock - Block number of last update
  * @property {string} updatedAtTxHash - Transaction hash of last update
  */
-export class TokenInstancePositionService extends mixinCommonStatics(
-  Service<typeof TokenInstancePosition>,
-  TokenInstancePosition,
-  "TokenInstancePosition"
-) {
+export class TokenInstancePositionService extends Service<typeof TokenInstancePosition> {
+  static readonly entityTable = TokenInstancePosition;
+  static readonly entityName = "TokenInstancePosition";
   /**
    * Adds a balance to the token position.
    *
@@ -72,19 +71,22 @@ export class TokenInstancePositionService extends mixinCommonStatics(
  * @param context - The context object
  * @param tokenAddress - The address of the token
  * @param tokenInstance - The token instance position data
+ * @param event - When set, balance is read via {@link readContractSafe} (same-block RPC workaround).
  */
 export async function initialisePosition(
   context: Context,
+  event: ReadContractSafeEvent,
   tokenAddress: `0x${string}`,
   tokenInstancePosition: TokenInstancePositionService["data"]
 ) {
   const { accountAddress } = tokenInstancePosition;
-  const balance = await context.client.readContract({
+  const readArgs = {
     abi: ERC20Abi,
     address: tokenAddress,
-    functionName: "balanceOf",
-    args: [accountAddress],
-  });
+    functionName: "balanceOf" as const,
+    args: [accountAddress] as const,
+  };
+  const balance = await readContractSafe(context, event, readArgs);
   serviceLog(
     `Setting initial balance for account ${accountAddress} of token ${tokenAddress} to ${balance}`
   );

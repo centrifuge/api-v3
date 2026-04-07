@@ -18,6 +18,7 @@ import { HoldingEscrowSnapshot } from "ponder:schema";
 import { deployVault, linkVault, unlinkVault } from "./vaultRegistryHandlers";
 import { getInitialHolders } from "../config";
 import { initialisePosition } from "../services";
+import { readContractSafe } from "../helpers/readContractSafe";
 
 multiMapper("spoke:DeployVault", deployVault);
 
@@ -55,11 +56,10 @@ multiMapper("spoke:AddShareClass", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const totalSupply = await context.client.readContract({
+  const totalSupply = await readContractSafe(context, event, {
     abi: ERC20Abi,
     address: tokenAddress,
     functionName: "totalSupply",
-    args: [],
   });
 
   // Get the existing token instance
@@ -109,7 +109,7 @@ multiMapper("spoke:AddShareClass", async ({ event, context }) => {
             },
             event,
             async (tokenInstancePosition) =>
-              await initialisePosition(context, tokenAddress, tokenInstancePosition)
+              await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
           )) as TokenInstancePositionService;
         })
       );
@@ -138,9 +138,11 @@ multiMapper("spoke:UpdateSharePrice", async ({ event, context }) => {
   })) as TokenInstanceService;
   if (!tokenInstance) return serviceError(`TokenInstance not found. Cannot update token price`);
 
-  await tokenInstance.setTokenPrice(tokenPrice);
-  await tokenInstance.setComputedAt(computedAt);
-  await tokenInstance.save(event);
+  await tokenInstance
+    .setTokenPrice(tokenPrice)
+    .setComputedAt(computedAt)
+    .setCrosschainInProgress()
+    .save(event);
 });
 
 multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
@@ -165,9 +167,12 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
     return;
   }
 
-  const escrowAddress = await context.client.readContract({
-    abi: Abis[indexerVersion as keyof typeof Abis].PoolEscrowFactory,
-    address: poolEscrowFactoryAddress.address,
+  const poolEscrowFactoryAbi = Abis[indexerVersion as keyof typeof Abis].PoolEscrowFactory;
+  const poolEscrowFactoryAddr = poolEscrowFactoryAddress.address;
+
+  const escrowAddress = await readContractSafe(context, event, {
+    abi: poolEscrowFactoryAbi,
+    address: poolEscrowFactoryAddr,
     functionName: "escrow",
     args: [poolId],
   });
@@ -197,8 +202,7 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
     event
   )) as HoldingEscrowService;
 
-  await holdingEscrow.setAssetPrice(assetPrice);
-  await holdingEscrow.save(event);
+  await holdingEscrow.setAssetPrice(assetPrice).setCrosschainInProgress().save(event);
 
   await snapshotter(
     context,
