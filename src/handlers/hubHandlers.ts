@@ -321,32 +321,51 @@ async function handleSyncManagerTrustedCall(
   if (registryName !== "syncManager") return false;
 
   const decoded = decodeSyncManagerTrustedCall(payload);
-  if (!decoded || decoded.kind !== "MaxReserve") return true;
+  if (!decoded) return true;
 
-  const { assetId, maxReserve } = decoded;
-  const asset = await AssetService.get(context, { id: assetId });
-  if (!asset) {
-    serviceError(`Asset not found for assetId ${assetId}. Cannot update vault maxReserve`);
+  if (decoded.kind === "Valuation") {
+    const tokenInstance = (await TokenInstanceService.get(context, {
+      centrifugeId,
+      tokenId,
+    })) as TokenInstanceService | null;
+    if (!tokenInstance) {
+      serviceError(
+        `TokenInstance not found for sync valuation update (centrifugeId=${centrifugeId}, tokenId=${tokenId})`
+      );
+      return true;
+    }
+    await tokenInstance.setCrosschainInProgress("SetValuation").save(event);
     return true;
   }
-  const rawAssetAddress = asset.read().address as `0x${string}`;
-  if (!rawAssetAddress) {
-    serviceError(`Asset has no address for assetId ${assetId}`);
-    return true;
-  }
-  const assetAddress = formatBytes32ToAddress(rawAssetAddress);
 
-  const vault = (await VaultService.get(context, {
-    centrifugeId,
-    poolId,
-    tokenId,
-    assetAddress,
-  })) as VaultService | null;
-  if (!vault) {
-    serviceError(`Vault not found. Cannot update maxReserve`);
+  if (decoded.kind === "MaxReserve") {
+    const { assetId, maxReserve } = decoded;
+    const asset = await AssetService.get(context, { id: assetId });
+    if (!asset) {
+      serviceError(`Asset not found for assetId ${assetId}. Cannot update vault maxReserve`);
+      return true;
+    }
+    const rawAssetAddress = asset.read().address as `0x${string}`;
+    if (!rawAssetAddress) {
+      serviceError(`Asset has no address for assetId ${assetId}`);
+      return true;
+    }
+    const assetAddress = formatBytes32ToAddress(rawAssetAddress);
+
+    const vault = (await VaultService.get(context, {
+      centrifugeId,
+      poolId,
+      tokenId,
+      assetAddress,
+    })) as VaultService | null;
+    if (!vault) {
+      serviceError(`Vault not found. Cannot update maxReserve`);
+      return true;
+    }
+    await vault.setMaxReserve(maxReserve).setCrosschainInProgress().save(event);
     return true;
   }
-  await vault.setMaxReserve(maxReserve).setCrosschainInProgress().save(event);
+
   return true;
 }
 
