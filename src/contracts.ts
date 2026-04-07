@@ -445,9 +445,8 @@ function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
 
   // Filter out chains where the contract was deprecated (null address)
   const activeChainEntries = chainEntries.filter(([, chainValue]) => {
-    const contract = chainValue.contracts[
-      toContractCase(abiName) as keyof typeof chainValue.contracts
-    ];
+    const contract =
+      chainValue.contracts[toContractCase(abiName) as keyof typeof chainValue.contracts];
     return contract?.address != null;
   });
 
