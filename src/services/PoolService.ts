@@ -1,5 +1,5 @@
 import { Pool } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { serviceLog } from "../helpers/logger";
 
 /**
@@ -7,7 +7,9 @@ import { serviceLog } from "../helpers/logger";
  * Extends the base Service class with pool-specific functionality including share class management
  * and epoch tracking.
  */
-export class PoolService extends mixinCommonStatics(Service<typeof Pool>, Pool, "Pool") {
+export class PoolService extends Service<typeof Pool> {
+  static readonly entityTable = Pool;
+  static readonly entityName = "Pool";
   /**
    * Sets the metadata for the pool.
    * @param metadata - The metadata to set.

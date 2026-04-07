@@ -1,5 +1,5 @@
 import { Adapter } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 
 /**
  * Service class for managing Adapter entities in the database.
@@ -9,7 +9,7 @@ import { Service, mixinCommonStatics } from "./Service";
  * pool or asset.
  *
  * This service provides CRUD operations and database interaction utilities for Adapter entities,
- * inheriting common functionality from the base Service class and mixinCommonStatics.
+ * extending the abstract [`Service`](./Service.ts) base (standard entity statics).
  *
  * @example
  * ```typescript
@@ -25,8 +25,6 @@ import { Service, mixinCommonStatics } from "./Service";
  * @see {@link Service} Base service class for common CRUD operations
  * @see {@link Adapter} Adapter entity schema definition
  */
-export class AdapterService extends mixinCommonStatics(
-  Service<typeof Adapter>,
-  Adapter,
-  "Adapter"
-) {}
+export class AdapterService extends Service<typeof Adapter> {
+  static readonly entityTable = Adapter;
+  static readonly entityName = "Adapter";}

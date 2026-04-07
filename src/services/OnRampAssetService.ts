@@ -1,16 +1,14 @@
 import { OnRampAsset, OnRampAssetCrosschainInProgressTypes } from "ponder:schema";
 import { serviceLog } from "../helpers/logger";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 
 /**
  * Service for managing on-ramp assets.
  *
  */
-export class OnRampAssetService extends mixinCommonStatics(
-  Service<typeof OnRampAsset>,
-  OnRampAsset,
-  "OnRampAsset"
-) {
+export class OnRampAssetService extends Service<typeof OnRampAsset> {
+  static readonly entityTable = OnRampAsset;
+  static readonly entityName = "OnRampAsset";
   /**
    * Sets the crosschain progress for the on-ramp asset.
    *

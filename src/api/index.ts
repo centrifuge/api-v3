@@ -1,7 +1,7 @@
 import schema from "ponder:schema";
 import { db } from "ponder:api";
 import { Hono } from "hono";
-import { graphql, client } from "ponder";
+import { graphql, client, ReadonlyDrizzle } from "ponder";
 import * as Services from "../services";
 import { formatBigIntToDecimal } from "../helpers/formatter";
 
@@ -60,7 +60,7 @@ app.get("/stats", async (c) => {
   const entityNames = services.map(
     (service) => service.name.substring(0, service.name.length - "Service".length) + "s"
   );
-  const entityCounts = await Promise.all(services.map((service) => service.count(context, {})));
+  const entityCounts = await allEntityCounts(context, services);
   const response = Object.fromEntries(
     entityNames.map((name, index) => [name, entityCounts[index]])
   );
@@ -74,5 +74,24 @@ app.get("/stats", async (c) => {
     jsonDefaultHeaders
   );
 });
+
+/** Narrow surface for `/stats` entity counts — avoids TS2590 on `Object.values` + polymorphic statics. */
+type ServiceWithEntityCount = {
+  readonly name: string;
+  count(context: { db: ReadonlyDrizzle<typeof schema> }, query: Record<string, never>): Promise<number>;
+};
+
+/**
+ * helper that avoids TS2590 on `Object.values` + polymorphic statics. (too much complexity to type)
+ * @param ctx - Database and client context
+ * @param services - List of services to count
+ * @returns Promise that resolves to an array of counts
+ */
+async function allEntityCounts(
+  ctx: typeof context,
+  services: readonly ServiceWithEntityCount[]
+): Promise<number[]> {
+  return Promise.all(services.map((s) => s.count(ctx, {})));
+}
 
 export default app;

@@ -1,12 +1,14 @@
 import { Policy, PolicyCrosschainInProgressTypes } from "ponder:schema";
 import { serviceLog } from "../helpers/logger";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 
 /**
  * Service for managing policies.
  *
  */
-export class PolicyService extends mixinCommonStatics(Service<typeof Policy>, Policy, "Policy") {
+export class PolicyService extends Service<typeof Policy> {
+  static readonly entityTable = Policy;
+  static readonly entityName = "Policy";
   /**
    * Sets the Merkle policy root (finalized on-spoke value).
    */

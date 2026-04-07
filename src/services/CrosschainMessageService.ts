@@ -1,5 +1,5 @@
 import { CrosschainMessage, CrosschainMessageStatuses } from "ponder:schema";
-import { Service, mixinCommonStatics, type ReadOnlyContext } from "./Service";
+import { Service, type ReadOnlyContext } from "./Service";
 import { serviceError } from "../helpers/logger";
 import { encodePacked, keccak256 } from "viem";
 import { Event, Context } from "ponder:registry";
@@ -14,11 +14,9 @@ import { RegistryVersions } from "../chains";
  *
  * @extends {Service<typeof CrosschainMessage>}
  */
-export class CrosschainMessageService extends mixinCommonStatics(
-  Service<typeof CrosschainMessage>,
-  CrosschainMessage,
-  "CrosschainMessage"
-) {
+export class CrosschainMessageService extends Service<typeof CrosschainMessage> {
+  static readonly entityTable = CrosschainMessage;
+  static readonly entityName = "CrosschainMessage";
   /**
    * Groups rows by message `id`, each group sorted by `index` (for in-memory use after a batched query).
    */

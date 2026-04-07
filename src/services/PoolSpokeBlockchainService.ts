@@ -1,5 +1,5 @@
 import { PoolSpokeBlockchain } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 
 /**
  * Service class for managing the many-to-many relationship between Pools and Spoke Blockchains.
@@ -15,8 +15,6 @@ import { Service, mixinCommonStatics } from "./Service";
  * }, block);
  * ```
  */
-export class PoolSpokeBlockchainService extends mixinCommonStatics(
-  Service<typeof PoolSpokeBlockchain>,
-  PoolSpokeBlockchain,
-  "PoolSpokeBlockchain"
-) {}
+export class PoolSpokeBlockchainService extends Service<typeof PoolSpokeBlockchain> {
+  static readonly entityTable = PoolSpokeBlockchain;
+  static readonly entityName = "PoolSpokeBlockchain";}

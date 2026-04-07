@@ -1,5 +1,5 @@
 import { AdapterWiring } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 
 /**
  * Service class for managing AdapterWiring entities in the database.
@@ -9,7 +9,7 @@ import { Service, mixinCommonStatics } from "./Service";
  * toAddress, and toCentrifugeId, and is associated with a specific from adapter and to adapter.
  *
  * This service provides CRUD operations and database interaction utilities for AdapterWiring entities,
- * inheriting common functionality from the base Service class and mixinCommonStatics.
+ * extending the abstract [`Service`](./Service.ts) base (standard entity statics).
  *
  * @example
  * ```typescript
@@ -26,8 +26,6 @@ import { Service, mixinCommonStatics } from "./Service";
  * @see {@link Service} Base service class for common CRUD operations
  * @see {@link AdapterWiring} AdapterWiring entity schema definition
  */
-export class AdapterWiringService extends mixinCommonStatics(
-  Service<typeof AdapterWiring>,
-  AdapterWiring,
-  "AdapterWiring"
-) {}
+export class AdapterWiringService extends Service<typeof AdapterWiring> {
+  static readonly entityTable = AdapterWiring;
+  static readonly entityName = "AdapterWiring";}

@@ -1,5 +1,5 @@
 import { Account } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 
 /**
  * Service class for managing Account entities in the database.
@@ -10,7 +10,7 @@ import { Service, mixinCommonStatics } from "./Service";
  *
  * This service provides CRUD operations and database interaction utilities
  * for HoldingAccount entities, inheriting common functionality from the base
- * Service class and mixinCommonStatics.
+ * Extends [`Service`](./Service.ts).
  *
  * @example
  * ```typescript
@@ -21,8 +21,6 @@ import { Service, mixinCommonStatics } from "./Service";
  *   // ... other account properties
  * });
  */
-export class AccountService extends mixinCommonStatics(
-  Service<typeof Account>,
-  Account,
-  "Account"
-) {}
+export class AccountService extends Service<typeof Account> {
+  static readonly entityTable = Account;
+  static readonly entityName = "Account";}

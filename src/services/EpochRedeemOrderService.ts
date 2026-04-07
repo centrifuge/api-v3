@@ -1,6 +1,6 @@
 import { EpochRedeemOrder } from "ponder:schema";
 import type { Event } from "ponder:registry";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { timestamper } from "../helpers/timestamper";
 
 /**
@@ -8,11 +8,9 @@ import { timestamper } from "../helpers/timestamper";
  *
  * Extends the base Service class with common static methods.
  */
-export class EpochRedeemOrderService extends mixinCommonStatics(
-  Service<typeof EpochRedeemOrder>,
-  EpochRedeemOrder,
-  "EpochRedeemOrder"
-) {
+export class EpochRedeemOrderService extends Service<typeof EpochRedeemOrder> {
+  static readonly entityTable = EpochRedeemOrder;
+  static readonly entityName = "EpochRedeemOrder";
   /**
    * Revokes shares for an epoch redeem order.
    *

@@ -12,7 +12,7 @@ Centrifuge protocol indexer: [Ponder](https://ponder.sh/) ingests EVM logs/block
 
 ## Services
 
-- **Shape:** one service per main schema entity (or tight group). Extend `Service<typeof Table>` + `mixinCommonStatics(Service, table, name)` — see [`AdapterService.ts`](src/services/AdapterService.ts). Statics: `insert`, `insertMany`, `saveMany`, `get`, `getOrInit`, `upsert`, `query`, `count`; instance `save` / `delete`. Add methods for shared business rules.
+- **Shape:** one service per main schema entity (or tight group). `export class EntityService extends Service<typeof Table> { static readonly entityTable = Table; static readonly entityName = "EntityName"; }` — see [`AdapterService.ts`](src/services/AdapterService.ts). Statics (on `Service`): `insert`, `insertMany`, `saveMany`, `get`, `getOrInit`, `upsert`, `query`, `count`; instance `save` / `delete`. Add methods for shared business rules.
 - **Logging** — `serviceLog` / `serviceError` from [`logger.ts`](src/helpers/logger.ts); `expandInlineObject` for record-shaped logs. Every **meaningful** public/static method (DB, side effects, non-trivial branches) logs at least once; trivial pure accessors (e.g. shallow `read()`) need not. `serviceLog` is a no-op under `ponder start`; `serviceError` still logs — see `logger.ts`.
 - **Handlers never call** `context.db.sql` / `context.db.find`; they call `FooService.get(...)` etc. Base layer uses Drizzle internally.
 - **Batch upserts** — Extending `saveMany`: follow `Service.ts` comment; use `sql.raw(\`excluded."column"\`)`for Ponder’s PG proxy, not broken`excluded` expansions.

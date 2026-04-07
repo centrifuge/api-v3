@@ -1,5 +1,5 @@
 import { TokenInstancePosition } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { ERC20Abi } from "../../abis/ERC20";
 import { Context } from "ponder:registry";
 import { readContractSafe, type ReadContractSafeEvent } from "../helpers/readContractSafe";
@@ -20,11 +20,9 @@ import { serviceLog } from "../helpers/logger";
  * @property {number} updatedAtBlock - Block number of last update
  * @property {string} updatedAtTxHash - Transaction hash of last update
  */
-export class TokenInstancePositionService extends mixinCommonStatics(
-  Service<typeof TokenInstancePosition>,
-  TokenInstancePosition,
-  "TokenInstancePosition"
-) {
+export class TokenInstancePositionService extends Service<typeof TokenInstancePosition> {
+  static readonly entityTable = TokenInstancePosition;
+  static readonly entityName = "TokenInstancePosition";
   /**
    * Adds a balance to the token position.
    *

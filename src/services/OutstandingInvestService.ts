@@ -1,6 +1,6 @@
 // TODO: DEPRECATED to be deleted in future releases
 import type { Event } from "ponder:registry";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { OutstandingInvest } from "ponder:schema";
 import { serviceLog } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
@@ -12,11 +12,9 @@ import { timestamper } from "../helpers/timestamper";
  * including computation of approved amounts and execution of requests.
  * Extends the base Service class with common static methods.
  */
-export class OutstandingInvestService extends mixinCommonStatics(
-  Service<typeof OutstandingInvest>,
-  OutstandingInvest,
-  "OutstandingInvest"
-) {
+export class OutstandingInvestService extends Service<typeof OutstandingInvest> {
+  static readonly entityTable = OutstandingInvest;
+  static readonly entityName = "OutstandingInvest";
   /**
    * Updates the requested deposit amount for the outstanding order.
    *

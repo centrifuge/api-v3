@@ -1,5 +1,5 @@
 import { Deployment } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 
 /**
  * Service class for managing blockchain deployment information.
@@ -32,8 +32,6 @@ import { Service, mixinCommonStatics } from "./Service";
  * const deployments = await DeploymentService.query(context, { centrifugeId: "mainnet" });
  * ```
  */
-export class DeploymentService extends mixinCommonStatics(
-  Service<typeof Deployment>,
-  Deployment,
-  "Deployment"
-) {}
+export class DeploymentService extends Service<typeof Deployment> {
+  static readonly entityTable = Deployment;
+  static readonly entityName = "Deployment";}

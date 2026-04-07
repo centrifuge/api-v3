@@ -1,6 +1,6 @@
 import { Context } from "ponder:registry";
 import { Asset } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 
 /**
  * Service class for managing Asset entities in the database.
@@ -10,7 +10,7 @@ import { Service, mixinCommonStatics } from "./Service";
  * interest rates, maturity dates, and valuation methods.
  *
  * This service provides CRUD operations and database interaction utilities for Asset entities,
- * inheriting common functionality from the base Service class and mixinCommonStatics.
+ * extending the abstract [`Service`](./Service.ts) base (standard entity statics).
  *
  * @example
  * ```typescript
@@ -34,7 +34,9 @@ import { Service, mixinCommonStatics } from "./Service";
  * @see {@link Service} Base service class for common CRUD operations
  * @see {@link Asset} Asset entity schema definition
  */
-export class AssetService extends mixinCommonStatics(Service<typeof Asset>, Asset, "Asset") {
+export class AssetService extends Service<typeof Asset> {
+  static readonly entityTable = Asset;
+  static readonly entityName = "Asset";
   /**
    * Get the decimals of an asset.
    * @param context - The context.

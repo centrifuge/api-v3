@@ -1,5 +1,5 @@
 import { Blockchain } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { Context } from "ponder:registry";
 import { RegistryChains } from "../chains";
 
@@ -22,13 +22,11 @@ const centrifugeIdToChainId = Object.fromEntries(
  * This service extends the base Service class with blockchain-specific functionality,
  * providing methods to interact with and manipulate blockchain data entities.
  *
- * @extends {ReturnType<typeof mixinCommonStatics>}
+ * @extends {Service<typeof Blockchain>}
  */
-export class BlockchainService extends mixinCommonStatics(
-  Service<typeof Blockchain>,
-  Blockchain,
-  "Blockchain"
-) {
+export class BlockchainService extends Service<typeof Blockchain> {
+  static readonly entityTable = Blockchain;
+  static readonly entityName = "Blockchain";
   /**
    * Gets the Centrifuge ID for a given chain ID.
    *

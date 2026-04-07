@@ -16,7 +16,7 @@ This project indexes EVM events from smart contracts in the Centrifuge protocol,
 
 **Handlers** are Ponder entry points: they subscribe to contract logs (and blocks where used), decode `event.args`, and orchestrate what happens for each on-chain event. They live under `src/handlers/` and should stay thin—parse the event, load any needed context, then delegate to services.
 
-**Services** are the domain and persistence layer. Each service typically wraps one Ponder/Drizzle table (or a focused set of operations) with typed helpers: query, get-or-create, updates, and business rules shared across handlers. They live under `src/services/`, often extending the shared `Service` base class for common CRUD patterns.
+**Services** are the domain and persistence layer. Each service typically wraps one Ponder/Drizzle table (or a focused set of operations) with typed helpers: query, get-or-create, updates, and business rules shared across handlers. They live under `src/services/`, usually as `class X extends Service<typeof Table>` with `static readonly entityTable` and `entityName` so shared statics (`insert`, `get`, `saveMany`, …) stay correctly typed per entity.
 
 In short: **handlers react to the chain; services own the database model and reusable logic.**
 
