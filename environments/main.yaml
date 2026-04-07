@@ -16,11 +16,11 @@ global:
 indexer:
   enabled: true
   image:
-    tag: sha-8b44bd8
+    tag: sha-f06f20e
 query:
   enabled: true
   image:
-    tag: sha-8b44bd8
+    tag: sha-f06f20e
   replicaCount: 2
   ingress:
     enabled: true
