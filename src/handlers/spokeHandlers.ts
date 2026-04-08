@@ -213,6 +213,68 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
   );
 });
 
+multiMapper("spoke:UpdateMaxAssetPriceAge", async ({ event, context }) => {
+  logEvent(event, context, "spoke:UpdateMaxAssetPriceAge");
+
+  const { poolId, scId: tokenId, asset: assetAddress, maxPriceAge } = event.args;
+
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const indexerVersion = REGISTRY_VERSION_ORDER[0];
+
+  const chainId = context.chain.id;
+  const poolEscrowFactoryAddress = RegistryChains.find((chain) => chain.network.chainId === chainId)
+    ?.contracts.poolEscrowFactory;
+  if (!poolEscrowFactoryAddress) {
+    serviceError(`Pool Escrow Factory address not found. Cannot retrieve escrow address`);
+    return;
+  }
+
+  const poolEscrowFactoryAbi = Abis[indexerVersion as keyof typeof Abis].PoolEscrowFactory;
+  const poolEscrowFactoryAddr = poolEscrowFactoryAddress.address;
+
+  const escrowAddress = await readContractSafe(context, event, {
+    abi: poolEscrowFactoryAbi,
+    address: poolEscrowFactoryAddr,
+    functionName: "escrow",
+    args: [poolId],
+  });
+
+  const assetQuery = await AssetService.query(context, {
+    address: assetAddress,
+    centrifugeId,
+  });
+  if (assetQuery.length !== 1) {
+    serviceError(`Asset not found. Cannot retrieve assetId for holding escrow`);
+    return;
+  }
+
+  const asset = assetQuery.pop();
+  const { id: assetId } = asset!.read();
+
+  const holdingEscrow = (await HoldingEscrowService.getOrInit(
+    context,
+    {
+      poolId,
+      tokenId,
+      centrifugeId,
+      assetAddress,
+      assetId,
+      escrowAddress,
+    },
+    event
+  )) as HoldingEscrowService;
+
+  await holdingEscrow.setMaxAssetPriceAge(maxPriceAge).save(event);
+
+  await snapshotter(
+    context,
+    event,
+    "spokeV3_1:UpdateMaxAssetPriceAge",
+    [holdingEscrow],
+    HoldingEscrowSnapshot
+  );
+});
+
 multiMapper("spoke:InitiateTransferShares", async ({ event, context }) => {
   logEvent(event, context, "spoke:InitiateTransferShares");
   const {
