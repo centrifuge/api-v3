@@ -1481,7 +1481,7 @@ const SmartContractColumns = (t: PgColumnsBuilders) => ({
 
 export const SmartContract = onchainTable("smart_contract", SmartContractColumns, (t) => ({
   id: primaryKey({ columns: [t.centrifugeId, t.address] }),
-  centrifugeIdIdx: index().on(t.centrifugeId),
+  // centrifugeId is the leading column of the PK, no separate index needed.
   addressIdx: index().on(t.address),
 }));
 
@@ -1503,9 +1503,8 @@ export const SmartContractWard = onchainTable(
   SmartContractWardColumns,
   (t) => ({
     id: primaryKey({ columns: [t.centrifugeId, t.fromAddress, t.toAddress] }),
-    centrifugeIdIdx: index().on(t.centrifugeId),
-    fromAddressIdx: index().on(t.fromAddress),
-    toAddressIdx: index().on(t.toAddress),
+    // centrifugeId is the leading PK column — no separate index needed.
+    // fromAddressIdx / toAddressIdx are subsets of the composite indexes below.
     fromAddressCentrifugeIdIdx: index().on(t.fromAddress, t.centrifugeId),
     toAddressCentrifugeIdIdx: index().on(t.toAddress, t.centrifugeId),
   })
