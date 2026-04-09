@@ -4,3 +4,4 @@
 .ponder/**
 node_modules/**
 generated/**
+environments/**

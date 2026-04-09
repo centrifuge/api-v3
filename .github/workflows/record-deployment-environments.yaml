@@ -1,0 +1,84 @@
+# Records GitHub Deployments only after values are on main (post-merge).
+# For each changed `environments/<name>.yaml`, registers environment `api-v3-<name>` with URL
+# `https://api-v3-<name>.cfg.embrio.tech` (no per-env job definitions to maintain).
+
+name: Record deployment environments
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: record-deployment-envs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+      has_changes: ${{ steps.build.outputs.has_changes }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+
+      - name: Build matrix from changed environment files
+        id: build
+        env:
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            mapfile -t changed < <(git diff-tree --no-commit-id --name-only -r "$SHA" | grep -E '^environments/[^/]+\.yaml$' || true)
+          else
+            mapfile -t changed < <(git diff --name-only "$BEFORE" "$SHA" | grep -E '^environments/[^/]+\.yaml$' || true)
+          fi
+          if [ "${#changed[@]}" -eq 0 ]; then
+            echo 'matrix=[]' >> "$GITHUB_OUTPUT"
+            echo 'has_changes=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          json=$(jq -c -n --args '
+            [
+              $ARGS.positional[] |
+              select(test("^environments/[^/]+\\.yaml$")) |
+              . as $path |
+              ($path | split("/") | .[-1] | sub("\\.yaml$"; "")) as $stem |
+              {
+                file: $path,
+                stem: $stem,
+                env: ("api-v3-" + $stem),
+                url: ("https://api-v3-" + $stem + ".cfg.embrio.tech")
+              }
+            ]
+          ' -- "${changed[@]}")
+          {
+            echo 'matrix<<MATRIX_JSON_EOF'
+            echo "$json"
+            echo 'MATRIX_JSON_EOF'
+          } >> "$GITHUB_OUTPUT"
+          echo 'has_changes=true' >> "$GITHUB_OUTPUT"
+
+  record:
+    needs: detect
+    if: needs.detect.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.detect.outputs.matrix) }}
+    environment:
+      name: ${{ matrix.env }}
+      url: ${{ matrix.url }}
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - name: Record deployment
+        run: echo "${{ matrix.file }} updated on main @ ${{ github.sha }}"

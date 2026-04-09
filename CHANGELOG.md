@@ -1,5 +1,161 @@
 # Changelog
 
+## [3.5.0](https://github.com/centrifuge/api-v3/compare/v3.4.1...v3.5.0) (2026-04-07)
+
+
+### Features
+
+* add several yield calculations to indexer ([#325](https://github.com/centrifuge/api-v3/issues/325)) ([691d650](https://github.com/centrifuge/api-v3/commit/691d6505e654972f4e3c76563053f5c31ab4a68c))
+* **contracts:** support deprecated registry contracts (null address) ([#338](https://github.com/centrifuge/api-v3/issues/338)) ([f06f20e](https://github.com/centrifuge/api-v3/commit/f06f20eda41c5f075f81dd449dd667c322260f5f))
+* in-progress editing of valuation on vaults([#332](https://github.com/centrifuge/api-v3/issues/332)) ([af60cc6](https://github.com/centrifuge/api-v3/commit/af60cc675cc6004f5326409a7d932c4f4bb607ef)), closes [#279](https://github.com/centrifuge/api-v3/issues/279)
+* in-progress tracking of setvaluation ([#336](https://github.com/centrifuge/api-v3/issues/336)) ([8b44bd8](https://github.com/centrifuge/api-v3/commit/8b44bd81e7317b5c81f0e5440b35ac7fb0f8060b))
+* In-progress update of offramprelayers ([#328](https://github.com/centrifuge/api-v3/issues/328)) ([f37723f](https://github.com/centrifuge/api-v3/commit/f37723f4f6a2fd2993c332f4913043a11e8124fc))
+* track asset progress of offramp updates ([#333](https://github.com/centrifuge/api-v3/issues/333)) ([9198de3](https://github.com/centrifuge/api-v3/commit/9198de3f15f1ba7f318eed4f5fb855b4f98909c4))
+* track in progress updates of offramp addresses ([#326](https://github.com/centrifuge/api-v3/issues/326)) ([a924abf](https://github.com/centrifuge/api-v3/commit/a924abf434fd4bc6c72a5e2ecd3b6348ceed25b9))
+
+## [3.4.1](https://github.com/centrifuge/api-v3/compare/v3.4.0...v3.4.1) (2026-03-26)
+
+
+### Bug Fixes
+
+* refactor gasLimit and gasPrice to payload ([#321](https://github.com/centrifuge/api-v3/issues/321)) ([2a1c93f](https://github.com/centrifuge/api-v3/commit/2a1c93fa4cb9e5a276e96edbdbe283e03d8551bf))
+
+## [3.4.0](https://github.com/centrifuge/api-v3/compare/v3.3.1...v3.4.0) (2026-03-23)
+
+
+### Features
+
+* default logs range ([f25e4e2](https://github.com/centrifuge/api-v3/commit/f25e4e276a21c5927ec16cad425b5b9429ab4d74))
+
+## [3.3.1](https://github.com/centrifuge/api-v3/compare/v3.3.0...v3.3.1) (2026-03-20)
+
+
+### Bug Fixes
+
+* updateContract decoding ([0bca82a](https://github.com/centrifuge/api-v3/commit/0bca82a4109a69bd19245c465c85e503770806c6))
+
+## [3.3.0](https://github.com/centrifuge/api-v3/compare/v3.2.0...v3.3.0) (2026-03-19)
+
+
+### Features
+
+* track in-progress set max reserve ([81d2f42](https://github.com/centrifuge/api-v3/commit/81d2f42cc29d52b0a5de5d4ea0929ebd76650ab8))
+
+
+### Bug Fixes
+
+* failing crosschain messaging reconciliation ([#302](https://github.com/centrifuge/api-v3/issues/302)) ([c4b7b12](https://github.com/centrifuge/api-v3/commit/c4b7b12db6d811cfcf77ea0647279efc2b12935f))
+
+## [3.2.0](https://github.com/centrifuge/api-v3/compare/v3.1.0...v3.2.0) (2026-03-18)
+
+
+### Features
+
+* in progress for vault operations ([#292](https://github.com/centrifuge/api-v3/issues/292)) ([ad84994](https://github.com/centrifuge/api-v3/commit/ad84994df3d7e4766ebcaba335bfbf94bc3c8c58))
+* inprogress update of balance sheet managers ([#289](https://github.com/centrifuge/api-v3/issues/289)) ([84e175d](https://github.com/centrifuge/api-v3/commit/84e175d67b05ecaf03bbc23e0f91468e08a79ef9)), closes [#277](https://github.com/centrifuge/api-v3/issues/277)
+* ponder 0.16 upgrade ([b6b1f37](https://github.com/centrifuge/api-v3/commit/b6b1f37df5f87c437728115010de2babb11c4895))
+
+
+### Bug Fixes
+
+* message decoding for single version registry ([ba933e7](https://github.com/centrifuge/api-v3/commit/ba933e7573c8243bf6c703d1065194dc6d5cf501))
+
+## [3.1.0](https://github.com/centrifuge/api-v3/compare/v3.0.3...v3.1.0) (2026-03-06)
+
+
+### Features
+
+* add tokenId and token to crosschainPayloads ([#275](https://github.com/centrifuge/api-v3/issues/275)) ([5a52c22](https://github.com/centrifuge/api-v3/commit/5a52c2255dcc704f03776774ecab1b29a0f9166b)), closes [#274](https://github.com/centrifuge/api-v3/issues/274)
+
+
+### Bug Fixes
+
+* 267 missing adapter participations indexer side ([#268](https://github.com/centrifuge/api-v3/issues/268)) ([b399830](https://github.com/centrifuge/api-v3/commit/b39983087f5e95b97bf200cc65e83f3d70c609a9))
+* add gasLimit and gasPaid ([#270](https://github.com/centrifuge/api-v3/issues/270)) ([136c3d5](https://github.com/centrifuge/api-v3/commit/136c3d53d2bb8f4eb2052e6ee6766e79badd2e29)), closes [#157](https://github.com/centrifuge/api-v3/issues/157)
+* security improvements ([#264](https://github.com/centrifuge/api-v3/issues/264)) ([995aa34](https://github.com/centrifuge/api-v3/commit/995aa344425a18b17f663bf86312c662f6656a1b))
+
+## [3.0.3](https://github.com/centrifuge/api-v3/compare/v3.0.2...v3.0.3) (2026-02-25)
+
+
+### Bug Fixes
+
+* saturate vaultInvestOrders and vaultRedeemOrders at zero ([#261](https://github.com/centrifuge/api-v3/issues/261)) ([74bafbf](https://github.com/centrifuge/api-v3/commit/74bafbf134e2b3edae2a0b5b5f162fdf8326f17b))
+
+## [3.0.2](https://github.com/centrifuge/api-v3/compare/v3.0.1...v3.0.2) (2026-02-24)
+
+
+### Bug Fixes
+
+* minor upgrade for hono ([#258](https://github.com/centrifuge/api-v3/issues/258)) ([6c426ba](https://github.com/centrifuge/api-v3/commit/6c426ba3e5a751235a902be278dedc1be9437c1b)), closes [#253](https://github.com/centrifuge/api-v3/issues/253)
+
+## [3.0.1](https://github.com/centrifuge/api-v3/compare/v3.0.0...v3.0.1) (2026-02-10)
+
+
+### Bug Fixes
+
+* added correct Optimism explorer link ([#249](https://github.com/centrifuge/api-v3/issues/249)) ([f12edcb](https://github.com/centrifuge/api-v3/commit/f12edcb6e921c5c10f5bf75b47f54fd0d9c788f5))
+* chain not found on new 3_1  deploy vaults ([#247](https://github.com/centrifuge/api-v3/issues/247)) ([bc927ec](https://github.com/centrifuge/api-v3/commit/bc927eca91c730cbb1c65e0f3ca77543e431b4dc))
+* little change to test ci ([6a7c01b](https://github.com/centrifuge/api-v3/commit/6a7c01b556aa5a9db851b73a727f4d5458cd4c30))
+
+## [3.0.0](https://github.com/centrifuge/api-v3/compare/v2.1.0...v3.0.0) (2026-02-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* unify naming of timestamp fields across entities
+
+### Features
+
+* add adapter wiring information ([#203](https://github.com/centrifuge/api-v3/issues/203)) ([6fefb13](https://github.com/centrifuge/api-v3/commit/6fefb13255549dad2e7a6ad6034a4914c0f88ee8)), closes [#200](https://github.com/centrifuge/api-v3/issues/200)
+* add originating txHash to default entity fields ([#202](https://github.com/centrifuge/api-v3/issues/202)) ([ab0aedc](https://github.com/centrifuge/api-v3/commit/ab0aedc0e321c07acef125d09311a4550c051b66)), closes [#191](https://github.com/centrifuge/api-v3/issues/191)
+* add urls and ipfs pinnend symbold ([#244](https://github.com/centrifuge/api-v3/issues/244)) ([de74050](https://github.com/centrifuge/api-v3/commit/de740502b6bb7a695cd409525d5d25188627dcd9))
+* allow protocol overlapping period ([#233](https://github.com/centrifuge/api-v3/issues/233)) ([0f5e225](https://github.com/centrifuge/api-v3/commit/0f5e2252985ae4042af6833463a8b6a77e9614f5))
+* architecture for concurrent indexing of V3 and V3.1 indexing logic Fixes [#161](https://github.com/centrifuge/api-v3/issues/161) ([a12fb55](https://github.com/centrifuge/api-v3/commit/a12fb555ad2c5a0dbf00c9323df2d6fe98315912))
+* improve crosschain messaging ([813d33e](https://github.com/centrifuge/api-v3/commit/813d33e5fb74c89d2cde42d7b96b36768923305a))
+* improved logging ([594683d](https://github.com/centrifuge/api-v3/commit/594683d2fadccf73ef401d588a925a92198d3a8e))
+* index v3.1 ([#208](https://github.com/centrifuge/api-v3/issues/208)) ([a89c210](https://github.com/centrifuge/api-v3/commit/a89c210af306b27ff13ac0ebd10f1c274d80cd2b))
+* ops improvements ([#243](https://github.com/centrifuge/api-v3/issues/243)) ([d56fe06](https://github.com/centrifuge/api-v3/commit/d56fe06826715cda560674f57e062be75c115606))
+* optimized prod logging ([fc31e52](https://github.com/centrifuge/api-v3/commit/fc31e5259d88e9cdbcf478130d3df314ee8e6341))
+* run v3.1 only indexer ([#226](https://github.com/centrifuge/api-v3/issues/226)) ([11263d1](https://github.com/centrifuge/api-v3/commit/11263d1d5a17eef831b1a418edf2f4a926c09c26))
+* unify naming of timestamp fields across entities ([8385ea8](https://github.com/centrifuge/api-v3/commit/8385ea88f05d738212ac503bd49a233fce3fbf23))
+* update deployments to include new contracts ([e83e6ee](https://github.com/centrifuge/api-v3/commit/e83e6ee9e53e11b0c8d90c7b6260a460f2981c27))
+* upgrade to ponder 0.15.17 ([a12fb55](https://github.com/centrifuge/api-v3/commit/a12fb555ad2c5a0dbf00c9323df2d6fe98315912))
+* user order structure ([#212](https://github.com/centrifuge/api-v3/issues/212)) ([150aecc](https://github.com/centrifuge/api-v3/commit/150aecc110d6a64793707d9d0735f1ac02a295ed))
+
+
+### Bug Fixes
+
+* add update on approve ([#223](https://github.com/centrifuge/api-v3/issues/223)) ([c3e54d9](https://github.com/centrifuge/api-v3/commit/c3e54d9b0b49e831277f35322955fa0f64aebce5))
+* allow to select chains in contracts ([20419ae](https://github.com/centrifuge/api-v3/commit/20419ae3bb7851dfaea81980f8d3937b6bffe3b8))
+* cache should skip unsupported commands ([b4405fd](https://github.com/centrifuge/api-v3/commit/b4405fdf41f77a2a7e2f33306b75392bdec0b180))
+* filter out reduntant txin + txout for invest redemption orders ([50e980e](https://github.com/centrifuge/api-v3/commit/50e980ee935ac3e385813e8921d365506921dd0d))
+* filter out reduntant txin + txout for invest redemption orders ([3efd3b2](https://github.com/centrifuge/api-v3/commit/3efd3b22ad0f5bfe420ada87d01fbfba65a1788b))
+* imissing icons ([1031051](https://github.com/centrifuge/api-v3/commit/1031051f4c5a19523857eda6e809ef367e87b69d))
+* improved logging and graceful handling of exceptions ([e2e8f9e](https://github.com/centrifuge/api-v3/commit/e2e8f9e248126f5a7d8658dd04e38c35ab7c55ef))
+* inconsistency in pendingInvestOrders ([#216](https://github.com/centrifuge/api-v3/issues/216)) ([59ca557](https://github.com/centrifuge/api-v3/commit/59ca5575487cf960f3418c8873f55fbe046d06ba)), closes [#214](https://github.com/centrifuge/api-v3/issues/214)
+* investor and redeem orders precision fix ([#188](https://github.com/centrifuge/api-v3/issues/188)) ([16a8615](https://github.com/centrifuge/api-v3/commit/16a8615038ca09c3b43f311c16229ee37e228f02))
+* issue and revoke conversions ([1435215](https://github.com/centrifuge/api-v3/commit/1435215565fd2412d4401049fe1ee7c28e36ad67))
+* load correct abis for chain requests ([9e0500e](https://github.com/centrifuge/api-v3/commit/9e0500e4131b959221c742ef825dfe66533bab69))
+* mainnet registry ([132e22c](https://github.com/centrifuge/api-v3/commit/132e22c895c69ebbe631cf2c309c098994693db4))
+* missing dependencies in prod ([e9b59bd](https://github.com/centrifuge/api-v3/commit/e9b59bd54ed1c8990738511ef396b15295fc557f))
+* missing setup handlers ([d44eb75](https://github.com/centrifuge/api-v3/commit/d44eb75510e6bb563b66d33779cbf8b7d61f4147))
+* missing several txHashes in Invest and Redeem Orders as well as epoch ([8385ea8](https://github.com/centrifuge/api-v3/commit/8385ea88f05d738212ac503bd49a233fce3fbf23))
+* missing several txHashes in Invest and Redeem Orders as well as epoch ([#205](https://github.com/centrifuge/api-v3/issues/205)) ([8385ea8](https://github.com/centrifuge/api-v3/commit/8385ea88f05d738212ac503bd49a233fce3fbf23))
+* missing token decimals in V3.1 ([#213](https://github.com/centrifuge/api-v3/issues/213)) ([b8bd839](https://github.com/centrifuge/api-v3/commit/b8bd83930df4a8126e89ed73f1546ba04fb05b9a))
+* multiple instances of failing claims ([a97c900](https://github.com/centrifuge/api-v3/commit/a97c9009f58c4d0bcd4f1450d0048ce62516899e)), closes [#201](https://github.com/centrifuge/api-v3/issues/201)
+* multiple instances of failing claims ([#207](https://github.com/centrifuge/api-v3/issues/207)) ([a97c900](https://github.com/centrifuge/api-v3/commit/a97c9009f58c4d0bcd4f1450d0048ce62516899e))
+* negative tokenInstance balance ([#190](https://github.com/centrifuge/api-v3/issues/190)) ([1435215](https://github.com/centrifuge/api-v3/commit/1435215565fd2412d4401049fe1ee7c28e36ad67))
+* onchain sync vault bug ([#228](https://github.com/centrifuge/api-v3/issues/228)) ([352337f](https://github.com/centrifuge/api-v3/commit/352337fb0d05a89c85125d4040097de7e9867dfc))
+* refine Invest and Redeem Orders ([#210](https://github.com/centrifuge/api-v3/issues/210)) ([6ef36b0](https://github.com/centrifuge/api-v3/commit/6ef36b040a98d8a52509473a5ceb64dc9139d820)), closes [#209](https://github.com/centrifuge/api-v3/issues/209)
+* registry defaults ([e3db503](https://github.com/centrifuge/api-v3/commit/e3db503d78ce8c1c9e9e42adc3c9378dbf6fbf79))
+* registry details ([8b6b40e](https://github.com/centrifuge/api-v3/commit/8b6b40e96f6d15c202e97cb812370873fcac2340))
+* remove unused imports ([d28cdd1](https://github.com/centrifuge/api-v3/commit/d28cdd100a46f12511cfc5c82705cfef5acca61e))
+* require glibc image ([95083b8](https://github.com/centrifuge/api-v3/commit/95083b803d032d612e5d2648d3c4b60f4e790a99))
+* track upon vault events correctly ([#225](https://github.com/centrifuge/api-v3/issues/225)) ([9d0b619](https://github.com/centrifuge/api-v3/commit/9d0b6195568d4764e9284e559e19bf7fd7046ff8))
+* unify inclusion of tx hashes ([8385ea8](https://github.com/centrifuge/api-v3/commit/8385ea88f05d738212ac503bd49a233fce3fbf23))
+* v3.1 phantom pendingInvestOrder ([#242](https://github.com/centrifuge/api-v3/issues/242)) ([cabecac](https://github.com/centrifuge/api-v3/commit/cabecac7eaa4bcb09bd142e31d21c5e1a63c67fc))
+* vaultInvestOrder claimable in asset denomination ([#218](https://github.com/centrifuge/api-v3/issues/218)) ([044db99](https://github.com/centrifuge/api-v3/commit/044db992671863716acdea216f54aa705158003d)), closes [#217](https://github.com/centrifuge/api-v3/issues/217)
+
 ## [2.1.0](https://github.com/centrifuge/api-v3/compare/v2.0.0...v2.1.0) (2025-11-18)
 
 

@@ -1,6 +1,6 @@
-
 export * from "./AccountService";
 export * from "./AdapterService";
+export * from "./AdapterParticipationService";
 export * from "./AdapterWiringService";
 export * from "./AssetRegistrationService";
 export * from "./AssetService";
@@ -25,6 +25,8 @@ export * from "./OnOffRampManagerService";
 export * from "./OnRampAssetService";
 export * from "./OutstandingInvestService"; // TODO: DEPRECATED to be deleted in future releases
 export * from "./OutstandingRedeemService"; // TODO: DEPRECATED to be deleted in future releases
+export * from "./PendingInvestOrderService";
+export * from "./PendingRedeemOrderService";
 export * from "./PolicyService";
 export * from "./PoolManagerService";
 export * from "./PoolService";
@@ -33,7 +35,7 @@ export * from "./RedeemOrderService";
 export * from "./TokenInstancePositionService";
 export * from "./TokenInstanceService";
 export * from "./TokenService";
-export * from "./VaultDepositService";
+export * from "./VaultInvestOrderService";
+export * from "./VaultRedeemOrderService";
 export * from "./VaultService";
-export * from "./VaultRedeemService";
 export * from "./WhitelistedInvestorService";

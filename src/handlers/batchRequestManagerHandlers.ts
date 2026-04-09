@@ -1,11 +1,6 @@
 import type { Event, Context } from "ponder:registry";
 import { multiMapper } from "../helpers/multiMapper";
-import {
-  logEvent,
-  serviceLog,
-  serviceError,
-  expandInlineObject,
-} from "../helpers/logger";
+import { logEvent, serviceLog, serviceError, expandInlineObject } from "../helpers/logger";
 import { snapshotter } from "../helpers/snapshotter";
 import {
   AssetService,
@@ -13,8 +8,8 @@ import {
   AccountService,
   InvestOrderService,
   RedeemOrderService,
-  VaultDepositService,
-  VaultRedeemService,
+  PendingInvestOrderService,
+  PendingRedeemOrderService,
   OutstandingInvestService,
   OutstandingRedeemService,
   HoldingEscrowService,
@@ -34,13 +29,12 @@ export async function updateDepositRequest({
   context,
 }: {
   event: Event<
-    | "batchRequestManagerV3_1:UpdateDepositRequest"
-    | "shareClassManagerV3:UpdateDepositRequest"
+    "batchRequestManagerV3_1:UpdateDepositRequest" | "shareClassManagerV3:UpdateDepositRequest"
   >;
   context: Context;
 }) {
-  logEvent(event, context, "shareClassManager:UpdateDepositRequest");
-  const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  logEvent(event, context, "batchRequestManager:UpdateDepositRequest");
+  const _centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const { poolId, investor, ...args } = event.args;
   const tokenId = "shareClassId" in args ? args.shareClassId : args.scId;
@@ -51,9 +45,7 @@ export async function updateDepositRequest({
   const pendingUserAssetAmount =
     "pendingAmount" in args ? args.pendingAmount : args.pendingUserAssetAmount;
   const pendingTotalAssetAmount =
-    "totalPendingAmount" in args
-      ? args.totalPendingAmount
-      : args.pendingTotalAssetAmount;
+    "totalPendingAmount" in args ? args.totalPendingAmount : args.pendingTotalAssetAmount;
 
   const investorAccount = (await AccountService.getOrInit(
     context,
@@ -64,34 +56,22 @@ export async function updateDepositRequest({
   )) as AccountService;
   const { address: investorAddress } = investorAccount.read();
 
-  const investOrder = (await InvestOrderService.getOrInit(
+  const pendingInvestOrder = (await PendingInvestOrderService.getOrInit(
     context,
     {
       poolId,
       tokenId,
       assetId: depositAssetId,
       account: investorAddress,
-      index: epochIndex,
     },
     event,
     undefined,
     true
-  )) as InvestOrderService;
-
-  if (!investOrder.hasVaultDeposit()) {
-    const vaultDeposit = (await VaultDepositService.get(context, {
-      accountAddress: investorAddress,
-      assetsAmount: queuedUserAssetAmount + pendingUserAssetAmount,
-    })) as VaultDepositService | null;
-    if (vaultDeposit) {
-      const { centrifugeId, createdAtTxHash } = vaultDeposit.read();
-      investOrder.setVaultDeposit(centrifugeId, createdAtTxHash!);
-    } else {
-      investOrder.setVaultDeposit(centrifugeId, event.transaction.hash);
-    }
-  }
-
-  await investOrder.post(pendingUserAssetAmount, event).saveOrClear(event);
+  )) as PendingInvestOrderService;
+  const { queuedAssetsAmount: lastQueuedAssetsAmount } = pendingInvestOrder.read();
+  pendingInvestOrder.updateQueuedAmount(queuedUserAssetAmount);
+  if (queuedUserAssetAmount === 0n) pendingInvestOrder.updatePendingAmount(pendingUserAssetAmount);
+  await pendingInvestOrder.saveOrClear(event);
 
   // TODO: DEPRECATED to be deleted in future releases
   const outstandingInvest = (await OutstandingInvestService.getOrInit(
@@ -110,11 +90,7 @@ export async function updateDepositRequest({
     true
   )) as OutstandingInvestService;
   await outstandingInvest
-    .processHubDepositRequest(
-      queuedUserAssetAmount,
-      pendingUserAssetAmount,
-      epochIndex
-    )
+    .processHubDepositRequest(queuedUserAssetAmount, pendingUserAssetAmount, epochIndex)
     .saveOrClear(event);
 
   const epochOutstandingInvest = (await EpochOutstandingInvestService.getOrInit(
@@ -126,10 +102,11 @@ export async function updateDepositRequest({
     },
     event
   )) as EpochOutstandingInvestService;
-
+  const deltaQueuedAssetsAmount = queuedUserAssetAmount - (lastQueuedAssetsAmount ?? 0n);
   await epochOutstandingInvest
     .updatePendingAmount(pendingTotalAssetAmount)
-    .save(event);
+    .increaseQueuedAmount(deltaQueuedAssetsAmount)
+    .saveOrClear(event);
 }
 
 multiMapper("batchRequestManager:UpdateRedeemRequest", updateRedeemRequest);
@@ -138,30 +115,22 @@ export async function updateRedeemRequest({
   context,
 }: {
   event: Event<
-    | "batchRequestManagerV3_1:UpdateRedeemRequest"
-    | "shareClassManagerV3:UpdateRedeemRequest"
+    "batchRequestManagerV3_1:UpdateRedeemRequest" | "shareClassManagerV3:UpdateRedeemRequest"
   >;
   context: Context;
 }) {
-  logEvent(event, context, "shareClassManager:UpdateRedeemRequest");
-  const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  logEvent(event, context, "batchRequestManager:UpdateRedeemRequest");
+  const _centrifugeId = await BlockchainService.getCentrifugeId(context);
   const { poolId, investor, ...args } = event.args;
   const tokenId = "shareClassId" in args ? args.shareClassId : args.scId;
   const epochIndex = "epochId" in args ? args.epochId : args.epoch;
-  const payoutAssetId =
-    "payoutAssetId" in args ? args.payoutAssetId : args.assetId;
+  const payoutAssetId = "payoutAssetId" in args ? args.payoutAssetId : args.assetId;
   const pendingUserShareAmount =
-    "pendingUserShareAmount" in args
-      ? args.pendingUserShareAmount
-      : args.pendingAmount;
+    "pendingUserShareAmount" in args ? args.pendingUserShareAmount : args.pendingAmount;
   const pendingTotalShareAmount =
-    "pendingTotalShareAmount" in args
-      ? args.pendingTotalShareAmount
-      : args.totalPendingAmount;
+    "pendingTotalShareAmount" in args ? args.pendingTotalShareAmount : args.totalPendingAmount;
   const queuedUserShareAmount =
-    "queuedUserShareAmount" in args
-      ? args.queuedUserShareAmount
-      : args.queuedAmount;
+    "queuedUserShareAmount" in args ? args.queuedUserShareAmount : args.queuedAmount;
 
   const investorAccount = (await AccountService.getOrInit(
     context,
@@ -172,32 +141,23 @@ export async function updateRedeemRequest({
   )) as AccountService;
   const { address: investorAddress } = investorAccount.read();
 
-  const redeemOrder = (await RedeemOrderService.getOrInit(
+  const pendingRedeemOrder = (await PendingRedeemOrderService.getOrInit(
     context,
     {
       poolId,
       tokenId,
       assetId: payoutAssetId,
       account: investorAddress,
-      index: epochIndex,
     },
     event,
     undefined,
     true
-  )) as RedeemOrderService;
-  if (!redeemOrder.hasVaultRedeem()) {
-    const vaultRedeem = (await VaultRedeemService.get(context, {
-      accountAddress: investorAddress,
-      sharesAmount: queuedUserShareAmount + pendingUserShareAmount,
-    })) as VaultRedeemService | null;
-    if (vaultRedeem) {
-      const { centrifugeId, createdAtTxHash } = vaultRedeem.read();
-      redeemOrder.setVaultRedeem(centrifugeId, createdAtTxHash!);
-    } else {
-      redeemOrder.setVaultRedeem(centrifugeId, event.transaction.hash);
-    }
-  }
-  await redeemOrder.post(pendingUserShareAmount, event).saveOrClear(event);
+  )) as PendingRedeemOrderService;
+  const { queuedSharesAmount: lastQueuedSharesAmount } = pendingRedeemOrder.read();
+  pendingRedeemOrder.updateQueuedAmount(queuedUserShareAmount);
+  if (queuedUserShareAmount === 0n) pendingRedeemOrder.updatePendingAmount(pendingUserShareAmount);
+
+  await pendingRedeemOrder.saveOrClear(event);
 
   // TODO: DEPRECATED to be deleted in future releases
   const outstandingRedeem = (await OutstandingRedeemService.getOrInit(
@@ -216,11 +176,7 @@ export async function updateRedeemRequest({
     true
   )) as OutstandingRedeemService;
   await outstandingRedeem
-    .processHubRedeemRequest(
-      queuedUserShareAmount,
-      pendingUserShareAmount,
-      epochIndex
-    )
+    .processHubRedeemRequest(queuedUserShareAmount, pendingUserShareAmount, epochIndex)
     .saveOrClear(event);
 
   const epochOutstandingRedeem = (await EpochOutstandingRedeemService.getOrInit(
@@ -232,10 +188,11 @@ export async function updateRedeemRequest({
     },
     event
   )) as EpochOutstandingRedeemService;
-
+  const deltaQueuedSharesAmount = queuedUserShareAmount - (lastQueuedSharesAmount ?? 0n);
   await epochOutstandingRedeem
     .updatePendingAmount(pendingTotalShareAmount)
-    .save(event);
+    .increaseQueuedAmount(deltaQueuedSharesAmount)
+    .saveOrClear(event);
 }
 
 multiMapper("batchRequestManager:ApproveDeposits", approveDeposits);
@@ -243,32 +200,23 @@ export async function approveDeposits({
   event,
   context,
 }: {
-  event: Event<
-    | "batchRequestManagerV3_1:ApproveDeposits"
-    | "shareClassManagerV3:ApproveDeposits"
-  >;
+  event: Event<"batchRequestManagerV3_1:ApproveDeposits" | "shareClassManagerV3:ApproveDeposits">;
   context: Context;
 }) {
-  logEvent(event, context, "shareClassManager:ApproveDeposits");
-  const {
-    poolId,
-    approvedAssetAmount,
-    approvedPoolAmount,
-    pendingAssetAmount,
-    ...args
-  } = event.args;
+  logEvent(event, context, "batchRequestManager:ApproveDeposits");
+  const { poolId, approvedAssetAmount, approvedPoolAmount, pendingAssetAmount, ...args } =
+    event.args;
   const tokenId = "shareClassId" in args ? args.shareClassId : args.scId;
   const epochIndex = "epochId" in args ? args.epochId : args.epoch;
   const depositAssetId = "assetId" in args ? args.assetId : args.depositAssetId;
 
   const assetDecimals = await AssetService.getDecimals(context, depositAssetId);
   if (!assetDecimals)
-    throw new Error(`Asset decimals not found for id ${depositAssetId}`);
+    return serviceError(
+      `Asset decimals not found. Cannot compute approved percentage for invest order`
+    );
 
-  const approvedPercentage = computeApprovedPercentage(
-    approvedAssetAmount,
-    pendingAssetAmount
-  );
+  const approvedPercentage = computeApprovedPercentage(approvedAssetAmount, pendingAssetAmount);
 
   const _epochInvestOrder = (await EpochInvestOrderService.insert(
     context,
@@ -285,30 +233,53 @@ export async function approveDeposits({
     event
   )) as EpochInvestOrderService | null;
 
+  const epochOutstandingInvest = (await EpochOutstandingInvestService.getOrInit(
+    context,
+    {
+      poolId,
+      tokenId,
+      assetId: depositAssetId,
+    },
+    event
+  )) as EpochOutstandingInvestService;
+  await epochOutstandingInvest.updatePendingAmount(pendingAssetAmount).saveOrClear(event);
+
   const investOrderSaves: Promise<InvestOrderService>[] = [];
-  const investOrders = (await InvestOrderService.query(context, {
+  const pendingInvestOrders = (await PendingInvestOrderService.query(context, {
     tokenId,
     assetId: depositAssetId,
-    index: epochIndex,
-    postedAt_not: null,
-    postedAssetsAmount_not: 0n,
-    ...timestamper("approved", null),
-  })) as InvestOrderService[];
+    pendingAssetsAmount_gt: 0n,
+  })) as PendingInvestOrderService[];
 
-  for (const investOrder of investOrders) {
+  const pendingInvestOrderSaves: Promise<PendingInvestOrderService>[] = [];
+  for (const pendingInvestOrder of pendingInvestOrders) {
+    const { account, pendingAssetsAmount } = pendingInvestOrder.read();
+    if (!pendingAssetsAmount) continue;
     serviceLog(
-      `Processing ShareClassManager:ApproveDeposits for outstanding invest with index ${epochIndex}`,
-      expandInlineObject(investOrder.read())
+      `Processing ShareClassManager:ApproveDeposits for pending invest of account ${account}`
     );
-    const { postedAssetsAmount } = investOrder.read();
     const approvedUserAssetAmount = computeApprovedUserAmount(
-      postedAssetsAmount!,
+      pendingAssetsAmount,
       approvedPercentage
     );
+    const investOrder = (await InvestOrderService.insert(
+      context,
+      {
+        poolId,
+        tokenId,
+        assetId: depositAssetId,
+        account,
+        index: epochIndex,
+      },
+      event,
+      true
+    )) as InvestOrderService;
     investOrder.approve(approvedUserAssetAmount, event);
     investOrderSaves.push(investOrder.save(event));
+    pendingInvestOrder.updatePendingAmount(pendingAssetsAmount - approvedUserAssetAmount);
+    pendingInvestOrderSaves.push(pendingInvestOrder.saveOrClear(event));
   }
-  await Promise.all(investOrderSaves);
+  await Promise.all([...investOrderSaves, ...pendingInvestOrderSaves]);
 
   const holdingEscrows = (await HoldingEscrowService.query(context, {
     tokenId,
@@ -331,10 +302,7 @@ export async function approveDeposits({
   const outstandingInvestSaves: Promise<OutstandingInvestService>[] = [];
   for (const outstandingInvest of outstandingInvests) {
     const { pendingAmount } = outstandingInvest.read();
-    const approvedAssetAmount = computeApprovedUserAmount(
-      pendingAmount!,
-      approvedPercentage
-    );
+    const approvedAssetAmount = computeApprovedUserAmount(pendingAmount!, approvedPercentage);
     outstandingInvest.approveInvest(approvedAssetAmount, epochIndex, event);
     outstandingInvestSaves.push(outstandingInvest.clear(event));
   }
@@ -346,32 +314,28 @@ export async function approveRedeems({
   event,
   context,
 }: {
-  event: Event<
-    | "batchRequestManagerV3_1:ApproveRedeems"
-    | "shareClassManagerV3:ApproveRedeems"
-  >;
+  event: Event<"batchRequestManagerV3_1:ApproveRedeems" | "shareClassManagerV3:ApproveRedeems">;
   context: Context;
 }) {
-  logEvent(event, context, "shareClassManager:ApproveRedeems");
-  const { poolId, approvedShareAmount, pendingShareAmount, ...args } =
-    event.args;
+  logEvent(event, context, "batchRequestManager:ApproveRedeems");
+  const { poolId, approvedShareAmount, pendingShareAmount, ...args } = event.args;
   const tokenId = "shareClassId" in args ? args.shareClassId : args.scId;
   const epochIndex = "epochId" in args ? args.epochId : args.epoch;
-  const payoutAssetId =
-    "payoutAssetId" in args ? args.payoutAssetId : args.assetId;
+  const payoutAssetId = "payoutAssetId" in args ? args.payoutAssetId : args.assetId;
 
   const pool = (await PoolService.get(context, {
     id: poolId,
   })) as PoolService;
-  if (!pool) throw new Error(`Pool not found for id ${poolId}`);
+  if (!pool)
+    return serviceError(
+      `Pool not found. Cannot retrieve currency to compute approved percentage for redeem order`
+    );
 
   const { currency } = pool.read();
-  if (!currency) throw new Error("Currency is required");
+  if (!currency)
+    return serviceError(`Currency not found. Cannot compute approved percentage for redeem order`);
 
-  const approvedPercentage = computeApprovedPercentage(
-    approvedShareAmount,
-    pendingShareAmount
-  );
+  const approvedPercentage = computeApprovedPercentage(approvedShareAmount, pendingShareAmount);
 
   const _epochRedeemOrder = (await EpochRedeemOrderService.insert(
     context,
@@ -387,29 +351,53 @@ export async function approveRedeems({
     event
   )) as EpochRedeemOrderService | null;
 
+  const epochOutstandingRedeem = (await EpochOutstandingRedeemService.getOrInit(
+    context,
+    {
+      poolId,
+      tokenId,
+      assetId: payoutAssetId,
+    },
+    event
+  )) as EpochOutstandingRedeemService;
+  await epochOutstandingRedeem.updatePendingAmount(pendingShareAmount).saveOrClear(event);
+
   const redeemOrderSaves: Promise<RedeemOrderService>[] = [];
-  const redeemOrders = (await RedeemOrderService.query(context, {
+  const pendingRedeemOrders = (await PendingRedeemOrderService.query(context, {
     tokenId,
     assetId: payoutAssetId,
-    index: epochIndex,
-    postedAt_not: null,
-    postedSharesAmount_not: 0n,
-    ...timestamper("approved", null),
-  })) as RedeemOrderService[];
-  for (const redeemOrder of redeemOrders) {
+    pendingSharesAmount_gt: 0n,
+  })) as PendingRedeemOrderService[];
+
+  const pendingRedeemOrderSaves: Promise<PendingRedeemOrderService>[] = [];
+  for (const pendingRedeemOrder of pendingRedeemOrders) {
+    const { account, pendingSharesAmount } = pendingRedeemOrder.read();
+    if (!pendingSharesAmount) continue;
     serviceLog(
-      `Processing ShareClassManager:ApproveRedeems for outstanding redeem with index ${epochIndex}`,
-      expandInlineObject(redeemOrder.read())
+      `Processing ShareClassManager:ApproveRedeems for pending redeem of account ${account}`
     );
-    const { postedSharesAmount } = redeemOrder.read();
     const approvedUserShareAmount = computeApprovedUserAmount(
-      postedSharesAmount!,
+      pendingSharesAmount,
       approvedPercentage
     );
+    const redeemOrder = (await RedeemOrderService.insert(
+      context,
+      {
+        poolId,
+        tokenId,
+        assetId: payoutAssetId,
+        account,
+        index: epochIndex,
+      },
+      event,
+      true
+    )) as RedeemOrderService;
     redeemOrder.approve(approvedUserShareAmount, event);
     redeemOrderSaves.push(redeemOrder.save(event));
+    pendingRedeemOrder.updatePendingAmount(pendingSharesAmount - approvedUserShareAmount);
+    pendingRedeemOrderSaves.push(pendingRedeemOrder.saveOrClear(event));
   }
-  await Promise.all(redeemOrderSaves);
+  await Promise.all([...redeemOrderSaves, ...pendingRedeemOrderSaves]);
 
   const holdingEscrows = (await HoldingEscrowService.query(context, {
     tokenId,
@@ -432,10 +420,7 @@ export async function approveRedeems({
   const outstandingRedeemSaves: Promise<OutstandingRedeemService>[] = [];
   for (const outstandingRedeem of outstandingRedeems) {
     const { pendingAmount } = outstandingRedeem.read();
-    const approvedShareAmount = computeApprovedUserAmount(
-      pendingAmount!,
-      approvedPercentage
-    );
+    const approvedShareAmount = computeApprovedUserAmount(pendingAmount!, approvedPercentage);
     outstandingRedeem.approveRedeem(approvedShareAmount, epochIndex, event);
     outstandingRedeemSaves.push(outstandingRedeem.clear(event));
   }
@@ -447,12 +432,10 @@ export async function issueShares({
   event,
   context,
 }: {
-  event: Event<
-    "batchRequestManagerV3_1:IssueShares" | "shareClassManagerV3:IssueShares"
-  >;
+  event: Event<"batchRequestManagerV3_1:IssueShares" | "shareClassManagerV3:IssueShares">;
   context: Context;
 }) {
-  logEvent(event, context, "shareClassManager:IssueShares");
+  logEvent(event, context, "batchRequestManager:IssueShares");
   const {
     //poolId,
     issuedShareAmount,
@@ -462,9 +445,7 @@ export async function issueShares({
   const epochIndex = "epochId" in args ? args.epochId : args.epoch;
   const depositAssetId = "assetId" in args ? args.assetId : args.depositAssetId;
   const navAssetPerShare =
-    "priceAssetPerShare" in args
-      ? args.priceAssetPerShare
-      : args.navAssetPerShare;
+    "priceAssetPerShare" in args ? args.priceAssetPerShare : args.navAssetPerShare;
   const navPoolPerShare =
     "pricePoolPerShare" in args ? args.pricePoolPerShare : args.navPoolPerShare;
 
@@ -474,33 +455,23 @@ export async function issueShares({
     index: epochIndex,
   })) as EpochInvestOrderService | null;
   if (!epochInvestOrder) {
-    serviceError(
-      `EpochInvestOrder not found for token ${tokenId} asset ${depositAssetId} index ${epochIndex}`
-    );
-    return;
+    return serviceError(`EpochInvestOrder not found. Cannot record issued shares`);
   }
-  epochInvestOrder.issuedShares(
-    issuedShareAmount,
-    navPoolPerShare,
-    navAssetPerShare,
-    event
-  );
+  epochInvestOrder.issuedShares(issuedShareAmount, navPoolPerShare, navAssetPerShare, event);
   await epochInvestOrder.save(event);
 
   const assetDecimals = await AssetService.getDecimals(context, depositAssetId);
-  if (!assetDecimals)
-    throw new Error(`Asset decimals not found for id ${depositAssetId}`);
+  if (!assetDecimals) return serviceError(`Asset decimals not found. Cannot compute issued shares`);
 
   const tokenDecimals = await TokenService.getDecimals(context, tokenId);
-  if (!tokenDecimals)
-    throw new Error(`Token decimals not found for id ${tokenId}`);
+  if (!tokenDecimals) return serviceError(`Token decimals not found. Cannot compute issued shares`);
 
   const investOrders = (await InvestOrderService.query(context, {
     tokenId,
     assetId: depositAssetId,
     index: epochIndex,
     approvedAt_not: null,
-    ...timestamper("issued", null),
+    issuedAt: null,
   })) as InvestOrderService[];
 
   const investOrderSaves: Promise<InvestOrderService>[] = [];
@@ -510,13 +481,7 @@ export async function issueShares({
       expandInlineObject(investOrder.read())
     );
 
-    investOrder.issueShares(
-      navAssetPerShare,
-      navPoolPerShare,
-      assetDecimals,
-      tokenDecimals,
-      event
-    );
+    investOrder.issueShares(navAssetPerShare, navPoolPerShare, assetDecimals, tokenDecimals, event);
     investOrderSaves.push(investOrder.save(event));
   }
 
@@ -531,27 +496,29 @@ export async function revokeShares({
   event: Event<"batchRequestManagerV3_1:RevokeShares" | "shareClassManagerV3:RevokeShares">;
   context: Context;
 }) {
-  logEvent(event, context, "shareClassManager:RevokeShares");
-  const {
-    poolId,
-    ...args
-  } = event.args;
+  logEvent(event, context, "batchRequestManager:RevokeShares");
+  const { poolId, ...args } = event.args;
 
   const tokenId = "shareClassId" in args ? args.shareClassId : args.scId;
   const epochIndex = "epochId" in args ? args.epochId : args.epoch;
   const payoutAssetId = "payoutAssetId" in args ? args.payoutAssetId : args.assetId;
-  const revokedShareAmount = "approvedShareAmount" in args ? args.approvedShareAmount : args.revokedShareAmount;
-  const revokedAssetAmount = "payoutAssetAmount" in args ? args.payoutAssetAmount : args.revokedAssetAmount;
-  const revokedPoolAmount = "payoutPoolAmount" in args ? args.payoutPoolAmount : args.revokedPoolAmount;
-  const navAssetPerShare = "priceAssetPerShare" in args ? args.priceAssetPerShare : args.navAssetPerShare;
-  const navPoolPerShare = "pricePoolPerShare" in args ? args.pricePoolPerShare : args.navPoolPerShare;
+  const revokedShareAmount =
+    "approvedShareAmount" in args ? args.approvedShareAmount : args.revokedShareAmount;
+  const revokedAssetAmount =
+    "payoutAssetAmount" in args ? args.payoutAssetAmount : args.revokedAssetAmount;
+  const revokedPoolAmount =
+    "payoutPoolAmount" in args ? args.payoutPoolAmount : args.revokedPoolAmount;
+  const navAssetPerShare =
+    "priceAssetPerShare" in args ? args.priceAssetPerShare : args.navAssetPerShare;
+  const navPoolPerShare =
+    "pricePoolPerShare" in args ? args.pricePoolPerShare : args.navPoolPerShare;
 
   const pool = (await PoolService.get(context, {
     id: poolId,
   })) as PoolService;
-  if (!pool) throw new Error(`Pool not found for id ${poolId}`);
+  if (!pool) return serviceError(`Pool not found. Cannot compute revoked shares`);
   const { currency: poolCurrency } = pool.read();
-  if (!poolCurrency) throw new Error("Pool currency is required");
+  if (!poolCurrency) return serviceError(`Pool currency not found. Cannot compute revoked shares`);
 
   const epochRedeemOrder = (await EpochRedeemOrderService.get(context, {
     tokenId,
@@ -576,18 +543,18 @@ export async function revokeShares({
 
   const tokenDecimals = await TokenService.getDecimals(context, tokenId);
   if (!tokenDecimals)
-    throw new Error(`Token decimals not found for id ${tokenId}`);
+    return serviceError(`Token decimals not found. Cannot compute revoked shares`);
 
   const assetDecimals = await AssetService.getDecimals(context, payoutAssetId);
   if (!assetDecimals)
-    throw new Error(`Asset decimals not found for id ${payoutAssetId}`);
+    return serviceError(`Asset decimals not found. Cannot compute revoked shares`);
 
   const redeemOrders = (await RedeemOrderService.query(context, {
     tokenId,
     assetId: payoutAssetId,
     index: epochIndex,
     approvedAt_not: null,
-    ...timestamper("revoked", null),
+    revokedAt: null,
   })) as RedeemOrderService[];
 
   const redeemOrderSaves: Promise<RedeemOrderService>[] = [];
@@ -607,7 +574,7 @@ export async function revokeShares({
     redeemOrderSaves.push(redeemOrder.save(event));
   }
   await Promise.all(redeemOrderSaves);
-};
+}
 
 multiMapper("batchRequestManager:ClaimDeposit", claimDeposit);
 export async function claimDeposit({
@@ -617,9 +584,10 @@ export async function claimDeposit({
   event: Event<"batchRequestManagerV3_1:ClaimDeposit" | "shareClassManagerV3:ClaimDeposit">;
   context: Context;
 }) {
-  logEvent(event, context, "shareClassManager:ClaimDeposit");
+  logEvent(event, context, "batchRequestManager:ClaimDeposit");
   const {
     //poolId,
+    paymentAssetAmount,
     investor,
     ...args
   } = event.args;
@@ -627,7 +595,14 @@ export async function claimDeposit({
   const tokenId = "shareClassId" in args ? args.shareClassId : args.scId;
   const epochIndex = "epochId" in args ? args.epochId : args.epoch;
   const assetId = "assetId" in args ? args.assetId : args.depositAssetId;
-  const claimedShareAmount = "payoutShareAmount" in args ? args.payoutShareAmount : args.claimedShareAmount;
+  const claimedShareAmount =
+    "payoutShareAmount" in args ? args.payoutShareAmount : args.claimedShareAmount;
+
+  const token = (await TokenService.get(context, {
+    id: tokenId,
+  })) as TokenService;
+  if (!token) return serviceError(`Token not found. Cannot retrieve poolId`);
+  const { poolId } = token.read();
 
   const investorAccount = (await AccountService.getOrInit(
     context,
@@ -639,21 +614,15 @@ export async function claimDeposit({
   const { address: investorAddress } = investorAccount.read();
 
   const investOrder = (await InvestOrderService.get(context, {
+    poolId,
     tokenId,
     assetId,
     account: investorAddress,
     index: epochIndex,
-    issuedAt_not: null,
-    ...timestamper("claimed", null),
-  })) as InvestOrderService;
-  if (!investOrder) {
-    serviceError(
-      `Invest order ${tokenId}-${assetId}-${investorAddress}-${epochIndex} not found`
-    );
-    return;
-  }
-  await investOrder.claimDeposit(claimedShareAmount, event).save(event);
-};
+  })) as InvestOrderService | null;
+  if (!investOrder) return serviceError(`InvestOrder not found. Cannot claim deposit`);
+  await investOrder.claimDeposit(claimedShareAmount, paymentAssetAmount, event).save(event);
+}
 
 multiMapper("batchRequestManager:ClaimRedeem", claimRedeem);
 export async function claimRedeem({
@@ -663,17 +632,25 @@ export async function claimRedeem({
   event: Event<"batchRequestManagerV3_1:ClaimRedeem" | "shareClassManagerV3:ClaimRedeem">;
   context: Context;
 }) {
-  logEvent(event, context, "shareClassManager:ClaimRedeem");
+  logEvent(event, context, "batchRequestManager:ClaimRedeem");
   const {
     //poolId,
     investor,
+    paymentShareAmount,
     ...args
   } = event.args;
 
   const tokenId = "shareClassId" in args ? args.shareClassId : args.scId;
   const epochIndex = "epochId" in args ? args.epochId : args.epoch;
   const assetId = "assetId" in args ? args.assetId : args.payoutAssetId;
-  const claimedAssetAmount = "payoutAssetAmount" in args ? args.payoutAssetAmount : args.claimedAssetAmount;
+  const claimedAssetAmount =
+    "payoutAssetAmount" in args ? args.payoutAssetAmount : args.claimedAssetAmount;
+
+  const token = (await TokenService.get(context, {
+    id: tokenId,
+  })) as TokenService;
+  if (!token) return serviceError(`Token not found. Cannot retrieve poolId`);
+  const { poolId } = token.read();
 
   const investorAccount = (await AccountService.getOrInit(
     context,
@@ -685,21 +662,15 @@ export async function claimRedeem({
   const { address: investorAddress } = investorAccount.read();
 
   const redeemOrder = (await RedeemOrderService.get(context, {
+    poolId,
     tokenId,
     assetId,
     account: investorAddress,
     index: epochIndex,
-    revokedAt_not: null,
-    ...timestamper("claimed", null),
-  })) as RedeemOrderService;
-  if (!redeemOrder) {
-    serviceError(
-      `Redeem order ${tokenId}-${assetId}-${investorAddress}-${epochIndex} not found`
-    );
-    return;
-  }
-  await redeemOrder.claimRedeem(claimedAssetAmount, event).save(event);
-};
+  })) as RedeemOrderService | null;
+  if (!redeemOrder) return serviceError(`RedeemOrder not found. Cannot claim redeem`);
+  await redeemOrder.claimRedeem(claimedAssetAmount, paymentShareAmount, event).save(event);
+}
 
 /**
  * Compute the percentage of the approved amount that is approved.
@@ -707,11 +678,8 @@ export async function claimRedeem({
  * @param pendingAmount - The amount of the pending amount.
  * @returns The percentage of the approved amount that is approved with 18 decimals.
  */
-function computeApprovedPercentage(
-  approveAmount: bigint,
-  pendingAmount: bigint
-) {
-  return (approveAmount * 10n ** 18n) / (approveAmount + pendingAmount);
+function computeApprovedPercentage(approveAmount: bigint, pendingAmount: bigint) {
+  return (approveAmount * 10n ** 21n) / (pendingAmount + approveAmount);
 }
 
 /**
@@ -720,9 +688,6 @@ function computeApprovedPercentage(
  * @param approvedPercentage - The percentage of the approved amount that is approved.
  * @returns The approved user amount.
  */
-function computeApprovedUserAmount(
-  totalApprovedAmount: bigint,
-  approvedPercentage: bigint
-) {
-  return (totalApprovedAmount * approvedPercentage) / 10n ** 18n;
+function computeApprovedUserAmount(totalApprovedAmount: bigint, approvedPercentage: bigint) {
+  return (totalApprovedAmount * approvedPercentage) / 10n ** 21n;
 }

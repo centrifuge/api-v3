@@ -19,10 +19,7 @@ export type RegistryChainsValues<V extends RegistryVersions> = V extends Registr
   ? RegistryChains<V>[keyof RegistryChains<V>]
   : never;
 
-type ChainsConfig<V extends RegistryVersions> = Record<
-  NetworkNames<V>,
-  ChainConfig
->;
+type ChainsConfig<V extends RegistryVersions> = Record<NetworkNames<V>, ChainConfig>;
 
 export const networkNames = {
   "84532": "base",
@@ -34,24 +31,25 @@ export const networkNames = {
   "1": "ethereum",
   "98866": "plume",
   "56": "binance",
+  "998": "hyperliquid",
+  "10": "optimism",
+  "143": "monad",
+  "999": "hyperliquid",
+  "1672": "pharos",
 } as const;
 
-type ExtractNetworkNamesFromKeys<K> = 
-  K extends keyof typeof networkNames 
-    ? (typeof networkNames)[K]
-    : never;
+type ExtractNetworkNamesFromKeys<K> = K extends keyof typeof networkNames
+  ? (typeof networkNames)[K]
+  : never;
 
-export type NetworkNames<V> = 
-  V extends RegistryVersions
-    ? ExtractNetworkNamesFromKeys<RegistryChainsKeys<V>>
-    : never;
+export type NetworkNames<V extends RegistryVersions> = V extends RegistryVersions
+  ? ExtractNetworkNamesFromKeys<RegistryChainsKeys<V>>
+  : never;
 
 // Load and deduplicate the registry chains
 let loadedChains: RegistryChainsValues<RegistryVersions>[] = Array.from(
   Object.values(registries)
-    .flatMap((registry: Registry<RegistryVersions>) =>
-      Object.values(registry.chains)
-    )
+    .flatMap((registry: Registry<RegistryVersions>) => Object.values(registry.chains))
     .reduce(
       (
         map: Map<number, RegistryChainsValues<RegistryVersions>>,
@@ -91,36 +89,73 @@ export const endpoints = {
   84532: [
     `https://base-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.base-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/base/${process.env.DRPC_API_KEY}`,
   ],
   421614: [
     `https://arb-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.arbitrum-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/arbitrum-sepolia/${process.env.DRPC_API_KEY}`,
   ],
   11155111: [
     `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.ethereum-sepolia.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/sepolia/${process.env.DRPC_API_KEY}`,
   ],
   42161: [
     `https://arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.arbitrum-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/arbitrum/${process.env.DRPC_API_KEY}`,
   ],
   43114: [
     `https://avax-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.avalanche-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/ext/bc/C/rpc/`,
+    `https://lb.drpc.live/avalanche/${process.env.DRPC_API_KEY}`,
   ],
   8453: [
     `https://base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.base-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/base/${process.env.DRPC_API_KEY}`,
   ],
   1: [
     `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/ethereum/${process.env.DRPC_API_KEY}`,
   ],
-  98866: [`https://rpc.plume.org/${process.env.CONDUIT_API_KEY}`],
+  98866: [
+    `https://rpc.plume.org/${process.env.CONDUIT_API_KEY}`,
+    `https://lb.drpc.live/plume/${process.env.DRPC_API_KEY}`,
+  ],
   56: [
     `https://bnb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
     `https://${process.env.QUICKNODE_API_NAME}.bsc.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/bsc/${process.env.DRPC_API_KEY}`,
   ],
+  998: [
+    `https://hyperliquid-testnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `https://${process.env.QUICKNODE_API_NAME}.hype-testnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/nanoreth`,
+    `https://lb.drpc.live/hyperliquid-testnet/${process.env.DRPC_API_KEY}`,
+  ],
+  10: [
+    `https://opt-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `https://${process.env.QUICKNODE_API_NAME}.optimism.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/optimism/${process.env.DRPC_API_KEY}`,
+  ],
+  143: [
+    `https://monad-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `https://${process.env.QUICKNODE_API_NAME}.monad-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}`,
+    `https://lb.drpc.live/monad-mainnet/${process.env.DRPC_API_KEY}`,
+  ],
+  999: [
+    `https://hyperliquid-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `https://${process.env.QUICKNODE_API_NAME}.hype-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/nanoreth`,
+    `https://lb.drpc.live/hyperliquid/${process.env.DRPC_API_KEY}`,
+  ],
+  1672: [],
+};
+
+const getLogsBlockRange = {
+  "*": 10000,
+  "143": 1000,
 };
 
 // Package loadedChains into a ChainConfig object for ponder to consume
@@ -128,14 +163,16 @@ const chains = Object.fromEntries(
   loadedChains.map((chain) => {
     const chainId = chain.network.chainId;
     const envRpc = process.env[`PONDER_RPC_URL_${chainId}`];
-    const networkName =
-      networkNames[chainId.toString() as keyof typeof networkNames];
+    const networkName = networkNames[chainId.toString() as keyof typeof networkNames];
+    const rpc = envRpc
+      ? envRpc.split(",").map((r) => r.trim())
+      : endpoints[chainId as keyof typeof endpoints];
+    const ethGetLogsBlockRange =
+      getLogsBlockRange[chainId.toString() as keyof typeof getLogsBlockRange] ??
+      getLogsBlockRange["*"];
     return [
       networkName,
-      {
-        id: chain.network.chainId,
-        rpc: envRpc ?? endpoints[chainId as keyof typeof endpoints],
-      },
+      { id: chain.network.chainId, rpc, ethGetLogsBlockRange, pollingInterval: 3_000 },
     ] as [NetworkNames<RegistryVersions>, ChainConfig];
   })
 ) as ChainsConfig<RegistryVersions>;
@@ -161,13 +198,16 @@ export const skipBlocks = {
   "1": 300,
   "98866": 9000,
   "56": 4800,
+  "10": 1800,
+  "143": 9000,
+  "999": 18000,
+  "998": 18000,
 };
 
 const blocks = Object.fromEntries(
   loadedChains.map((chain) => {
     const chainId = chain.network.chainId;
-    const networkName =
-      networkNames[chainId.toString() as keyof typeof networkNames];
+    const networkName = networkNames[chainId.toString() as keyof typeof networkNames];
     return [
       networkName,
       {
@@ -189,7 +229,7 @@ export { blocks };
 export function getContractNames(): string[] {
   const versions = Object.keys(registries) as RegistryVersions[];
   const contractNamesSet = new Set<string>();
-  
+
   // Iterate through all versions (later versions will override earlier ones for same contract names)
   for (const version of versions) {
     const registry = registries[version];
@@ -203,10 +243,49 @@ export function getContractNames(): string[] {
       }
     }
   }
-  
+
   return Array.from(contractNamesSet);
 }
 
+/**
+ * Gets all contract addresses for a chain across all registry versions.
+ * Later versions override earlier ones for the same contract name.
+ * @param chainId - The chain ID (number or string).
+ * @param versionIndex - Optional. If given, only contracts for the registry at this index are returned (no overrides).
+ * @returns Record of contract name to address for the chain.
+ */
+export function chainContracts(
+  chainId: number | string,
+  versionIndex?: number
+): Record<string, `0x${string}`> {
+  const versions = Object.keys(registries) as RegistryVersions[];
+  const contractsMap = new Map<string, `0x${string}`>();
+
+  const versionsToUse =
+    versionIndex !== undefined
+      ? ([versions[versionIndex]].filter(
+          (v): v is RegistryVersions => v != null
+        ) as RegistryVersions[])
+      : versions;
+
+  for (const version of versionsToUse) {
+    const registry = registries[version] as Registry<RegistryVersions>;
+    const chain = registry.chains[chainId.toString() as keyof typeof registry.chains];
+    if (chain?.contracts) {
+      const contractKeys = Object.keys(chain.contracts) as Array<keyof typeof chain.contracts>;
+      for (const contractName of contractKeys) {
+        const contract = chain.contracts[contractName];
+        if (contract && contract.address) {
+          contractsMap.set(contractName as string, contract.address.toLowerCase() as `0x${string}`);
+        }
+      }
+    }
+  }
+
+  return Object.fromEntries(contractsMap);
+}
+
+// Explorer URLs definitions
 export const explorerUrls = {
   "84532": "https://sepolia.basescan.org",
   "421614": "https://sepolia.arbiscan.io",
@@ -217,16 +296,31 @@ export const explorerUrls = {
   "1": "https://etherscan.io",
   "98866": "https://explorer.plume.org",
   "56": "https://bscscan.com",
+  "143": "https://monad.socialscan.io",
+  "999": "https://hyperevmscan.io",
+  "10": "https://optimistic.etherscan.io/",
 };
 
+// Icons definitions
 export const chainIcons = {
   "1": "https://ipfs.centrifuge.io/ipfs/bafkreihk753r3oksmw5pburcz4dxq2xazsarihdkeae2ilt7tc7lj2hggm",
-  "8453": "https://ipfs.centrifuge.io/ipfs/bafkreifpdqjq6jvh4xat54ymcue6p4n24ifc3gzz2446cipumiwbz7ybu4",
-  "42161": "https://ipfs.centrifuge.io/ipfs/bafkreiemrnwrwcxbwho3ut6x3k4zv4jerowpwnynovt6sbc7kgqbfknq7a",
-  "98866": "https://ipfs.centrifuge.io/ipfs/bafkreiecr63jf4mvgylcnxry3wsds6cdmjsnzcybjffmvcpxhes6qwfngy",
-  "43114": "https://ipfs.centrifuge.io/ipfs/bafkreiaxodsgromeeaihu44fazsxdopkrqvinqzhyfxvx5mrbcmduqdfpq",
+  "8453":
+    "https://ipfs.centrifuge.io/ipfs/bafkreifpdqjq6jvh4xat54ymcue6p4n24ifc3gzz2446cipumiwbz7ybu4",
+  "42161":
+    "https://ipfs.centrifuge.io/ipfs/bafkreiemrnwrwcxbwho3ut6x3k4zv4jerowpwnynovt6sbc7kgqbfknq7a",
+  "98866":
+    "https://ipfs.centrifuge.io/ipfs/bafkreiecr63jf4mvgylcnxry3wsds6cdmjsnzcybjffmvcpxhes6qwfngy",
+  "43114":
+    "https://ipfs.centrifuge.io/ipfs/bafkreiaxodsgromeeaihu44fazsxdopkrqvinqzhyfxvx5mrbcmduqdfpq",
   "56": "https://ipfs.centrifuge.io/ipfs/bafkreidiypdacfywbuokj7r3e7td5bs6ojkh37ycz3uwfcbd34xka2qtai",
-  "11155111": "https://ipfs.centrifuge.io/ipfs/bafkreihk753r3oksmw5pburcz4dxq2xazsarihdkeae2ilt7tc7lj2hggm",
-  "84532": "https://ipfs.centrifuge.io/ipfs/bafkreifpdqjq6jvh4xat54ymcue6p4n24ifc3gzz2446cipumiwbz7ybu4",
-  "421614": "https://ipfs.centrifuge.io/ipfs/bafkreiemrnwrwcxbwho3ut6x3k4zv4jerowpwnynovt6sbc7kgqbfknq7a"
-}
+  "11155111":
+    "https://ipfs.centrifuge.io/ipfs/bafkreihk753r3oksmw5pburcz4dxq2xazsarihdkeae2ilt7tc7lj2hggm",
+  "84532":
+    "https://ipfs.centrifuge.io/ipfs/bafkreifpdqjq6jvh4xat54ymcue6p4n24ifc3gzz2446cipumiwbz7ybu4",
+  "421614":
+    "https://ipfs.centrifuge.io/ipfs/bafkreiemrnwrwcxbwho3ut6x3k4zv4jerowpwnynovt6sbc7kgqbfknq7a",
+  "143": "https://ipfs.centrifuge.io/ipfs/QmX86URyeeYYR5DxcnKfYF7ApMeRQPC9JurZBTS9VBUiAH",
+  "999": "https://ipfs.centrifuge.io/ipfs/QmZnmSzzq3Jspa3HxUdk4JQAWgtAQtinBdDTBdAFn2jijX",
+  "998": "https://ipfs.centrifuge.io/ipfs/QmZnmSzzq3Jspa3HxUdk4JQAWgtAQtinBdDTBdAFn2jijX",
+  "10": "https://ipfs.centrifuge.io/ipfs/QmXR2gUAwJdEhH7MAqEqd6NTGB58XibiKvtE3TUoe6CcMK",
+};

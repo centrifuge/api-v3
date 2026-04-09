@@ -19,16 +19,14 @@ export type RelatedContractEvents<ContractName extends string> = Extract<
 >;
 
 // Extracts contract name and event name from an unversioned event
-type ExtractParts<T extends string> =
-  T extends `${infer ContractName}:${infer EventName}`
-    ? { contractName: ContractName; eventName: EventName }
-    : never;
+type ExtractParts<T extends string> = T extends `${infer ContractName}:${infer EventName}`
+  ? { contractName: ContractName; eventName: EventName }
+  : never;
 
-type VersionedEventsForUnversioned<T extends UnversionedContractEvents> =
-  Extract<
-    ContractEvents,
-    `${ExtractParts<T>["contractName"]}V${string}:${ExtractParts<T>["eventName"]}`
-  >;
+type VersionedEventsForUnversioned<T extends UnversionedContractEvents> = Extract<
+  ContractEvents,
+  `${ExtractParts<T>["contractName"]}V${string}:${ExtractParts<T>["eventName"]}`
+>;
 
 /**
  * Maps an unversioned contract event to a handler, registering handlers for all
@@ -44,6 +42,7 @@ export function multiMapper<E extends UnversionedContractEvents>(
   }) => void | Promise<void>
 ): void {
   // Extract contract name and event name from unversioned event, stripping parameters using regex
+  const isParameterizedEvent = event.includes("(");
   const contractName = event.split(":")[0] as string;
   const eventName = event.split(":")[1];
   if (!eventName) return;
@@ -51,9 +50,7 @@ export function multiMapper<E extends UnversionedContractEvents>(
 
   // Find all contract keys that start with the contract name followed by "V"
   // This gives us all available versions for this contract
-  const contractKeys = Object.keys(contracts).filter((key) =>
-    key.startsWith(`${contractName}V`)
-  );
+  const contractKeys = Object.keys(contracts).filter((key) => key.startsWith(`${contractName}V`));
 
   // Extract versions from contract keys (e.g., "HubV3" -> "V3", "HubV3_1" -> "V3_1")
   const versions = contractKeys.map((key) => key.slice(contractName.length));
@@ -61,15 +58,19 @@ export function multiMapper<E extends UnversionedContractEvents>(
   // Register handlers for versioned events using string pattern matching
   // Pattern: <ContractName><Version>:<EventName>
   const registeredEvents: string[] = [];
+  // Setup is a Ponder lifecycle hook, not an ABI event; register for each version without ABI lookup
+  const isSetupEvent = event.endsWith(":setup");
 
   for (const version of versions) {
-    const versionedContract =
-      `${contractName}${version}` as keyof typeof contracts;
-    const versionedEvent =
-      `${versionedContract}:${eventName}` as ContractEvents;
-    const versionedEventWithoutParameters =
-      `${versionedContract}:${eventNameWithoutParameters}` as ContractEvents;
-    const isPrametricEvent = versionedEvent !== versionedEventWithoutParameters;
+    const versionedContract = `${contractName}${version}` as keyof typeof contracts;
+    const versionedEvent = `${versionedContract}:${eventName}` as ContractEvents;
+
+    if (isSetupEvent) {
+      ponder.on(versionedEvent, handler as Parameters<typeof ponder.on>[1]);
+      registeredEvents.push(versionedEvent);
+      continue;
+    }
+
     const eventItems = contracts[versionedContract].abi.filter(
       (abi) => abi.type === "event" && abi.name === eventNameWithoutParameters
     );
@@ -77,11 +78,12 @@ export function multiMapper<E extends UnversionedContractEvents>(
       case 0:
         continue;
       case 1:
-        if (isPrametricEvent) continue;
+        if (isParameterizedEvent) continue;
         ponder.on(versionedEvent, handler as Parameters<typeof ponder.on>[1]);
         registeredEvents.push(versionedEvent);
         break;
       default:
+        if (!isParameterizedEvent) continue;
         ponder.on(versionedEvent, handler as Parameters<typeof ponder.on>[1]);
         registeredEvents.push(versionedEvent);
         break;
@@ -90,8 +92,6 @@ export function multiMapper<E extends UnversionedContractEvents>(
   }
 
   if (registeredEvents.length > 0) {
-    process.stdout.write(
-      `${event} mapped to [${registeredEvents.join(", ")}]\n`
-    );
+    process.stdout.write(`${event} mapped to [${registeredEvents.join(", ")}]\n`);
   }
 }

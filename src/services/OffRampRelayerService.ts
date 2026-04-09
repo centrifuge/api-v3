@@ -1,28 +1,37 @@
-import { Service, mixinCommonStatics } from "./Service";
-import { OfframpRelayer } from "ponder:schema";
+import { OfframpRelayer, OfframpRelayerCrosschainInProgressTypes } from "ponder:schema";
+import { serviceLog } from "../helpers/logger";
+import { Service } from "./Service";
 
 /**
  * Service for managing off-ramp relayers.
  *
  */
-export class OffRampRelayerService extends mixinCommonStatics(Service<typeof OfframpRelayer>, OfframpRelayer, "OffRampRelayer") {
+export class OffRampRelayerService extends Service<typeof OfframpRelayer> {
+  static readonly entityTable = OfframpRelayer;
+  static readonly entityName = "OffRampRelayer";
   /**
-   * Enables the off-ramp relayer
+   * Sets the crosschain progress for the offramp relayer.
    *
+   * @param crosschainInProgress - The value to set; omit to clear
    * @returns The service instance for method chaining
    */
-  public enable() {
-    this.data.isEnabled = true;
+  public setCrosschainInProgress(
+    crosschainInProgress?: (typeof OfframpRelayerCrosschainInProgressTypes)[number]
+  ) {
+    this.data.crosschainInProgress = crosschainInProgress ?? null;
+    serviceLog(`Setting crosschainInProgress to ${crosschainInProgress}`);
     return this;
   }
 
   /**
-   * Disables the off-ramp relayer
+   * Sets the enabled status for the off-ramp relayer.
    *
+   * @param isEnabled - The value to set for isEnabled
    * @returns The service instance for method chaining
    */
-  public disable() {
-    this.data.isEnabled = false;
+  public setEnabled(isEnabled: boolean) {
+    this.data.isEnabled = isEnabled;
+    serviceLog(`Setting isEnabled to ${isEnabled}`);
     return this;
   }
 }

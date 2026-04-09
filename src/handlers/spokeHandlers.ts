@@ -8,13 +8,17 @@ import {
   TokenService,
   InvestorTransactionService,
   AccountService,
+  TokenInstancePositionService,
 } from "../services";
 import { ERC20Abi } from "../../abis/ERC20";
-import { Abis } from "../contracts";
+import { Abis, REGISTRY_VERSION_ORDER } from "../contracts";
 import { RegistryChains } from "../chains";
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
-import { deployVault,linkVault,unlinkVault } from "./vaultRegistryHandlers";
+import { deployVault, linkVault, unlinkVault } from "./vaultRegistryHandlers";
+import { getInitialHolders } from "../config";
+import { initialisePosition } from "../services";
+import { readContractSafe } from "../helpers/readContractSafe";
 
 multiMapper("spoke:DeployVault", deployVault);
 
@@ -52,11 +56,10 @@ multiMapper("spoke:AddShareClass", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const totalSupply = await context.client.readContract({
+  const totalSupply = await readContractSafe(context, event, {
     abi: ERC20Abi,
     address: tokenAddress,
     functionName: "totalSupply",
-    args: [],
   });
 
   // Get the existing token instance
@@ -91,6 +94,26 @@ multiMapper("spoke:AddShareClass", async ({ event, context }) => {
   // Only increase token total issuance if this is a new token instance
   if (prevInstanceIssuance === 0n) {
     token.increaseTotalIssuance(totalSupply);
+
+    // Fetch initial holders from hardcoded list
+    const initialHolders: string[] = getInitialHolders(poolId, tokenId, centrifugeId);
+    if (initialHolders.length > 0) {
+      await Promise.all(
+        initialHolders.map(async (holder: string) => {
+          (await TokenInstancePositionService.getOrInit(
+            context,
+            {
+              tokenId,
+              centrifugeId,
+              accountAddress: holder.toLowerCase() as `0x${string}`,
+            },
+            event,
+            async (tokenInstancePosition) =>
+              await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
+          )) as TokenInstancePositionService;
+        })
+      );
+    }
   }
 
   await token.save(event);
@@ -113,12 +136,13 @@ multiMapper("spoke:UpdateSharePrice", async ({ event, context }) => {
     tokenId,
     centrifugeId,
   })) as TokenInstanceService;
-  if (!tokenInstance)
-    throw new Error("TokenInstance not found for share class");
+  if (!tokenInstance) return serviceError(`TokenInstance not found. Cannot update token price`);
 
-  await tokenInstance.setTokenPrice(tokenPrice);
-  await tokenInstance.setComputedAt(computedAt);
-  await tokenInstance.save(event);
+  await tokenInstance
+    .setTokenPrice(tokenPrice)
+    .setComputedAt(computedAt)
+    .setCrosschainInProgress()
+    .save(event);
 });
 
 multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
@@ -133,20 +157,22 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
   } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const indexerVersion = REGISTRY_VERSION_ORDER[0];
 
   const chainId = context.chain.id;
-  if (typeof chainId !== "number") throw new Error("Chain ID not found");
-  const poolEscrowFactoryAddress = RegistryChains.find(
-    (chain) => chain.network.chainId === chainId
-  )?.contracts.poolEscrowFactory;
+  const poolEscrowFactoryAddress = RegistryChains.find((chain) => chain.network.chainId === chainId)
+    ?.contracts.poolEscrowFactory;
   if (!poolEscrowFactoryAddress) {
-    serviceError(`Pool Escrow Factory address not found for chain ${chainId}`);
+    serviceError(`Pool Escrow Factory address not found. Cannot retrieve escrow address`);
     return;
   }
 
-  const escrowAddress = await context.client.readContract({
-    abi: Abis.v3.PoolEscrowFactory,
-    address: poolEscrowFactoryAddress.address,
+  const poolEscrowFactoryAbi = Abis[indexerVersion as keyof typeof Abis].PoolEscrowFactory;
+  const poolEscrowFactoryAddr = poolEscrowFactoryAddress.address;
+
+  const escrowAddress = await readContractSafe(context, event, {
+    abi: poolEscrowFactoryAbi,
+    address: poolEscrowFactoryAddr,
     functionName: "escrow",
     args: [poolId],
   });
@@ -156,7 +182,7 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
     centrifugeId,
   });
   if (assetQuery.length !== 1) {
-    serviceError(`Asset not found for address ${assetAddress}`);
+    serviceError(`Asset not found. Cannot retrieve assetId for holding escrow`);
     return;
   }
 
@@ -176,10 +202,15 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
     event
   )) as HoldingEscrowService;
 
-  await holdingEscrow.setAssetPrice(assetPrice);
-  await holdingEscrow.save(event);
+  await holdingEscrow.setAssetPrice(assetPrice).setCrosschainInProgress().save(event);
 
-  await snapshotter(context, event, "spokeV3:UpdateAssetPrice", [holdingEscrow], HoldingEscrowSnapshot);
+  await snapshotter(
+    context,
+    event,
+    "spokeV3_1:UpdateAssetPrice",
+    [holdingEscrow],
+    HoldingEscrowSnapshot
+  );
 });
 
 multiMapper("spoke:InitiateTransferShares", async ({ event, context }) => {
@@ -196,11 +227,7 @@ multiMapper("spoke:InitiateTransferShares", async ({ event, context }) => {
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const [fromAccount, toAccount] = (await Promise.all([
-    AccountService.getOrInit(
-      context,
-      { address: sender.substring(0, 42) as `0x${string}` },
-      event
-    ),
+    AccountService.getOrInit(context, { address: sender.substring(0, 42) as `0x${string}` }, event),
     AccountService.getOrInit(
       context,
       { address: destinationAddress.substring(0, 42) as `0x${string}` },

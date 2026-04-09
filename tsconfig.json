@@ -22,6 +22,6 @@
     "incremental": true,
 
   },
-  "include": ["./**/*.ts"],
+  "include": ["./**/*.ts", "./**/*.mts"],
   "exclude": ["node_modules", ".eslintrc.cjs", "scripts/**/*.ts"]
 }

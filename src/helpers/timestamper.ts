@@ -11,9 +11,9 @@ type TimestampObject<N extends string> = {
 type NulledTimestampObject<N extends string> = {
   [K in `${N}At`]: null;
 } & {
-  [K in `${N}AtBlock`]:  null;
+  [K in `${N}AtBlock`]: null;
 } & {
-  [K in `${N}AtTxHash`]:  null;
+  [K in `${N}AtTxHash`]: null;
 };
 
 // Need function sugnatures tor both event cases to overload
@@ -28,7 +28,7 @@ export function timestamper<N extends string>(
 ): NulledTimestampObject<N>;
 /**
  * Creates a timestamp object with the given field name and event.
- * 
+ *
  * @param fieldName - The name of the field to create a timestamp for
  * @param event - The event to create a timestamp for
  * @returns A timestamp object with the given field name and event

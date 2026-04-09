@@ -1,9 +1,10 @@
 import { CrosschainMessage, CrosschainMessageStatuses } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service, type ReadOnlyContext } from "./Service";
 import { serviceError } from "../helpers/logger";
 import { encodePacked, keccak256 } from "viem";
 import { Event, Context } from "ponder:registry";
 import { timestamper } from "../helpers/timestamper";
+import { RegistryVersions } from "../chains";
 
 /**
  * Service class for managing CrosschainMessage entities.
@@ -13,21 +14,65 @@ import { timestamper } from "../helpers/timestamper";
  *
  * @extends {Service<typeof CrosschainMessage>}
  */
-export class CrosschainMessageService extends mixinCommonStatics(
-  Service<typeof CrosschainMessage>,
-  CrosschainMessage,
-  "CrosschainMessage"
-) {
+export class CrosschainMessageService extends Service<typeof CrosschainMessage> {
+  static readonly entityTable = CrosschainMessage;
+  static readonly entityName = "CrosschainMessage";
+  /**
+   * Groups rows by message `id`, each group sorted by `index` (for in-memory use after a batched query).
+   */
+  static groupRowsByMessageId(rows: CrosschainMessageService[]) {
+    const map = new Map<`0x${string}`, CrosschainMessageService[]>();
+    for (const row of rows) {
+      const id = row.read().id as `0x${string}`;
+      const list = map.get(id) ?? [];
+      list.push(row);
+      map.set(id, list);
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => a.read().index - b.read().index);
+    }
+    return map;
+  }
+
+  /**
+   * First row that is `AwaitingBatchDelivery` with no `payloadId` (`rows` must be sorted by index).
+   */
+  static getFirstUnlinkedAwaiting(rows: CrosschainMessageService[] | undefined) {
+    if (!rows) return null;
+    for (const row of rows) {
+      const d = row.read();
+      if (d.status === "AwaitingBatchDelivery" && d.payloadId == null) return row;
+    }
+    return null;
+  }
+
+  /**
+   * One query: all **CrosschainMessage** rows whose primary-key `id` is in `messageIds` (deduped),
+   * returned as `Map<messageId, rows[]>` (each list sorted by `index`).
+   */
+  static async loadCrosschainMessagesByMessageIds(
+    context: Context | ReadOnlyContext,
+    messageIds: readonly `0x${string}`[]
+  ) {
+    const unique = [...new Set(messageIds)];
+    if (unique.length === 0) return new Map<`0x${string}`, CrosschainMessageService[]>();
+    const rows = (await CrosschainMessageService.query(context, {
+      id_in: unique,
+      _sort: [
+        { field: "id", direction: "asc" },
+        { field: "index", direction: "asc" },
+      ],
+    })) as CrosschainMessageService[];
+    return CrosschainMessageService.groupRowsByMessageId(rows);
+  }
+
   /**
    * Gets the first message from the awaiting batch delivery queue for a given message ID
    * @param context - The database and client context
    * @param messageId - The ID of the message to get from the queue
    * @returns The first message from the queue or null if no message is found
    */
-  static async getFromAwaitingBatchDeliveryQueue(
-    context: Context,
-    messageId: `0x${string}`
-  ) {
+  static async getFromAwaitingBatchDeliveryQueue(context: Context, messageId: `0x${string}`) {
     const crosschainMessages = (await CrosschainMessageService.query(context, {
       id: messageId,
       status: "AwaitingBatchDelivery",
@@ -110,24 +155,19 @@ export class CrosschainMessageService extends mixinCommonStatics(
   }
 
   /**
-   * Checks if a payload is fully executed
-   * @param context - The database and client context
-   * @param payloadId - The ID of the payload to check
-   * @param payloadIndex - The index of the payload to check
-   * @returns True if the payload is fully executed, false otherwise
+   * True when every message for this payload row is executed. Uses two aggregate counts (in parallel)
+   * instead of loading all message rows.
    */
   static async checkPayloadFullyExecuted(
     context: Context,
     payloadId: `0x${string}`,
     payloadIndex: number
   ) {
-    const crosschaMassages = (await CrosschainMessageService.query(context, {
-      payloadId,
-      payloadIndex,
-    })) as CrosschainMessageService[];
-    return crosschaMassages.every(
-      (message) => message.read().status === "Executed"
-    );
+    const [total, executed] = await Promise.all([
+      CrosschainMessageService.countPayloadMessages(context, payloadId, payloadIndex),
+      CrosschainMessageService.countPayloadExecutedMessages(context, payloadId, payloadIndex),
+    ]);
+    return total > 0 && executed === total;
   }
 
   /**
@@ -144,34 +184,43 @@ export class CrosschainMessageService extends mixinCommonStatics(
     messageIds: `0x${string}`[],
     payloadId: `0x${string}`,
     payloadIndex: number
-  ) {
-    const crosschainMessageSaves = [];
+  ): Promise<[poolId: bigint | null, tokenId: `0x${string}` | null]> {
+    const uniqueIds = [...new Set(messageIds)];
+    const unlinkedRows =
+      uniqueIds.length === 0
+        ? []
+        : ((await CrosschainMessageService.query(context, {
+            id_in: uniqueIds,
+            payloadId: null,
+            payloadIndex: null,
+            _sort: [
+              { field: "id", direction: "asc" },
+              { field: "index", direction: "asc" },
+            ],
+          })) as CrosschainMessageService[]);
+
+    const queueById = CrosschainMessageService.groupRowsByMessageId(unlinkedRows);
+
+    const toSave: CrosschainMessageService[] = [];
     const poolIdSet = new Set<bigint>();
+    const tokenIdSet = new Set<`0x${string}`>();
     for (const messageId of messageIds) {
-      const crosschainMessages = (await CrosschainMessageService.query(
-        context,
-        {
-          id: messageId,
-          payloadId: null,
-          payloadIndex: null,
-          _sort: [{ field: "index", direction: "asc" }],
-        }
-      )) as CrosschainMessageService[];
-      if (crosschainMessages.length === 0) {
-        serviceError(`CrosschainMessage with id ${messageId} not found`);
-        continue;
-      }
-      const crosschainMessage = crosschainMessages.shift()!;
-      const { poolId } = crosschainMessage.read();
+      const q = queueById.get(messageId);
+      const crosschainMessage = q?.shift();
+      if (!crosschainMessage) continue;
+      const { poolId, tokenId } = crosschainMessage.read();
       crosschainMessage.setPayloadId(payloadId, payloadIndex);
-      crosschainMessageSaves.push(crosschainMessage.save(event));
+      toSave.push(crosschainMessage);
       if (poolId) poolIdSet.add(poolId);
+      if (tokenId) tokenIdSet.add(tokenId);
     }
-    await Promise.all(crosschainMessageSaves);
+    if (toSave.length > 0) {
+      await CrosschainMessageService.saveMany(context, toSave, event);
+    }
     const poolIds = Array.from(poolIdSet);
-    if (poolIds.length > 1)
-      throw new Error("Multiple pools found among messages");
-    return poolIds.pop() ?? null;
+    const tokenIds = Array.from(tokenIdSet);
+    if (poolIds.length > 1) throw new Error("Multiple pools found among messages");
+    return [poolIds.pop() ?? null, tokenIds.pop() ?? null];
   }
 
   /**
@@ -217,7 +266,7 @@ export class CrosschainMessageService extends mixinCommonStatics(
       ...this.data,
       ...timestamper("executed", event),
       status: "Executed",
-    }
+    };
     return this;
   }
 
@@ -232,89 +281,84 @@ export class CrosschainMessageService extends mixinCommonStatics(
   }
 }
 
-const CrosschainMessageType = [
+const CrosschainMessageType = {
   // V3 Message Types
-  {
-  /// @dev Placeholder for null message type
-  _Invalid: undefined,
-  // -- Pool independent messages
-  ScheduleUpgrade: 33,
-  CancelUpgrade: 33,
-  RecoverTokens: 161,
-  RegisterAsset: 18,
-  _Placeholder5: 0,
-  _Placeholder6: 0,
-  _Placeholder7: 0,
-  _Placeholder8: 0,
-  _Placeholder9: 0,
-  _Placeholder10: 0,
-  _Placeholder11: 0,
-  _Placeholder12: 0,
-  _Placeholder13: 0,
-  _Placeholder14: 0,
-  _Placeholder15: 0,
-  // -- Pool dependent messages
-  NotifyPool: 9,
-  NotifyShareClass: 250,
-  NotifyPricePoolPerShare: 49,
-  NotifyPricePoolPerAsset: 65,
-  NotifyShareMetadata: 185,
-  UpdateShareHook: 57,
-  InitiateTransferShares: 91,
-  ExecuteTransferShares: 73,
-  UpdateRestriction: dynamicLengthDecoder(25),
-  UpdateContract: dynamicLengthDecoder(57),
-  UpdateVault: 74,
-  UpdateBalanceSheetManager: 42,
-  UpdateHoldingAmount: 91,
-  UpdateShares: 59,
-  MaxAssetPriceAge: 49,
-  MaxSharePriceAge: 33,
-  Request: dynamicLengthDecoder(41),
-  RequestCallback: dynamicLengthDecoder(41),
-  SetRequestManager: 73,
-} as const ,
-// V3_1 Message Types
-{
-  /// @dev Placeholder for null message type
-  _Invalid: undefined,
-  // -- Pool independent messages
-  ScheduleUpgrade: 33,
-  CancelUpgrade: 33,
-  RecoverTokens: 161,
-  RegisterAsset: 18,
-  SetPoolAdapters: setPoolAdaptersLengthDecoder,
-  // -- Pool dependent messages
-  NotifyPool: 9,
-  NotifyShareClass: 250,
-  NotifyPricePoolPerShare: 49,
-  NotifyPricePoolPerAsset: 65,
-  NotifyShareMetadata: 185,
-  UpdateShareHook: 57,
-  InitiateTransferShares: 91,
-  ExecuteTransferShares: 73,
-  UpdateRestriction: dynamicLengthDecoder(25),
-  UpdateVault: 74,
-  UpdateBalanceSheetManager: 42,
-  UpdateGatewayManager: 42,
-  UpdateHoldingAmount: 91,
-  UpdateShares: 59,
-  SetMaxAssetPriceAge: 49,
-  SetMaxSharePriceAge: 33,
-  Request: dynamicLengthDecoder(41),
-  RequestCallback: dynamicLengthDecoder(41),
-  SetRequestManager: 73,
-  TrustedContractUpdate: dynamicLengthDecoder(57),
-  UntrustedContractUpdate: dynamicLengthDecoder(89),
-} as const
-] as const
+  v3: {
+    /// @dev Placeholder for null message type
+    _Invalid: undefined,
+    // -- Pool independent messages
+    ScheduleUpgrade: 33,
+    CancelUpgrade: 33,
+    RecoverTokens: 161,
+    RegisterAsset: 18,
+    _Placeholder5: 0,
+    _Placeholder6: 0,
+    _Placeholder7: 0,
+    _Placeholder8: 0,
+    _Placeholder9: 0,
+    _Placeholder10: 0,
+    _Placeholder11: 0,
+    _Placeholder12: 0,
+    _Placeholder13: 0,
+    _Placeholder14: 0,
+    _Placeholder15: 0,
+    // -- Pool dependent messages
+    NotifyPool: 9,
+    NotifyShareClass: 250,
+    NotifyPricePoolPerShare: 49,
+    NotifyPricePoolPerAsset: 65,
+    NotifyShareMetadata: 185,
+    UpdateShareHook: 57,
+    InitiateTransferShares: 91,
+    ExecuteTransferShares: 73,
+    UpdateRestriction: dynamicLengthDecoder(25),
+    UpdateContract: dynamicLengthDecoder(57),
+    UpdateVault: 74,
+    UpdateBalanceSheetManager: 42,
+    UpdateHoldingAmount: 91,
+    UpdateShares: 59,
+    MaxAssetPriceAge: 49,
+    MaxSharePriceAge: 33,
+    Request: dynamicLengthDecoder(41),
+    RequestCallback: dynamicLengthDecoder(41),
+    SetRequestManager: 73,
+  } as const,
+  // V3_1 Message Types
+  v3_1: {
+    /// @dev Placeholder for null message type
+    _Invalid: undefined,
+    // -- Pool independent messages
+    ScheduleUpgrade: 33,
+    CancelUpgrade: 33,
+    RecoverTokens: 161,
+    RegisterAsset: 18,
+    SetPoolAdapters: setPoolAdaptersLengthDecoder,
+    // -- Pool dependent messages
+    NotifyPool: 9,
+    NotifyShareClass: 250,
+    NotifyPricePoolPerShare: 49,
+    NotifyPricePoolPerAsset: 65,
+    NotifyShareMetadata: 185,
+    UpdateShareHook: 57,
+    InitiateTransferShares: 107,
+    ExecuteTransferShares: 89,
+    UpdateRestriction: dynamicLengthDecoder(41),
+    UpdateVault: 90,
+    UpdateBalanceSheetManager: 42,
+    UpdateGatewayManager: 42,
+    UpdateHoldingAmount: 107,
+    UpdateShares: 75,
+    SetMaxAssetPriceAge: 49,
+    SetMaxSharePriceAge: 33,
+    Request: dynamicLengthDecoder(57),
+    RequestCallback: dynamicLengthDecoder(57),
+    SetRequestManager: 41,
+    TrustedContractUpdate: dynamicLengthDecoder(73),
+    UntrustedContractUpdate: dynamicLengthDecoder(105),
+  } as const,
+} as const;
 
-
-
-type BufferDecoderEntry<T = unknown> = [
-  decoder: (_m: Buffer) => T,
-  length: number
-];
+type BufferDecoderEntry<T = unknown> = [decoder: (_m: Buffer) => T, length: number];
 
 const MessageDecoders = {
   bool: [(m) => m.readUInt8() !== 0, 1],
@@ -335,12 +379,7 @@ const MessageDecoders = {
       const high = m.readBigUInt64BE(8); // Bytes 8-15 (upper 64 bits)
       const low = m.readBigUInt64BE(16); // Bytes 16-23 (lower 64 bits)
       const lowest = m.readBigUInt64BE(24); // Bytes 24-31 (lower 64 bits)
-      return (
-        (highest << 192n) |
-        (high << 128n) |
-        (low << 64n) |
-        lowest
-      ).toString();
+      return ((highest << 192n) | (high << 128n) | (low << 64n) | lowest).toString();
     },
     32,
   ],
@@ -350,7 +389,6 @@ const MessageDecoders = {
   bytes: [(m) => `0x${m.toString("hex")}`, 0],
 } as const satisfies Record<string, BufferDecoderEntry>;
 
-// eslint-disable-next-line no-unused-vars
 interface DecoderConfig {
   name: string;
   decoder: keyof typeof MessageDecoders;
@@ -358,13 +396,11 @@ interface DecoderConfig {
 
 // Type mapping for decoder return types - derived from MessageDecoders
 type DecoderReturnTypes = {
-  [K in keyof typeof MessageDecoders]: ReturnType<
-    (typeof MessageDecoders)[K][0]
-  >;
+  [K in keyof typeof MessageDecoders]: ReturnType<(typeof MessageDecoders)[K][0]>;
 };
 
 // Helper type to extract decoder config from a specific version
-type MessageDecoderConfig<T extends number> = typeof messageDecoders[T];
+type MessageDecoderConfig<T extends keyof typeof messageDecoders> = (typeof messageDecoders)[T];
 
 // Helper type to map a single decoder config to its return type
 type DecoderConfigToType<C extends DecoderConfig> = C extends { decoder: infer D }
@@ -375,7 +411,7 @@ type DecoderConfigToType<C extends DecoderConfig> = C extends { decoder: infer D
 
 // Type that maps message type names to their decoded parameter types
 // Generic over version index to work with both V3 and V3_1
-type DecodedMessageTypes<T extends number = 0> = {
+type DecodedMessageTypes<T extends keyof typeof messageDecoders> = {
   [K in keyof MessageDecoderConfig<T>]: MessageDecoderConfig<T>[K] extends readonly DecoderConfig[]
     ? {
         [P in MessageDecoderConfig<T>[K][number] as P["name"]]: DecoderConfigToType<P>;
@@ -383,309 +419,333 @@ type DecodedMessageTypes<T extends number = 0> = {
     : never;
 };
 
-const messageDecoders = [
+/**
+ * Distributive helper over version union: when V is "v3" | "v3_1", produces
+ * DecodedMessageTypes<"v3">[T] | DecodedMessageTypes<"v3_1">[T] (all possible combinations).
+ */
+type DecodedMessageResult<
+  V extends keyof typeof messageDecoders,
+  T extends keyof (typeof messageDecoders)[V],
+> = V extends keyof typeof messageDecoders ? DecodedMessageTypes<V>[T] : never;
+
+const messageDecoders = {
   // V3 Message Decoders
-  {
-  _Invalid: [],
-  ScheduleUpgrade: [{ name: "target", decoder: "bytes32" }],
-  CancelUpgrade: [{ name: "target", decoder: "bytes32" }],
-  RecoverTokens: [
-    { name: "target", decoder: "bytes32" },
-    { name: "token", decoder: "bytes32" },
-    { name: "tokenId", decoder: "uint256" },
-    { name: "to", decoder: "bytes32" },
-    { name: "amount", decoder: "uint256" },
-  ],
-  RegisterAsset: [
-    { name: "assetId", decoder: "uint128" },
-    { name: "decimals", decoder: "uint8" },
-  ],
-  _Placeholder5: [],
-  _Placeholder6: [],
-  _Placeholder7: [],
-  _Placeholder8: [],
-  _Placeholder9: [],
-  _Placeholder10: [],
-  _Placeholder11: [],
-  _Placeholder12: [],
-  _Placeholder13: [],
-  _Placeholder14: [],
-  _Placeholder15: [],
-  NotifyPool: [{ name: "poolId", decoder: "uint64" }],
-  NotifyShareClass: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "name", decoder: "string" },
-    { name: "symbol", decoder: "bytes32" },
-    { name: "decimals", decoder: "uint8" },
-    { name: "salt", decoder: "bytes32" },
-    { name: "hook", decoder: "bytes32" },
-  ],
-  NotifyPricePoolPerShare: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "price", decoder: "uint128" },
-    { name: "timestamp", decoder: "uint64" },
-  ],
-  NotifyPricePoolPerAsset: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "assetId", decoder: "uint128" },
-    { name: "price", decoder: "uint128" },
-    { name: "timestamp", decoder: "uint64" },
-  ],
-  NotifyShareMetadata: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "name", decoder: "string" },
-    { name: "symbol", decoder: "bytes32" },
-  ],
-  UpdateShareHook: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "hook", decoder: "bytes32" },
-  ],
-  InitiateTransferShares: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "centrifugeId", decoder: "uint16" },
-    { name: "receiver", decoder: "bytes32" },
-    { name: "amount", decoder: "uint128" },
-    { name: "extraGasLimit", decoder: "uint128" },
-  ],
-  ExecuteTransferShares: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "receiver", decoder: "bytes32" },
-    { name: "amount", decoder: "uint128" },
-  ],
-  UpdateRestriction: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "payload", decoder: "bytes" }, // Dynamic length
-  ],
-  UpdateContract: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "target", decoder: "bytes32" },
-    { name: "payload", decoder: "bytes" }, // Dynamic length
-  ],
-  UpdateVault: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "assetId", decoder: "uint128" },
-    { name: "vaultOrFactory", decoder: "bytes32" },
-    { name: "kind", decoder: "uint8" },
-  ],
-  UpdateBalanceSheetManager: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "who", decoder: "bytes32" },
-    { name: "canManage", decoder: "bool" },
-  ],
-  UpdateHoldingAmount: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "assetId", decoder: "uint128" },
-    { name: "amount", decoder: "uint128" },
-    { name: "pricePerUnit", decoder: "uint128" },
-    { name: "timestamp", decoder: "uint64" },
-    { name: "isIncrease", decoder: "bool" },
-    { name: "isSnapshot", decoder: "bool" },
-    { name: "nonce", decoder: "uint64" },
-  ],
-  UpdateShares: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "shares", decoder: "uint128" },
-    { name: "timestamp", decoder: "uint64" },
-    { name: "isIssuance", decoder: "bool" },
-    { name: "isSnapshot", decoder: "bool" },
-    { name: "nonce", decoder: "uint64" },
-  ],
-  MaxAssetPriceAge: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "assetId", decoder: "uint128" },
-    { name: "maxPriceAge", decoder: "uint64" },
-  ],
-  MaxSharePriceAge: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "maxPriceAge", decoder: "uint64" },
-  ],
-  Request: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "assetId", decoder: "uint128" },
-    { name: "payload", decoder: "bytes" }, // Dynamic length
-  ],
-  RequestCallback: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "assetId", decoder: "uint128" },
-    { name: "payload", decoder: "bytes" }, // Dynamic length
-  ],
-  SetRequestManager: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "assetId", decoder: "uint128" },
-    { name: "manager", decoder: "bytes32" },
-  ],
-} as const,
-// V3_1 Message Decoders
-{
-  _Invalid: [],
-  ScheduleUpgrade: [{ name: "target", decoder: "bytes32" }],
-  CancelUpgrade: [{ name: "target", decoder: "bytes32" }],
-  RecoverTokens: [
-    { name: "target", decoder: "bytes32" },
-    { name: "token", decoder: "bytes32" },
-    { name: "tokenId", decoder: "uint256" },
-    { name: "to", decoder: "bytes32" },
-    { name: "amount", decoder: "uint256" },
-  ],
-  RegisterAsset: [
-    { name: "assetId", decoder: "uint128" },
-    { name: "decimals", decoder: "uint8" },
-  ],
-  SetPoolAdapters: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "threshold", decoder: "uint8" },
-    { name: "recoveryIndex", decoder: "uint8" },
-    { name: "adapterList", decoder: "bytes" }, // Dynamic length - array of bytes32
-  ],
-  NotifyPool: [{ name: "poolId", decoder: "uint64" }],
-  NotifyShareClass: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "name", decoder: "string" },
-    { name: "symbol", decoder: "bytes32" },
-    { name: "decimals", decoder: "uint8" },
-    { name: "salt", decoder: "bytes32" },
-    { name: "hook", decoder: "bytes32" },
-  ],
-  NotifyPricePoolPerShare: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "price", decoder: "uint128" },
-    { name: "timestamp", decoder: "uint64" },
-  ],
-  NotifyPricePoolPerAsset: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "assetId", decoder: "uint128" },
-    { name: "price", decoder: "uint128" },
-    { name: "timestamp", decoder: "uint64" },
-  ],
-  NotifyShareMetadata: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "name", decoder: "string" },
-    { name: "symbol", decoder: "bytes32" },
-  ],
-  UpdateShareHook: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "hook", decoder: "bytes32" },
-  ],
-  InitiateTransferShares: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "centrifugeId", decoder: "uint16" },
-    { name: "receiver", decoder: "bytes32" },
-    { name: "amount", decoder: "uint128" },
-    { name: "extraGasLimit", decoder: "uint128" },
-  ],
-  ExecuteTransferShares: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "receiver", decoder: "bytes32" },
-    { name: "amount", decoder: "uint128" },
-  ],
-  UpdateRestriction: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "payload", decoder: "bytes" }, // Dynamic length
-  ],
-  UpdateVault: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "assetId", decoder: "uint128" },
-    { name: "vaultOrFactory", decoder: "bytes32" },
-    { name: "kind", decoder: "uint8" },
-  ],
-  UpdateBalanceSheetManager: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "who", decoder: "bytes32" },
-    { name: "canManage", decoder: "bool" },
-  ],
-  UpdateGatewayManager: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "who", decoder: "bytes32" },
-    { name: "canManage", decoder: "bool" },
-  ],
-  UpdateHoldingAmount: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "assetId", decoder: "uint128" },
-    { name: "amount", decoder: "uint128" },
-    { name: "pricePoolPerAsset", decoder: "uint128" },
-    { name: "timestamp", decoder: "uint64" },
-    { name: "isIncrease", decoder: "bool" },
-    { name: "isSnapshot", decoder: "bool" },
-    { name: "nonce", decoder: "uint64" },
-  ],
-  UpdateShares: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "shares", decoder: "uint128" },
-    { name: "timestamp", decoder: "uint64" },
-    { name: "isIssuance", decoder: "bool" },
-    { name: "isSnapshot", decoder: "bool" },
-    { name: "nonce", decoder: "uint64" },
-  ],
-  SetMaxAssetPriceAge: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "assetId", decoder: "uint128" },
-    { name: "maxPriceAge", decoder: "uint64" },
-  ],
-  SetMaxSharePriceAge: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "maxPriceAge", decoder: "uint64" },
-  ],
-  Request: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "assetId", decoder: "uint128" },
-    { name: "payload", decoder: "bytes" }, // Dynamic length
-  ],
-  RequestCallback: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "assetId", decoder: "uint128" },
-    { name: "payload", decoder: "bytes" }, // Dynamic length
-  ],
-  SetRequestManager: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "manager", decoder: "bytes32" },
-  ],
-  TrustedContractUpdate: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "target", decoder: "bytes32" },
-    { name: "payload", decoder: "bytes" }, // Dynamic length
-  ],
-  UntrustedContractUpdate: [
-    { name: "poolId", decoder: "uint64" },
-    { name: "scId", decoder: "bytes16" },
-    { name: "target", decoder: "bytes32" },
-    { name: "sender", decoder: "bytes32" },
-    { name: "payload", decoder: "bytes" }, // Dynamic length
-  ],
-} as const
-];
+  v3: {
+    _Invalid: [],
+    ScheduleUpgrade: [{ name: "target", decoder: "bytes32" }],
+    CancelUpgrade: [{ name: "target", decoder: "bytes32" }],
+    RecoverTokens: [
+      { name: "target", decoder: "bytes32" },
+      { name: "token", decoder: "bytes32" },
+      { name: "tokenId", decoder: "uint256" },
+      { name: "to", decoder: "bytes32" },
+      { name: "amount", decoder: "uint256" },
+    ],
+    RegisterAsset: [
+      { name: "assetId", decoder: "uint128" },
+      { name: "decimals", decoder: "uint8" },
+    ],
+    _Placeholder5: [],
+    _Placeholder6: [],
+    _Placeholder7: [],
+    _Placeholder8: [],
+    _Placeholder9: [],
+    _Placeholder10: [],
+    _Placeholder11: [],
+    _Placeholder12: [],
+    _Placeholder13: [],
+    _Placeholder14: [],
+    _Placeholder15: [],
+    NotifyPool: [{ name: "poolId", decoder: "uint64" }],
+    NotifyShareClass: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "name", decoder: "string" },
+      { name: "symbol", decoder: "bytes32" },
+      { name: "decimals", decoder: "uint8" },
+      { name: "salt", decoder: "bytes32" },
+      { name: "hook", decoder: "bytes32" },
+    ],
+    NotifyPricePoolPerShare: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "price", decoder: "uint128" },
+      { name: "timestamp", decoder: "uint64" },
+    ],
+    NotifyPricePoolPerAsset: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "assetId", decoder: "uint128" },
+      { name: "price", decoder: "uint128" },
+      { name: "timestamp", decoder: "uint64" },
+    ],
+    NotifyShareMetadata: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "name", decoder: "string" },
+      { name: "symbol", decoder: "bytes32" },
+    ],
+    UpdateShareHook: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "hook", decoder: "bytes32" },
+    ],
+    InitiateTransferShares: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "centrifugeId", decoder: "uint16" },
+      { name: "receiver", decoder: "bytes32" },
+      { name: "amount", decoder: "uint128" },
+      { name: "extraGasLimit", decoder: "uint128" },
+    ],
+    ExecuteTransferShares: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "receiver", decoder: "bytes32" },
+      { name: "amount", decoder: "uint128" },
+    ],
+    UpdateRestriction: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "payload", decoder: "bytes" }, // Dynamic length
+    ],
+    UpdateContract: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "target", decoder: "bytes32" },
+      { name: "payload", decoder: "bytes" }, // Dynamic length
+    ],
+    UpdateVault: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "assetId", decoder: "uint128" },
+      { name: "vaultOrFactory", decoder: "bytes32" },
+      { name: "kind", decoder: "uint8" },
+    ],
+    UpdateBalanceSheetManager: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "who", decoder: "bytes32" },
+      { name: "canManage", decoder: "bool" },
+    ],
+    UpdateHoldingAmount: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "assetId", decoder: "uint128" },
+      { name: "amount", decoder: "uint128" },
+      { name: "pricePerUnit", decoder: "uint128" },
+      { name: "timestamp", decoder: "uint64" },
+      { name: "isIncrease", decoder: "bool" },
+      { name: "isSnapshot", decoder: "bool" },
+      { name: "nonce", decoder: "uint64" },
+    ],
+    UpdateShares: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "shares", decoder: "uint128" },
+      { name: "timestamp", decoder: "uint64" },
+      { name: "isIssuance", decoder: "bool" },
+      { name: "isSnapshot", decoder: "bool" },
+      { name: "nonce", decoder: "uint64" },
+    ],
+    MaxAssetPriceAge: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "assetId", decoder: "uint128" },
+      { name: "maxPriceAge", decoder: "uint64" },
+    ],
+    MaxSharePriceAge: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "maxPriceAge", decoder: "uint64" },
+    ],
+    Request: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "assetId", decoder: "uint128" },
+      { name: "payload", decoder: "bytes" }, // Dynamic length
+    ],
+    RequestCallback: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "assetId", decoder: "uint128" },
+      { name: "payload", decoder: "bytes" }, // Dynamic length
+    ],
+    SetRequestManager: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "assetId", decoder: "uint128" },
+      { name: "manager", decoder: "bytes32" },
+    ],
+  },
+  // V3_1 Message Decoders
+  v3_1: {
+    _Invalid: [],
+    ScheduleUpgrade: [{ name: "target", decoder: "bytes32" }],
+    CancelUpgrade: [{ name: "target", decoder: "bytes32" }],
+    RecoverTokens: [
+      { name: "target", decoder: "bytes32" },
+      { name: "token", decoder: "bytes32" },
+      { name: "tokenId", decoder: "uint256" },
+      { name: "to", decoder: "bytes32" },
+      { name: "amount", decoder: "uint256" },
+    ],
+    RegisterAsset: [
+      { name: "assetId", decoder: "uint128" },
+      { name: "decimals", decoder: "uint8" },
+    ],
+    SetPoolAdapters: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "threshold", decoder: "uint8" },
+      { name: "recoveryIndex", decoder: "uint8" },
+      { name: "adapterList", decoder: "bytes" }, // Dynamic length - array of bytes32
+    ],
+    NotifyPool: [{ name: "poolId", decoder: "uint64" }],
+    NotifyShareClass: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "name", decoder: "string" },
+      { name: "symbol", decoder: "bytes32" },
+      { name: "decimals", decoder: "uint8" },
+      { name: "salt", decoder: "bytes32" },
+      { name: "hook", decoder: "bytes32" },
+    ],
+    NotifyPricePoolPerShare: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "price", decoder: "uint128" },
+      { name: "timestamp", decoder: "uint64" },
+    ],
+    NotifyPricePoolPerAsset: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "assetId", decoder: "uint128" },
+      { name: "price", decoder: "uint128" },
+      { name: "timestamp", decoder: "uint64" },
+    ],
+    NotifyShareMetadata: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "name", decoder: "string" },
+      { name: "symbol", decoder: "bytes32" },
+    ],
+    UpdateShareHook: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "hook", decoder: "bytes32" },
+    ],
+    InitiateTransferShares: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "centrifugeId", decoder: "uint16" },
+      { name: "receiver", decoder: "bytes32" },
+      { name: "amount", decoder: "uint128" },
+      { name: "remoteExtraGasLimit", decoder: "uint128" },
+      { name: "extraGasLimit", decoder: "uint128" },
+    ],
+    ExecuteTransferShares: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "receiver", decoder: "bytes32" },
+      { name: "amount", decoder: "uint128" },
+      { name: "extraGasLimit", decoder: "uint128" },
+    ],
+    UpdateRestriction: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "extraGasLimit", decoder: "uint128" },
+      { name: "payload", decoder: "bytes" }, // Dynamic length
+    ],
+    UpdateVault: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "assetId", decoder: "uint128" },
+      { name: "vaultOrFactory", decoder: "bytes32" },
+      { name: "kind", decoder: "uint8" },
+      { name: "extraGasLimit", decoder: "uint128" },
+    ],
+    UpdateBalanceSheetManager: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "who", decoder: "bytes32" },
+      { name: "canManage", decoder: "bool" },
+    ],
+    UpdateGatewayManager: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "who", decoder: "bytes32" },
+      { name: "canManage", decoder: "bool" },
+    ],
+    UpdateHoldingAmount: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "assetId", decoder: "uint128" },
+      { name: "amount", decoder: "uint128" },
+      { name: "pricePoolPerAsset", decoder: "uint128" },
+      { name: "timestamp", decoder: "uint64" },
+      { name: "isIncrease", decoder: "bool" },
+      { name: "isSnapshot", decoder: "bool" },
+      { name: "nonce", decoder: "uint64" },
+      { name: "extraGasLimit", decoder: "uint128" },
+    ],
+    UpdateShares: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "shares", decoder: "uint128" },
+      { name: "timestamp", decoder: "uint64" },
+      { name: "isIssuance", decoder: "bool" },
+      { name: "isSnapshot", decoder: "bool" },
+      { name: "nonce", decoder: "uint64" },
+      { name: "extraGasLimit", decoder: "uint128" },
+    ],
+    SetMaxAssetPriceAge: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "assetId", decoder: "uint128" },
+      { name: "maxPriceAge", decoder: "uint64" },
+    ],
+    SetMaxSharePriceAge: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "maxPriceAge", decoder: "uint64" },
+    ],
+    Request: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "assetId", decoder: "uint128" },
+      { name: "extraGasLimit", decoder: "uint128" },
+      { name: "payload", decoder: "bytes" }, // Dynamic length
+    ],
+    RequestCallback: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "assetId", decoder: "uint128" },
+      { name: "extraGasLimit", decoder: "uint128" },
+      { name: "payload", decoder: "bytes" }, // Dynamic length
+    ],
+    SetRequestManager: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "manager", decoder: "bytes32" },
+    ],
+    TrustedContractUpdate: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "target", decoder: "bytes32" },
+      { name: "extraGasLimit", decoder: "uint128" },
+      { name: "payload", decoder: "bytes" }, // Dynamic length
+    ],
+    UntrustedContractUpdate: [
+      { name: "poolId", decoder: "uint64" },
+      { name: "scId", decoder: "bytes16" },
+      { name: "target", decoder: "bytes32" },
+      { name: "sender", decoder: "bytes32" },
+      { name: "extraGasLimit", decoder: "uint128" },
+      { name: "payload", decoder: "bytes" }, // Dynamic length
+    ],
+  },
+} as const;
+
+/** Union of all decoded message payload types across all registry versions */
+export type DecodedMessageData = {
+  [V in keyof typeof messageDecoders]: DecodedMessageTypes<V>[keyof DecodedMessageTypes<V>];
+}[keyof typeof messageDecoders];
 
 /**
  * Creates a function that decodes the length of a dynamic length message
@@ -714,13 +774,15 @@ function setPoolAdaptersLengthDecoder(message: Buffer) {
  * @param versionIndex - The index in the CrosschainMessageType array (0 for V3, 1 for V3_1, defaults to 0)
  * @returns The string name of the message type
  */
-export function getCrosschainMessageType(messageType: number, versionIndex: number) {
+export function getCrosschainMessageType(
+  messageType: number,
+  versionIndex: keyof typeof CrosschainMessageType
+) {
   const messageTypes = CrosschainMessageType[versionIndex];
   if (!messageTypes) {
     return "_Invalid" as const;
   }
-  return (Object.keys(messageTypes)[messageType] ??
-    "_Invalid") as keyof typeof messageTypes;
+  return (Object.keys(messageTypes)[messageType] ?? "_Invalid") as keyof typeof messageTypes;
 }
 
 /**
@@ -733,7 +795,7 @@ export function getCrosschainMessageType(messageType: number, versionIndex: numb
 export function getCrosschainMessageLength(
   messageType: number,
   message: Buffer,
-  versionIndex: number
+  versionIndex: keyof typeof CrosschainMessageType
 ) {
   const messageTypes = CrosschainMessageType[versionIndex];
   if (!messageTypes) {
@@ -748,21 +810,30 @@ export function getCrosschainMessageLength(
  *
  * @param sourceChainId - The Centrifuge Chain ID of the source chain
  * @param destChainId - The Centrifuge Chain ID of the destination chain
- * @param messageBytes - The hex-encoded message bytes
+ * @param messageHash - The hash of the message bytes
  * @returns The keccak256 hash of the encoded parameters as the message ID
  */
 export function getMessageId(
   sourceCentrifugeId: string,
   destCentrifugeId: string,
-  messageBytes: `0x${string}`
+  messageHash: `0x${string}`
 ) {
   const messageId = keccak256(
     encodePacked(
       ["uint16", "uint16", "bytes"],
-      [Number(sourceCentrifugeId), Number(destCentrifugeId), messageBytes]
+      [Number(sourceCentrifugeId), Number(destCentrifugeId), messageHash]
     )
   );
   return messageId;
+}
+
+/**
+ * Generates a hash of a message bytes
+ * @param messageBytes - The message bytes
+ * @returns The hash of the message bytes
+ */
+export function getMessageHash(messageBytes: `0x${string}`) {
+  return keccak256(messageBytes);
 }
 
 // ============================================================================
@@ -790,12 +861,8 @@ const requestMessageDecoders = {
     { name: "investor", decoder: "bytes32" },
     { name: "amount", decoder: "uint128" },
   ],
-  CancelDepositRequest: [
-    { name: "investor", decoder: "bytes32" },
-  ],
-  CancelRedeemRequest: [
-    { name: "investor", decoder: "bytes32" },
-  ],
+  CancelDepositRequest: [{ name: "investor", decoder: "bytes32" }],
+  CancelRedeemRequest: [{ name: "investor", decoder: "bytes32" }],
 } as const satisfies Record<RequestMessageTypeKey, DecoderConfig[]>;
 
 type DecodedRequestMessageTypes = {
@@ -822,7 +889,7 @@ function decodeRequestPayload(
   payloadBuffer: Buffer
 ): { type: RequestMessageTypeKey; data: DecodedRequestMessageTypes[RequestMessageTypeKey] } | null {
   if (payloadBuffer.length < 3) return null; // Need at least 2 bytes for length + 1 for type
-  
+
   // Skip the 2-byte length prefix
   const requestType = payloadBuffer.readUInt8(2);
   const requestTypeName = getRequestMessageType(requestType);
@@ -894,7 +961,8 @@ type DecodedRequestCallbackMessageTypes = {
  * @returns The corresponding request callback message type key
  */
 function getRequestCallbackMessageType(callbackType: number): RequestCallbackMessageTypeKey {
-  return (Object.keys(RequestCallbackMessageType)[callbackType] ?? "Invalid") as RequestCallbackMessageTypeKey;
+  return (Object.keys(RequestCallbackMessageType)[callbackType] ??
+    "Invalid") as RequestCallbackMessageTypeKey;
 }
 
 /**
@@ -902,11 +970,12 @@ function getRequestCallbackMessageType(callbackType: number): RequestCallbackMes
  * @param payloadBuffer - The buffer containing the request callback message payload
  * @returns An object with the decoded callback type and data, or null if decoding fails
  */
-function decodeRequestCallbackPayload(
-  payloadBuffer: Buffer
-): { type: RequestCallbackMessageTypeKey; data: DecodedRequestCallbackMessageTypes[RequestCallbackMessageTypeKey] } | null {
+function decodeRequestCallbackPayload(payloadBuffer: Buffer): {
+  type: RequestCallbackMessageTypeKey;
+  data: DecodedRequestCallbackMessageTypes[RequestCallbackMessageTypeKey];
+} | null {
   if (payloadBuffer.length < 3) return null; // Need at least 2 bytes for length + 1 for type
-  
+
   // Skip the 2-byte length prefix
   const callbackType = payloadBuffer.readUInt8(2);
   const callbackTypeName = getRequestCallbackMessageType(callbackType);
@@ -941,12 +1010,8 @@ const updateRestrictionMessageDecoders = {
     { name: "user", decoder: "bytes32" },
     { name: "validUntil", decoder: "uint64" },
   ],
-  Freeze: [
-    { name: "user", decoder: "bytes32" },
-  ],
-  Unfreeze: [
-    { name: "user", decoder: "bytes32" },
-  ],
+  Freeze: [{ name: "user", decoder: "bytes32" }],
+  Unfreeze: [{ name: "user", decoder: "bytes32" }],
 } as const satisfies Record<UpdateRestrictionMessageTypeKey, DecoderConfig[]>;
 
 type DecodedUpdateRestrictionMessageTypes = {
@@ -961,7 +1026,8 @@ type DecodedUpdateRestrictionMessageTypes = {
  * @returns The corresponding update restriction message type key
  */
 function getUpdateRestrictionMessageType(restrictionType: number): UpdateRestrictionMessageTypeKey {
-  return (Object.keys(UpdateRestrictionMessageType)[restrictionType] ?? "Invalid") as UpdateRestrictionMessageTypeKey;
+  return (Object.keys(UpdateRestrictionMessageType)[restrictionType] ??
+    "Invalid") as UpdateRestrictionMessageTypeKey;
 }
 
 /**
@@ -969,11 +1035,12 @@ function getUpdateRestrictionMessageType(restrictionType: number): UpdateRestric
  * @param payloadBuffer - The buffer containing the update restriction message payload
  * @returns An object with the decoded restriction type and data, or null if decoding fails
  */
-function decodeUpdateRestrictionPayload(
-  payloadBuffer: Buffer
-): { type: UpdateRestrictionMessageTypeKey; data: DecodedUpdateRestrictionMessageTypes[UpdateRestrictionMessageTypeKey] } | null {
+function decodeUpdateRestrictionPayload(payloadBuffer: Buffer): {
+  type: UpdateRestrictionMessageTypeKey;
+  data: DecodedUpdateRestrictionMessageTypes[UpdateRestrictionMessageTypeKey];
+} | null {
   if (payloadBuffer.length < 3) return null; // Need at least 2 bytes for length + 1 for type
-  
+
   // Skip the 2-byte length prefix
   const restrictionType = payloadBuffer.readUInt8(2);
   const restrictionTypeName = getUpdateRestrictionMessageType(restrictionType);
@@ -996,20 +1063,19 @@ function decodeUpdateRestrictionPayload(
  * Decodes a cross-chain message into its parameters
  * @param messageType - The type of the message
  * @param messageBuffer - The buffer containing the message
- * @param versionIndex - The index in the messageDecoders array (0 for V3, 1 for V3_1, defaults to 0)
+ * @param version - The version key ("v3" or "v3_1") selecting the decoder set
  * @returns The decoded parameters as a properly typed object
  */
-export function decodeMessage<T extends keyof typeof messageDecoders[number]>(
-  messageType: T,
-  messageBuffer: Buffer,
-  versionIndex: number
-): DecodedMessageTypes<0>[T] | DecodedMessageTypes<1>[T] | null {
-  const decoders = messageDecoders[versionIndex];
+export function decodeMessage<
+  V extends RegistryVersions,
+  T extends keyof (typeof messageDecoders)[V] = keyof (typeof messageDecoders)[V],
+>(messageType: T, messageBuffer: Buffer, version: V): DecodedMessageResult<V, T> | null {
+  const decoders = messageDecoders[version];
   if (!decoders) {
-    serviceError(`Invalid version index: ${versionIndex}`);
+    serviceError(`Invalid version: ${version}`);
     return null;
   }
-  const messageSpec = decoders[messageType];
+  const messageSpec = decoders[messageType] as readonly DecoderConfig[];
   if (!messageSpec) {
     serviceError(`Invalid message type: ${String(messageType)}`);
     return null;
@@ -1020,7 +1086,7 @@ export function decodeMessage<T extends keyof typeof messageDecoders[number]>(
   for (let i = 0; i < messageSpec.length; i++) {
     const spec = messageSpec[i];
     if (!spec) continue;
-    
+
     const decoderEntry = MessageDecoders[spec.decoder];
     if (!decoderEntry) {
       serviceError(`Invalid decoder: ${spec.decoder}`);
@@ -1029,7 +1095,7 @@ export function decodeMessage<T extends keyof typeof messageDecoders[number]>(
     const [decoder, length] = decoderEntry;
     // For dynamic length fields (length = 0) that are the last field, read all remaining bytes
     const isLastField = i === messageSpec.length - 1;
-    const bytesToRead = (length === 0 && isLastField) ? messageBuffer.length - offset : length;
+    const bytesToRead = length === 0 && isLastField ? messageBuffer.length - offset : length;
     const value = decoder(messageBuffer.subarray(offset, offset + bytesToRead));
     decodedData[spec.name] = value;
     offset += bytesToRead;
@@ -1059,5 +1125,5 @@ export function decodeMessage<T extends keyof typeof messageDecoders[number]>(
     }
   }
 
-  return decodedData as DecodedMessageTypes<0>[T] | DecodedMessageTypes<1>[T];
+  return decodedData as DecodedMessageResult<V, T>;
 }

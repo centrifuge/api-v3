@@ -1,34 +1,31 @@
 import { CrosschainPayload, CrosschainPayloadStatuses } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { Event, Context } from "ponder:registry";
 import { getCrosschainMessageLength } from ".";
 import { keccak256, encodePacked } from "viem";
 import { serviceError } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
+import { RegistryVersions } from "../chains";
 
 /**
- * Service class for managing CrosschainPayload entities.
+ * Service class for managing CrosschainPayload entities (primary key `id` + `payloadIndex`).
  *
- * This service handles operations related to CrosschainPayload entities,
- * including creation, updating, and querying.
+ * **v3:** Typically one active row per `payloadId` through underpaid → in-transit; adapters may add
+ * proof rounds (see multi-adapter handlers). **v3_1:** Multiple rows per `payloadId` (1..n indices)
+ * are normal; there is no adapter proof phase.
  *
  * @extends {Service<typeof CrosschainPayload>}
  */
-export class CrosschainPayloadService extends mixinCommonStatics(
-  Service<typeof CrosschainPayload>,
-  CrosschainPayload,
-  "CrosschainPayload"
-) {
+export class CrosschainPayloadService extends Service<typeof CrosschainPayload> {
+  static readonly entityTable = CrosschainPayload;
+  static readonly entityName = "CrosschainPayload";
   /**
    * Gets the first payload from the queue for a given payload ID
    * @param context - The database and client context
    * @param payloadId - The ID of the payload to get from the queue
    * @returns The first payload from the queue or null if no payload is found
    */
-  static async getUndeliveredFromQueue(
-    context: Context,
-    payloadId: `0x${string}`
-  ) {
+  static async getUndeliveredFromQueue(context: Context, payloadId: `0x${string}`) {
     const crosschainMessages = (await this.query(context, {
       id: payloadId,
       status_not: "Delivered",
@@ -39,18 +36,15 @@ export class CrosschainPayloadService extends mixinCommonStatics(
   }
 
   /**
-   * Gets the first payload from the queue for a given payload ID
+   * Gets the first payload from the in transit or delivered queue for a given payload ID
    * @param context - The database and client context
    * @param payloadId - The ID of the payload to get from the queue
    * @returns The first payload from the queue or null if no payload is found
    */
-  static async getInTransitFromQueue(
-    context: Context,
-    payloadId: `0x${string}`
-  ) {
+  static async getInTransitOrDeliveredFromQueue(context: Context, payloadId: `0x${string}`) {
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
-      status: "InTransit",
+      status_in: ["InTransit", "Delivered"],
       _sort: [{ field: "index", direction: "asc" }],
     })) as CrosschainPayloadService[];
     if (crosschainPayloads.length === 0) return null;
@@ -58,20 +52,33 @@ export class CrosschainPayloadService extends mixinCommonStatics(
   }
 
   /**
-   * Gets the first payload from the queue for a given payload ID
+   * Gets the first payload from the underpaid queue for a given payload ID
    * @param context - The database and client context
    * @param payloadId - The ID of the payload to get from the queue
    * @returns The first payload from the queue or null if no payload is found
    */
-  static async getUnderpaidFromQueue(
-    context: Context,
-    payloadId: `0x${string}`
-  ) {
+  static async getUnderpaidFromQueue(context: Context, payloadId: `0x${string}`) {
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
       status: "Underpaid",
       _sort: [{ field: "index", direction: "asc" }],
     })) as CrosschainPayloadService[];
+    if (crosschainPayloads.length === 0) return null;
+    return crosschainPayloads.shift()!;
+  }
+
+  /**
+   * Gets the first payload from the underpaid or in transit queue for a given payload ID
+   * @param context - The database and client context
+   * @param payloadId - The ID of the payload to get from the queue
+   * @returns The first payload from the queue or null if no payload is found
+   */
+  static async getUnderpaidOrInTransitFromQueue(context: Context, payloadId: `0x${string}`) {
+    const crosschainPayloads = (await this.query(context, {
+      id: payloadId,
+      status_in: ["Underpaid", "InTransit"],
+      _sort: [{ field: "index", direction: "asc" }],
+    })) as CrosschainPayloadService[];
 
     if (crosschainPayloads.length === 0) return null;
     return crosschainPayloads.shift()!;
@@ -83,10 +90,7 @@ export class CrosschainPayloadService extends mixinCommonStatics(
    * @param payloadId - The ID of the payload to get from the queue
    * @returns The first payload from the queue or null if no payload is found
    */
-  static async getDeliveredFromQueue(
-    context: Context,
-    payloadId: `0x${string}`
-  ) {
+  static async getDeliveredFromQueue(context: Context, payloadId: `0x${string}`) {
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
       status: "Delivered",
@@ -102,10 +106,7 @@ export class CrosschainPayloadService extends mixinCommonStatics(
    * @param payloadId - The ID of the payload to get from the queue
    * @returns The first payload from the queue or null if no payload is found
    */
-  static async getDeliveredOrPartiallyFailedFromQueue(
-    context: Context,
-    payloadId: `0x${string}`
-  ) {
+  static async getDeliveredOrPartiallyFailedFromQueue(context: Context, payloadId: `0x${string}`) {
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
       status_in: ["Delivered", "PartiallyFailed"],
@@ -121,10 +122,7 @@ export class CrosschainPayloadService extends mixinCommonStatics(
    * @param payloadId - The ID of the payload to get from the queue
    * @returns The first incomplete payload from the queue or null if no payload is found
    */
-  static async getIncompleteFromQueue(
-    context: Context,
-    payloadId: `0x${string}`
-  ) {
+  static async getIncompleteFromQueue(context: Context, payloadId: `0x${string}`) {
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
       status_not: "Completed",
@@ -162,7 +160,11 @@ export class CrosschainPayloadService extends mixinCommonStatics(
    * @returns {CrosschainPayloadService} Returns the current instance for method chaining
    */
   public delivered(
-    event: Event<"multiAdapterV3:HandlePayload" | "multiAdapterV3:HandleProof">
+    event: Event<
+      | "multiAdapterV3:HandlePayload"
+      | "multiAdapterV3:HandleProof"
+      | "multiAdapterV3_1:HandlePayload"
+    >
   ) {
     this.data = {
       ...this.data,
@@ -213,7 +215,7 @@ export class CrosschainPayloadService extends mixinCommonStatics(
  * const messages = extractMessagesFromPayload(payload)
  * // Returns: ['0x21...', '0x33...'] // Individual message bytes
  */
-export function extractMessagesFromPayload(payload: `0x${string}`, versionIndex: number) {
+export function extractMessagesFromPayload(payload: `0x${string}`, version: RegistryVersions) {
   const payloadBuffer = Buffer.from(payload.substring(2), "hex");
   const messages: `0x${string}`[] = [];
   let offset = 0;
@@ -222,11 +224,7 @@ export function extractMessagesFromPayload(payload: `0x${string}`, versionIndex:
     const messageType = payloadBuffer.readUInt8(offset);
     // Pass the buffer slice starting from current offset
     const currentBuffer = payloadBuffer.subarray(offset);
-    const messageLength = getCrosschainMessageLength(
-      messageType,
-      currentBuffer,
-      versionIndex
-    );
+    const messageLength = getCrosschainMessageLength(messageType, currentBuffer, version);
     if (!messageLength) {
       serviceError(`Invalid message type: ${messageType}`);
       break;

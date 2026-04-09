@@ -13,12 +13,14 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v4
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf
         with:
-          # this assumes that you have created a personal access token
-          # (PAT) and configured it as a GitHub action secret named
-          # `MY_RELEASE_PLEASE_TOKEN` (this secret name is not important).
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-          # this is a built-in strategy in release-please, see "Action Inputs"
-          # for more options
+          app-id: ${{ secrets.DEPLOYMENT_APP_ID }}
+          private-key: ${{ secrets.DEPLOYMENT_APP_PRIVATE_KEY }}
+
+      - uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38
+        with:
+          token: ${{ steps.app-token.outputs.token }}
           release-type: node

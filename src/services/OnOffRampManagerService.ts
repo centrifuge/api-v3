@@ -1,10 +1,13 @@
 import { OnOffRampManager } from "../../ponder.schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 
 /**
  * Service class for managing OnOffRampManager entities.
- * 
+ *
  * Extends the base Service class with OnOffRampManager-specific functionality
- * and inherits common static methods through mixinCommonStatics.
+ * extending [`Service`](./Service.ts) with the usual entity static methods.
  */
-export class OnOffRampManagerService extends mixinCommonStatics(Service<typeof OnOffRampManager>, OnOffRampManager, "OnOffRampManager") {}
+export class OnOffRampManagerService extends Service<typeof OnOffRampManager> {
+  static readonly entityTable = OnOffRampManager;
+  static readonly entityName = "OnOffRampManager";
+}

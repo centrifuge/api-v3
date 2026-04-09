@@ -2409,11 +2409,20 @@ const _isoCurrencies = {
   },
 } as const;
 
-type IsoCurrenciesNumbers = Exclude<typeof _isoCurrencies[keyof typeof _isoCurrencies]["ISOnum"], null>;
-type IsoCurrencies = Exclude<(typeof _isoCurrencies)[keyof typeof _isoCurrencies], {ISOnum: null}>;
+type IsoCurrenciesNumbers = Exclude<
+  (typeof _isoCurrencies)[keyof typeof _isoCurrencies]["ISOnum"],
+  null
+>;
+type IsoCurrencies = Exclude<
+  (typeof _isoCurrencies)[keyof typeof _isoCurrencies],
+  { ISOnum: null }
+>;
 
-export const isoCurrencies = Object.entries(_isoCurrencies).reduce((acc, [key, value]) => {
-  if (value.ISOnum === null) return acc;
-  acc[value.ISOnum] = {...value, shortcode: key};
-  return acc;
-}, {} as Record<IsoCurrenciesNumbers, IsoCurrencies & { shortcode: string }>);
+export const isoCurrencies = Object.entries(_isoCurrencies).reduce(
+  (acc, [key, value]) => {
+    if (value.ISOnum === null) return acc;
+    acc[value.ISOnum] = { ...value, shortcode: key };
+    return acc;
+  },
+  {} as Record<IsoCurrenciesNumbers, IsoCurrencies & { shortcode: string }>
+);

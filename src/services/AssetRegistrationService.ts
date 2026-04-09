@@ -1,22 +1,21 @@
 import { AssetRegistration } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 
 /**
  * Service class for managing AssetRegistration entities.
  * Extends the base Service class with AssetRegistration-specific functionality
  * and provides methods for setting status and asset Centrifuge ID.
  *
- * Inherits static methods from mixinCommonStatics:
+ * Standard entity statics from [`Service`](./Service.ts):
  * - init(): Create new AssetRegistration
  * - get(): Find existing AssetRegistration by query
  * - getOrInit(): Find or create AssetRegistration
  * - query(): Query multiple AssetRegistration records
  */
-export class AssetRegistrationService extends mixinCommonStatics(
-  Service<typeof AssetRegistration>,
-  AssetRegistration,
-  "AssetRegistration"
-) {}
+export class AssetRegistrationService extends Service<typeof AssetRegistration> {
+  static readonly entityTable = AssetRegistration;
+  static readonly entityName = "AssetRegistration";
+}
 
 /**
  * Extracts the Centrifuge ID from a 128-bit asset ID by performing a right shift operation.

@@ -1,12 +1,20 @@
 import { Blockchain } from "ponder:schema";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { Context } from "ponder:registry";
 import { RegistryChains } from "../chains";
 
+type Network = (typeof RegistryChains)[number]["network"];
+type InMemoryChainId = {
+  [K in Network["chainId"]]: Extract<Network, { chainId: K }>["centrifugeId"];
+};
+const inMemoryChainId = Object.fromEntries(
+  RegistryChains.map((chain) => [chain.network.chainId, chain.network.centrifugeId])
+) as InMemoryChainId;
 
-type Network = typeof RegistryChains[number]["network"];
-type InMemoryChainId = { [K in Network["chainId"]]: Extract<Network, { chainId: K }>['centrifugeId']}
-const inMemoryChainId = Object.fromEntries(RegistryChains.map((chain) => [chain.network.chainId, chain.network.centrifugeId])) as InMemoryChainId
+/** centrifugeId -> chainId for the chain that has that centrifugeId (e.g. spoke chain). */
+const centrifugeIdToChainId = Object.fromEntries(
+  RegistryChains.map((chain) => [String(chain.network.centrifugeId), chain.network.chainId])
+) as Record<string, number>;
 
 /**
  * Service class for managing blockchain-related operations and data.
@@ -14,13 +22,11 @@ const inMemoryChainId = Object.fromEntries(RegistryChains.map((chain) => [chain.
  * This service extends the base Service class with blockchain-specific functionality,
  * providing methods to interact with and manipulate blockchain data entities.
  *
- * @extends {ReturnType<typeof mixinCommonStatics>}
+ * @extends {Service<typeof Blockchain>}
  */
-export class BlockchainService extends mixinCommonStatics(
-  Service<typeof Blockchain>,
-  Blockchain,
-  "Blockchain"
-) {
+export class BlockchainService extends Service<typeof Blockchain> {
+  static readonly entityTable = Blockchain;
+  static readonly entityName = "Blockchain";
   /**
    * Gets the Centrifuge ID for a given chain ID.
    *
@@ -32,7 +38,16 @@ export class BlockchainService extends mixinCommonStatics(
     const chainId = context.chain.id;
     if (typeof chainId !== "number") throw new Error("Chain ID is not a number");
     if (!(chainId in inMemoryChainId)) throw new Error("Chain ID not found in inMemoryChainId");
-    return String(inMemoryChainId[chainId as keyof InMemoryChainId])
+    return String(inMemoryChainId[chainId as keyof InMemoryChainId]);
+  }
+
+  /**
+   * Gets the chain ID for a given centrifuge ID (e.g. spoke chain).
+   * Use when the event is on the hub but the vault is deployed on the spoke.
+   */
+  static getChainIdFromCentrifugeId(centrifugeId: string): number | null {
+    const chainId = centrifugeIdToChainId[centrifugeId];
+    return chainId != null ? chainId : null;
   }
   /**
    * Sets the last period start date for the blockchain.

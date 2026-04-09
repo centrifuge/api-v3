@@ -1,0 +1,17 @@
+---
+description: cfg-api-v3 — Ponder event handlers (src/handlers)
+globs: src/handlers/**/*.ts
+alwaysApply: false
+---
+
+# Handlers (`src/handlers/`)
+
+- **Thin orchestration only:** decode `event.args`, resolve IDs, call services. Put business rules in **`src/services/`**.
+- **No database access:** do not use `context.db`, Drizzle `eq`/`and`/`.insert`, or SQL. Use entity services (`FooService.get`, `query`, `upsert`, `save`, `insertMany`, `saveMany`, …).
+- **Snapshot rows:** use **`snapshotter`** from [`src/helpers/snapshotter.ts`](src/helpers/snapshotter.ts) with the correct snapshot table from `ponder:schema` — do not duplicate insert logic in the handler.
+- **Contract events across versions:** prefer **`multiMapper("Hub:EventName", handler)`** over separate `ponder.on` per `HubV3` / `HubV3_1` when the ABI matches (see [`src/helpers/multiMapper.ts`](src/helpers/multiMapper.ts)). Block handlers may use **`ponder.on(\`${chainName}:block\`, …)`** like [`src/handlers/blockHandlers.ts`](src/handlers/blockHandlers.ts).
+- **Efficiency:** prefer batch service APIs when updating many rows; avoid N+1 query patterns.
+- **Observability:** use **`logEvent`** from [`src/helpers/logger.ts`](src/helpers/logger.ts) where useful for high-level event receipt (optional; services use `serviceLog` / `serviceError`).
+- **Negative space / early exits:** prefer guard clauses (`if (!x) return …`) over nested `if`/`else`. When a required lookup is missing, **`return`** (typically `return serviceError(…)`), then keep the success path flat.
+
+Mirror the closest existing handler in the same domain before inventing a new structure.

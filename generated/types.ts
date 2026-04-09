@@ -26,9 +26,15 @@ export interface RegistryChain<N extends number, C extends string> {
     chainId: N;
     centrifugeId: number;
     catapultaNetwork?: string;
+    protocolAdmin?: string;
+    opsAdmin?: string;
     etherscanUrl?: string;
     network?: string;
+    batchLimit?: number;
     safeAdmin?: string;
+    baseRpcUrl?: string;
+    verifier?: string;
+    verifierUrl?: string;
   };
   adapters: unknown;
   contracts: ChainContracts<C>;
@@ -43,7 +49,7 @@ type ChainContracts<C extends string> = Record<
   C,
   {
     blockNumber: number | null;
-    address: ChainAddress;
+    address: ChainAddress | null;
     txHash: `0x${string}` | null;
   }
 >;

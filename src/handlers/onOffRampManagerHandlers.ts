@@ -9,29 +9,26 @@ import {
 import { logEvent, serviceError } from "../helpers/logger";
 import { OnRampAssetService } from "../services";
 
-multiMapper(
-  "onOfframpManagerFactory:DeployOnOfframpManager",
-  async ({ event, context }) => {
-    logEvent(event, context, "onOffRampManagerFactory:DeployOnOffRampManager");
-    const { poolId, scId: tokenId, manager } = event.args;
+multiMapper("onOfframpManagerFactory:DeployOnOfframpManager", async ({ event, context }) => {
+  logEvent(event, context, "onOffRampManagerFactory:DeployOnOffRampManager");
+  const { poolId, scId: tokenId, manager } = event.args;
 
-    const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-    const _onOffRampManager = (await OnOffRampManagerService.upsert(
-      context,
-      {
-        address: manager,
-        centrifugeId,
-        poolId,
-        tokenId,
-      },
-      event
-    )) as OnOffRampManagerService | null;
-    if (!_onOffRampManager) {
-      serviceError("Failed to insert OnOffRampManager");
-    }
+  const _onOffRampManager = (await OnOffRampManagerService.upsert(
+    context,
+    {
+      address: manager,
+      centrifugeId,
+      poolId,
+      tokenId,
+    },
+    event
+  )) as OnOffRampManagerService | null;
+  if (!_onOffRampManager) {
+    serviceError("Failed to insert OnOffRampManager");
   }
-);
+});
 
 multiMapper("onOfframpManager:UpdateRelayer", async ({ event, context }) => {
   logEvent(event, context, "onOffRampManager:UpdateRelayer");
@@ -45,23 +42,25 @@ multiMapper("onOfframpManager:UpdateRelayer", async ({ event, context }) => {
     centrifugeId,
   })) as OnOffRampManagerService;
   if (!onOffRampManager) {
-    serviceError("OnOffRampManager not found");
+    serviceError("OnOffRampManager not found. Cannot retrieve poolId and tokenId");
     return;
   }
   const { poolId, tokenId } = onOffRampManager.read();
 
-  const offRampRelayer = (await OffRampRelayerService.upsert(
+  const relayerAddress = relayer.substring(0, 42).toLowerCase() as `0x${string}`;
+  const offRampRelayer = (await OffRampRelayerService.getOrInit(
     context,
     {
-      address: relayer,
+      poolId,
       centrifugeId,
       tokenId,
-      poolId,
-      isEnabled,
+      address: relayerAddress,
     },
-    event
-  )) as OffRampRelayerService | null;
-  if (!offRampRelayer) serviceError("Failed to upsert OffRampRelayer");
+    event,
+    undefined,
+    true
+  )) as OffRampRelayerService;
+  await offRampRelayer.setCrosschainInProgress().setEnabled(isEnabled).save(event);
 });
 
 multiMapper("onOfframpManager:UpdateOnramp", async ({ event, context }) => {
@@ -76,29 +75,30 @@ multiMapper("onOfframpManager:UpdateOnramp", async ({ event, context }) => {
     centrifugeId,
   })) as OnOffRampManagerService;
   if (!onOffRampManager) {
-    serviceError("OnOffRampManager not found");
+    serviceError(`OnOffRampManager not found. Cannot retrieve poolId and tokenId`);
     return;
   }
 
   const { poolId, tokenId } = onOffRampManager.read();
 
-  const onRampAsset = (await OnRampAssetService.upsert(
+  const onRampAsset = (await OnRampAssetService.getOrInit(
     context,
     {
       assetAddress: asset,
       poolId,
       centrifugeId,
       tokenId,
-      isEnabled,
     },
-    event
-  )) as OnRampAssetService | null;
-  if (!onRampAsset) serviceError("Failed to upsert OnRampAsset");
+    event,
+    undefined,
+    true
+  )) as OnRampAssetService;
+  await onRampAsset.setCrosschainInProgress().setEnabled(isEnabled).save(event);
 });
 
 multiMapper("onOfframpManager:UpdateOfframp", async ({ event, context }) => {
   logEvent(event, context, "onOffRampManager:UpdateOfframp");
-  const { asset, receiver } = event.args;
+  const { asset, receiver, isEnabled } = event.args;
   const manager = event.log.address;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -108,7 +108,7 @@ multiMapper("onOfframpManager:UpdateOfframp", async ({ event, context }) => {
     centrifugeId,
   })) as OnOffRampManagerService;
   if (!onOffRampManager) {
-    serviceError("onOffRampManager not found");
+    serviceError(`OnOffRampManager not found. Cannot retrieve poolId and tokenId`);
     return;
   }
   const { poolId, tokenId } = onOffRampManager.read();
@@ -131,7 +131,9 @@ multiMapper("onOfframpManager:UpdateOfframp", async ({ event, context }) => {
       assetAddress: asset,
       receiverAddress,
     },
-    event
+    event,
+    undefined,
+    true
   )) as OffRampAddressService;
-  await offRampAddress.save(event);
+  await offRampAddress.setCrosschainInProgress().setEnabled(isEnabled).save(event);
 });

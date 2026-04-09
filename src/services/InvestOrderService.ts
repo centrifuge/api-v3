@@ -1,7 +1,7 @@
 import type { Event } from "ponder:registry";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { InvestOrder } from "ponder:schema";
-import { serviceLog } from "../helpers/logger";
+import { serviceLog, addThousandsSeparator } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
 
 /**
@@ -11,34 +11,9 @@ import { timestamper } from "../helpers/timestamper";
  * including computation of approved amounts and execution of requests.
  * Extends the base Service class with common static methods.
  */
-export class InvestOrderService extends mixinCommonStatics(
-  Service<typeof InvestOrder>,
-  InvestOrder,
-  "InvestOrder"
-) {
-  /**
-   * Fills an invest order with the given queued and pending assets amounts.
-   *
-   * @param queuedAssetsAmount - The amount of assets queued
-   * @param pendingAssetsAmount - The amount of assets pending
-   * @param event - The event containing the block information
-   * @returns The service instance for method chaining
-   */
-  public post(
-    postedAssetsAmount: bigint,
-    event: Extract<Event, { transaction: any }>
-  ) {
-    serviceLog(
-      `Filling investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with postedAssetsAmount: ${postedAssetsAmount}`
-    );
-    this.data = {
-      ...this.data,
-      postedAssetsAmount,
-      ...timestamper("posted", event),
-    };
-    return this;
-  }
-
+export class InvestOrderService extends Service<typeof InvestOrder> {
+  static readonly entityTable = InvestOrder;
+  static readonly entityName = "InvestOrder";
   /**
    * Approves an invest order with the given approved assets amount.
    *
@@ -46,12 +21,9 @@ export class InvestOrderService extends mixinCommonStatics(
    * @param event - The event containing the block information
    * @returns The service instance for method chaining
    */
-  public approve(
-    approvedAssetsAmount: bigint,
-    event: Extract<Event, { transaction: any }>
-  ) {
+  public approve(approvedAssetsAmount: bigint, event: Extract<Event, { transaction: any }>) {
     serviceLog(
-      `Approving investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} with approvedAssetsAmount: ${approvedAssetsAmount}`
+      `Approving investOrder for account ${this.data.account} with approvedAssetsAmount: ${approvedAssetsAmount}`
     );
     this.data = {
       ...this.data,
@@ -80,18 +52,16 @@ export class InvestOrderService extends mixinCommonStatics(
     event: Extract<Event, { transaction: any }>
   ) {
     serviceLog(
-      `Issuing shares for investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare}`
+      `Issuing shares for investOrder for account ${this.data.account} with navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare}`
     );
     if (this.data.issuedAt) throw new Error("Shares already issued");
-    if (this.data.approvedAssetsAmount === null)
-      throw new Error("No assets approved");
+    if (this.data.approvedAssetsAmount === null) throw new Error("No assets approved");
 
     this.data = {
       ...this.data,
       ...timestamper("issued", event),
       issuedSharesAmount:
-        (this.data.approvedAssetsAmount *
-          10n ** BigInt(18 + shareDecimals - assetDecimals)) /
+        (this.data.approvedAssetsAmount * 10n ** BigInt(18 + shareDecimals - assetDecimals)) /
         navAssetPerShare,
       issuedWithNavAssetPerShare: navAssetPerShare,
       issuedWithNavPoolPerShare: navPoolPerShare,
@@ -110,57 +80,28 @@ export class InvestOrderService extends mixinCommonStatics(
    */
   public claimDeposit(
     claimedSharesAmount: bigint,
+    paymentAssetAmount: bigint,
     event: Extract<Event, { transaction: any }>
   ) {
     serviceLog(
-      `Claiming deposit for investOrder ${this.data.tokenId}-${this.data.assetId}-${this.data.account}-${this.data.index} on block ${event.block.number} with timestamp ${event.block.timestamp}`
+      `Claiming deposit for account ${this.data.account} with claimedSharesAmount: ${claimedSharesAmount} on block ${event.block.number} with timestamp ${event.block.timestamp}`
     );
     if (this.data.claimedAt) throw new Error("Deposit already claimed");
-
+    if (paymentAssetAmount !== this.data.approvedAssetsAmount)
+      serviceLog(
+        `paymentAssetAmount ${addThousandsSeparator(paymentAssetAmount)} !== ${addThousandsSeparator(this.data.approvedAssetsAmount ?? 0n)} approvedAssetsAmount`
+      );
+    if (claimedSharesAmount !== this.data.issuedSharesAmount)
+      serviceLog(
+        `claimedSharesAmount ${addThousandsSeparator(claimedSharesAmount)} !== ${addThousandsSeparator(this.data.issuedSharesAmount ?? 0n)} issuedSharesAmount`
+      );
     this.data = {
       ...this.data,
       claimedSharesAmount,
+      approvedAssetsAmount: paymentAssetAmount,
+      issuedSharesAmount: claimedSharesAmount,
       ...timestamper("claimed", event),
     };
     return this;
-  }
-
-  /**
-   * Checks if the invest order has a vault deposit.
-   *
-   * @returns True if the invest order has a vault deposit, false otherwise
-   */
-  public hasVaultDeposit() {
-    return (
-      !!this.data.vaultDepositCentrifugeId &&
-      !!this.data.vaultDepositTxHash
-    );
-  }
-
-  /**
-   * Sets the vault deposit for the invest order.
-   *
-   * @param vaultDepositCentrifugeId - The centrifuge ID
-   * @param vaultDepositTxHash - The transaction hash
-   * @returns The service instance for method chaining
-   */
-  public setVaultDeposit(vaultDepositCentrifugeId: string, vaultDepositTxHash: `0x${string}`) {
-    this.data = {
-      ...this.data,
-      vaultDepositCentrifugeId,
-      vaultDepositTxHash,
-    };
-    return this;
-  }
-
-  /**
-   * Saves or clears the invest order.
-   *
-   * @param event - The event containing the block information
-   * @returns The service instance for method chaining
-   */
-  public saveOrClear(event: Event) {
-    if(this.data.postedAssetsAmount === 0n) return this.delete();
-    return this.save(event);
   }
 }

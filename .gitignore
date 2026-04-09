@@ -27,3 +27,6 @@ src/registry.generated.ts
 tsconfig.tsbuildinfo
 
 /.vscode/
+/.idea/
+
+**/*.sql.gz

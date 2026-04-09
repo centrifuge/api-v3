@@ -1,13 +1,14 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { PoolService } from "../services/PoolService";
-import { logEvent } from "../helpers/logger";
+
+import { logEvent, serviceError } from "../helpers/logger";
 import {
   AccountService,
   AssetRegistrationService,
   AssetService,
   PoolManagerService,
+  BlockchainService,
+  PoolService,
 } from "../services";
-import { BlockchainService } from "../services/BlockchainService";
 import { fetchFromIpfs } from "../helpers/ipfs";
 import { isoCurrencies } from "../helpers/isoCurrencies";
 
@@ -55,6 +56,19 @@ multiMapper("hubRegistry:NewPool", async ({ event, context }) => {
   await poolManager.save(event);
 });
 
+multiMapper("hubRegistry:UpdateCurrency", async ({ event, context }) => {
+  logEvent(event, context, "hubRegistry:UpdateCurrency");
+  const { poolId, currency } = event.args;
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const pool = (await PoolService.getOrInit(
+    context,
+    { id: poolId, centrifugeId },
+    event
+  )) as PoolService;
+  pool.setCurrency(currency);
+  await pool.save(event);
+});
+
 multiMapper("hubRegistry:NewAsset", async ({ event, context }) => {
   //Fires Second to complete
   logEvent(event, context, "hubRegistry:NewAsset");
@@ -74,8 +88,7 @@ multiMapper("hubRegistry:NewAsset", async ({ event, context }) => {
 
   const isIsoCurrency = assetId < 1000n;
   if (isIsoCurrency) {
-    const isoCurrency =
-      isoCurrencies[Number(assetId) as keyof typeof isoCurrencies];
+    const isoCurrency = isoCurrencies[Number(assetId) as keyof typeof isoCurrencies];
     const _asset = (await AssetService.getOrInit(
       context,
       {
@@ -119,7 +132,6 @@ multiMapper("hubRegistry:UpdateManager", async ({ event, context }) => {
 multiMapper("hubRegistry:SetMetadata", async ({ event, context }) => {
   logEvent(event, context, "hubRegistry:SetMetadata");
 
-
   const { poolId, metadata: rawMetadata } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
@@ -132,16 +144,16 @@ multiMapper("hubRegistry:SetMetadata", async ({ event, context }) => {
     },
     event
   )) as PoolService;
-  if (!pool) throw new Error("Pool not found");
+  if (!pool) return serviceError(`Pool not found. Cannot set metadata`);
 
   let metadata = Buffer.from(rawMetadata.slice(2), "hex").toString("utf-8");
   const isIpfs = ipfsHashRegex.test(metadata);
   if (isIpfs) {
     metadata = `ipfs://${metadata}`;
     const ipfsData = await fetchFromIpfs(metadata);
-    pool.setName(ipfsData?.pool?.name);
+    const name = ipfsData?.pool?.name;
+    if (name) pool.setName(name);
   }
-
   pool.setMetadata(metadata);
   await pool.save(event);
 });

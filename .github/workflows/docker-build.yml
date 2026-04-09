@@ -5,28 +5,70 @@ on:
     branches:
       - main
   release:
-    types: [published, created]  # Add 'created' to trigger on release creation
+    types: [published, created]
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
-jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+permissions:
+  contents: read
+  packages: write
 
+jobs:
+  # Classify push so release-please-only merges can retag the last code image instead of rebuilding.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      build_code: ${{ steps.result.outputs.build_code }}
+      release_bump: ${{ steps.result.outputs.release_bump }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Paths filter (push to main only)
+        if: github.event_name == 'push'
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d
+        id: filter
+        with:
+          filters: |
+            build_code:
+              - 'src/**'
+              - 'scripts/**'
+              - 'Dockerfile'
+            release_bump:
+              - 'package.json'
+              - 'CHANGELOG.md'
+
+      - name: Emit change flags
+        id: result
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "build_code=true" >> "$GITHUB_OUTPUT"
+            echo "release_bump=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build_code=${{ steps.filter.outputs.build_code }}" >> "$GITHUB_OUTPUT"
+            echo "release_bump=${{ steps.filter.outputs.release_bump }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-and-push:
+    needs: changes
+    if: >-
+      github.event_name == 'release'
+      || (
+        github.event_name == 'push'
+        && needs.changes.outputs.build_code == 'true'
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -34,7 +76,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -57,7 +99,7 @@ jobs:
             org.opencontainers.image.created={{created}}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
           context: .
           push: true
@@ -65,3 +107,91 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # After release-please merges (version/changelog only), point semver + merge SHA tags at the
+  # same image as the last commit that actually got a build (github.event.before may be a
+  # release-only merge with no sha-* tag in GHCR — walk first-parent chain until crane finds one).
+  retag-release-image:
+    needs: changes
+    if: >-
+      github.event_name == 'push'
+      && needs.changes.outputs.build_code != 'true'
+      && needs.changes.outputs.release_bump == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install crane
+        env:
+          CRANE_VERSION: v0.20.3
+        run: |
+          set -euo pipefail
+          curl -sSL "https://github.com/google/go-containerregistry/releases/download/${CRANE_VERSION}/go-containerregistry_Linux_x86_64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin crane
+          crane version
+
+      - name: Retag existing image with release version and merge SHA
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          MERGE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            echo "::error::github.event.before is empty; cannot locate the pre-merge image to retag."
+            exit 1
+          fi
+          MERGE_TAG="sha-${MERGE_SHA:0:7}"
+          VERSION="$(node -p "require('./package.json').version")"
+          # Strip prerelease/build for x.y rolling tags (same idea as docker/metadata semver flavor)
+          BASE="${VERSION%%-*}"
+          MAJOR="${BASE%%.*}"
+          REST="${BASE#*.}"
+          MINOR="${REST%%.*}"
+
+          IMAGE_LC="$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')"
+
+          # BEFORE_SHA often has no image (release-only / docs-only commits). Walk first-parent
+          # chain until we find a sha-* tag that exists in GHCR (matches docker/metadata).
+          CURRENT="$BEFORE_SHA"
+          MAX_WALK=50
+          SRC_REF=""
+          for _ in $(seq 1 "$MAX_WALK"); do
+            TAG="sha-${CURRENT:0:7}"
+            REF="${IMAGE_LC}:${TAG}"
+            if crane digest "$REF" >/dev/null 2>&1; then
+              SRC_REF="$REF"
+              echo "Using existing image tag $TAG (commit $CURRENT) as retag source."
+              break
+            fi
+            echo "No image for $TAG, walking parent..."
+            CURRENT="$(git rev-parse "${CURRENT}^" 2>/dev/null)" || break
+          done
+          if [ -z "$SRC_REF" ]; then
+            echo "::error::No sha-* tag found in GHCR walking back up to $MAX_WALK commits from $BEFORE_SHA. Push a change that runs build-and-push on main, then retry the release merge."
+            exit 1
+          fi
+
+          mapfile -t NEW_TAGS < <(printf '%s\n' \
+            "$VERSION" \
+            "${MAJOR}.${MINOR}" \
+            "$MAJOR" \
+            "$MERGE_TAG" \
+            latest \
+            main | awk 'NF && !seen[$0]++')
+
+          for t in "${NEW_TAGS[@]}"; do
+            echo "Tagging ${SRC_REF} -> ${IMAGE_LC}:${t}"
+            crane copy "$SRC_REF" "${IMAGE_LC}:${t}"
+          done
+
+          echo "Retag complete for: ${NEW_TAGS[*]}"

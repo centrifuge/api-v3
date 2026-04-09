@@ -1,5 +1,5 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { logEvent, serviceError } from "../helpers/logger";
+import { logEvent, serviceError, serviceLog } from "../helpers/logger";
 import {
   BlockchainService,
   DeploymentService,
@@ -8,8 +8,9 @@ import {
   AccountService,
   TokenService,
   InvestorTransactionService,
+  EscrowService,
 } from "../services";
-import { initialisePosition } from "../services/TokenInstancePositionService";
+import { initialisePosition } from "../services";
 
 multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
   logEvent(event, context, "tokenInstance:Transfer");
@@ -25,10 +26,14 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
   })) as TokenInstanceService[];
   const tokenInstance = tokenInstanceQuery.pop();
   if (!tokenInstance) {
-    serviceError("TokenInstance not found for ", event.log.address);
+    serviceError(`TokenInstance not found. Cannot retrieve tokenId`);
     return;
   }
   const { tokenId } = tokenInstance.read();
+
+  const token = (await TokenService.get(context, { id: tokenId })) as TokenService | null;
+  if (!token) return serviceError(`Token not found. Cannot retrieve poolId`);
+  const { poolId } = token.read();
 
   const [isFromNull, isToNull] = [BigInt(from) === 0n, BigInt(to) === 0n];
 
@@ -36,26 +41,31 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
     chainId: chainId.toString(),
   })) as DeploymentService | null;
   if (!deployment) {
-    serviceError("Deployment not found for chain ", chainId);
+    serviceError(`Deployment not found. Cannot retrieve global escrow address`);
     return;
   }
 
   const { globalEscrow } = deployment.read();
   if (!globalEscrow) {
-    serviceError(`Global escrow not found for deployment ${chainId}`);
-    return;
+    serviceLog(`Global escrow not found. Fall back to tracking all transfers.`);
   }
 
   const [isFromGlobalEscrow, isToGlobalEscrow] = [
-    BigInt(from) === BigInt(globalEscrow.toLowerCase()),
-    BigInt(to) === BigInt(globalEscrow.toLowerCase()),
+    !!globalEscrow && BigInt(from) === BigInt(globalEscrow.toLowerCase()),
+    !!globalEscrow && BigInt(to) === BigInt(globalEscrow.toLowerCase()),
+  ];
+
+  const poolEscrowsQuery = await EscrowService.query(context, { centrifugeId, poolId });
+  const poolEscrows = poolEscrowsQuery.map((escrow) => BigInt(escrow.read().address));
+  const [isFromPoolEscrow, isToPoolEscrow] = [
+    poolEscrows.includes(BigInt(from)),
+    poolEscrows.includes(BigInt(to)),
   ];
 
   const [isFromUserAccount, isToUserAccount] = [
-    !isFromNull && !isFromGlobalEscrow,
-    !isToNull && !isToGlobalEscrow,
+    !isFromNull && !isFromGlobalEscrow && !isFromPoolEscrow,
+    !isToNull && !isToGlobalEscrow && !isToPoolEscrow,
   ];
-
 
   if (isFromUserAccount) {
     const _fromAccount = await AccountService.getOrInit(context, { address: from }, event);
@@ -68,15 +78,14 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
       },
       event,
       async (tokenInstancePosition) =>
-        await initialisePosition(context, tokenAddress, tokenInstancePosition)
+        await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
     )) as TokenInstancePositionService;
     const { createdAtBlock } = fromPosition.read();
     if (!createdAtBlock) {
-      serviceError("TokenInstancePosition not found for ", event.log.address);
+      serviceError(`TokenInstancePosition not found. Cannot update balance`);
       return;
     }
-    if (createdAtBlock < Number(event.block.number))
-      fromPosition.subBalance(amount);
+    if (createdAtBlock < Number(event.block.number)) fromPosition.subBalance(amount);
     await fromPosition.save(event);
   }
 
@@ -91,24 +100,15 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
       },
       event,
       async (tokenInstancePosition) =>
-        await initialisePosition(context, tokenAddress, tokenInstancePosition)
+        await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
     )) as TokenInstancePositionService;
     const { createdAtBlock } = toPosition.read();
     if (!createdAtBlock) {
-      serviceError("TokenInstancePosition not found for ", event.log.address);
+      serviceError(`TokenInstancePosition not found. Cannot update balance`);
       return;
     }
-    if (createdAtBlock < Number(event.block.number))
-      toPosition.addBalance(amount);
+    if (createdAtBlock < Number(event.block.number)) toPosition.addBalance(amount);
     await toPosition.save(event);
-  }
-
-  const token = (await TokenService.get(context, {
-    id: tokenId,
-  })) as TokenService | null;
-  if (!token) {
-    serviceError("Token not found for ", tokenId);
-    return;
   }
 
   // Handle tokenInstance and token total issuance change

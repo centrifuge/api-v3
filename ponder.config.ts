@@ -1,7 +1,8 @@
 import { createConfig } from "ponder";
-import { ERC20Abi } from "./abis/ERC20";
-import { blocks, chains } from "./src/chains";
+import { chains, blocks } from "./src/chains";
 import { decorateDeploymentContracts } from "./src/contracts";
+import { ERC20Abi } from "./abis/ERC20";
+import { V3_1_MIGRATION_BLOCKS } from "./src/config";
 
 export const contractsV3 = decorateDeploymentContracts(
   "v3",
@@ -61,6 +62,7 @@ export const contractsV3 = decorateDeploymentContracts(
       },
     },
   } as const,
+  V3_1_MIGRATION_BLOCKS
 );
 
 export const contractsV3_1 = decorateDeploymentContracts(
@@ -69,8 +71,6 @@ export const contractsV3_1 = decorateDeploymentContracts(
     "BalanceSheet",
     "BatchRequestManager",
     "Gateway",
-    "GasService",
-    "MultiAdapter",
     "Holdings",
     "HubRegistry",
     "Hub",
@@ -82,6 +82,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
     "ShareClassManager",
     "Spoke",
     "VaultRegistry",
+    "SyncManager",
   ] as const,
   {
     vaultV3_1: {
@@ -124,7 +125,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
         eventParameter: "token",
       },
     },
-  } as const,
+  } as const
 );
 
 export const contracts = { ...contractsV3, ...contractsV3_1 };

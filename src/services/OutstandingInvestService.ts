@@ -1,6 +1,6 @@
 // TODO: DEPRECATED to be deleted in future releases
 import type { Event } from "ponder:registry";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { OutstandingInvest } from "ponder:schema";
 import { serviceLog } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
@@ -12,11 +12,9 @@ import { timestamper } from "../helpers/timestamper";
  * including computation of approved amounts and execution of requests.
  * Extends the base Service class with common static methods.
  */
-export class OutstandingInvestService extends mixinCommonStatics(
-  Service<typeof OutstandingInvest>,
-  OutstandingInvest,
-  "OutstandingInvest"
-) {
+export class OutstandingInvestService extends Service<typeof OutstandingInvest> {
+  static readonly entityTable = OutstandingInvest;
+  static readonly entityName = "OutstandingInvest";
   /**
    * Updates the requested deposit amount for the outstanding order.
    *
@@ -52,7 +50,7 @@ export class OutstandingInvestService extends mixinCommonStatics(
     // Update queued and deposit amounts from event
     this.data.queuedAmount = queuedUserAssetAmount;
     this.data.pendingAmount = pendingUserAssetAmount;
-    this.data.epochIndex = epochIndex
+    this.data.epochIndex = epochIndex;
     return this;
   }
 
@@ -65,7 +63,11 @@ export class OutstandingInvestService extends mixinCommonStatics(
    * @param event - The event that triggered the approval
    * @returns The service instance for method chaining
    */
-  public approveInvest(approvedUserAssetAmount: bigint, approvedIndex: number, event: Extract<Event, { transaction: any }>) {
+  public approveInvest(
+    approvedUserAssetAmount: bigint,
+    approvedIndex: number,
+    event: Extract<Event, { transaction: any }>
+  ) {
     serviceLog(
       `Approving invest for outstandingInvest ${this.data.tokenId}-${this.data.assetId}-${this.data.account} for index ${approvedIndex} with approvedUserAssetAmount: ${approvedUserAssetAmount} on block ${event.block.number} and timestamp ${event.block.timestamp}`
     );
@@ -73,7 +75,7 @@ export class OutstandingInvestService extends mixinCommonStatics(
       ...this.data,
       ...timestamper("approved", event),
       approvedAmount: approvedUserAssetAmount,
-    }
+    };
     return this;
   }
 
@@ -93,9 +95,8 @@ export class OutstandingInvestService extends mixinCommonStatics(
       ...timestamper("cleared", null),
       pendingAmount: this.data.pendingAmount! - this.data.approvedAmount!,
       approvedAmount: 0n,
-    }
-    if (this.data.queuedAmount! + this.data.pendingAmount! === 0n)
-      return this.delete();
+    };
+    if (this.data.queuedAmount! + this.data.pendingAmount! === 0n) return this.delete();
     return this.save(event);
   }
 

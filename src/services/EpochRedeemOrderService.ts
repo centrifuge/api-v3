@@ -1,21 +1,19 @@
 import { EpochRedeemOrder } from "ponder:schema";
 import type { Event } from "ponder:registry";
-import { Service, mixinCommonStatics } from "./Service";
+import { Service } from "./Service";
 import { timestamper } from "../helpers/timestamper";
 
 /**
  * Service class for managing epoch redeem orders in the database.
- * 
+ *
  * Extends the base Service class with common static methods.
  */
-export class EpochRedeemOrderService extends mixinCommonStatics(
-  Service<typeof EpochRedeemOrder>,
-  EpochRedeemOrder,
-  "EpochRedeemOrder"
-) {
+export class EpochRedeemOrderService extends Service<typeof EpochRedeemOrder> {
+  static readonly entityTable = EpochRedeemOrder;
+  static readonly entityName = "EpochRedeemOrder";
   /**
    * Revokes shares for an epoch redeem order.
-   * 
+   *
    * @param revokedSharesAmount - The amount of shares revoked
    * @param revokedAssetsAmount - The amount of assets revoked
    * @param revokedPoolAmount - The amount of pool revoked
@@ -24,7 +22,14 @@ export class EpochRedeemOrderService extends mixinCommonStatics(
    * @param event - The event containing the block information
    * @returns The service instance for method chaining
    */
-  public revokedShares(revokedSharesAmount: bigint, revokedAssetsAmount: bigint, revokedPoolAmount: bigint, revokedWithNavPoolPerShare: bigint, revokedWithNavAssetPerShare: bigint, event: Extract<Event, { transaction: any }>) {
+  public revokedShares(
+    revokedSharesAmount: bigint,
+    revokedAssetsAmount: bigint,
+    revokedPoolAmount: bigint,
+    revokedWithNavPoolPerShare: bigint,
+    revokedWithNavAssetPerShare: bigint,
+    event: Extract<Event, { transaction: any }>
+  ) {
     this.data = {
       ...this.data,
       ...timestamper("revoked", event),
@@ -33,7 +38,7 @@ export class EpochRedeemOrderService extends mixinCommonStatics(
       revokedPoolAmount: revokedPoolAmount,
       revokedWithNavPoolPerShare: revokedWithNavPoolPerShare,
       revokedWithNavAssetPerShare: revokedWithNavAssetPerShare,
-    }
+    };
     return this;
   }
 }
