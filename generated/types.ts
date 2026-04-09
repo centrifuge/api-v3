@@ -33,6 +33,8 @@ export interface RegistryChain<N extends number, C extends string> {
     batchLimit?: number;
     safeAdmin?: string;
     baseRpcUrl?: string;
+    verifier?: string;
+    verifierUrl?: string;
   };
   adapters: unknown;
   contracts: ChainContracts<C>;
