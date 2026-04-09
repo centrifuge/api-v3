@@ -2,7 +2,7 @@ global:
   env:
     ENVIRONMENT: "mainnet"
     SELECTED_NETWORKS: "42161,8453,1,98866,43114,56,10,143,999,1672"
-    REGISTRY_URL: "https://ipfs.centrifuge.io/ipfs/bafybeie27jsvvh3ajzlpdhy7d7ez5xcemeyvdpox6zttbyufm62uobcdze"
+    REGISTRY_URL: "https://registry.centrifuge.io"
     PONDER_RPC_URL_1: "http://cfg-api-erpc:4000/main/evm/1"
     PONDER_RPC_URL_10: "http://cfg-api-erpc:4000/main/evm/10"
     PONDER_RPC_URL_8453: "http://cfg-api-erpc:4000/main/evm/8453"
