@@ -1,11 +1,29 @@
 import { sValidator } from "@hono/standard-validator";
 import { type Context, Hono } from "hono";
 import * as z from "zod";
-import { getContract, getContractAbi, getPublicClient } from "../helpers/contracts";
+import { getContractAddressForChain, REGISTRY_VERSION_ORDER } from "../contracts";
 import { emptyMessage, MessageType } from "../helpers/messaging";
 import { centrifugeId, poolId } from "../helpers/tokenId";
 import * as Services from "../services";
+import { getContractAbi, getPublicClient } from "./helpers/contracts";
 import type { ApiContext } from "./types";
+
+const V3_1_REGISTRY_INDEX = REGISTRY_VERSION_ORDER.indexOf("v3_1");
+if (V3_1_REGISTRY_INDEX < 0) {
+  throw new Error('Registry "v3_1" not found in REGISTRY_VERSION_ORDER');
+}
+
+/** Deployed address from the v3_1 registry for on-chain quote reads. */
+function v3_1ContractAddress(
+  chainId: number,
+  contractName: "gasService" | "multiAdapter"
+): `0x${string}` {
+  const address = getContractAddressForChain(chainId, V3_1_REGISTRY_INDEX, contractName);
+  if (!address) {
+    throw new Error(`${contractName} not deployed on chain ${chainId}`);
+  }
+  return address;
+}
 
 /**
  * Get the chain id and name from a centrifuge id.
@@ -54,21 +72,45 @@ type Route = {
   isEnabled: boolean;
 };
 
-const quoteAmountAndToken = {
-  fromAmount: z.coerce.bigint().min(1n).max(340282366920938463463374607431768211455n), // uint128 max
-  fromToken: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
-} as const;
+/** Hono query values are strings (or string[] if repeated); normalize for Zod. */
+function queryParamToString(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (Array.isArray(value)) {
+    const first = value[0];
+    return first === undefined || first === null ? undefined : String(first);
+  }
+  return String(value);
+}
 
-const quoteParamsPost = z.object({
-  fromChain: z.coerce.number().int().min(1).max(4294967295),
-  toChain: z.coerce.number().int().min(1).max(4294967295),
-  ...quoteAmountAndToken,
-});
+const zQueryChainId = z.preprocess(
+  queryParamToString,
+  z
+    .string()
+    .regex(/^\d+$/)
+    .transform((s) => Number(s))
+    .pipe(z.number().int().min(1).max(4294967295))
+);
 
-const quoteParamsLegacyGet = z.object({
-  fromChainId: z.coerce.number().int().min(1).max(4294967295),
-  toChainId: z.coerce.number().int().min(1).max(4294967295),
-  ...quoteAmountAndToken,
+const zQueryUint128 = z.preprocess(
+  queryParamToString,
+  z
+    .string()
+    .regex(/^\d+$/)
+    .transform((s) => BigInt(s))
+    .pipe(z.bigint().min(1n).max(340282366920938463463374607431768211455n))
+);
+
+const zQueryTokenAddress = z.preprocess(
+  queryParamToString,
+  z.string().regex(/^0x[a-fA-F0-9]{40}$/)
+);
+
+/** Airlift spec: POST /quote with `fromChain`, `toChain`, `fromToken`, `fromAmount` as query params. */
+const quoteParams = z.object({
+  fromChain: zQueryChainId,
+  toChain: zQueryChainId,
+  fromAmount: zQueryUint128,
+  fromToken: zQueryTokenAddress,
 });
 
 type QuoteInput = {
@@ -78,7 +120,7 @@ type QuoteInput = {
   fromAmount: bigint;
 };
 
-/** Shared Airlift-style fee quote for POST (fromChain/toChain) and legacy GET (fromChainId/toChainId). */
+/** Shared Airlift-style fee quote (POST /quote only per Glacis off-chain interface). */
 async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Promise<Response> {
   const { fromChainId, toChainId, fromAmount, fromToken } = input;
   const ESTIMATED_DURATION = 210; // in seconds
@@ -132,7 +174,7 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
   const [initiateTransferSharesGasLimit, executeTransferSharesGasLimit] = await Promise.all([
     fromClient.readContract({
       abi: getContractAbi("gasServiceV3_1"),
-      address: getContract("gasServiceV3_1", fromChainId),
+      address: v3_1ContractAddress(fromChainId, "gasService"),
       functionName: "messageOverallGasLimit",
       args: [
         isTwoHops ? hubCentId : toCentId,
@@ -141,7 +183,7 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
     }),
     hubClient.readContract({
       abi: getContractAbi("gasServiceV3_1"),
-      address: getContract("gasServiceV3_1", hubChainId),
+      address: v3_1ContractAddress(hubChainId, "gasService"),
       functionName: "messageOverallGasLimit",
       args: [toCentId, emptyMessage(MessageType.ExecuteTransferShares, poolId(tokenId))],
     }),
@@ -150,7 +192,7 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
   const [initiateFee, executeFee] = await Promise.all([
     fromClient.readContract({
       abi: getContractAbi("multiAdapterV3_1"),
-      address: getContract("multiAdapterV3_1", fromChainId),
+      address: v3_1ContractAddress(fromChainId, "multiAdapter"),
       functionName: "estimate",
       args: [
         isTwoHops ? hubCentId : toCentId,
@@ -160,7 +202,7 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
     }),
     hubClient.readContract({
       abi: getContractAbi("multiAdapterV3_1"),
-      address: getContract("multiAdapterV3_1", hubChainId),
+      address: v3_1ContractAddress(hubChainId, "multiAdapter"),
       functionName: "estimate",
       args: [
         toCentId,
@@ -204,7 +246,7 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
   });
 }
 
-/** Glacis / Airlift-style routes: `/transactions`, `/routes`, `/quote`. */
+/** Glacis / Airlift-style routes: `GET /transactions/:txHash`, `GET /routes`, `POST /quote`. */
 export function createGlacisApp(ctx: ApiContext) {
   const app = new Hono();
 
@@ -412,21 +454,11 @@ export function createGlacisApp(ctx: ApiContext) {
     });
   });
 
-  app.post("/quote", sValidator("query", quoteParamsPost), async (c) => {
+  app.post("/quote", sValidator("query", quoteParams), async (c) => {
     const q = c.req.valid("query");
     return handleQuote(c, ctx, {
       fromChainId: q.fromChain,
       toChainId: q.toChain,
-      fromAmount: q.fromAmount,
-      fromToken: q.fromToken,
-    });
-  });
-
-  app.get("/quote", sValidator("query", quoteParamsLegacyGet), async (c) => {
-    const q = c.req.valid("query");
-    return handleQuote(c, ctx, {
-      fromChainId: q.fromChainId,
-      toChainId: q.toChainId,
       fromAmount: q.fromAmount,
       fromToken: q.fromToken,
     });

@@ -4,7 +4,8 @@
  * Fetch registry data at build time and save it as a TypeScript file.
  * This ensures the indexer has typed registry data without runtime network dependencies.
  *
- * Local overrides (after fetch, before writing generated files): set env vars whose names are
+ * Local overrides (after the registry chain is fully resolved — null-version merges and same-slug
+ * collapse — before writing generated files): set env vars whose names are
  * REGISTRY_<versionSlug>_<pathSegmentsJoinedByUnderscore>, where versionSlug matches the generated
  * file key (e.g. v3.1 → 3_1). An optional leading "v" on the slug is accepted.
  * Example: REGISTRY_v3_1_chains_42161_deployment_startBlock=1234
@@ -13,7 +14,7 @@
  */
 
 import { promises as fs } from "fs";
-import { join } from "path";
+import { join as pathJoin } from "path";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
 
@@ -31,12 +32,17 @@ const {
 
 
 
-const outputDir = join(process.cwd(), "generated");
+const outputDir = pathJoin(process.cwd(), "generated");
 
 /**
  * Stable filename / index key from registry.version (e.g. v3.1.0 → 3_1, v3.1.2 → 3_1_2).
  * Prerelease is ignored. A semver patch of 0 is omitted so v3_1_0 maps to v3_1.
  */
+/** True when this registry JSON layer is a versionless patch (merge into chronologically older neighbor). */
+function isNullRegistryVersion(version) {
+  return version == null;
+}
+
 function registryVersionToFileSlug(rawVersion) {
   const core = rawVersion.split("-")[0].replace(/^v/i, "");
   const parts = core.split(".").filter((p) => p.length > 0);
@@ -60,7 +66,9 @@ async function fetchRegistry(ipfsHash) {
       throw new Error(`Invalid ipfsHash: ${ipfsHash}`);
     }
   }
-  const url = ipfsHash ? join(IPFS_GATEWAY, ipfsHash) : REGISTRY_URL;
+  const url = ipfsHash
+    ? `${IPFS_GATEWAY.replace(/\/?$/, "")}/${ipfsHash}`
+    : REGISTRY_URL;
 
   console.log(`Fetching registry from: ${url}`);
 
@@ -123,18 +131,21 @@ function mergeRegistryValues(older, newer) {
 }
 
 /**
- * Chain order from fetchRegistryChain is oldest-first … newest-last.
- * Entries with version === null are merged into the preceding entry (patch over base);
- * the patch wins on key collisions.
+ * Chain order from fetchRegistryChain is oldest-first … newest-last (linked list is walked from
+ * newest via previousRegistry; each step unshifts an older blob).
+ *
+ * Entries with null/absent `version` are patch layers: merge into the chronologically previous
+ * entry (the one before in this array). E.g. [v1, v2, null, v3] → [v1, merge(v2, null), v3].
+ * Patch wins on key collisions; the merged object keeps the base `version` when the patch had none.
  */
-function normalizeRegistryChain(chain) {
+function mergeNullVersionPatchesIntoPredecessors(chain) {
   if (chain.length === 0) {
     return chain;
   }
   const result = [structuredClone(chain[0])];
   for (let i = 1; i < chain.length; i++) {
     const curr = chain[i];
-    if (curr.version == null) {
+    if (isNullRegistryVersion(curr.version)) {
       const base = result[result.length - 1];
       result[result.length - 1] = mergeRegistriesOlderNewer(base, curr);
     } else {
@@ -142,6 +153,36 @@ function normalizeRegistryChain(chain) {
     }
   }
   return result;
+}
+
+/**
+ * After null-version patches are folded, consecutive registries can still share the same file slug
+ * (e.g. full v3.1 under a patch and the tip v3.1). Merge each run into one row (newer wins on
+ * collisions) so we emit a single generated file per slug and index.ts stays consistent.
+ */
+function collapseConsecutiveRegistriesWithSameFileSlug(chain) {
+  if (chain.length === 0) {
+    return chain;
+  }
+  const out = [structuredClone(chain[0])];
+  for (let i = 1; i < chain.length; i++) {
+    const curr = structuredClone(chain[i]);
+    const prev = out[out.length - 1];
+    const slugPrev = registryVersionToFileSlug(prev.version);
+    const slugCurr = registryVersionToFileSlug(curr.version);
+    if (slugPrev === slugCurr) {
+      out[out.length - 1] = mergeRegistriesOlderNewer(prev, curr);
+    } else {
+      out.push(curr);
+    }
+  }
+  return out;
+}
+
+/** Full resolution: IPFS chain → merge patches → dedupe same-slug neighbors. Env patches run after this. */
+function resolveRegistryChain(chain) {
+  const afterNull = mergeNullVersionPatchesIntoPredecessors(chain);
+  return collapseConsecutiveRegistriesWithSameFileSlug(afterNull);
 }
 
 async function fetchRegistryChain(registryChain = []) {
@@ -265,7 +306,7 @@ async function generateTypeScriptRegistry(registry, version) {
 
 export default ${JSON.stringify(registry, null, 2)} as const satisfies Registry
 `;
-  const filePath = join(outputDir, `registry.v${version}.generated.ts`);
+  const filePath = pathJoin(outputDir, `registry.v${version}.generated.ts`);
   console.log(`Creating registry.v${version}.generated.ts file...`);
   return fs.writeFile(filePath, fileContent, "utf-8");
 }
@@ -284,7 +325,7 @@ export default {
 ${versions.map((version, index) => `  v${version}: registry${index}`).join(",\n")}
 } as const
 `;
-  const filePath = join(outputDir, `index.ts`);
+  const filePath = pathJoin(outputDir, `index.ts`);
   console.log(`Creating index.ts file...`);
   return fs.writeFile(filePath, fileContent, "utf-8");
 }
@@ -299,13 +340,13 @@ async function main() {
   const genFilePattern = /^registry\.v.*\.generated\.ts$/;
   for (const file of files) {
     if (genFilePattern.test(file) || file === 'index.ts') {
-      await fs.unlink(join(outputDir, file));
+      await fs.unlink(pathJoin(outputDir, file));
       console.log(`Removed ${file}`);
     }
   }
   try {
     const rawChain = await fetchRegistryChain(IPFS_HASH);
-    const registryChain = normalizeRegistryChain(rawChain);
+    const registryChain = resolveRegistryChain(rawChain);
     for (const registry of registryChain) {
       if (registry.version == null) {
         throw new Error(
