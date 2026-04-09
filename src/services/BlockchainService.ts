@@ -1,7 +1,7 @@
 import { Blockchain } from "ponder:schema";
 import { Service } from "./Service";
 import { Context } from "ponder:registry";
-import { RegistryChains } from "../chains";
+import { networkNames, RegistryChains } from "../chains";
 
 type Network = (typeof RegistryChains)[number]["network"];
 type InMemoryChainId = {
@@ -49,6 +49,28 @@ export class BlockchainService extends Service<typeof Blockchain> {
     const chainId = centrifugeIdToChainId[centrifugeId];
     return chainId != null ? chainId : null;
   }
+
+  /**
+   * Centrifuge id for a chain from registry config (`RegistryChains`), if that chain is indexed.
+   *
+   * @param chainId - EVM chain id
+   * @returns Centrifuge network id as string, or null if unknown
+   */
+  static getCentrifugeIdFromChainId(chainId: number): string | null {
+    if (!(chainId in inMemoryChainId)) return null;
+    return String(inMemoryChainId[chainId as keyof InMemoryChainId]);
+  }
+
+  /**
+   * Short display label for a chain id from `networkNames` in `chains.ts`.
+   *
+   * @param chainId - EVM chain id
+   */
+  static networkNameFromChainId(chainId: number): string {
+    const netKey = networkNames[String(chainId) as keyof typeof networkNames];
+    return netKey ? `${netKey.charAt(0).toUpperCase()}${netKey.slice(1)}` : `Chain ${chainId}`;
+  }
+
   /**
    * Sets the last period start date for the blockchain.
    *

@@ -628,7 +628,8 @@ export function getContractNameAndVersionForAddress(
     const contractEntries = Object.entries(chain.contracts) as Entries<typeof chain.contracts>;
     for (const [contractName, contract] of contractEntries) {
       if (!contract) continue;
-      const contractAddr = contract.address as `0x${string}`;
+      const contractAddr = contract.address as `0x${string}` | null;
+      if (!contractAddr) continue;
       if (contractAddr.toLowerCase() === normalizedAddress) {
         return { contractName, versionIndex: i };
       }
