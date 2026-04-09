@@ -37,8 +37,5 @@ export enum MessageType {
  * @returns The encoded empty message bytes
  */
 export function emptyMessage(type: MessageType, poolId = 0n): Hex {
-  return encodePacked(
-    ["uint8", "uint64", "bytes"],
-    [type, poolId, toHex(0, { size: 241 })],
-  );
+  return encodePacked(["uint8", "uint64", "bytes"], [type, poolId, toHex(0, { size: 241 })]);
 }

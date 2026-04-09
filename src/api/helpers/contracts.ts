@@ -10,9 +10,7 @@ import { networkNames } from "../../chains";
 export function getPublicClient(chainId: number) {
   const client =
     publicClients[
-      networkNames[
-        chainId.toString() as keyof typeof networkNames
-      ] as keyof typeof publicClients
+      networkNames[chainId.toString() as keyof typeof networkNames] as keyof typeof publicClients
     ];
   if (!client) {
     throw new Error(`Public client not found for chainId ${chainId}`);

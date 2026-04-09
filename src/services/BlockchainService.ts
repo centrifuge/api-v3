@@ -68,9 +68,7 @@ export class BlockchainService extends Service<typeof Blockchain> {
    */
   static networkNameFromChainId(chainId: number): string {
     const netKey = networkNames[String(chainId) as keyof typeof networkNames];
-    return netKey
-      ? `${netKey.charAt(0).toUpperCase()}${netKey.slice(1)}`
-      : `Chain ${chainId}`;
+    return netKey ? `${netKey.charAt(0).toUpperCase()}${netKey.slice(1)}` : `Chain ${chainId}`;
   }
 
   /**
