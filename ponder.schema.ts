@@ -934,6 +934,7 @@ export const HoldingEscrowColumns = (t: PgColumnsBuilders) => ({
   assetAddress: t.hex().notNull(),
   assetAmount: t.bigint().default(0n),
   assetPrice: t.bigint().default(0n),
+  maxAssetPriceAge: t.bigint().default(0n),
   escrowAddress: t.hex().notNull(),
   crosschainInProgress: HoldingEscrowCrosschainInProgress("holding_escrow_crosschain_in_progress"),
   ...defaultColumns(t),
@@ -1472,6 +1473,7 @@ export const HoldingEscrowSnapshot = onchainTable(
     "assetId",
     "assetAmount",
     "assetPrice",
+    "maxAssetPriceAge",
   ] as const),
   (t) => ({
     id: primaryKey({

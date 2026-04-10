@@ -71,6 +71,15 @@ export class HoldingEscrowService extends Service<typeof HoldingEscrow> {
   }
 
   /**
+   * Sets the maximum allowed asset price age (seconds) from the Spoke.
+   */
+  public setMaxAssetPriceAge(maxPriceAge: bigint) {
+    serviceLog("Setting maxAssetPriceAge to: ", maxPriceAge);
+    this.data.maxAssetPriceAge = maxPriceAge;
+    return this;
+  }
+
+  /**
    * @param crosschainInProgress - Set when Hub notifies destination of asset price update; omit to clear
    */
   public setCrosschainInProgress(
