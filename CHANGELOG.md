@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.6.0](https://github.com/centrifuge/api-v3/compare/v3.5.0...v3.6.0) (2026-04-09)
+
+
+### Features
+
+* deploy pharos and update registry ([#347](https://github.com/centrifuge/api-v3/issues/347)) ([767c719](https://github.com/centrifuge/api-v3/commit/767c7192e7f7a8741900ba8d2f279ba6fb6f1f96)), closes [#342](https://github.com/centrifuge/api-v3/issues/342)
+* routes and transaction status APIs ([#180](https://github.com/centrifuge/api-v3/issues/180)) ([2158450](https://github.com/centrifuge/api-v3/commit/21584501f9047ce7d657054994609b69b2a08105))
+
 ## [3.5.0](https://github.com/centrifuge/api-v3/compare/v3.4.1...v3.5.0) (2026-04-07)
 
 

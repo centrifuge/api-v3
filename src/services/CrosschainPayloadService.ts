@@ -1,9 +1,10 @@
+import { eq } from "drizzle-orm";
 import { CrosschainPayload, CrosschainPayloadStatuses } from "ponder:schema";
-import { Service } from "./Service";
+import { Service, type ReadOnlyContext } from "./Service";
 import { Event, Context } from "ponder:registry";
 import { getCrosschainMessageLength } from ".";
 import { keccak256, encodePacked } from "viem";
-import { serviceError } from "../helpers/logger";
+import { expandInlineObject, serviceError, serviceLog } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
 import { RegistryVersions } from "../chains";
 
@@ -19,6 +20,27 @@ import { RegistryVersions } from "../chains";
 export class CrosschainPayloadService extends Service<typeof CrosschainPayload> {
   static readonly entityTable = CrosschainPayload;
   static readonly entityName = "CrosschainPayload";
+
+  /**
+   * Looks up a payload by the transaction hash that prepared it on the source chain.
+   */
+  static async getByPreparedAtTxHash(
+    context: Context | ReadOnlyContext,
+    preparedAtTxHash: `0x${string}`
+  ): Promise<CrosschainPayloadService | null> {
+    const table = this.entityTable;
+    const name = this.entityName;
+    const db = "sql" in context.db ? context.db.sql : context.db;
+    serviceLog(`${name} getByPreparedAtTxHash`, expandInlineObject({ preparedAtTxHash }));
+    const [entity] = await db
+      .select()
+      .from(table)
+      .where(eq(CrosschainPayload.preparedAtTxHash, preparedAtTxHash))
+      .limit(1);
+    if (!entity) return null;
+    return new this(table, name, context, entity) as CrosschainPayloadService;
+  }
+
   /**
    * Gets the first payload from the queue for a given payload ID
    * @param context - The database and client context

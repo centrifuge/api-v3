@@ -1,6 +1,14 @@
-import { TokenInstance, TokenInstanceCrosschainInProgressTypes } from "ponder:schema";
-import { Service } from "./Service";
+import { Token, TokenInstance, TokenInstanceCrosschainInProgressTypes } from "ponder:schema";
+import { eq } from "drizzle-orm";
+import type { Context } from "ponder:registry";
+import { ReadOnlyContext, Service } from "./Service";
 import { serviceLog } from "../helpers/logger";
+
+/** Row shape for token_instance ⟕ token (same as cross-chain route / quote SQL joins). */
+export type TokenInstanceWithTokenRow = {
+  token_instance: (typeof TokenInstance)["$inferSelect"];
+  token: (typeof Token)["$inferSelect"];
+};
 
 /**
  * Service class for managing TokenInstance entities in the database.
@@ -13,6 +21,23 @@ import { serviceLog } from "../helpers/logger";
 export class TokenInstanceService extends Service<typeof TokenInstance> {
   static readonly entityTable = TokenInstance;
   static readonly entityName = "TokenInstance";
+
+  /**
+   * All token instances joined to their token row (for bridge route listing).
+   */
+  static async listAllJoinedWithToken(
+    context: Context | ReadOnlyContext
+  ): Promise<TokenInstanceWithTokenRow[]> {
+    const db = "sql" in context.db ? context.db.sql : context.db;
+    serviceLog(`${this.entityName} listAllJoinedWithToken`);
+    const rows = await db
+      .select()
+      .from(TokenInstance)
+      .innerJoin(Token, eq(TokenInstance.tokenId, Token.id));
+    serviceLog(`Found ${rows.length} token_instance+token rows`);
+    return rows;
+  }
+
   /**
    * Sets the token ID for the current token instance.
    *

@@ -71,6 +71,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
     "BalanceSheet",
     "BatchRequestManager",
     "Gateway",
+    "GasService",
     "Holdings",
     "HubRegistry",
     "Hub",

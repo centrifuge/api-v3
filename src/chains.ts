@@ -35,6 +35,7 @@ export const networkNames = {
   "10": "optimism",
   "143": "monad",
   "999": "hyperliquid",
+  "1672": "pharos",
 } as const;
 
 type ExtractNetworkNamesFromKeys<K> = K extends keyof typeof networkNames
@@ -131,7 +132,7 @@ export const endpoints = {
   ],
   998: [
     `https://hyperliquid-testnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-    `https://${process.env.QUICKNODE_API_NAME}.hype-testnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/evm`,
+    `https://${process.env.QUICKNODE_API_NAME}.hype-testnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/nanoreth`,
     `https://lb.drpc.live/hyperliquid-testnet/${process.env.DRPC_API_KEY}`,
   ],
   10: [
@@ -146,9 +147,10 @@ export const endpoints = {
   ],
   999: [
     `https://hyperliquid-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-    `https://${process.env.QUICKNODE_API_NAME}.hype-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/evm`,
+    `https://${process.env.QUICKNODE_API_NAME}.hype-mainnet.quiknode.pro/${process.env.QUICKNODE_API_KEY}/nanoreth`,
     `https://lb.drpc.live/hyperliquid/${process.env.DRPC_API_KEY}`,
   ],
+  1672: [],
 };
 
 const getLogsBlockRange = {
@@ -273,7 +275,7 @@ export function chainContracts(
       const contractKeys = Object.keys(chain.contracts) as Array<keyof typeof chain.contracts>;
       for (const contractName of contractKeys) {
         const contract = chain.contracts[contractName];
-        if (contract && "address" in contract) {
+        if (contract && contract.address) {
           contractsMap.set(contractName as string, contract.address.toLowerCase() as `0x${string}`);
         }
       }
