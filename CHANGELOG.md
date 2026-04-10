@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.7.0](https://github.com/centrifuge/api-v3/compare/v3.6.0...v3.7.0) (2026-04-10)
+
+
+### Features
+
+* add tracking for max asset price age ([#343](https://github.com/centrifuge/api-v3/issues/343)) ([88516c0](https://github.com/centrifuge/api-v3/commit/88516c0b70f08262552ffb01052c6007b8f04710))
+
 ## [3.6.0](https://github.com/centrifuge/api-v3/compare/v3.5.0...v3.6.0) (2026-04-09)
 
 
