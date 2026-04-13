@@ -102,6 +102,7 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
   merkleProofManagers: many(MerkleProofManager, {
     relationName: "merkleProofManagers",
   }),
+  poolAdapters: many(PoolAdapter),
 }));
 
 const PoolSpokeBlockchainColumns = (t: PgColumnsBuilders) => ({
@@ -1305,6 +1306,7 @@ export const AdapterRelations = relations(Adapter, ({ many }) => ({
   adapterWirings: many(AdapterWiring, {
     relationName: "adapterWirings",
   }),
+  poolAdapters: many(PoolAdapter),
 }));
 
 const AdapterWiringColumns = (t: PgColumnsBuilders) => ({
@@ -1328,6 +1330,53 @@ export const AdapterWiringRelations = relations(AdapterWiring, ({ one }) => ({
   toAdapter: one(Adapter, {
     fields: [AdapterWiring.toAddress, AdapterWiring.toCentrifugeId],
     references: [Adapter.address, Adapter.centrifugeId],
+  }),
+}));
+
+export const PoolAdapterCrosschainInProgressTypes = [`Enabled`, `Disabled`] as const;
+export const PoolAdapterCrosschainInProgress = onchainEnum(
+  "pool_adapter_crosschain_in_progress",
+  PoolAdapterCrosschainInProgressTypes
+);
+
+const PoolAdapterColumns = (t: PgColumnsBuilders) => ({
+  localCentrifugeId: t.text().notNull(),
+  remoteCentrifugeId: t.text().notNull(),
+  poolId: t.bigint().notNull(),
+  adapterAddress: t.hex().notNull(),
+  isEnabled: t.boolean().notNull().default(false),
+  crosschainInProgress: PoolAdapterCrosschainInProgress("pool_adapter_crosschain_in_progress"),
+  ...defaultColumns(t),
+});
+
+export const PoolAdapter = onchainTable("pool_adapter", PoolAdapterColumns, (t) => ({
+  id: primaryKey({
+    columns: [t.localCentrifugeId, t.remoteCentrifugeId, t.poolId, t.adapterAddress],
+  }),
+  poolIdx: index().on(t.poolId),
+  adapterAddressIdx: index().on(t.adapterAddress),
+  localCentrifugeIdIdx: index().on(t.localCentrifugeId),
+  remoteCentrifugeIdIdx: index().on(t.remoteCentrifugeId),
+  isEnabledIdx: index().on(t.isEnabled),
+  crosschainInProgressIdx: index().on(t.crosschainInProgress),
+}));
+
+export const PoolAdapterRelations = relations(PoolAdapter, ({ one }) => ({
+  pool: one(Pool, {
+    fields: [PoolAdapter.poolId],
+    references: [Pool.id],
+  }),
+  adapter: one(Adapter, {
+    fields: [PoolAdapter.adapterAddress, PoolAdapter.localCentrifugeId],
+    references: [Adapter.address, Adapter.centrifugeId],
+  }),
+  localBlockchain: one(Blockchain, {
+    fields: [PoolAdapter.localCentrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
+  remoteBlockchain: one(Blockchain, {
+    fields: [PoolAdapter.remoteCentrifugeId],
+    references: [Blockchain.centrifugeId],
   }),
 }));
 
