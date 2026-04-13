@@ -28,6 +28,7 @@ export * from "./OutstandingRedeemService"; // TODO: DEPRECATED to be deleted in
 export * from "./PendingInvestOrderService";
 export * from "./PendingRedeemOrderService";
 export * from "./PolicyService";
+export * from "./PoolAdapterService";
 export * from "./PoolManagerService";
 export * from "./PoolService";
 export * from "./PoolSpokeBlockchainService";

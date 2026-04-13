@@ -4,6 +4,7 @@ import {
   BlockchainService,
   AdapterService,
   AdapterParticipationService,
+  PoolAdapterService,
   AdapterWiringService,
   CrosschainMessageService,
   CrosschainPayloadService,
@@ -283,6 +284,25 @@ multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
 
   crosschainPayload.completed(event);
   await crosschainPayload.save(event);
+});
+
+multiMapper("multiAdapter:SetAdapters", async ({ event, context }) => {
+  logEvent(event, context, "multiAdapter:SetAdapters");
+  const localCentrifugeId = await BlockchainService.getCentrifugeId(context);
+  const { centrifugeId: remoteCentrifugeId, poolId, adapters } = event.args;
+
+  await PoolAdapterService.syncFromSetAdapters(
+    context,
+    {
+      localCentrifugeId,
+      remoteCentrifugeId: remoteCentrifugeId.toString(),
+      poolId,
+      adapterAddresses: adapters.map(
+        (adapter) => (adapter as string).toLowerCase() as `0x${string}`
+      ),
+    },
+    event
+  );
 });
 
 multiMapper(
