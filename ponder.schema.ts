@@ -1541,6 +1541,58 @@ export const Account = onchainTable("account", AccountColumns, (t) => ({
 }));
 export const AccountRelations = relations(Account, ({}) => ({}));
 
+const SmartContractColumns = (t: PgColumnsBuilders) => ({
+  chainId: t.integer().notNull(),
+  address: t.hex().notNull(),
+  ...defaultColumns(t),
+});
+
+export const SmartContract = onchainTable("smart_contract", SmartContractColumns, (t) => ({
+  id: primaryKey({ columns: [t.chainId, t.address] }),
+  chainIdIdx: index().on(t.chainId),
+  addressIdx: index().on(t.address),
+}));
+
+export const SmartContractRelations = relations(SmartContract, ({ many }) => ({
+  wardsGranted: many(SmartContractWard, { relationName: "smartContractWardsGranted" }),
+  wardsReceived: many(SmartContractWard, { relationName: "smartContractWardsReceived" }),
+}));
+
+const SmartContractWardColumns = (t: PgColumnsBuilders) => ({
+  fromChainId: t.integer().notNull(),
+  fromAddress: t.hex().notNull(),
+  toChainId: t.integer().notNull(),
+  toAddress: t.hex().notNull(),
+  isActive: t.boolean().notNull().default(false),
+  ...defaultColumns(t),
+});
+
+export const SmartContractWard = onchainTable(
+  "smart_contract_ward",
+  SmartContractWardColumns,
+  (t) => ({
+    id: primaryKey({
+      columns: [t.fromChainId, t.fromAddress, t.toChainId, t.toAddress],
+    }),
+    fromContractIdx: index().on(t.fromChainId, t.fromAddress),
+    toContractIdx: index().on(t.toChainId, t.toAddress),
+    isActiveIdx: index().on(t.isActive),
+  })
+);
+
+export const SmartContractWardRelations = relations(SmartContractWard, ({ one }) => ({
+  from: one(SmartContract, {
+    fields: [SmartContractWard.fromChainId, SmartContractWard.fromAddress],
+    references: [SmartContract.chainId, SmartContract.address],
+    relationName: "smartContractWardsGranted",
+  }),
+  to: one(SmartContract, {
+    fields: [SmartContractWard.toChainId, SmartContractWard.toAddress],
+    references: [SmartContract.chainId, SmartContract.address],
+    relationName: "smartContractWardsReceived",
+  }),
+}));
+
 const TokenInstancePositionColumns = (t: PgColumnsBuilders) => ({
   tokenId: t.hex().notNull(),
   centrifugeId: t.text().notNull(),
