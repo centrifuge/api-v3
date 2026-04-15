@@ -1,3 +1,5 @@
+import { Abi } from "viem";
+
 export const ERC20Abi = [
   {
       "constant": true,
@@ -219,4 +221,4 @@ export const ERC20Abi = [
       "name": "Transfer",
       "type": "event"
   }
-] as const;
+] as const satisfies Abi;

@@ -142,7 +142,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
       },
     },
     tokenInstanceV3_1: {
-      abi: "ShareToken",
+      abi: [ERC20Abi, "ShareToken"],
       factory: {
         abi: "Spoke",
         eventName: "AddShareClass",
