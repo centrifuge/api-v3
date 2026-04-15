@@ -8,11 +8,11 @@ global:
     PONDER_RPC_URL_421614: "http://cfg-api-erpc-us:4000/main/evm/421614"
   apiSecretName: cfg-api-v3-rpc-keys
 indexer:
-  enabled: true
+  enabled: false
   image:
     tag: sha-2158450
 query:
-  enabled: true
+  enabled: false
   image:
     tag: sha-2158450
   replicaCount: 1
