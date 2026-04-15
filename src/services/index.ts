@@ -33,6 +33,8 @@ export * from "./PoolManagerService";
 export * from "./PoolService";
 export * from "./PoolSpokeBlockchainService";
 export * from "./RedeemOrderService";
+export * from "./SmartContractService";
+export * from "./SmartContractWardService";
 export * from "./TokenInstancePositionService";
 export * from "./TokenInstanceService";
 export * from "./TokenService";
