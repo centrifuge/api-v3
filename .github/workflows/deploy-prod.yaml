@@ -1,6 +1,6 @@
 name: Deploy Production Environments
 
-# Amends the open release-please PR: copy `sha-*` image tags from staging (`*-s`) into
+# Amends the open release-please PR: copy `sha-*` image tags from staging (`*-s`, `*-us-s`) into
 # production yamls on whatever is currently on that branch, then disable staging indexers
 # when prod matches (always true after a verbatim promote).
 #
@@ -36,20 +36,25 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           ref: ${{ github.ref }}
 
-      - name: Promote mainnet (main-s → main)
+      - name: Promote mainnet (main-s → main, main-us-s → main-us)
         run: |
           set -euo pipefail
-          staging="environments/main-s.yaml"
-          prod="environments/main.yaml"
-          idx="$(yq '.indexer.image.tag' "$staging")"
-          qry="$(yq '.query.image.tag' "$staging")"
-          export IDX_TAG="$idx" QRY_TAG="$qry"
-          yq -i '.indexer.image.tag = strenv(IDX_TAG)' "$prod"
-          yq -i '.query.image.tag = strenv(QRY_TAG)' "$prod"
-          prod_idx="$(yq '.indexer.image.tag' "$prod")"
-          if [ "$idx" = "$prod_idx" ]; then
-            yq -i '.indexer.enabled = false' "$staging"
-          fi
+          promote() {
+            local staging="$1"
+            local prod="$2"
+            local idx qry prod_idx
+            idx="$(yq '.indexer.image.tag' "$staging")"
+            qry="$(yq '.query.image.tag' "$staging")"
+            export IDX_TAG="$idx" QRY_TAG="$qry"
+            yq -i '.indexer.image.tag = strenv(IDX_TAG)' "$prod"
+            yq -i '.query.image.tag = strenv(QRY_TAG)' "$prod"
+            prod_idx="$(yq '.indexer.image.tag' "$prod")"
+            if [ "$idx" = "$prod_idx" ]; then
+              yq -i '.indexer.enabled = false' "$staging"
+            fi
+          }
+          promote environments/main-s.yaml environments/main.yaml
+          promote environments/main-us-s.yaml environments/main-us.yaml
 
       - name: Commit and push (mainnet)
         env:
@@ -59,7 +64,7 @@ jobs:
           GIT_COMMITTER_EMAIL: ${{ secrets.DEPLOYMENT_APP_ID }}+api-gitops[bot]@users.noreply.github.com
         run: |
           set -euo pipefail
-          git add environments/main.yaml environments/main-s.yaml
+          git add environments/main.yaml environments/main-s.yaml environments/main-us.yaml environments/main-us-s.yaml
           if git diff --staged --quiet; then
             echo "No mainnet env changes to commit."
             exit 0
@@ -87,20 +92,25 @@ jobs:
       - name: Pull latest (includes mainnet promotion commit)
         run: git pull origin "${{ github.ref_name }}"
 
-      - name: Promote testnet (test-s → test)
+      - name: Promote testnet (test-s → test, test-us-s → test-us)
         run: |
           set -euo pipefail
-          staging="environments/test-s.yaml"
-          prod="environments/test.yaml"
-          idx="$(yq '.indexer.image.tag' "$staging")"
-          qry="$(yq '.query.image.tag' "$staging")"
-          export IDX_TAG="$idx" QRY_TAG="$qry"
-          yq -i '.indexer.image.tag = strenv(IDX_TAG)' "$prod"
-          yq -i '.query.image.tag = strenv(QRY_TAG)' "$prod"
-          prod_idx="$(yq '.indexer.image.tag' "$prod")"
-          if [ "$idx" = "$prod_idx" ]; then
-            yq -i '.indexer.enabled = false' "$staging"
-          fi
+          promote() {
+            local staging="$1"
+            local prod="$2"
+            local idx qry prod_idx
+            idx="$(yq '.indexer.image.tag' "$staging")"
+            qry="$(yq '.query.image.tag' "$staging")"
+            export IDX_TAG="$idx" QRY_TAG="$qry"
+            yq -i '.indexer.image.tag = strenv(IDX_TAG)' "$prod"
+            yq -i '.query.image.tag = strenv(QRY_TAG)' "$prod"
+            prod_idx="$(yq '.indexer.image.tag' "$prod")"
+            if [ "$idx" = "$prod_idx" ]; then
+              yq -i '.indexer.enabled = false' "$staging"
+            fi
+          }
+          promote environments/test-s.yaml environments/test.yaml
+          promote environments/test-us-s.yaml environments/test-us.yaml
 
       - name: Commit and push (testnet)
         env:
@@ -110,7 +120,7 @@ jobs:
           GIT_COMMITTER_EMAIL: ${{ secrets.DEPLOYMENT_APP_ID }}+api-gitops[bot]@users.noreply.github.com
         run: |
           set -euo pipefail
-          git add environments/test.yaml environments/test-s.yaml
+          git add environments/test.yaml environments/test-s.yaml environments/test-us.yaml environments/test-us-s.yaml
           if git diff --staged --quiet; then
             echo "No testnet env changes to commit."
             exit 0
