@@ -12,7 +12,7 @@ indexer:
   image:
     tag: sha-97fd3ec
 query:
-  enabled: false
+  enabled: true
   image:
     tag: sha-97fd3ec
   replicaCount: 1
