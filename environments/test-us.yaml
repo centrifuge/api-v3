@@ -10,11 +10,11 @@ global:
 indexer:
   enabled: false
   image:
-    tag: sha-2158450
+    tag: sha-97fd3ec
 query:
   enabled: false
   image:
-    tag: sha-2158450
+    tag: sha-97fd3ec
   replicaCount: 1
   ingress:
     enabled: true
@@ -24,7 +24,7 @@ query:
           - path: /
             pathType: Prefix
     tls:
-      - secretName: cfg-api-v3-test-tls
+      - secretName: cfg-api-v3-test-us-tls
         hosts:
           - api-v3-test.cfg-us.embrio.tech
 postgres:

@@ -15,7 +15,7 @@ global:
     PONDER_RPC_URL_1672: "http://cfg-api-erpc:4000/main/evm/1672"
     REGISTRY_v3_1_chains_42161_deployment_startBlock: "425757109"
   apiSecretName: cfg-api-v3-rpc-keys
-  dbSecretName: cfg-api-v3-main-postgres-app
+  dbSecretName: cfg-api-v3-main-us-postgres-app
 indexer:
   enabled: false
   image:
@@ -28,14 +28,14 @@ query:
   ingress:
     enabled: true
     hosts:
-      - host: api-v3-main-s.cfg.embrio.tech
+      - host: api-v3-main-s.cfg-us.embrio.tech
         paths:
           - path: /
             pathType: Prefix
     tls:
-      - secretName: cfg-api-v3-main-s-tls
+      - secretName: cfg-api-v3-main-us-s-tls
         hosts:
-          - api-v3-main-s.cfg.embrio.tech
+          - api-v3-main-s.cfg-us.embrio.tech
 cacheJob:
   enabled: false
 postgres:

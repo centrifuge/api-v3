@@ -32,7 +32,7 @@ query:
           - path: /
             pathType: Prefix
     tls:
-      - secretName: cfg-api-v3-main-tls
+      - secretName: cfg-api-v3-main-us-tls
         hosts:
           - api-v3-main.cfg-us.embrio.tech
 cacheJob:
