@@ -1,7 +1,7 @@
 import type { Event } from "ponder:registry";
 import { Service } from "./Service";
 import { InvestOrder } from "ponder:schema";
-import { serviceLog, addThousandsSeparator } from "../helpers/logger";
+import { serviceLog, addThousandsSeparator, serviceError } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
 
 /**
@@ -54,8 +54,14 @@ export class InvestOrderService extends Service<typeof InvestOrder> {
     serviceLog(
       `Issuing shares for investOrder for account ${this.data.account} with navAssetPerShare: ${navAssetPerShare} navPoolPerShare: ${navPoolPerShare}`
     );
-    if (this.data.issuedAt) throw new Error("Shares already issued");
-    if (this.data.approvedAssetsAmount === null) throw new Error("No assets approved");
+    if (this.data.issuedAt) {
+      serviceError("Shares already issued");
+      return this;
+    }
+    if (this.data.approvedAssetsAmount === null) {
+      serviceError("No assets approved");
+      return this;
+    }
 
     this.data = {
       ...this.data,
@@ -86,7 +92,10 @@ export class InvestOrderService extends Service<typeof InvestOrder> {
     serviceLog(
       `Claiming deposit for account ${this.data.account} with claimedSharesAmount: ${claimedSharesAmount} on block ${event.block.number} with timestamp ${event.block.timestamp}`
     );
-    if (this.data.claimedAt) throw new Error("Deposit already claimed");
+    if (this.data.claimedAt) {
+      serviceError("Deposit already claimed");
+      return this;
+    }
     if (paymentAssetAmount !== this.data.approvedAssetsAmount)
       serviceLog(
         `paymentAssetAmount ${addThousandsSeparator(paymentAssetAmount)} !== ${addThousandsSeparator(this.data.approvedAssetsAmount ?? 0n)} approvedAssetsAmount`
