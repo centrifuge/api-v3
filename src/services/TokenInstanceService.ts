@@ -73,11 +73,8 @@ export class TokenInstanceService extends Service<typeof TokenInstance> {
    * @throws {Error} When total issuance is not set (null)
    */
   public increaseTotalIssuance(tokenAmount: bigint) {
-    if (this.data.totalIssuance === null)
-      throw new Error(
-        `Total issuance for token ${this.data.centrifugeId}-${this.data.tokenId} is not set`
-      );
-    this.data.totalIssuance += tokenAmount;
+    const { totalIssuance } = this.data;
+    this.data.totalIssuance = totalIssuance ?? 0n + tokenAmount;
     serviceLog(
       `Increased totalIssuance for token ${this.data.centrifugeId}-${this.data.tokenId} by ${tokenAmount} to ${this.data.totalIssuance}`
     );
@@ -92,11 +89,8 @@ export class TokenInstanceService extends Service<typeof TokenInstance> {
    * @throws {Error} When total issuance is not set (null)
    */
   public decreaseTotalIssuance(tokenAmount: bigint) {
-    if (this.data.totalIssuance === null)
-      throw new Error(
-        `Total issuance for token ${this.data.centrifugeId}-${this.data.tokenId} is not set`
-      );
-    this.data.totalIssuance -= tokenAmount;
+    const { totalIssuance } = this.data;
+    this.data.totalIssuance = totalIssuance ?? 0n - tokenAmount;
     serviceLog(
       `Decreased totalIssuance for token ${this.data.centrifugeId}-${this.data.tokenId} by ${tokenAmount} to ${this.data.totalIssuance}`
     );
