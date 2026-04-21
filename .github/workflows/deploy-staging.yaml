@@ -98,6 +98,8 @@ jobs:
           }
           sync_staging environments/main-s.yaml environments/main.yaml
           sync_staging environments/test-s.yaml environments/test.yaml
+          sync_staging environments/main-us-s.yaml environments/main-us.yaml
+          sync_staging environments/test-us-s.yaml environments/test-us.yaml
 
       - name: Open staging deployment PR
         id: cpr
@@ -109,20 +111,22 @@ jobs:
           delete-branch: true
           base: main
           commit-message: "chore(cd): update staging env tags to ${{ steps.vars.outputs.image_tag }}"
-          title: "chore(cd): update staging (main-s / test-s) image tags"
+          title: "chore(cd): update staging (main-s / test-s / main-us-s / test-us-s) image tags"
           body: |
-            Automated **staging** image tag update (`main-s.yaml`, `test-s.yaml`) for the latest Docker build.
+            Automated **staging** image tag update (`main-s.yaml`, `test-s.yaml`, `main-us-s.yaml`, `test-us-s.yaml`) for the latest Docker build.
 
             - Tag: `${{ steps.vars.outputs.image_tag }}`
             - Triggering workflow run: ${{ github.event.workflow_run.html_url }}
 
-            If this tag matched production (`main.yaml` / `test.yaml`) for an environment, **indexer** was set to `enabled: false` on that staging file to avoid duplicate indexers on the same version.
+            If this tag matched production (`main.yaml` / `test.yaml` / `main-us.yaml` / `test-us.yaml`) for an environment, **indexer** was set to `enabled: false` on that staging file to avoid duplicate indexers on the same version.
           labels: |
             deployment
             staging
           add-paths: |
             environments/main-s.yaml
             environments/test-s.yaml
+            environments/main-us-s.yaml
+            environments/test-us-s.yaml
 
       - name: Enable auto-merge (squash)
         if: ${{ steps.cpr.outputs.pull-request-number != '' }}
