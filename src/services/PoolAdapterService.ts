@@ -221,7 +221,8 @@ export class PoolAdapterService extends Service<typeof PoolAdapter> {
     for (let i = 0; i < adapterCount; i++) {
       const word = hex.slice(offset, offset + 64);
       if (word.length !== 64) {
-        throw new Error(`Invalid adapterList length for adapter index ${i}`);
+        serviceError(`Invalid adapterList length for adapter index ${i}`);
+        return [];
       }
       addresses.push(formatBytes32ToAddress(`0x${word}`));
       offset += 64;

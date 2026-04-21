@@ -113,9 +113,8 @@ export class TokenService extends Service<typeof Token> {
    * @throws {Error} When totalIssuance is null (not initialized)
    */
   public increaseTotalIssuance(tokenAmount: bigint) {
-    if (this.data.totalIssuance === null)
-      throw new Error(`totalIssuance for token ${this.data.id} is not set`);
-    this.data.totalIssuance += tokenAmount;
+    const { totalIssuance } = this.data;
+    this.data.totalIssuance = totalIssuance ?? 0n + tokenAmount;
     serviceLog(
       `Increased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`
     );
@@ -130,9 +129,8 @@ export class TokenService extends Service<typeof Token> {
    * @throws {Error} When totalIssuance is null (not initialized)
    */
   public decreaseTotalIssuance(tokenAmount: bigint) {
-    if (this.data.totalIssuance === null)
-      throw new Error(`totalIssuance for token ${this.data.id} is not set`);
-    this.data.totalIssuance -= tokenAmount;
+    const { totalIssuance } = this.data;
+    this.data.totalIssuance = totalIssuance ?? 0n - tokenAmount;
     serviceLog(
       `Decreased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`
     );

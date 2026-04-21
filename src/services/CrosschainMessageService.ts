@@ -219,7 +219,10 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
     }
     const poolIds = Array.from(poolIdSet);
     const tokenIds = Array.from(tokenIdSet);
-    if (poolIds.length > 1) throw new Error("Multiple pools found among messages");
+    if (poolIds.length > 1) {
+      serviceError("Multiple pools found among messages");
+      return [null, null];
+    }
     return [poolIds.pop() ?? null, tokenIds.pop() ?? null];
   }
 
