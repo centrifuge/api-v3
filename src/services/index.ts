@@ -18,6 +18,7 @@ export * from "./HoldingEscrowService";
 export * from "./HoldingService";
 export * from "./InvestOrderService";
 export * from "./InvestorTransactionService";
+export * from "./InvestorPositionCheckpointService";
 export * from "./MerkleProofManagerService";
 export * from "./OffRampAddressService";
 export * from "./OffRampRelayerService";

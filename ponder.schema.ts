@@ -1464,6 +1464,7 @@ export const PoolSnapshotRelations = relations(PoolSnapshot, ({ one }) => ({
   }),
 }));
 
+/** Dynamic TokenSnapshot yield bigint columns derived from configured yield specs. */
 function tokenYieldSnapshotColumns(t: PgColumnsBuilders) {
   const cols: Record<string, ReturnType<PgColumnsBuilders["bigint"]>> = {};
   for (const spec of TOKEN_YIELD_SPECS) {
@@ -1598,6 +1599,10 @@ const TokenInstancePositionColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   accountAddress: t.hex().notNull(),
   balance: t.bigint().default(0n),
+  tokenPriceAtLastChange: t.bigint(),
+  cumulativeEarnings: t.bigint().notNull().default(0n),
+  costBasis: t.bigint().notNull().default(0n),
+  cumulativeRealizedPnl: t.bigint().notNull().default(0n),
   isFrozen: t.boolean().notNull().default(false), //TODO: Deprecate this column
   ...defaultColumns(t),
 });
@@ -1623,6 +1628,55 @@ export const TokenInstancePositionRelations = relations(TokenInstancePosition, (
     references: [Account.address],
   }),
 }));
+
+/** Immutable per-transfer investor accounting checkpoints on a token instance. */
+const InvestorPositionCheckpointColumns = (t: PgColumnsBuilders) => ({
+  tokenId: t.hex().notNull(),
+  centrifugeId: t.text().notNull(),
+  accountAddress: t.hex().notNull(),
+  poolId: t.bigint().notNull(),
+  balanceBefore: t.bigint().notNull(),
+  balanceAfter: t.bigint().notNull(),
+  tokenPrice: t.bigint(),
+  periodEarnings: t.bigint(),
+  cumulativeEarnings: t.bigint().notNull().default(0n),
+  costBasisBefore: t.bigint().notNull().default(0n),
+  costBasisAfter: t.bigint().notNull().default(0n),
+  realizedPnl: t.bigint(),
+  cumulativeRealizedPnl: t.bigint().notNull().default(0n),
+  trigger: t.text().notNull(),
+  logIndex: t.integer().notNull(),
+  ...defaultColumns(t, false),
+});
+
+export const InvestorPositionCheckpoint = onchainTable(
+  "investor_position_checkpoint",
+  InvestorPositionCheckpointColumns,
+  (t) => ({
+    id: primaryKey({
+      columns: [t.tokenId, t.centrifugeId, t.accountAddress, t.createdAtBlock, t.logIndex],
+    }),
+    accountTokenCreatedAtIdx: index().on(t.accountAddress, t.tokenId, t.centrifugeId, t.createdAt),
+  })
+);
+
+export const InvestorPositionCheckpointRelations = relations(
+  InvestorPositionCheckpoint,
+  ({ one }) => ({
+    tokenInstance: one(TokenInstance, {
+      fields: [InvestorPositionCheckpoint.tokenId, InvestorPositionCheckpoint.centrifugeId],
+      references: [TokenInstance.tokenId, TokenInstance.centrifugeId],
+    }),
+    account: one(Account, {
+      fields: [InvestorPositionCheckpoint.accountAddress],
+      references: [Account.address],
+    }),
+    pool: one(Pool, {
+      fields: [InvestorPositionCheckpoint.poolId],
+      references: [Pool.id],
+    }),
+  })
+);
 
 const MerkleProofManagerColumns = (t: PgColumnsBuilders) => ({
   address: t.hex().notNull(),
