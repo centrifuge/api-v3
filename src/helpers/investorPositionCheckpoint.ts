@@ -63,8 +63,7 @@ export function computeInvestorPositionCheckpoint(
   } = input;
 
   const periodEarnings = computePeriodEarnings(balanceBefore, tokenPrice, tokenPriceAtLastChange);
-  const cumulativeEarningsAfter =
-    cumulativeEarningsBefore + (periodEarnings === null ? 0n : periodEarnings);
+  const cumulativeEarningsAfter = cumulativeEarningsBefore + (periodEarnings ?? 0n);
 
   if (isIncrease) {
     const costBasisAfter = costBasisBefore + amount * tokenPrice;

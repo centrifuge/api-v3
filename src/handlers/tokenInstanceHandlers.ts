@@ -89,21 +89,19 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
       accountAddress,
     } as const;
 
-    const existingPosition = (await TokenInstancePositionService.get(
+    let positionWasInitialized = false;
+    const position = (await TokenInstancePositionService.getOrInit(
       context,
-      positionQuery
-    )) as TokenInstancePositionService | null;
-    const position = (existingPosition ??
-      ((await TokenInstancePositionService.getOrInit(
-        context,
-        positionQuery,
-        event,
-        async (tokenInstancePosition) =>
-          await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
-      )) as TokenInstancePositionService)) as TokenInstancePositionService;
+      positionQuery,
+      event,
+      async (tokenInstancePosition) => {
+        positionWasInitialized = true;
+        await initialisePosition(context, event, tokenAddress, tokenInstancePosition);
+      }
+    )) as TokenInstancePositionService;
 
     const positionData = position.read();
-    const positionAlreadyExisted = existingPosition !== null;
+    const positionAlreadyExisted = !positionWasInitialized;
     const currentBalance = positionData.balance ?? 0n;
 
     if (!positionAlreadyExisted && !isIncrease) {
