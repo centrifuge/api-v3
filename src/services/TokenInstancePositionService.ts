@@ -35,6 +35,17 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
   }
 
   /**
+   * Sets the balance for the token position.
+   *
+   * @param amount - The balance amount to set
+   * @returns The current service instance for method chaining
+   */
+  public setBalance(amount: bigint) {
+    this.data.balance = amount;
+    return this;
+  }
+
+  /**
    * Subtracts a balance from the token position.
    *
    * @param {bigint} balance - The amount to subtract from the balance
@@ -42,6 +53,71 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    */
   public subBalance(amount: bigint) {
     this.data.balance = (this.data.balance ?? 0n) - amount;
+    return this;
+  }
+
+  /**
+   * Sets the token price observed on the latest balance change.
+   *
+   * @param price - The token price in WAD precision
+   * @returns The current service instance for method chaining
+   */
+  public setTokenPriceAtLastChange(price: bigint | null) {
+    this.data.tokenPriceAtLastChange = price;
+    return this;
+  }
+
+  /**
+   * Sets cumulative period earnings for the position.
+   *
+   * @param amount - The cumulative earnings amount
+   * @returns The current service instance for method chaining
+   */
+  public setCumulativeEarnings(amount: bigint) {
+    this.data.cumulativeEarnings = amount;
+    return this;
+  }
+
+  /**
+   * Sets the live cost basis for the position.
+   *
+   * @param amount - The new cost basis
+   * @returns The current service instance for method chaining
+   */
+  public setCostBasis(amount: bigint) {
+    this.data.costBasis = amount;
+    return this;
+  }
+
+  /**
+   * Sets cumulative realized pnl for the position.
+   *
+   * @param amount - The cumulative realized pnl amount
+   * @returns The current service instance for method chaining
+   */
+  public setCumulativeRealizedPnl(amount: bigint) {
+    this.data.cumulativeRealizedPnl = amount;
+    return this;
+  }
+
+  /**
+   * Applies checkpoint-derived accounting state to the latest position view.
+   *
+   * @param checkpoint - Derived accounting values for the position
+   * @returns The current service instance for method chaining
+   */
+  public applyCheckpointAccounting(checkpoint: {
+    balanceAfter: bigint;
+    tokenPrice: bigint;
+    cumulativeEarnings: bigint;
+    costBasisAfter: bigint;
+    cumulativeRealizedPnl: bigint;
+  }) {
+    this.data.balance = checkpoint.balanceAfter;
+    this.data.tokenPriceAtLastChange = checkpoint.tokenPrice;
+    this.data.cumulativeEarnings = checkpoint.cumulativeEarnings;
+    this.data.costBasis = checkpoint.costBasisAfter;
+    this.data.cumulativeRealizedPnl = checkpoint.cumulativeRealizedPnl;
     return this;
   }
 

@@ -90,3 +90,12 @@ export function serviceLog(...args: any[]) {
 export function serviceError(...args: any[]) {
   process.stderr.write("> [ERROR] " + args.join(" ") + "\n");
 }
+
+/**
+ * Logs a warning message to the console with a prefix.
+ *
+ * @param args - The arguments to log
+ */
+export function serviceWarn(...args: any[]) {
+  process.stderr.write("> [WARN] " + args.join(" ") + "\n");
+}

@@ -1,11 +1,13 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { logEvent, serviceError, serviceLog } from "../helpers/logger";
+import { logEvent, serviceError, serviceLog, serviceWarn } from "../helpers/logger";
+import { computeInvestorPositionCheckpoint } from "../helpers/investorPositionCheckpoint";
 import {
   BlockchainService,
   DeploymentService,
   TokenInstanceService,
   TokenInstancePositionService,
   AccountService,
+  InvestorPositionCheckpointService,
   TokenService,
   InvestorTransactionService,
   EscrowService,
@@ -34,6 +36,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
   const token = (await TokenService.get(context, { id: tokenId })) as TokenService | null;
   if (!token) return serviceError(`Token not found. Cannot retrieve poolId`);
   const { poolId } = token.read();
+  const { tokenPrice } = tokenInstance.read();
 
   const [isFromNull, isToNull] = [BigInt(from) === 0n, BigInt(to) === 0n];
 
@@ -67,48 +70,155 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
     !isToNull && !isToGlobalEscrow && !isToPoolEscrow,
   ];
 
-  if (isFromUserAccount) {
-    const _fromAccount = await AccountService.getOrInit(context, { address: from }, event);
-    const fromPosition = (await TokenInstancePositionService.getOrInit(
-      context,
-      {
-        tokenId: tokenId,
-        centrifugeId,
-        accountAddress: from,
-      },
-      event,
-      async (tokenInstancePosition) =>
-        await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
-    )) as TokenInstancePositionService;
-    const { createdAtBlock } = fromPosition.read();
-    if (!createdAtBlock) {
-      serviceError(`TokenInstancePosition not found. Cannot update balance`);
-      return;
-    }
-    if (createdAtBlock < Number(event.block.number)) fromPosition.subBalance(amount);
-    await fromPosition.save(event);
-  }
+  const isSelfTransfer = isFromUserAccount && isToUserAccount && from === to;
+  const trigger = "tokenInstance:Transfer" as const;
+  const logIndex = event.log.logIndex;
 
-  if (isToUserAccount) {
-    const _toAccount = await AccountService.getOrInit(context, { address: to }, event);
-    const toPosition = (await TokenInstancePositionService.getOrInit(
+  const handleUserPositionChange = async ({
+    accountAddress,
+    isIncrease,
+  }: {
+    accountAddress: `0x${string}`;
+    isIncrease: boolean;
+  }) => {
+    await AccountService.getOrInit(context, { address: accountAddress }, event);
+
+    const positionQuery = {
+      tokenId,
+      centrifugeId,
+      accountAddress,
+    } as const;
+
+    const existingPosition = (await TokenInstancePositionService.get(
       context,
-      {
-        tokenId: tokenId,
-        centrifugeId,
-        accountAddress: to,
-      },
-      event,
-      async (tokenInstancePosition) =>
-        await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
-    )) as TokenInstancePositionService;
-    const { createdAtBlock } = toPosition.read();
-    if (!createdAtBlock) {
-      serviceError(`TokenInstancePosition not found. Cannot update balance`);
+      positionQuery
+    )) as TokenInstancePositionService | null;
+    const position = (existingPosition ??
+      ((await TokenInstancePositionService.getOrInit(
+        context,
+        positionQuery,
+        event,
+        async (tokenInstancePosition) =>
+          await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
+      )) as TokenInstancePositionService)) as TokenInstancePositionService;
+
+    const positionData = position.read();
+    const positionAlreadyExisted = existingPosition !== null;
+    const currentBalance = positionData.balance ?? 0n;
+
+    if (!positionAlreadyExisted && !isIncrease) {
+      serviceWarn(
+        "InvestorPositionCheckpoint invariant violated: first-seen sender position on Transfer",
+        `tokenId=${tokenId}`,
+        `centrifugeId=${centrifugeId}`,
+        `accountAddress=${accountAddress}`,
+        `txHash=${event.transaction.hash}`,
+        `block=${event.block.number}`,
+        `amount=${amount}`
+      );
       return;
     }
-    if (createdAtBlock < Number(event.block.number)) toPosition.addBalance(amount);
-    await toPosition.save(event);
+
+    const balanceBefore = positionAlreadyExisted ? currentBalance : 0n;
+    const balanceAfter = positionAlreadyExisted
+      ? isIncrease
+        ? currentBalance + amount
+        : currentBalance - amount
+      : amount;
+
+    if (!positionAlreadyExisted && isIncrease && currentBalance !== amount) {
+      serviceWarn(
+        "InvestorPositionCheckpoint invariant violated: first-seen recipient balance mismatch",
+        `tokenId=${tokenId}`,
+        `centrifugeId=${centrifugeId}`,
+        `accountAddress=${accountAddress}`,
+        `txHash=${event.transaction.hash}`,
+        `block=${event.block.number}`,
+        `amount=${amount}`,
+        `initializedBalance=${currentBalance}`
+      );
+      return;
+    }
+
+    if (tokenPrice === null || tokenPrice <= 0n) {
+      serviceWarn(
+        "InvestorPositionCheckpoint skipped due to unknown token price",
+        `tokenId=${tokenId}`,
+        `centrifugeId=${centrifugeId}`,
+        `accountAddress=${accountAddress}`,
+        `txHash=${event.transaction.hash}`,
+        `block=${event.block.number}`,
+        `amount=${amount}`
+      );
+      if (positionAlreadyExisted) {
+        await position.setBalance(balanceAfter).save(event);
+      }
+      return;
+    }
+
+    const accounting = computeInvestorPositionCheckpoint({
+      amount,
+      balanceBefore,
+      balanceAfter,
+      tokenPrice,
+      tokenPriceAtLastChange: positionData.tokenPriceAtLastChange ?? null,
+      cumulativeEarningsBefore: positionData.cumulativeEarnings ?? 0n,
+      costBasisBefore: positionData.costBasis ?? 0n,
+      cumulativeRealizedPnlBefore: positionData.cumulativeRealizedPnl ?? 0n,
+      isIncrease,
+    });
+
+    await InvestorPositionCheckpointService.createCheckpoint(
+      context,
+      {
+        tokenId,
+        centrifugeId,
+        accountAddress,
+        poolId,
+        balanceBefore,
+        balanceAfter,
+        tokenPrice,
+        periodEarnings: accounting.periodEarnings,
+        cumulativeEarnings: accounting.cumulativeEarningsAfter,
+        costBasisBefore: positionData.costBasis ?? 0n,
+        costBasisAfter: accounting.costBasisAfter,
+        realizedPnl: accounting.realizedPnl,
+        cumulativeRealizedPnl: accounting.cumulativeRealizedPnlAfter,
+        trigger,
+        logIndex,
+      },
+      event
+    );
+
+    await position
+      .applyCheckpointAccounting({
+        balanceAfter,
+        tokenPrice,
+        cumulativeEarnings: accounting.cumulativeEarningsAfter,
+        costBasisAfter: accounting.costBasisAfter,
+        cumulativeRealizedPnl: accounting.cumulativeRealizedPnlAfter,
+      })
+      .save(event);
+  };
+
+  if (isSelfTransfer) {
+    serviceWarn(
+      "InvestorPositionCheckpoint skipped for self-transfer",
+      `tokenId=${tokenId}`,
+      `centrifugeId=${centrifugeId}`,
+      `accountAddress=${from}`,
+      `txHash=${event.transaction.hash}`,
+      `block=${event.block.number}`,
+      `amount=${amount}`
+    );
+  } else {
+    if (isFromUserAccount) {
+      await handleUserPositionChange({ accountAddress: from, isIncrease: false });
+    }
+
+    if (isToUserAccount) {
+      await handleUserPositionChange({ accountAddress: to, isIncrease: true });
+    }
   }
 
   // Handle tokenInstance and token total issuance change
