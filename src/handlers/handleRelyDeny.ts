@@ -2,6 +2,7 @@ import { ponder } from "ponder:registry";
 import type { Context, Event } from "ponder:registry";
 import { contracts } from "../../ponder.config";
 import { logEvent, serviceLog } from "../helpers/logger";
+import { registerProtocolAddress } from "../helpers/protocolAddresses";
 import { SmartContractService, SmartContractWardService } from "../services";
 
 type ContractEvents = Parameters<typeof ponder.on>[0];
@@ -46,6 +47,8 @@ async function handleRelyDeny({
 
   await SmartContractService.ensure(context, { chainId, address: emittingContract }, event);
   await SmartContractService.ensure(context, { chainId, address: ward }, event);
+  registerProtocolAddress(chainId, emittingContract);
+  registerProtocolAddress(chainId, ward);
   await SmartContractWardService.setActive(
     context,
     {
