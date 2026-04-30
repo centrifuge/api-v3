@@ -18,11 +18,11 @@ global:
 indexer:
   enabled: true
   image:
-    tag: sha-97fd3ec
+    tag: sha-2bfbcad
 query:
   enabled: true
   image:
-    tag: sha-97fd3ec
+    tag: sha-2bfbcad
   replicaCount: 2
   ingress:
     enabled: true
