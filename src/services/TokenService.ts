@@ -114,7 +114,7 @@ export class TokenService extends Service<typeof Token> {
    */
   public increaseTotalIssuance(tokenAmount: bigint) {
     const { totalIssuance } = this.data;
-    this.data.totalIssuance = totalIssuance ?? 0n + tokenAmount;
+    this.data.totalIssuance = (totalIssuance ?? 0n) + tokenAmount;
     serviceLog(
       `Increased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`
     );
@@ -130,7 +130,7 @@ export class TokenService extends Service<typeof Token> {
    */
   public decreaseTotalIssuance(tokenAmount: bigint) {
     const { totalIssuance } = this.data;
-    this.data.totalIssuance = totalIssuance ?? 0n - tokenAmount;
+    this.data.totalIssuance = (totalIssuance ?? 0n) - tokenAmount;
     serviceLog(
       `Decreased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`
     );

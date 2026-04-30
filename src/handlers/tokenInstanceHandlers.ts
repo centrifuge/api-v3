@@ -33,7 +33,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
 
   const token = (await TokenService.get(context, { id: tokenId })) as TokenService | null;
   if (!token) return serviceError(`Token not found. Cannot retrieve poolId`);
-  const { poolId } = token.read();
+  const { poolId, decimals } = token.read();
   const { tokenPrice } = tokenInstance.read();
 
   const [isFromNull, isToNull] = [BigInt(from) === 0n, BigInt(to) === 0n];
@@ -96,6 +96,20 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
       return;
     }
 
+    if (decimals === null || decimals === undefined) {
+      serviceError(
+        "InvestorPositionCheckpoint skipped due to missing token decimals",
+        `tokenId=${tokenId}`,
+        `centrifugeId=${centrifugeId}`,
+        `accountAddress=${accountAddress}`,
+        `txHash=${event.transaction.hash}`,
+        `block=${event.block.number}`,
+        `amount=${amount}`
+      );
+      await position.setBalance(balanceAfter).save(event);
+      return;
+    }
+
     if (tokenPrice === null || tokenPrice <= 0n) {
       serviceWarn(
         "InvestorPositionCheckpoint skipped due to unknown token price",
@@ -117,6 +131,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
       balanceBefore,
       balanceAfter,
       tokenPrice,
+      tokenDecimals: decimals,
       tokenPriceAtLastChange: positionData.tokenPriceAtLastChange ?? null,
       cumulativeEarningsBefore: positionData.cumulativeEarnings ?? 0n,
       costBasisBefore,
