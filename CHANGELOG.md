@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.8.1](https://github.com/centrifuge/api-v3/compare/v3.8.0...v3.8.1) (2026-04-30)
+
+
+### Bug Fixes
+
+* correct operation priority when variating supply ([#376](https://github.com/centrifuge/api-v3/issues/376)) ([6cd1d1f](https://github.com/centrifuge/api-v3/commit/6cd1d1f5b1815e7555da40e9ad4de1398b4d4064))
+* scope investor position checkpoints to user accounts ([#362](https://github.com/centrifuge/api-v3/issues/362)) ([2bfbcad](https://github.com/centrifuge/api-v3/commit/2bfbcadf87f5de83f849537219ab8103a84a736a))
+
 ## [3.8.0](https://github.com/centrifuge/api-v3/compare/v3.7.0...v3.8.0) (2026-04-22)
 
 
