@@ -2,7 +2,7 @@ global:
   env:
     ENVIRONMENT: "testnet"
     SELECTED_NETWORKS: "11155111,84532,421614"
-    REGISTRY_URL: "https://gist.githubusercontent.com/filo87/065a797e757920e75d29eaf5d00d71d5/raw/a30410edb9f5290e3fc91ca9105329f30c7ff9bf/testnet.json"
+    REGISTRY_URL: "https://registry.testnet.centrifuge.io"
     PONDER_RPC_URL_11155111: "http://cfg-api-erpc:4000/main/evm/11155111"
     PONDER_RPC_URL_84532: "http://cfg-api-erpc:4000/main/evm/84532"
     PONDER_RPC_URL_421614: "http://cfg-api-erpc:4000/main/evm/421614"
@@ -11,11 +11,11 @@ global:
 indexer:
   enabled: false
   image:
-    tag: sha-2bfbcad
+    tag: sha-6cd1d1f
 query:
   enabled: true
   image:
-    tag: sha-2bfbcad
+    tag: sha-6cd1d1f
   replicaCount: 1
   ingress:
     enabled: true
