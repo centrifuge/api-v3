@@ -1,3 +1,6 @@
+/** TODO: enable basin — uncomment this file and `groveBasin` in `ponder.config.ts`. */
+
+/*
 import { ponder } from "ponder:registry";
 import type { BasinConfig } from "../config/basin";
 import { loadBasinConfig } from "../config/basin";
@@ -12,14 +15,7 @@ import { logEvent } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
 import { BasinRedeemRequestService, BasinSwapService } from "../services";
 
-/**
- * Maps GroveBasin `Swap` asset pair to `basin_swap_direction` enum value.
- *
- * @param assetIn - Token sold in the swap
- * @param assetOut - Token received
- * @param cfg - Basin config (credit / collateral / swap token addresses)
- * @returns Direction label stored on `basin_swap`
- */
+// Maps GroveBasin Swap asset pair to basin_swap_direction enum value.
 function swapDirection(
   assetIn: `0x${string}`,
   assetOut: `0x${string}`,
@@ -204,3 +200,6 @@ ponder.on("groveBasin:RedeemCompleted", async ({ event, context }) => {
     await BasinSwapService.saveMany(context, swaps, event);
   }
 });
+*/
+
+export {};
