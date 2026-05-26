@@ -17,13 +17,13 @@ global:
   apiSecretName: cfg-api-v3-rpc-keys
   dbSecretName: cfg-api-v3-main-postgres-app
 indexer:
-  enabled: false
+  enabled: true
   image:
-    tag: sha-6cd1d1f
+    tag: sha-48769de
 query:
   enabled: true
   image:
-    tag: sha-6cd1d1f
+    tag: sha-48769de
   replicaCount: 1
   ingress:
     enabled: true
