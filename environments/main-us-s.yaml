@@ -3,6 +3,8 @@ global:
     ENVIRONMENT: "mainnet"
     SELECTED_NETWORKS: "42161,8453,1,98866,43114,56,10,143,999,1672"
     REGISTRY_URL: "https://registry.centrifuge.io"
+    SELECTED_REGISTRY_VERSIONS: "v3_1,v3_2"
+    REGISTRY_v3_1_chains_421614_deployment_startBlock: "237622347"
     PONDER_RPC_URL_1: "http://cfg-api-erpc-us:4000/main/evm/1"
     PONDER_RPC_URL_10: "http://cfg-api-erpc-us:4000/main/evm/10"
     PONDER_RPC_URL_8453: "http://cfg-api-erpc-us:4000/main/evm/8453"

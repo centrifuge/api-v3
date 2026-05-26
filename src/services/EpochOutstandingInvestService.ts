@@ -42,8 +42,9 @@ export class EpochOutstandingInvestService extends Service<typeof EpochOutstandi
    * @returns The service instance for method chaining
    */
   public saveOrClear(event: Event) {
-    if (this.data.pendingAssetsAmount === 0n && this.data.queuedAssetsAmount === 0n)
-      return this.delete();
+    const clearing = this.data.pendingAssetsAmount === 0n && this.data.queuedAssetsAmount === 0n;
+    serviceLog(`EpochOutstandingInvest saveOrClear clearing=${clearing}`);
+    if (clearing) return this.delete();
     return this.save(event);
   }
 }

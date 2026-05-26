@@ -1,6 +1,7 @@
 import { Context } from "ponder:registry";
 import { Service } from "./Service";
 import { AdapterParticipation } from "ponder:schema";
+import { expandInlineObject, serviceLog } from "../helpers/logger";
 
 /**
  * Service for managing on-ramp assets.
@@ -21,6 +22,10 @@ export class AdapterParticipationService extends Service<typeof AdapterParticipa
     payloadId: `0x${string}`,
     payloadIndex: number
   ) {
+    serviceLog(
+      "AdapterParticipation countHandledAdapterProofs",
+      expandInlineObject({ payloadId, payloadIndex })
+    );
     return await this.count(context, {
       payloadId,
       payloadIndex,
@@ -39,6 +44,10 @@ export class AdapterParticipationService extends Service<typeof AdapterParticipa
     payloadId: `0x${string}`,
     payloadIndex: number
   ) {
+    serviceLog(
+      "AdapterParticipation checkPayloadVerified",
+      expandInlineObject({ payloadId, payloadIndex })
+    );
     const adapterParticipations = (await this.query(context, {
       payloadId,
       payloadIndex,
@@ -49,6 +58,11 @@ export class AdapterParticipationService extends Service<typeof AdapterParticipa
     const countHandledAdapterParticipations = adapterParticipations.filter(
       (adapterParticipation) => adapterParticipation.read().side === "HANDLE"
     ).length;
-    return countSentAdapterParticipations === countHandledAdapterParticipations;
+    const verified = countSentAdapterParticipations === countHandledAdapterParticipations;
+    serviceLog(
+      "AdapterParticipation checkPayloadVerified result",
+      expandInlineObject({ verified, countSentAdapterParticipations, countHandledAdapterParticipations })
+    );
+    return verified;
   }
 }

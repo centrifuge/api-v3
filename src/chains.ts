@@ -179,6 +179,16 @@ const chains = Object.fromEntries(
 
 export { chains };
 
+/**
+ * Whether a chain id is included in the Ponder `chains` config (honours `SELECTED_NETWORKS`).
+ *
+ * @param chainId - EVM chain id (e.g. `1` for Ethereum mainnet)
+ * @returns `true` when that chain is indexed
+ */
+export function isChainEnabled(chainId: number): boolean {
+  return Object.values(chains).some((chain) => chain.id === chainId);
+}
+
 type BlocksConfig = {
   [N in NetworkNames<RegistryVersions> as `${N}`]: {
     startBlock: number;

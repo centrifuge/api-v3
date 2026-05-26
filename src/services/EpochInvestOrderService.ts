@@ -1,5 +1,6 @@
 import { EpochInvestOrder } from "ponder:schema";
 import type { Event } from "ponder:registry";
+import { serviceLog } from "../helpers/logger";
 import { Service } from "./Service";
 import { timestamper } from "../helpers/timestamper";
 
@@ -26,6 +27,9 @@ export class EpochInvestOrderService extends Service<typeof EpochInvestOrder> {
     issuedWithNavAssetPerShare: bigint,
     event: Extract<Event, { transaction: any }>
   ) {
+    serviceLog(
+      `EpochInvestOrder issuedShares poolId=${this.data.poolId} shares=${issuedSharesAmount}`
+    );
     this.data = {
       ...this.data,
       ...timestamper("issued", event),

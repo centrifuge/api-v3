@@ -13,10 +13,7 @@ const AUTH_EVENT_NAMES: AuthEventName[] = ["Rely", "Deny"];
 /**
  * Returns true when the concrete contract ABI exposes the requested Auth event.
  */
-function hasAuthEvent(
-  abi: (typeof contracts)[keyof typeof contracts]["abi"],
-  eventName: AuthEventName
-): boolean {
+function hasAuthEvent(abi: readonly { type?: string; name?: string }[], eventName: AuthEventName): boolean {
   return abi.some((item) => item.type === "event" && item.name === eventName);
 }
 
@@ -70,6 +67,7 @@ function registerRelyDenyHandlers() {
 
   for (const [contractKey, contractConfig] of Object.entries(contracts)) {
     if (!contractKey.endsWith("V3_1")) continue;
+    if (contractKey === "groveBasin") continue;
 
     for (const eventName of AUTH_EVENT_NAMES) {
       if (!hasAuthEvent(contractConfig.abi, eventName)) continue;

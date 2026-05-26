@@ -71,7 +71,10 @@ export function multiMapper<E extends UnversionedContractEvents>(
       continue;
     }
 
-    const eventItems = contracts[versionedContract].abi.filter(
+    const contract = contracts[versionedContract];
+    if (!contract) continue;
+
+    const eventItems = contract.abi.filter(
       (abi) => abi.type === "event" && abi.name === eventNameWithoutParameters
     );
     switch (eventItems.length) {

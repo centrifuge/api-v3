@@ -35,9 +35,27 @@ Versioned keys in [`ponder.config.ts`](ponder.config.ts) (`HubV3`, `HubV3_1`, �
 
 [`tsconfig.json`](tsconfig.json): `strict`, `noUncheckedIndexedAccess`. Types from `ponder:registry` / `ponder:schema`; no `any`. Narrow types, early returns, small functions; match local naming/import/JSDoc style.
 
+## JSDoc (`eslint-plugin-jsdoc`)
+
+ESLint enforces **`jsdoc/require-jsdoc`** on `src/**/*.ts` (`pnpm lint`). **Always add JSDoc where the linter flags it** — do not leave new exports, classes, or functions undocumented.
+
+**Document:**
+
+- Every **exported** function, class, type alias, and `const` config object you add or materially change
+- **Public / meaningful** methods on services (domain mutators, static helpers with side effects)
+- Non-obvious **private** helpers when the rule applies (e.g. `basinQuote` internals)
+
+**Style (match existing services):**
+
+- One-line summary, then `@param` / `@returns` for non-trivial signatures
+- Class-level block for services: purpose, `@extends`, `@see` to schema or contract when helpful
+- Skip noise on trivial one-liners only if ESLint does not require a comment (when in doubt, document)
+
+**Before finishing TS work:** run `pnpm lint` and fix all JSDoc warnings in files you touched (not only errors).
+
 ## Agent workflow
 
-1. **Typecheck** — Full `pnpm typecheck` expects **mainnet registry** in `generated/` (fresh, not testnet) After non-trivial TS edits, also run `pnpm lint` (repo root); fix issues unless excluded by task.
+1. **Typecheck** — Full `pnpm typecheck` expects **mainnet registry** in `generated/` (fresh, not testnet). After non-trivial TS edits, also run **`pnpm lint`** (repo root); fix issues unless excluded by task — **including JSDoc warnings** in changed files.
 2. `ponder.schema.ts` or Ponder config changes: `pnpm codegen`.
 3. New handler/service work: copy the closest existing file (same contract family / table); mirror `multiMapper`, services, batching, snapshots.
 4. New entity services: export from [`services/index.ts`](src/services/index.ts) when shared.
@@ -65,3 +83,5 @@ Versioned keys in [`ponder.config.ts`](ponder.config.ts) (`HubV3`, `HubV3_1`, �
 | Period snapshots | `src/handlers/blockHandlers.ts`, `src/helpers/timekeeper.ts` |
 | Chains           | `src/chains.ts`                                              |
 | Contracts        | `src/contracts.ts`                                           |
+| Basin config     | `src/config/basin.ts`                                        |
+| Basin handlers   | `src/handlers/basinHandlers.ts`                              |

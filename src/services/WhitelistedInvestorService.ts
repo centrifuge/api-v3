@@ -1,4 +1,5 @@
 import { WhitelistedInvestor } from "ponder:schema";
+import { serviceLog } from "../helpers/logger";
 import { Service } from "./Service";
 import { MAX_UINT64_DATE } from "../config";
 
@@ -20,6 +21,7 @@ export class WhitelistedInvestorService extends Service<typeof WhitelistedInvest
    * @returns {WhitelistedInvestorService} The current service instance for method chaining
    */
   public freeze() {
+    serviceLog(`WhitelistedInvestor freeze account=${this.data.accountAddress}`);
     this.data.isFrozen = true;
     return this;
   }
@@ -30,6 +32,7 @@ export class WhitelistedInvestorService extends Service<typeof WhitelistedInvest
    * @returns {WhitelistedInvestorService} The current service instance for method chaining
    */
   public unfreeze() {
+    serviceLog(`WhitelistedInvestor unfreeze account=${this.data.accountAddress}`);
     this.data.isFrozen = false;
     return this;
   }
@@ -41,6 +44,9 @@ export class WhitelistedInvestorService extends Service<typeof WhitelistedInvest
    * @returns {WhitelistedInvestorService} The current service instance for method chaining
    */
   public setValidUntil(validUntil: Date | null) {
+    serviceLog(
+      `WhitelistedInvestor setValidUntil account=${this.data.accountAddress} validUntil=${validUntil?.toISOString() ?? "max"}`
+    );
     this.data.validUntil = validUntil ?? MAX_UINT64_DATE;
     return this;
   }

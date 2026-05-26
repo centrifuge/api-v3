@@ -41,9 +41,9 @@ export class PendingInvestOrderService extends Service<typeof PendingInvestOrder
    * @returns The service instance for method chaining
    */
   public saveOrClear(event: Event) {
-    if (this.data.pendingAssetsAmount === 0n && this.data.queuedAssetsAmount === 0n) {
-      return this.delete();
-    }
+    const clearing = this.data.pendingAssetsAmount === 0n && this.data.queuedAssetsAmount === 0n;
+    serviceLog(`PendingInvestOrder saveOrClear clearing=${clearing}`);
+    if (clearing) return this.delete();
     return this.save(event);
   }
 }
