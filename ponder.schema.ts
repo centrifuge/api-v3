@@ -167,9 +167,6 @@ export const TokenRelations = relations(Token, ({ one, many }) => ({
   investorTransactions: many(InvestorTransaction, {
     relationName: "investorTransactions",
   }),
-  OutstandingInvests: many(OutstandingInvest, {
-    relationName: "OutstandingInvests",
-  }),
   onOffRampManagers: many(OnOffRampManager, {
     relationName: "onOffRampManagers",
   }),
@@ -247,7 +244,6 @@ export const InvestorTransactionType = onchainEnum("investor_transaction_type", 
 ] as const);
 
 const InvestorTransactionColumns = (t: PgColumnsBuilders) => ({
-  txHash: t.hex().notNull(), //TODO: DEPRECATED to be deleted in future releases
   centrifugeId: t.text().notNull(),
   poolId: t.bigint().notNull(),
   tokenId: t.hex().notNull(),
@@ -326,80 +322,6 @@ export const WhitelistedInvestorRelations = relations(WhitelistedInvestor, ({ on
   }),
 }));
 
-// TODO: DEPRECATED to be deleted in future releases
-const OutstandingInvestColumns = (t: PgColumnsBuilders) => ({
-  poolId: t.bigint().notNull(),
-  tokenId: t.hex().notNull(),
-  assetId: t.bigint().notNull(),
-  account: t.hex().notNull(),
-
-  epochIndex: t.integer(), // Index of the epoch that the redeem is for
-  pendingAmount: t.bigint().default(0n), // Amount that is MAYBE in transit from Spoke to Hub, asset denomination
-
-  queuedAmount: t.bigint().default(0n), // Amount that is queued onchain for AFTER claim, technically needed, asset denomination
-  depositAmount: t.bigint().default(0n), // Amount that is deposited on Hub, asset denomination
-
-  approvedAmount: t.bigint().default(0n), // Amount that is approved on Hub, asset denomination
-  approvedIndex: t.integer(),
-  ...timestamperFields(t, "approved"),
-
-  ...defaultColumns(t),
-});
-
-export const OutstandingInvest = onchainTable(
-  "outstanding_invest",
-  OutstandingInvestColumns,
-  (t) => ({
-    id: primaryKey({ columns: [t.tokenId, t.assetId, t.account] }),
-    epochIndexIdx: index().on(t.epochIndex),
-    tokenIdAssetIdIdx: index().on(t.tokenId, t.assetId),
-  })
-);
-
-export const OutstandingInvestRelations = relations(OutstandingInvest, ({ one }) => ({
-  token: one(Token, {
-    fields: [OutstandingInvest.tokenId],
-    references: [Token.id],
-  }),
-}));
-
-// TODO: DEPRECATED to be deleted in future releases
-const OutstandingRedeemColumns = (t: PgColumnsBuilders) => ({
-  poolId: t.bigint().notNull(),
-  tokenId: t.hex().notNull(),
-  assetId: t.bigint().notNull(),
-  account: t.hex().notNull(),
-
-  epochIndex: t.integer(), // Index of the epoch that the redeem is for
-  depositAmount: t.bigint().default(0n), // Amount that is deposited on Hub, share denomination
-
-  pendingAmount: t.bigint().default(0n), // Amount that is MAYBE in transit from Spoke to Hub, share denomination
-  queuedAmount: t.bigint().default(0n), // Amount that is queued onchain for AFTER claim, technically needed, share denomination
-
-  approvedAmount: t.bigint().default(0n), // Amount that is approved on Hub, share denomination
-  approvedIndex: t.integer(),
-  ...timestamperFields(t, "approved"),
-
-  ...defaultColumns(t),
-});
-
-export const OutstandingRedeem = onchainTable(
-  "outstanding_redeem",
-  OutstandingRedeemColumns,
-  (t) => ({
-    id: primaryKey({ columns: [t.tokenId, t.assetId, t.account] }),
-    epochIndexIdx: index().on(t.epochIndex),
-    tokenIdAssetIdIdx: index().on(t.tokenId, t.assetId),
-  })
-);
-
-export const OutstandingRedeemRelations = relations(OutstandingRedeem, ({ one }) => ({
-  token: one(Token, {
-    fields: [OutstandingRedeem.tokenId],
-    references: [Token.id],
-  }),
-}));
-
 const VaultInvestOrderColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   poolId: t.bigint().notNull(),
@@ -462,7 +384,6 @@ const InvestOrderColumns = (t: PgColumnsBuilders) => ({
 
   // Approved fields
   ...timestamperFields(t, "approved"),
-  approvedIndex: t.integer(), // TODO: DEPRECATED to be deleted in future releases
   approvedAssetsAmount: t.bigint().default(0n), // Asset denomination
 
   // Issued fields
@@ -558,7 +479,6 @@ const RedeemOrderColumns = (t: PgColumnsBuilders) => ({
 
   // Approved fields
   ...timestamperFields(t, "approved"),
-  approvedIndex: t.integer(), // TODO: DEPRECATED to be deleted in future releases
   approvedSharesAmount: t.bigint().default(0n), // Share denomination
 
   // Revoked fields

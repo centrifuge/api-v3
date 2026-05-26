@@ -214,7 +214,6 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
       poolId: poolId,
       tokenId: tokenId,
       tokenAmount: amount,
-      txHash: event.transaction.hash,
       centrifugeId,
       fromAccount: from,
       toAccount: to,
