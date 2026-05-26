@@ -24,8 +24,6 @@ export * from "./OffRampAddressService";
 export * from "./OffRampRelayerService";
 export * from "./OnOffRampManagerService";
 export * from "./OnRampAssetService";
-export * from "./OutstandingInvestService"; // TODO: DEPRECATED to be deleted in future releases
-export * from "./OutstandingRedeemService"; // TODO: DEPRECATED to be deleted in future releases
 export * from "./PendingInvestOrderService";
 export * from "./PendingRedeemOrderService";
 export * from "./PolicyService";

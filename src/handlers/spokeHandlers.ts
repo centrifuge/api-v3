@@ -304,7 +304,6 @@ multiMapper("spoke:InitiateTransferShares", async ({ event, context }) => {
     poolId,
     tokenId,
     tokenAmount: amount,
-    txHash: event.transaction.hash,
     centrifugeId: fromCentrifugeId,
     fromAccount: fromAccountAddress,
     toAccount: toAccountAddress,

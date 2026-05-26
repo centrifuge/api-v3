@@ -60,7 +60,7 @@ export class Timekeeper {
    * - Retrieves the chain ID from the context
    * - Finds the corresponding Centrifuge network configuration
    * - Initializes or retrieves the blockchain service for the chain
-   * - Sets the initial period start to epoch (Jan 1, 1970) if not already set
+   * - Does not assign a default period start; the first processed block bootstraps `lastPeriodStart`
    *
    * @param context - The Ponder context containing chain information
    * @returns Promise that resolves to the current Timekeeper instance for chaining
@@ -68,7 +68,6 @@ export class Timekeeper {
    */
   public async init(context: Context, event: Event): Promise<Timekeeper> {
     const chainId = context.chain.id;
-    process.stdout.write(`Initializing timekeeper for chainId ${chainId}\n`);
     const chain = RegistryChains.find((chain) => chain.network.chainId === chainId);
     if (!chain) throw new Error(`Chain ${chainId} not found in chains.ts`);
     const networkName = networkNames[chainId.toString() as RegistryChainsKeys<RegistryVersions>];
@@ -86,8 +85,6 @@ export class Timekeeper {
       },
       event
     )) as BlockchainService;
-    const lastPeriodStart = blockchain.read().lastPeriodStart;
-    if (!lastPeriodStart) blockchain.setLastPeriodStart(new Date(0));
     this.blockchains[chainId] = blockchain;
     return this;
   }
@@ -136,9 +133,9 @@ export class Timekeeper {
    * This method:
    * - Extracts the block timestamp and converts it to a Date object
    * - Initializes the timekeeper for the chain if not already done
-   * - Calculates the period start for the block's timestamp
-   * - Compares it with the current period to determine if it's a new period
-   * - Updates the period start if a new period is detected
+   * - Bootstraps `lastPeriodStart` from the block when missing in DB (no NewPeriod)
+   * - Calculates the period start for the block's timestamp and compares with stored period
+   * - Updates and persists the period start when crossing into a new period
    *
    * @param context - The Ponder context containing chain information
    * @param blockEvent - The block event to process
@@ -147,10 +144,21 @@ export class Timekeeper {
   public async processBlock(context: Context, event: Event): Promise<boolean> {
     const chainId = context.chain.id as number;
     const timestamp = new Date(Number(event.block.timestamp) * 1000);
-    if (!this.isInitialized(chainId)) await this.init(context, event);
     const blockPeriodStart = getPeriodStart(timestamp);
-    const isNewPeriod = blockPeriodStart.valueOf() > this.getCurrentPeriod(chainId).valueOf();
-    if (isNewPeriod) this.setLastPeriodStart(chainId, blockPeriodStart);
+    if (!this.isInitialized(chainId)) await this.init(context, event);
+
+    const storedPeriodStart = this.blockchains[chainId]!.read().lastPeriodStart;
+    if (storedPeriodStart == null) {
+      this.setLastPeriodStart(chainId, blockPeriodStart);
+      await this.update(context, event);
+      return false;
+    }
+
+    const isNewPeriod = blockPeriodStart.valueOf() > storedPeriodStart.valueOf();
+    if (isNewPeriod) {
+      this.setLastPeriodStart(chainId, blockPeriodStart);
+      await this.update(context, event);
+    }
     return isNewPeriod;
   }
 

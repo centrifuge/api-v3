@@ -13,8 +13,6 @@ import {
   VaultRedeemOrderService,
 } from "../services";
 import { InvestorTransactionService, VaultService } from "../services";
-import { OutstandingInvestService } from "../services"; // TODO: DEPRECATED to be deleted in future releases
-import { OutstandingRedeemService } from "../services"; // TODO: DEPRECATED to be deleted in future releases
 import { initialisePosition } from "../services";
 import { timestamper } from "../helpers/timestamper";
 
@@ -84,7 +82,6 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
   const _it = await InvestorTransactionService.updateDepositRequest(
     context,
     {
-      txHash: event.transaction.hash,
       poolId,
       tokenId,
       account: investor,
@@ -94,19 +91,6 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
     },
     event
   );
-
-  // TODO: DEPRECATED to be removed in future releases
-  const outstandingInvest = (await OutstandingInvestService.getOrInit(
-    context,
-    {
-      poolId,
-      tokenId,
-      account: investor,
-      assetId,
-    },
-    event
-  )) as OutstandingInvestService;
-  await outstandingInvest.updateDepositAmount(assets).saveOrClear(event);
 
   const vaultInvestOrder = (await VaultInvestOrderService.getOrInit(
     context,
@@ -172,7 +156,6 @@ multiMapper("vault:RedeemRequest", async ({ event, context }) => {
   const _it = await InvestorTransactionService.updateRedeemRequest(
     context,
     {
-      txHash: event.transaction.hash,
       poolId,
       tokenId,
       account: investor,
@@ -182,20 +165,6 @@ multiMapper("vault:RedeemRequest", async ({ event, context }) => {
     },
     event
   );
-
-  // TODO: DEPRECATED to be deleted in future releases
-  const outstandingRedeem = (await OutstandingRedeemService.getOrInit(
-    context,
-    {
-      poolId,
-      tokenId,
-      account: investor,
-      assetId,
-    },
-    event
-  )) as OutstandingRedeemService;
-
-  await outstandingRedeem.updateDepositAmount(shares).saveOrClear(event);
 
   const vaultRedeemOrder = (await VaultRedeemOrderService.getOrInit(
     context,
@@ -256,7 +225,6 @@ multiMapper("vault:DepositClaimable", async ({ event, context }) => {
   const _it = await InvestorTransactionService.depositClaimable(
     context,
     {
-      txHash: event.transaction.hash,
       poolId,
       tokenId,
       account: investorAddress,
@@ -325,7 +293,6 @@ multiMapper("vault:RedeemClaimable", async ({ event, context }) => {
   const _it = await InvestorTransactionService.redeemClaimable(
     context,
     {
-      txHash: event.transaction.hash,
       poolId,
       tokenId,
       account: investorAddress,
@@ -415,7 +382,6 @@ multiMapper("vault:Deposit", async ({ event, context }) => {
     tokenAmount: shares,
     currencyAmount: assets,
     tokenPrice: getSharePrice(assets, shares, assetDecimals, shareDecimals),
-    txHash: event.transaction.hash,
     centrifugeId,
     currencyAssetId: assetId,
   };
@@ -540,7 +506,6 @@ multiMapper("vault:Withdraw", async ({ event, context }) => {
     tokenAmount: shares,
     currencyAmount: assets,
     tokenPrice: getSharePrice(assets, shares, assetDecimals, shareDecimals),
-    txHash: event.transaction.hash,
     centrifugeId,
     currencyAssetId: assetId,
   };
