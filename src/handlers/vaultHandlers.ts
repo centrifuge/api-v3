@@ -1,4 +1,6 @@
 import { multiMapper } from "../helpers/multiMapper";
+import { loadBasinConfig } from "../config/basin";
+import { linkSpokeRedeemIfPending } from "../helpers/basinReconciliation";
 import { logEvent, serviceError } from "../helpers/logger";
 import {
   AccountService,
@@ -181,6 +183,13 @@ multiMapper("vault:RedeemRequest", async ({ event, context }) => {
   )) as VaultRedeemOrderService;
 
   await vaultRedeemOrder.redeemRequest(shares).save(event);
+
+  const basinCfg = loadBasinConfig(context);
+  if (!basinCfg) return;
+  if (vaultId !== basinCfg.ethereumUsdcVault) return;
+  if (investor !== basinCfg.tokenRedeemer) return;
+
+  await linkSpokeRedeemIfPending(context, event, basinCfg);
 });
 
 multiMapper("vault:DepositClaimable", async ({ event, context }) => {

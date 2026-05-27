@@ -30,6 +30,9 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    * @returns {TokenPositionService} The current service instance for method chaining
    */
   public addBalance(amount: bigint) {
+    serviceLog(
+      `TokenInstancePosition addBalance account=${this.data.accountAddress} amount=${amount}`
+    );
     this.data.balance = (this.data.balance ?? 0n) + amount;
     return this;
   }
@@ -41,6 +44,9 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    * @returns The current service instance for method chaining
    */
   public setBalance(amount: bigint) {
+    serviceLog(
+      `TokenInstancePosition setBalance account=${this.data.accountAddress} amount=${amount}`
+    );
     this.data.balance = amount;
     return this;
   }
@@ -52,6 +58,9 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    * @returns {TokenPositionService} The current service instance for method chaining
    */
   public subBalance(amount: bigint) {
+    serviceLog(
+      `TokenInstancePosition subBalance account=${this.data.accountAddress} amount=${amount}`
+    );
     this.data.balance = (this.data.balance ?? 0n) - amount;
     return this;
   }
@@ -63,6 +72,9 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    * @returns The current service instance for method chaining
    */
   public setTokenPriceAtLastChange(price: bigint | null) {
+    serviceLog(
+      `TokenInstancePosition setTokenPriceAtLastChange account=${this.data.accountAddress} price=${price}`
+    );
     this.data.tokenPriceAtLastChange = price;
     return this;
   }
@@ -74,6 +86,9 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    * @returns The current service instance for method chaining
    */
   public setCumulativeEarnings(amount: bigint) {
+    serviceLog(
+      `TokenInstancePosition setCumulativeEarnings account=${this.data.accountAddress} amount=${amount}`
+    );
     this.data.cumulativeEarnings = amount;
     return this;
   }
@@ -85,6 +100,9 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    * @returns The current service instance for method chaining
    */
   public setCostBasis(amount: bigint) {
+    serviceLog(
+      `TokenInstancePosition setCostBasis account=${this.data.accountAddress} amount=${amount}`
+    );
     this.data.costBasis = amount;
     return this;
   }
@@ -96,6 +114,9 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    * @returns The current service instance for method chaining
    */
   public setCumulativeRealizedPnl(amount: bigint) {
+    serviceLog(
+      `TokenInstancePosition setCumulativeRealizedPnl account=${this.data.accountAddress} amount=${amount}`
+    );
     this.data.cumulativeRealizedPnl = amount;
     return this;
   }
@@ -113,6 +134,9 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
     costBasisAfter: bigint;
     cumulativeRealizedPnl: bigint;
   }) {
+    serviceLog(
+      `TokenInstancePosition applyCheckpointAccounting account=${this.data.accountAddress} balanceAfter=${checkpoint.balanceAfter}`
+    );
     this.data.balance = checkpoint.balanceAfter;
     this.data.tokenPriceAtLastChange = checkpoint.tokenPrice;
     this.data.cumulativeEarnings = checkpoint.cumulativeEarnings;
@@ -127,6 +151,7 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    * @returns {TokenPositionService} The current service instance for method chaining
    */
   public freeze() {
+    serviceLog(`TokenInstancePosition freeze account=${this.data.accountAddress}`);
     this.data.isFrozen = true;
     return this;
   }
@@ -137,6 +162,7 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    * @returns {TokenPositionService} The current service instance for method chaining
    */
   public unfreeze() {
+    serviceLog(`TokenInstancePosition unfreeze account=${this.data.accountAddress}`);
     this.data.isFrozen = false;
     return this;
   }

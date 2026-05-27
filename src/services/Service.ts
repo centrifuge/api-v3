@@ -454,7 +454,9 @@ export abstract class Service<T extends OnchainTable> {
     query: Partial<ExtendedQuery<TableTypeOf<This>["$inferSelect"]>>
   ): Promise<number> {
     const table = this.entityTable as TableTypeOf<This>;
+    const name = this.entityName;
     const db = "sql" in context.db ? context.db.sql : context.db;
+    serviceLog(`count ${name}`, expandInlineObject(query));
     const filter = queryToFilter(table, query);
     let q = db
       .select({ count: count() })
@@ -462,7 +464,9 @@ export abstract class Service<T extends OnchainTable> {
       .$dynamic();
     if (filter) q = q.where(filter);
     const [result] = await q;
-    return result?.count ?? 0;
+    const total = result?.count ?? 0;
+    serviceLog(`count ${name} result=${total}`);
+    return total;
   }
 }
 

@@ -1,5 +1,6 @@
 import { Context } from "ponder:registry";
 import { Asset } from "ponder:schema";
+import { serviceLog } from "../helpers/logger";
 import { Service } from "./Service";
 
 /**
@@ -44,6 +45,7 @@ export class AssetService extends Service<typeof Asset> {
    * @returns The decimals of the asset.
    */
   static async getDecimals(context: Context, assetId: bigint) {
+    serviceLog(`Asset getDecimals assetId=${assetId}`);
     if (assetId < 1000n) return 18;
     const asset = (await this.get(context, {
       id: assetId,

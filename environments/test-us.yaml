@@ -2,6 +2,8 @@ global:
   env:
     ENVIRONMENT: "testnet"
     SELECTED_NETWORKS: "11155111,84532,421614"
+    SELECTED_REGISTRY_VERSIONS: "v3_1"
+    REGISTRY_v3_1_chains_421614_deployment_startBlock: "237622347"
     REGISTRY_URL: "https://registry.testnet.centrifuge.io"
     PONDER_RPC_URL_11155111: "http://cfg-api-erpc-us:4000/main/evm/11155111"
     PONDER_RPC_URL_84532: "http://cfg-api-erpc-us:4000/main/evm/84532"

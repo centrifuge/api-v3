@@ -68,8 +68,12 @@ pnpm dev
 ### Configuration notes
 
 - **REGISTRY_URL** / **IPFS_GATEWAY**: optional overrides for where the registry JSON is fetched from (see [`scripts/fetch-registry.mjs`](scripts/fetch-registry.mjs)).
+- **REGISTRY_&lt;version&gt;_…** / **REGISTRY_ALL_…**: optional local patches applied when running `pnpm update-registry` (per-version slug, or the same path on every registry version for `REGISTRY_ALL_`; version-specific keys override `REGISTRY_ALL_` on the same path).
+- **SELECTED_REGISTRY_VERSIONS**: optional comma-separated registry slugs to emit (e.g. `v3_1,v3_2`). When unset, every version in the resolved chain is generated. Order follows the chain (oldest → newest), not the env var order.
 - **IPFS_HASH** (optional): if set, the registry is loaded from `{IPFS_GATEWAY}/{IPFS_HASH}` instead of the default `REGISTRY_URL` for the network.
 - **ENVIRONMENT**: `mainnet` or `testnet`—chooses the default registry host (`https://registry.centrifuge.io/` vs `https://registry.testnet.centrifuge.io/`). Defaults to `mainnet` if unset.
+- **PONDER_RPC_URL_&lt;chainId&gt;**: optional comma-separated RPC URLs per chain (see [`src/chains.ts`](src/chains.ts)); default provider endpoints are appended as fallbacks.
+- **PONDER_RPC_TIMEOUT_MS**: JSON-RPC timeout for Ponder sync (default `60000`). Uses a custom viem transport in [`src/helpers/ponderRpcTransport.ts`](src/helpers/ponderRpcTransport.ts) because Ponder’s built-in HTTP client defaults to 10s.
 
 ### Updating registry data
 

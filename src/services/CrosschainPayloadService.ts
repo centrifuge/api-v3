@@ -48,6 +48,7 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
    * @returns The first payload from the queue or null if no payload is found
    */
   static async getUndeliveredFromQueue(context: Context, payloadId: `0x${string}`) {
+    serviceLog("CrosschainPayload getUndeliveredFromQueue", expandInlineObject({ payloadId }));
     const crosschainMessages = (await this.query(context, {
       id: payloadId,
       status_not: "Delivered",
@@ -64,6 +65,10 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
    * @returns The first payload from the queue or null if no payload is found
    */
   static async getInTransitOrDeliveredFromQueue(context: Context, payloadId: `0x${string}`) {
+    serviceLog(
+      "CrosschainPayload getInTransitOrDeliveredFromQueue",
+      expandInlineObject({ payloadId })
+    );
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
       status_in: ["InTransit", "Delivered"],
@@ -80,6 +85,7 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
    * @returns The first payload from the queue or null if no payload is found
    */
   static async getUnderpaidFromQueue(context: Context, payloadId: `0x${string}`) {
+    serviceLog("CrosschainPayload getUnderpaidFromQueue", expandInlineObject({ payloadId }));
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
       status: "Underpaid",
@@ -96,6 +102,10 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
    * @returns The first payload from the queue or null if no payload is found
    */
   static async getUnderpaidOrInTransitFromQueue(context: Context, payloadId: `0x${string}`) {
+    serviceLog(
+      "CrosschainPayload getUnderpaidOrInTransitFromQueue",
+      expandInlineObject({ payloadId })
+    );
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
       status_in: ["Underpaid", "InTransit"],
@@ -113,6 +123,7 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
    * @returns The first payload from the queue or null if no payload is found
    */
   static async getDeliveredFromQueue(context: Context, payloadId: `0x${string}`) {
+    serviceLog("CrosschainPayload getDeliveredFromQueue", expandInlineObject({ payloadId }));
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
       status: "Delivered",
@@ -129,6 +140,10 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
    * @returns The first payload from the queue or null if no payload is found
    */
   static async getDeliveredOrPartiallyFailedFromQueue(context: Context, payloadId: `0x${string}`) {
+    serviceLog(
+      "CrosschainPayload getDeliveredOrPartiallyFailedFromQueue",
+      expandInlineObject({ payloadId })
+    );
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
       status_in: ["Delivered", "PartiallyFailed"],
@@ -145,6 +160,7 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
    * @returns The first incomplete payload from the queue or null if no payload is found
    */
   static async getIncompleteFromQueue(context: Context, payloadId: `0x${string}`) {
+    serviceLog("CrosschainPayload getIncompleteFromQueue", expandInlineObject({ payloadId }));
     const crosschainPayloads = (await this.query(context, {
       id: payloadId,
       status_not: "Completed",
@@ -161,6 +177,9 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
    * @returns {CrosschainPayloadService} Returns the current instance for method chaining
    */
   public setStatus(status: (typeof CrosschainPayloadStatuses)[number]) {
+    serviceLog(
+      `CrosschainPayload setStatus id=${this.data.id} index=${this.data.index} status=${status}`
+    );
     this.data.status = status;
     return this;
   }
@@ -171,6 +190,7 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
    * @returns {CrosschainPayloadService} Returns the current instance for method chaining
    */
   public InTransit() {
+    serviceLog(`CrosschainPayload InTransit id=${this.data.id} index=${this.data.index}`);
     this.data.status = "InTransit";
     return this;
   }
@@ -188,6 +208,7 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
       | "multiAdapterV3_1:HandlePayload"
     >
   ) {
+    serviceLog(`CrosschainPayload delivered id=${this.data.id} index=${this.data.index}`);
     this.data = {
       ...this.data,
       status: "Delivered",
@@ -211,6 +232,7 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
       | "multiAdapterV3_1:HandlePayload"
     >
   ) {
+    serviceLog(`CrosschainPayload completed id=${this.data.id} index=${this.data.index}`);
     this.data.status = "Completed";
     this.data = {
       ...this.data,

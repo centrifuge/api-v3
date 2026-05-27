@@ -1618,6 +1618,140 @@ export const MerkleProofManagerRelations = relations(MerkleProofManager, ({ one 
   }),
 }));
 
+export const BasinSwapDirection = onchainEnum("basin_swap_direction", [
+  "CREDIT_TO_COLLATERAL",
+  "CREDIT_TO_SWAP",
+  "COLLATERAL_TO_CREDIT",
+  "SWAP_TO_CREDIT",
+  "OTHER",
+] as const);
+
+export const BasinRedeemRequestState = onchainEnum("basin_redeem_request_state", [
+  "INITIATED",
+  "COMPLETED",
+] as const);
+
+export const BasinReconciliationWarningType = onchainEnum("basin_reconciliation_warning_type", [
+  "batchSumMismatch",
+  "initiateNoSwaps",
+  "completeOrphan",
+  "redeemOrderLinkAmbiguous",
+  "spokeRedeemLinkAmbiguous",
+] as const);
+
+const BasinSwapColumns = (t: PgColumnsBuilders) => ({
+  chainId: t.integer().notNull(),
+  txHash: t.hex().notNull(),
+  logIndex: t.integer().notNull(),
+  basinAddress: t.hex().notNull(),
+  poolId: t.bigint().notNull(),
+  tokenId: t.hex().notNull(),
+  direction: BasinSwapDirection("basin_swap_direction").notNull(),
+  assetIn: t.hex().notNull(),
+  assetOut: t.hex().notNull(),
+  amountIn: t.bigint().notNull(),
+  amountOut: t.bigint().notNull(),
+  sender: t.hex().notNull(),
+  receiver: t.hex().notNull(),
+  basinRedeemRequestId: t.hex(),
+  priorityFeeDeltaBps: t.integer(),
+  blockNumber: t.integer().notNull(),
+  timestamp: t.timestamp().notNull(),
+  ...defaultColumns(t, false),
+});
+
+export const BasinSwap = onchainTable("basin_swap", BasinSwapColumns, (t) => ({
+  id: primaryKey({ columns: [t.chainId, t.txHash, t.logIndex] }),
+  basinRedeemRequestIdx: index().on(t.basinAddress, t.basinRedeemRequestId),
+}));
+
+const BasinRedeemRequestColumns = (t: PgColumnsBuilders) => ({
+  basinAddress: t.hex().notNull(),
+  requestId: t.hex().notNull(),
+  centrifugeId: t.text().notNull(),
+  poolId: t.bigint().notNull(),
+  tokenId: t.hex().notNull(),
+  assetId: t.bigint().notNull(),
+  redeemer: t.hex().notNull(),
+  creditTokenAmount: t.bigint().notNull(),
+  collateralTokenAmountQuoted: t.bigint().notNull(),
+  state: BasinRedeemRequestState("basin_redeem_request_state").notNull(),
+  ...timestamperFields(t, "initiated", true),
+  ...timestamperFields(t, "completed", false),
+  ...timestamperFields(t, "spokeRedeemRequested", false),
+  collateralTokenReturned: t.bigint(),
+  linkedRedeemOrderIndex: t.integer(),
+  ...defaultColumns(t),
+});
+
+export const BasinRedeemRequest = onchainTable(
+  "basin_redeem_request",
+  BasinRedeemRequestColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.basinAddress, t.requestId] }),
+    redeemerStateIdx: index().on(t.basinAddress, t.redeemer, t.state),
+  })
+);
+
+const BasinReconciliationWarningColumns = (t: PgColumnsBuilders) => ({
+  chainId: t.integer().notNull(),
+  txHash: t.hex().notNull(),
+  logIndex: t.integer().notNull(),
+  type: BasinReconciliationWarningType("basin_reconciliation_warning_type").notNull(),
+  message: t.text().notNull(),
+  basinAddress: t.hex(),
+  basinRedeemRequestId: t.hex(),
+  blockNumber: t.integer().notNull(),
+  timestamp: t.timestamp().notNull(),
+  ...defaultColumns(t, false),
+});
+
+export const BasinReconciliationWarning = onchainTable(
+  "basin_reconciliation_warning",
+  BasinReconciliationWarningColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.chainId, t.txHash, t.logIndex] }),
+  })
+);
+
+export const BasinSwapRelations = relations(BasinSwap, ({ one }) => ({
+  basinRedeemRequest: one(BasinRedeemRequest, {
+    fields: [BasinSwap.basinAddress, BasinSwap.basinRedeemRequestId],
+    references: [BasinRedeemRequest.basinAddress, BasinRedeemRequest.requestId],
+  }),
+}));
+
+export const BasinRedeemRequestRelations = relations(BasinRedeemRequest, ({ one, many }) => ({
+  basinSwaps: many(BasinSwap),
+  vaultRedeemOrder: one(VaultRedeemOrder, {
+    fields: [
+      BasinRedeemRequest.tokenId,
+      BasinRedeemRequest.centrifugeId,
+      BasinRedeemRequest.assetId,
+      BasinRedeemRequest.redeemer,
+    ],
+    references: [
+      VaultRedeemOrder.tokenId,
+      VaultRedeemOrder.centrifugeId,
+      VaultRedeemOrder.assetId,
+      VaultRedeemOrder.accountAddress,
+    ],
+  }),
+  pendingRedeemOrder: one(PendingRedeemOrder, {
+    fields: [BasinRedeemRequest.tokenId, BasinRedeemRequest.assetId, BasinRedeemRequest.redeemer],
+    references: [PendingRedeemOrder.tokenId, PendingRedeemOrder.assetId, PendingRedeemOrder.account],
+  }),
+  redeemOrder: one(RedeemOrder, {
+    fields: [
+      BasinRedeemRequest.tokenId,
+      BasinRedeemRequest.assetId,
+      BasinRedeemRequest.redeemer,
+      BasinRedeemRequest.linkedRedeemOrderIndex,
+    ],
+    references: [RedeemOrder.tokenId, RedeemOrder.assetId, RedeemOrder.account, RedeemOrder.index],
+  }),
+}));
+
 /**
  * Creates a snapshot schema by selecting specific columns from a base table schema
  * @param columns - The base table column definition function

@@ -1,6 +1,6 @@
 import { CrosschainMessage, CrosschainMessageStatuses } from "ponder:schema";
 import { Service, type ReadOnlyContext } from "./Service";
-import { serviceError } from "../helpers/logger";
+import { expandInlineObject, serviceError, serviceLog } from "../helpers/logger";
 import { encodePacked, keccak256 } from "viem";
 import { Event, Context } from "ponder:registry";
 import { timestamper } from "../helpers/timestamper";
@@ -21,6 +21,7 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
    * Groups rows by message `id`, each group sorted by `index` (for in-memory use after a batched query).
    */
   static groupRowsByMessageId(rows: CrosschainMessageService[]) {
+    serviceLog(`CrosschainMessage groupRowsByMessageId count=${rows.length}`);
     const map = new Map<`0x${string}`, CrosschainMessageService[]>();
     for (const row of rows) {
       const id = row.read().id as `0x${string}`;
@@ -38,6 +39,7 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
    * First row that is `AwaitingBatchDelivery` with no `payloadId` (`rows` must be sorted by index).
    */
   static getFirstUnlinkedAwaiting(rows: CrosschainMessageService[] | undefined) {
+    serviceLog(`CrosschainMessage getFirstUnlinkedAwaiting rows=${rows?.length ?? 0}`);
     if (!rows) return null;
     for (const row of rows) {
       const d = row.read();
@@ -55,6 +57,10 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
     messageIds: readonly `0x${string}`[]
   ) {
     const unique = [...new Set(messageIds)];
+    serviceLog(
+      "CrosschainMessage loadCrosschainMessagesByMessageIds",
+      expandInlineObject({ count: unique.length })
+    );
     if (unique.length === 0) return new Map<`0x${string}`, CrosschainMessageService[]>();
     const rows = (await CrosschainMessageService.query(context, {
       id_in: unique,
@@ -73,6 +79,10 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
    * @returns The first message from the queue or null if no message is found
    */
   static async getFromAwaitingBatchDeliveryQueue(context: Context, messageId: `0x${string}`) {
+    serviceLog(
+      "CrosschainMessage getFromAwaitingBatchDeliveryQueue",
+      expandInlineObject({ messageId })
+    );
     const crosschainMessages = (await CrosschainMessageService.query(context, {
       id: messageId,
       status: "AwaitingBatchDelivery",
@@ -92,6 +102,10 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
     context: Context,
     messageId: `0x${string}`
   ) {
+    serviceLog(
+      "CrosschainMessage getFromAwaitingBatchDeliveryOrFailedQueue",
+      expandInlineObject({ messageId })
+    );
     const crosschainMessages = (await CrosschainMessageService.query(context, {
       id: messageId,
       status_in: ["AwaitingBatchDelivery", "Failed"],
@@ -112,6 +126,10 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
     payloadId: `0x${string}`,
     payloadIndex: number
   ) {
+    serviceLog(
+      "CrosschainMessage countPayloadFailedMessages",
+      expandInlineObject({ payloadId, payloadIndex })
+    );
     return await CrosschainMessageService.count(context, {
       payloadId,
       payloadIndex,
@@ -130,6 +148,10 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
     payloadId: `0x${string}`,
     payloadIndex: number
   ) {
+    serviceLog(
+      "CrosschainMessage countPayloadExecutedMessages",
+      expandInlineObject({ payloadId, payloadIndex })
+    );
     return await CrosschainMessageService.count(context, {
       payloadId,
       payloadIndex,
@@ -148,6 +170,10 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
     payloadId: `0x${string}`,
     payloadIndex: number
   ) {
+    serviceLog(
+      "CrosschainMessage countPayloadMessages",
+      expandInlineObject({ payloadId, payloadIndex })
+    );
     return await CrosschainMessageService.count(context, {
       payloadId,
       payloadIndex,
@@ -163,11 +189,20 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
     payloadId: `0x${string}`,
     payloadIndex: number
   ) {
+    serviceLog(
+      "CrosschainMessage checkPayloadFullyExecuted",
+      expandInlineObject({ payloadId, payloadIndex })
+    );
     const [total, executed] = await Promise.all([
       CrosschainMessageService.countPayloadMessages(context, payloadId, payloadIndex),
       CrosschainMessageService.countPayloadExecutedMessages(context, payloadId, payloadIndex),
     ]);
-    return total > 0 && executed === total;
+    const fullyExecuted = total > 0 && executed === total;
+    serviceLog(
+      "CrosschainMessage checkPayloadFullyExecuted result",
+      expandInlineObject({ fullyExecuted, total, executed })
+    );
+    return fullyExecuted;
   }
 
   /**
@@ -185,6 +220,10 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
     payloadId: `0x${string}`,
     payloadIndex: number
   ): Promise<[poolId: bigint | null, tokenId: `0x${string}` | null]> {
+    serviceLog(
+      "CrosschainMessage linkMessagesToPayload",
+      expandInlineObject({ payloadId, payloadIndex, messageCount: messageIds.length })
+    );
     const uniqueIds = [...new Set(messageIds)];
     const unlinkedRows =
       uniqueIds.length === 0
@@ -232,6 +271,9 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
    * @returns The CrosschainMessageService instance for chaining
    */
   public setStatus(status: (typeof CrosschainMessageStatuses)[number]) {
+    serviceLog(
+      `CrosschainMessage setStatus id=${this.data.id} index=${this.data.index} status=${status}`
+    );
     this.data.status = status;
     return this;
   }
@@ -242,6 +284,9 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
    * @returns The CrosschainMessageService instance for chaining
    */
   public setFailReason(failReason: `0x${string}`) {
+    serviceLog(
+      `CrosschainMessage setFailReason id=${this.data.id} index=${this.data.index} reason=${failReason}`
+    );
     this.data.failReason = failReason;
     return this;
   }
@@ -253,6 +298,9 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
    * @returns The CrosschainMessageService instance for chaining
    */
   public setPayloadId(payloadId: `0x${string}`, payloadIndex: number) {
+    serviceLog(
+      `CrosschainMessage setPayloadId id=${this.data.id} index=${this.data.index} payloadId=${payloadId} payloadIndex=${payloadIndex}`
+    );
     this.data.payloadId = payloadId;
     this.data.payloadIndex = payloadIndex;
     return this;
@@ -265,6 +313,7 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
    * @returns {CrosschainMessageService} Returns the current instance for method chaining
    */
   public executed(event: Event<"gatewayV3:ExecuteMessage" | "gatewayV3_1:ExecuteMessage">) {
+    serviceLog(`CrosschainMessage executed id=${this.data.id} index=${this.data.index}`);
     this.data = {
       ...this.data,
       ...timestamper("executed", event),
@@ -279,6 +328,9 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
    * @returns {CrosschainMessageService} Returns the current instance for method chaining
    */
   public awaitingBatchDelivery() {
+    serviceLog(
+      `CrosschainMessage awaitingBatchDelivery id=${this.data.id} index=${this.data.index}`
+    );
     this.data.status = "AwaitingBatchDelivery";
     return this;
   }

@@ -1,4 +1,6 @@
 import type { Event, Context } from "ponder:registry";
+import { loadBasinConfig } from "../config/basin";
+import { linkBasinRedeemOrderToEpoch } from "../helpers/basinReconciliation";
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceLog, serviceError, expandInlineObject } from "../helpers/logger";
 import { snapshotter } from "../helpers/snapshotter";
@@ -337,6 +339,16 @@ export async function approveRedeems({
     redeemOrderSaves.push(redeemOrder.save(event));
     pendingRedeemOrder.updatePendingAmount(pendingSharesAmount - approvedUserShareAmount);
     pendingRedeemOrderSaves.push(pendingRedeemOrder.saveOrClear(event));
+
+    const basinCfg = loadBasinConfig(context);
+    if (basinCfg) {
+      await linkBasinRedeemOrderToEpoch(context, event, basinCfg, {
+        tokenId,
+        assetId: payoutAssetId,
+        account,
+        epochIndex,
+      });
+    }
   }
   await Promise.all([...redeemOrderSaves, ...pendingRedeemOrderSaves]);
 
