@@ -99,3 +99,93 @@ export function serviceError(...args: any[]) {
 export function serviceWarn(...args: any[]) {
   process.stderr.write("> [WARN] " + args.join(" ") + "\n");
 }
+
+/** Per-chain contract entry from `ponder.config` `contracts`. */
+type ContractChainEntry = {
+  address?: unknown;
+  startBlock?: number;
+  endBlock?: number;
+};
+
+/** Contract map from `ponder.config` `contracts`. */
+type ContractsConfig = Record<
+  string,
+  {
+    chain?: Record<string, ContractChainEntry>;
+  }
+>;
+
+/** Block handler map from `src/chains` `blocks`. */
+type BlocksConfig = Record<
+  string,
+  {
+    startBlock: number;
+    endBlock?: number;
+    interval: number;
+    chain: string;
+  }
+>;
+
+/**
+ * Formats a contract address for indexing-plan logs (static vs factory).
+ *
+ * @param address - Resolved address or Ponder factory config
+ * @returns Short label for stdout
+ */
+function formatIndexingAddress(address: unknown): string {
+  if (typeof address === "string") return address;
+  if (address !== null && typeof address === "object") return "(factory)";
+  return "(unknown)";
+}
+
+/**
+ * Formats an optional end block for indexing-plan logs.
+ *
+ * @param endBlock - Last indexed block, if any
+ * @returns Decimal string or em dash when open-ended
+ */
+function formatIndexingEndBlock(endBlock: number | undefined): string {
+  return endBlock === undefined ? "—" : String(endBlock);
+}
+
+/**
+ * Logs the resolved Ponder indexing plan (contract and block sources) once at config load.
+ * Uses stdout directly so output appears under `ponder start` (unlike `serviceLog`).
+ *
+ * @param contracts - Merged `contracts` from `ponder.config.ts`
+ * @param blocks - `blocks` from `src/chains.ts`
+ */
+export function logIndexingPlan(contracts: ContractsConfig, blocks: BlocksConfig): void {
+  const blockLines = Object.entries(blocks)
+    .map(([network, cfg]) => ({
+      network,
+      line: `[index] blockHandler ${network}:block startBlock=${cfg.startBlock} interval=${cfg.interval} endBlock=${formatIndexingEndBlock(cfg.endBlock)}`,
+    }))
+    .sort((a, b) => a.network.localeCompare(b.network));
+
+  process.stdout.write("[index] === block handlers ===\n");
+  for (const { line } of blockLines) {
+    process.stdout.write(`${line}\n`);
+  }
+
+  const contractLines: { chain: string; contract: string; line: string }[] = [];
+  for (const [contractName, contract] of Object.entries(contracts)) {
+    const chainConfig = contract.chain;
+    if (!chainConfig) continue;
+    for (const [network, cfg] of Object.entries(chainConfig)) {
+      contractLines.push({
+        chain: network,
+        contract: contractName,
+        line: `[index] contract=${contractName} chain=${network} startBlock=${cfg.startBlock ?? "?"} endBlock=${formatIndexingEndBlock(cfg.endBlock)} address=${formatIndexingAddress(cfg.address)}`,
+      });
+    }
+  }
+  contractLines.sort(
+    (a, b) => a.chain.localeCompare(b.chain) || a.contract.localeCompare(b.contract)
+  );
+
+  process.stdout.write("[index] === contracts ===\n");
+  for (const { line } of contractLines) {
+    process.stdout.write(`${line}\n`);
+  }
+}

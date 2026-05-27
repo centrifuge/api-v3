@@ -1,5 +1,6 @@
 import { type ChainConfig } from "ponder";
 import registries from "../generated";
+import { createPonderRpcTransport } from "./helpers/ponderRpcTransport";
 
 // ============================================================================
 // Registry Types
@@ -164,9 +165,10 @@ const chains = Object.fromEntries(
     const chainId = chain.network.chainId;
     const envRpc = process.env[`PONDER_RPC_URL_${chainId}`];
     const networkName = networkNames[chainId.toString() as keyof typeof networkNames];
-    const rpc = envRpc
+    const rpcUrls = envRpc
       ? envRpc.split(",").map((r) => r.trim())
       : endpoints[chainId as keyof typeof endpoints];
+    const rpc = createPonderRpcTransport(rpcUrls);
     const ethGetLogsBlockRange =
       getLogsBlockRange[chainId.toString() as keyof typeof getLogsBlockRange] ??
       getLogsBlockRange["*"];

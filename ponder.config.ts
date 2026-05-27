@@ -1,10 +1,11 @@
 import { createConfig } from "ponder";
 import { chains, blocks } from "./src/chains";
 import { decorateDeploymentContracts } from "./src/contracts";
+import { logIndexingPlan } from "./src/helpers/logger";
 import { ERC20Abi } from "./abis/ERC20";
+import { V3_1_MIGRATION_BLOCKS } from "./src/config";
 // TODO: enable basin
 // import { GrooveBasinAbi } from "./abis/GrooveBasin";
-import { V3_1_MIGRATION_BLOCKS } from "./src/config";
 // import { BASIN_MAINNET_STATIC } from "./src/config/basin";
 
 export const contractsV3 = decorateDeploymentContracts(
@@ -178,6 +179,8 @@ export const contracts = {
   //   },
   // },
 } as const;
+
+logIndexingPlan(contracts, blocks);
 
 const config = createConfig({
   ordering: "omnichain",
