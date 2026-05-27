@@ -2,15 +2,9 @@ import type { Context, Event } from "ponder:registry";
 import type { BasinConfig } from "../config/basin";
 import { formatBytes32ToAddress } from "./formatter";
 import { serviceLog } from "./logger";
-import {
-  BasinReconciliationWarningService,
-  BasinRedeemRequestService,
-} from "../services";
+import { BasinReconciliationWarningService, BasinRedeemRequestService } from "../services";
 
-type TxEvent = Extract<
-  Event,
-  { transaction: { hash: `0x${string}` }; log: { logIndex: number } }
->;
+type TxEvent = Extract<Event, { transaction: { hash: `0x${string}` }; log: { logIndex: number } }>;
 
 /**
  * Inserts a non-fatal `basin_reconciliation_warning` row for ops visibility.

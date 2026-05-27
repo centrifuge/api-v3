@@ -13,7 +13,10 @@ const AUTH_EVENT_NAMES: AuthEventName[] = ["Rely", "Deny"];
 /**
  * Returns true when the concrete contract ABI exposes the requested Auth event.
  */
-function hasAuthEvent(abi: readonly { type?: string; name?: string }[], eventName: AuthEventName): boolean {
+function hasAuthEvent(
+  abi: readonly { type?: string; name?: string }[],
+  eventName: AuthEventName
+): boolean {
   return abi.some((item) => item.type === "event" && item.name === eventName);
 }
 

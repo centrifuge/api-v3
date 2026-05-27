@@ -61,7 +61,11 @@ export class AdapterParticipationService extends Service<typeof AdapterParticipa
     const verified = countSentAdapterParticipations === countHandledAdapterParticipations;
     serviceLog(
       "AdapterParticipation checkPayloadVerified result",
-      expandInlineObject({ verified, countSentAdapterParticipations, countHandledAdapterParticipations })
+      expandInlineObject({
+        verified,
+        countSentAdapterParticipations,
+        countHandledAdapterParticipations,
+      })
     );
     return verified;
   }

@@ -30,7 +30,9 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    * @returns {TokenPositionService} The current service instance for method chaining
    */
   public addBalance(amount: bigint) {
-    serviceLog(`TokenInstancePosition addBalance account=${this.data.accountAddress} amount=${amount}`);
+    serviceLog(
+      `TokenInstancePosition addBalance account=${this.data.accountAddress} amount=${amount}`
+    );
     this.data.balance = (this.data.balance ?? 0n) + amount;
     return this;
   }
@@ -42,7 +44,9 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    * @returns The current service instance for method chaining
    */
   public setBalance(amount: bigint) {
-    serviceLog(`TokenInstancePosition setBalance account=${this.data.accountAddress} amount=${amount}`);
+    serviceLog(
+      `TokenInstancePosition setBalance account=${this.data.accountAddress} amount=${amount}`
+    );
     this.data.balance = amount;
     return this;
   }
@@ -54,7 +58,9 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    * @returns {TokenPositionService} The current service instance for method chaining
    */
   public subBalance(amount: bigint) {
-    serviceLog(`TokenInstancePosition subBalance account=${this.data.accountAddress} amount=${amount}`);
+    serviceLog(
+      `TokenInstancePosition subBalance account=${this.data.accountAddress} amount=${amount}`
+    );
     this.data.balance = (this.data.balance ?? 0n) - amount;
     return this;
   }
@@ -94,7 +100,9 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    * @returns The current service instance for method chaining
    */
   public setCostBasis(amount: bigint) {
-    serviceLog(`TokenInstancePosition setCostBasis account=${this.data.accountAddress} amount=${amount}`);
+    serviceLog(
+      `TokenInstancePosition setCostBasis account=${this.data.accountAddress} amount=${amount}`
+    );
     this.data.costBasis = amount;
     return this;
   }

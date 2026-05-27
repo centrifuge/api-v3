@@ -79,7 +79,10 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
    * @returns The first message from the queue or null if no message is found
    */
   static async getFromAwaitingBatchDeliveryQueue(context: Context, messageId: `0x${string}`) {
-    serviceLog("CrosschainMessage getFromAwaitingBatchDeliveryQueue", expandInlineObject({ messageId }));
+    serviceLog(
+      "CrosschainMessage getFromAwaitingBatchDeliveryQueue",
+      expandInlineObject({ messageId })
+    );
     const crosschainMessages = (await CrosschainMessageService.query(context, {
       id: messageId,
       status: "AwaitingBatchDelivery",
@@ -268,7 +271,9 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
    * @returns The CrosschainMessageService instance for chaining
    */
   public setStatus(status: (typeof CrosschainMessageStatuses)[number]) {
-    serviceLog(`CrosschainMessage setStatus id=${this.data.id} index=${this.data.index} status=${status}`);
+    serviceLog(
+      `CrosschainMessage setStatus id=${this.data.id} index=${this.data.index} status=${status}`
+    );
     this.data.status = status;
     return this;
   }

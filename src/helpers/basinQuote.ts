@@ -170,7 +170,8 @@ export async function getSwapQuote(
   const credit = formatBytes32ToAddress(cfg.creditToken);
 
   if (assetNorm === quoteNorm) throw new Error("Invalid asset: same token");
-  if (assetNorm !== credit && quoteNorm !== credit) throw new Error("Invalid swap: credit token required");
+  if (assetNorm !== credit && quoteNorm !== credit)
+    throw new Error("Invalid swap: credit token required");
 
   const [inRate, outRate] = await Promise.all([
     getTokenRateAndPrecision(context, event, cfg, assetNorm),
@@ -203,18 +204,8 @@ export function computeRedeemRequestId(params: {
 }): `0x${string}` {
   return keccak256(
     encodeAbiParameters(
-      [
-        { type: "uint256" },
-        { type: "address" },
-        { type: "uint256" },
-        { type: "uint256" },
-      ],
-      [
-        params.blockNumber,
-        params.redeemer,
-        params.creditTokenAmount,
-        params.collateralTokenAmount,
-      ]
+      [{ type: "uint256" }, { type: "address" }, { type: "uint256" }, { type: "uint256" }],
+      [params.blockNumber, params.redeemer, params.creditTokenAmount, params.collateralTokenAmount]
     )
   );
 }

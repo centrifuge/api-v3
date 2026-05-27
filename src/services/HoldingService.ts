@@ -46,7 +46,9 @@ export class HoldingService extends Service<typeof Holding> {
    * @throws {Error} When asset quantity or total value is null
    */
   public increase(amount: bigint, increaseValue: bigint) {
-    serviceLog(`Holding increase poolId=${this.data.poolId} amount=${amount} value=${increaseValue}`);
+    serviceLog(
+      `Holding increase poolId=${this.data.poolId} amount=${amount} value=${increaseValue}`
+    );
     const { assetQuantity, totalValue } = this.data;
     this.data.assetQuantity = assetQuantity ?? 0n + amount;
     this.data.totalValue = totalValue ?? 0n + increaseValue;
@@ -63,7 +65,9 @@ export class HoldingService extends Service<typeof Holding> {
    * @throws {Error} When asset quantity or total value is null
    */
   public decrease(amount: bigint, decreaseValue: bigint) {
-    serviceLog(`Holding decrease poolId=${this.data.poolId} amount=${amount} value=${decreaseValue}`);
+    serviceLog(
+      `Holding decrease poolId=${this.data.poolId} amount=${amount} value=${decreaseValue}`
+    );
     const { assetQuantity, totalValue } = this.data;
     this.data.assetQuantity = assetQuantity ?? 0n - amount;
     this.data.totalValue = totalValue ?? 0n - decreaseValue;
