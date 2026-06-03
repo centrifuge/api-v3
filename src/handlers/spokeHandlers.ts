@@ -11,14 +11,13 @@ import {
   TokenInstancePositionService,
 } from "../services";
 import { ERC20Abi } from "../../abis/ERC20";
-import { Abis, REGISTRY_VERSION_ORDER } from "../contracts";
-import { RegistryChains } from "../chains";
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
 import { deployVault, linkVault, unlinkVault } from "./vaultRegistryHandlers";
 import { getInitialHolders } from "../config";
 import { initialisePosition } from "../services";
 import { readContractSafe } from "../helpers/readContractSafe";
+import { getCurrentEscrowAddress } from "../helpers/getCurrentEscrowAddress";
 
 multiMapper("spoke:DeployVault", deployVault);
 
@@ -157,25 +156,12 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
   } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
-  const indexerVersion = REGISTRY_VERSION_ORDER[0];
 
-  const chainId = context.chain.id;
-  const poolEscrowFactoryAddress = RegistryChains.find((chain) => chain.network.chainId === chainId)
-    ?.contracts.poolEscrowFactory;
-  if (!poolEscrowFactoryAddress) {
-    serviceError(`Pool Escrow Factory address not found. Cannot retrieve escrow address`);
+  const escrowAddress = await getCurrentEscrowAddress(context, event, poolId);
+  if (!escrowAddress) {
+    serviceError(`Escrow address not found. Cannot retrieve escrow address for holding escrow`);
     return;
   }
-
-  const poolEscrowFactoryAbi = Abis[indexerVersion as keyof typeof Abis].PoolEscrowFactory;
-  const poolEscrowFactoryAddr = poolEscrowFactoryAddress.address;
-
-  const escrowAddress = await readContractSafe(context, event, {
-    abi: poolEscrowFactoryAbi,
-    address: poolEscrowFactoryAddr,
-    functionName: "escrow",
-    args: [poolId],
-  });
 
   const assetQuery = await AssetService.query(context, {
     address: assetAddress,
@@ -202,7 +188,11 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
     event
   )) as HoldingEscrowService;
 
-  await holdingEscrow.setAssetPrice(assetPrice).setCrosschainInProgress().save(event);
+  await holdingEscrow
+    .setEscrowAddress(escrowAddress)
+    .setAssetPrice(assetPrice)
+    .setCrosschainInProgress()
+    .save(event);
 
   await snapshotter(
     context,
@@ -219,25 +209,12 @@ multiMapper("spoke:UpdateMaxAssetPriceAge", async ({ event, context }) => {
   const { poolId, scId: tokenId, asset: assetAddress, maxPriceAge } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
-  const indexerVersion = REGISTRY_VERSION_ORDER[0];
 
-  const chainId = context.chain.id;
-  const poolEscrowFactoryAddress = RegistryChains.find((chain) => chain.network.chainId === chainId)
-    ?.contracts.poolEscrowFactory;
-  if (!poolEscrowFactoryAddress) {
-    serviceError(`Pool Escrow Factory address not found. Cannot retrieve escrow address`);
+  const escrowAddress = await getCurrentEscrowAddress(context, event, poolId);
+  if (!escrowAddress) {
+    serviceError(`Escrow address not found. Cannot retrieve escrow address for holding escrow`);
     return;
   }
-
-  const poolEscrowFactoryAbi = Abis[indexerVersion as keyof typeof Abis].PoolEscrowFactory;
-  const poolEscrowFactoryAddr = poolEscrowFactoryAddress.address;
-
-  const escrowAddress = await readContractSafe(context, event, {
-    abi: poolEscrowFactoryAbi,
-    address: poolEscrowFactoryAddr,
-    functionName: "escrow",
-    args: [poolId],
-  });
 
   const assetQuery = await AssetService.query(context, {
     address: assetAddress,
@@ -264,7 +241,7 @@ multiMapper("spoke:UpdateMaxAssetPriceAge", async ({ event, context }) => {
     event
   )) as HoldingEscrowService;
 
-  await holdingEscrow.setMaxAssetPriceAge(maxPriceAge).save(event);
+  await holdingEscrow.setEscrowAddress(escrowAddress).setMaxAssetPriceAge(maxPriceAge).save(event);
 
   await snapshotter(
     context,
