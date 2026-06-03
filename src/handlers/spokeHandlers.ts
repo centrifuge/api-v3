@@ -9,6 +9,7 @@ import {
   InvestorTransactionService,
   AccountService,
   TokenInstancePositionService,
+  EscrowService,
 } from "../services";
 import { ERC20Abi } from "../../abis/ERC20";
 import { snapshotter } from "../helpers/snapshotter";
@@ -17,7 +18,6 @@ import { deployVault, linkVault, unlinkVault } from "./vaultRegistryHandlers";
 import { getInitialHolders } from "../config";
 import { initialisePosition } from "../services";
 import { readContractSafe } from "../helpers/readContractSafe";
-import { resolveEscrowAddress } from "../helpers/resolveEscrowAddress";
 
 multiMapper("spoke:DeployVault", deployVault);
 
@@ -157,11 +157,12 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const escrowAddress = await resolveEscrowAddress(context, event, poolId, centrifugeId);
-  if (!escrowAddress) {
+  const escrow = await EscrowService.getLatest(context, { poolId, centrifugeId });
+  if (!escrow) {
     serviceError(`Escrow address not found. Cannot retrieve escrow address for holding escrow`);
     return;
   }
+  const { address: escrowAddress } = escrow.read();
 
   const assetQuery = await AssetService.query(context, {
     address: assetAddress,
@@ -210,11 +211,12 @@ multiMapper("spoke:UpdateMaxAssetPriceAge", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const escrowAddress = await resolveEscrowAddress(context, event, poolId, centrifugeId);
-  if (!escrowAddress) {
+  const escrow = await EscrowService.getLatest(context, { poolId, centrifugeId });
+  if (!escrow) {
     serviceError(`Escrow address not found. Cannot retrieve escrow address for holding escrow`);
     return;
   }
+  const { address: escrowAddress } = escrow.read();
 
   const assetQuery = await AssetService.query(context, {
     address: assetAddress,
