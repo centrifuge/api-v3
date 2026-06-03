@@ -62,13 +62,11 @@ multiMapper("hub:NotifyAssetPrice", async ({ event, context }) => {
     );
 
   // NotifyAssetPrice fires on the hub chain but references an escrow on the destination chain, so
-  // the live PoolEscrowFactory cannot be read here. A pool may have several escrow rows over its
-  // lifetime (escrow redeployment/migration), so select the most recent one deterministically.
-  const [escrow] = (await EscrowService.query(context, {
+  // the live PoolEscrowFactory cannot be read here — resolve from the indexed escrows instead.
+  const escrow = await EscrowService.getLatest(context, {
     poolId,
     centrifugeId: destCentrifugeId,
-    _sort: [{ field: "createdAtBlock", direction: "desc" }],
-  })) as EscrowService[];
+  });
   if (!escrow) {
     return serviceLog(
       `Escrow not found for pool ${poolId} on centrifuge ${destCentrifugeId}; skipping NotifyAssetPrice in-progress`

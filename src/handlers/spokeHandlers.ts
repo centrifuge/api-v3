@@ -17,7 +17,7 @@ import { deployVault, linkVault, unlinkVault } from "./vaultRegistryHandlers";
 import { getInitialHolders } from "../config";
 import { initialisePosition } from "../services";
 import { readContractSafe } from "../helpers/readContractSafe";
-import { getCurrentEscrowAddress } from "../helpers/getCurrentEscrowAddress";
+import { resolveEscrowAddress } from "../helpers/resolveEscrowAddress";
 
 multiMapper("spoke:DeployVault", deployVault);
 
@@ -157,7 +157,7 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const escrowAddress = await getCurrentEscrowAddress(context, event, poolId);
+  const escrowAddress = await resolveEscrowAddress(context, event, poolId, centrifugeId);
   if (!escrowAddress) {
     serviceError(`Escrow address not found. Cannot retrieve escrow address for holding escrow`);
     return;
@@ -210,7 +210,7 @@ multiMapper("spoke:UpdateMaxAssetPriceAge", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const escrowAddress = await getCurrentEscrowAddress(context, event, poolId);
+  const escrowAddress = await resolveEscrowAddress(context, event, poolId, centrifugeId);
   if (!escrowAddress) {
     serviceError(`Escrow address not found. Cannot retrieve escrow address for holding escrow`);
     return;
