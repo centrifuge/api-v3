@@ -24,13 +24,10 @@ multiMapper("balanceSheet:NoteDeposit", async ({ event, context }) => {
   if (!asset) return serviceError(`Asset not found. Cannot retrieve assetId for holding escrow`);
   const { id: assetId } = asset.read();
 
-  const escrow = (await EscrowService.get(context, {
-    poolId,
-    centrifugeId,
-  })) as EscrowService | null;
+  const escrow = await EscrowService.getLatest(context, { poolId, centrifugeId });
   if (!escrow)
     return serviceError(`Escrow not found. Cannot retrieve escrow address for holding escrow`);
-  const { address: escrowAddress } = escrow!.read();
+  const { address: escrowAddress } = escrow.read();
 
   const holdingEscrow = (await HoldingEscrowService.getOrInit(
     context,
@@ -47,7 +44,11 @@ multiMapper("balanceSheet:NoteDeposit", async ({ event, context }) => {
     true
   )) as HoldingEscrowService;
 
-  await holdingEscrow.increaseAssetAmount(amount).setAssetPrice(pricePoolPerAsset).save(event);
+  await holdingEscrow
+    .setEscrowAddress(escrowAddress)
+    .increaseAssetAmount(amount)
+    .setAssetPrice(pricePoolPerAsset)
+    .save(event);
 
   await snapshotter(
     context,
@@ -71,13 +72,10 @@ multiMapper("balanceSheet:Withdraw", async ({ event, context }) => {
   if (!asset) return serviceError(`Asset not found. Cannot retrieve assetId for holding escrow`);
   const { id: assetId } = asset.read();
 
-  const escrow = (await EscrowService.get(context, {
-    poolId,
-    centrifugeId,
-  })) as EscrowService | null;
+  const escrow = await EscrowService.getLatest(context, { poolId, centrifugeId });
   if (!escrow)
     return serviceError(`Escrow not found. Cannot retrieve escrow address for holding escrow`);
-  const { address: escrowAddress } = escrow!.read();
+  const { address: escrowAddress } = escrow.read();
 
   const holdingEscrow = (await HoldingEscrowService.getOrInit(
     context,
@@ -94,8 +92,9 @@ multiMapper("balanceSheet:Withdraw", async ({ event, context }) => {
     true
   )) as HoldingEscrowService;
 
-  await holdingEscrow.decreaseAssetAmount(amount);
-  await holdingEscrow.setAssetPrice(pricePoolPerAsset);
+  holdingEscrow.setEscrowAddress(escrowAddress);
+  holdingEscrow.decreaseAssetAmount(amount);
+  holdingEscrow.setAssetPrice(pricePoolPerAsset);
   await holdingEscrow.save(event);
 
   await snapshotter(

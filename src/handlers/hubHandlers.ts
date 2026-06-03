@@ -61,10 +61,12 @@ multiMapper("hub:NotifyAssetPrice", async ({ event, context }) => {
       `Asset has no address for assetId ${assetId}. Cannot track NotifyAssetPrice`
     );
 
-  const escrow = (await EscrowService.get(context, {
+  // NotifyAssetPrice fires on the hub chain but references an escrow on the destination chain, so
+  // the live PoolEscrowFactory cannot be read here — resolve from the indexed escrows instead.
+  const escrow = await EscrowService.getLatest(context, {
     poolId,
     centrifugeId: destCentrifugeId,
-  })) as EscrowService | null;
+  });
   if (!escrow) {
     return serviceLog(
       `Escrow not found for pool ${poolId} on centrifuge ${destCentrifugeId}; skipping NotifyAssetPrice in-progress`
@@ -87,7 +89,10 @@ multiMapper("hub:NotifyAssetPrice", async ({ event, context }) => {
     true
   )) as HoldingEscrowService;
 
-  await holdingEscrow.setCrosschainInProgress("NotifyAssetPrice").save(event);
+  await holdingEscrow
+    .setEscrowAddress(escrowAddress)
+    .setCrosschainInProgress("NotifyAssetPrice")
+    .save(event);
 });
 
 multiMapper("hub:NotifySharePrice", async ({ event, context }) => {

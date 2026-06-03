@@ -29,7 +29,7 @@ export class HoldingEscrowService extends Service<typeof HoldingEscrow> {
    */
   public increaseAssetAmount(amount: bigint) {
     serviceLog("Increasing asset amount by: ", amount);
-    this.data.assetAmount = this.data.assetAmount ?? 0n + amount;
+    this.data.assetAmount = (this.data.assetAmount ?? 0n) + amount;
     return this;
   }
 
@@ -48,7 +48,7 @@ export class HoldingEscrowService extends Service<typeof HoldingEscrow> {
    */
   public decreaseAssetAmount(amount: bigint) {
     serviceLog("Decreasing asset amount by: ", amount);
-    this.data.assetAmount = this.data.assetAmount ?? 0n - amount;
+    this.data.assetAmount = (this.data.assetAmount ?? 0n) - amount;
     return this;
   }
 
@@ -67,6 +67,21 @@ export class HoldingEscrowService extends Service<typeof HoldingEscrow> {
   public setAssetPrice(price: bigint) {
     serviceLog("Setting asset price to: ", price);
     this.data.assetPrice = price;
+    return this;
+  }
+
+  /**
+   * Sets the escrow address backing this holding.
+   *
+   * The escrow can be redeployed/migrated over a pool's lifetime, so handlers refresh this on every
+   * update to keep it pointing at the pool's current escrow rather than the one present at creation.
+   *
+   * @param {`0x${string}`} escrowAddress - The current pool escrow address
+   * @returns {HoldingEscrowService} The current service instance for method chaining
+   */
+  public setEscrowAddress(escrowAddress: `0x${string}`) {
+    serviceLog("Setting escrow address to: ", escrowAddress);
+    this.data.escrowAddress = escrowAddress;
     return this;
   }
 
