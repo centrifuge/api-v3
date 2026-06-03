@@ -1,4 +1,5 @@
 import { Holding } from "ponder:schema";
+import { serviceLog } from "../helpers/logger";
 import { Service } from "./Service";
 
 /**
@@ -18,6 +19,7 @@ export class HoldingService extends Service<typeof Holding> {
    * @returns {HoldingService} This instance for method chaining
    */
   public setValuation(valuation: string) {
+    serviceLog(`Holding setValuation poolId=${this.data.poolId} valuation=${valuation}`);
     this.data.valuation = valuation;
     return this;
   }
@@ -29,6 +31,7 @@ export class HoldingService extends Service<typeof Holding> {
    * @returns {HoldingService} This instance for method chaining
    */
   public setIsLiability(isLiability: boolean) {
+    serviceLog(`Holding setIsLiability poolId=${this.data.poolId} isLiability=${isLiability}`);
     this.data.isLiability = isLiability;
     return this;
   }
@@ -43,12 +46,12 @@ export class HoldingService extends Service<typeof Holding> {
    * @throws {Error} When asset quantity or total value is null
    */
   public increase(amount: bigint, increaseValue: bigint) {
+    serviceLog(
+      `Holding increase poolId=${this.data.poolId} amount=${amount} value=${increaseValue}`
+    );
     const { assetQuantity, totalValue } = this.data;
-    if (assetQuantity === null || totalValue === null) {
-      throw new Error("Hub asset amount or value is null");
-    }
-    this.data.assetQuantity! += amount;
-    this.data.totalValue! += increaseValue;
+    this.data.assetQuantity = assetQuantity ?? 0n + amount;
+    this.data.totalValue = totalValue ?? 0n + increaseValue;
     return this;
   }
 
@@ -62,12 +65,12 @@ export class HoldingService extends Service<typeof Holding> {
    * @throws {Error} When asset quantity or total value is null
    */
   public decrease(amount: bigint, decreaseValue: bigint) {
+    serviceLog(
+      `Holding decrease poolId=${this.data.poolId} amount=${amount} value=${decreaseValue}`
+    );
     const { assetQuantity, totalValue } = this.data;
-    if (assetQuantity === null || totalValue === null) {
-      throw new Error("Hub asset amount or value is null");
-    }
-    this.data.assetQuantity! -= amount;
-    this.data.totalValue! -= decreaseValue;
+    this.data.assetQuantity = assetQuantity ?? 0n - amount;
+    this.data.totalValue = totalValue ?? 0n - decreaseValue;
     return this;
   }
 
@@ -80,11 +83,11 @@ export class HoldingService extends Service<typeof Holding> {
    * @throws {Error} When total value is null
    */
   public update(isPositive: boolean, diffValue: bigint) {
+    serviceLog(
+      `Holding update poolId=${this.data.poolId} isPositive=${isPositive} diffValue=${diffValue}`
+    );
     const { totalValue } = this.data;
-    if (totalValue === null) {
-      throw new Error("Hub total value is null");
-    }
-    this.data.totalValue! += isPositive ? diffValue : -diffValue;
+    this.data.totalValue = totalValue ?? 0n + (isPositive ? diffValue : -diffValue);
     return this;
   }
 
@@ -94,6 +97,7 @@ export class HoldingService extends Service<typeof Holding> {
    * @returns {HoldingService} This instance for method chaining
    */
   public initialize() {
+    serviceLog(`Holding initialize poolId=${this.data.poolId}`);
     this.data.isInitialized = true;
     return this;
   }

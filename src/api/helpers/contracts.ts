@@ -24,6 +24,9 @@ export function getPublicClient(chainId: number) {
  * @returns The contract ABI
  */
 export function getContractAbi(name: keyof typeof contracts) {
-  const a = contracts[name];
-  return a.abi;
+  const entry = contracts[name];
+  if (!entry) {
+    throw new Error(`Contract not found in ponder.config: ${String(name)}`);
+  }
+  return entry.abi;
 }

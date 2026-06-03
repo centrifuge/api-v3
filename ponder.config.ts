@@ -1,8 +1,12 @@
 import { createConfig } from "ponder";
 import { chains, blocks } from "./src/chains";
 import { decorateDeploymentContracts } from "./src/contracts";
+import { logIndexingPlan } from "./src/helpers/logger";
 import { ERC20Abi } from "./abis/ERC20";
 import { V3_1_MIGRATION_BLOCKS } from "./src/config";
+// TODO: enable basin
+// import { GrooveBasinAbi } from "./abis/GrooveBasin";
+// import { BASIN_MAINNET_STATIC } from "./src/config/basin";
 
 export const contractsV3 = decorateDeploymentContracts(
   "v3",
@@ -68,22 +72,45 @@ export const contractsV3 = decorateDeploymentContracts(
 export const contractsV3_1 = decorateDeploymentContracts(
   "v3_1",
   [
+    "Accounting",
+    "AsyncRequestManager",
+    "AsyncVaultFactory",
+    "AxelarAdapter",
     "BalanceSheet",
     "BatchRequestManager",
+    "ChainlinkAdapter",
+    "CircleDecoder",
+    "ContractUpdater",
     "Gateway",
     "GasService",
     "Holdings",
-    "HubRegistry",
     "Hub",
-    "MerkleProofManagerFactory",
+    "HubHandler",
+    "HubRegistry",
+    "IdentityValuation",
+    "LayerZeroAdapter",
     "MessageDispatcher",
+    "MessageProcessor",
+    "MerkleProofManagerFactory",
     "MultiAdapter",
     "OnOfframpManagerFactory",
+    "OracleValuation",
     "PoolEscrowFactory",
+    "QueueManager",
+    "RefundEscrowFactory",
+    "Root",
     "ShareClassManager",
+    "SimplePriceManager",
     "Spoke",
-    "VaultRegistry",
+    "SubsidyManager",
+    "SyncDepositVaultFactory",
     "SyncManager",
+    "TokenFactory",
+    "TokenRecoverer",
+    "VaultDecoder",
+    "VaultRouter",
+    "VaultRegistry",
+    "WormholeAdapter",
   ] as const,
   {
     vaultV3_1: {
@@ -119,17 +146,41 @@ export const contractsV3_1 = decorateDeploymentContracts(
       },
     },
     tokenInstanceV3_1: {
-      abi: ERC20Abi,
+      abi: [ERC20Abi, "ShareToken"],
       factory: {
         abi: "Spoke",
         eventName: "AddShareClass",
         eventParameter: "token",
       },
     },
+    refundEscrowV3_1: {
+      abi: "RefundEscrow",
+      factory: {
+        abi: "RefundEscrowFactory",
+        eventName: "DeployRefundEscrow",
+        eventParameter: "escrow",
+      },
+    },
   } as const
 );
 
-export const contracts = { ...contractsV3, ...contractsV3_1 };
+const protocolContracts = { ...contractsV3, ...contractsV3_1 };
+
+export const contracts = {
+  ...protocolContracts,
+  // TODO: enable basin
+  // groveBasin: {
+  //   abi: GrooveBasinAbi,
+  //   chain: {
+  //     ethereum: {
+  //       address: BASIN_MAINNET_STATIC.basinAddress,
+  //       startBlock: BASIN_MAINNET_STATIC.startBlock,
+  //     },
+  //   },
+  // },
+} as const;
+
+logIndexingPlan(contracts, blocks);
 
 const config = createConfig({
   ordering: "omnichain",

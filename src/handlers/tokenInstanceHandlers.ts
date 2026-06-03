@@ -1,16 +1,16 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { logEvent, serviceError, serviceLog } from "../helpers/logger";
+import { logEvent, serviceError, serviceLog, serviceWarn } from "../helpers/logger";
+import { computeInvestorPositionCheckpoint } from "../helpers/investorPositionCheckpoint";
+import { isUserAccount } from "../helpers/userAccount";
 import {
   BlockchainService,
-  DeploymentService,
   TokenInstanceService,
   TokenInstancePositionService,
   AccountService,
+  InvestorPositionCheckpointService,
   TokenService,
   InvestorTransactionService,
-  EscrowService,
 } from "../services";
-import { initialisePosition } from "../services";
 
 multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
   logEvent(event, context, "tokenInstance:Transfer");
@@ -33,82 +33,163 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
 
   const token = (await TokenService.get(context, { id: tokenId })) as TokenService | null;
   if (!token) return serviceError(`Token not found. Cannot retrieve poolId`);
-  const { poolId } = token.read();
+  const { poolId, decimals } = token.read();
+  const { tokenPrice } = tokenInstance.read();
 
   const [isFromNull, isToNull] = [BigInt(from) === 0n, BigInt(to) === 0n];
-
-  const deployment = (await DeploymentService.get(context, {
-    chainId: chainId.toString(),
-  })) as DeploymentService | null;
-  if (!deployment) {
-    serviceError(`Deployment not found. Cannot retrieve global escrow address`);
-    return;
-  }
-
-  const { globalEscrow } = deployment.read();
-  if (!globalEscrow) {
-    serviceLog(`Global escrow not found. Fall back to tracking all transfers.`);
-  }
-
-  const [isFromGlobalEscrow, isToGlobalEscrow] = [
-    !!globalEscrow && BigInt(from) === BigInt(globalEscrow.toLowerCase()),
-    !!globalEscrow && BigInt(to) === BigInt(globalEscrow.toLowerCase()),
-  ];
-
-  const poolEscrowsQuery = await EscrowService.query(context, { centrifugeId, poolId });
-  const poolEscrows = poolEscrowsQuery.map((escrow) => BigInt(escrow.read().address));
-  const [isFromPoolEscrow, isToPoolEscrow] = [
-    poolEscrows.includes(BigInt(from)),
-    poolEscrows.includes(BigInt(to)),
-  ];
-
   const [isFromUserAccount, isToUserAccount] = [
-    !isFromNull && !isFromGlobalEscrow && !isFromPoolEscrow,
-    !isToNull && !isToGlobalEscrow && !isToPoolEscrow,
+    isUserAccount(chainId, from),
+    isUserAccount(chainId, to),
   ];
 
-  if (isFromUserAccount) {
-    const _fromAccount = await AccountService.getOrInit(context, { address: from }, event);
-    const fromPosition = (await TokenInstancePositionService.getOrInit(
-      context,
-      {
-        tokenId: tokenId,
-        centrifugeId,
-        accountAddress: from,
-      },
-      event,
-      async (tokenInstancePosition) =>
-        await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
-    )) as TokenInstancePositionService;
-    const { createdAtBlock } = fromPosition.read();
-    if (!createdAtBlock) {
-      serviceError(`TokenInstancePosition not found. Cannot update balance`);
-      return;
-    }
-    if (createdAtBlock < Number(event.block.number)) fromPosition.subBalance(amount);
-    await fromPosition.save(event);
-  }
+  const isSelfTransfer = isFromUserAccount && isToUserAccount && from === to;
+  const trigger = "tokenInstance:Transfer" as const;
+  const logIndex = event.log.logIndex;
 
-  if (isToUserAccount) {
-    const _toAccount = await AccountService.getOrInit(context, { address: to }, event);
-    const toPosition = (await TokenInstancePositionService.getOrInit(
+  const handleUserPositionChange = async ({
+    accountAddress,
+    isIncrease,
+  }: {
+    accountAddress: `0x${string}`;
+    isIncrease: boolean;
+  }) => {
+    await AccountService.getOrInit(context, { address: accountAddress }, event);
+
+    const positionQuery = {
+      tokenId,
+      centrifugeId,
+      accountAddress,
+    } as const;
+
+    const position = (await TokenInstancePositionService.getOrInit(
       context,
-      {
-        tokenId: tokenId,
-        centrifugeId,
-        accountAddress: to,
-      },
-      event,
-      async (tokenInstancePosition) =>
-        await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
+      positionQuery,
+      event
     )) as TokenInstancePositionService;
-    const { createdAtBlock } = toPosition.read();
-    if (!createdAtBlock) {
-      serviceError(`TokenInstancePosition not found. Cannot update balance`);
+
+    const positionData = position.read();
+    const currentBalance = positionData.balance ?? 0n;
+
+    // First-seen positions are created with `balance = 0` from the schema
+    // default, so `currentBalance` is always the pre-Transfer balance — for
+    // both newly tracked and existing positions. This works because we index
+    // tokens from genesis: every Transfer that ever touched a user-tracked
+    // address has been observed by the time we reach the next one.
+    //
+    // TODO: investor Safes are currently classified as user accounts and reach
+    // this branch from a 0 balance bootstrap. Remove them from user-account
+    // tracking once `SafeProxyFactory.ProxyCreation` indexing lands.
+    const balanceBefore = currentBalance;
+    const balanceAfter = isIncrease ? currentBalance + amount : currentBalance - amount;
+
+    if (balanceAfter < 0n) {
+      serviceError(
+        "InvestorPositionCheckpoint impossible state: sender balance below transfer amount",
+        `tokenId=${tokenId}`,
+        `centrifugeId=${centrifugeId}`,
+        `accountAddress=${accountAddress}`,
+        `txHash=${event.transaction.hash}`,
+        `block=${event.block.number}`,
+        `amount=${amount}`,
+        `currentBalance=${currentBalance}`
+      );
       return;
     }
-    if (createdAtBlock < Number(event.block.number)) toPosition.addBalance(amount);
-    await toPosition.save(event);
+
+    if (decimals === null || decimals === undefined) {
+      serviceError(
+        "InvestorPositionCheckpoint skipped due to missing token decimals",
+        `tokenId=${tokenId}`,
+        `centrifugeId=${centrifugeId}`,
+        `accountAddress=${accountAddress}`,
+        `txHash=${event.transaction.hash}`,
+        `block=${event.block.number}`,
+        `amount=${amount}`
+      );
+      await position.setBalance(balanceAfter).save(event);
+      return;
+    }
+
+    if (tokenPrice === null || tokenPrice <= 0n) {
+      serviceWarn(
+        "InvestorPositionCheckpoint skipped due to unknown token price",
+        `tokenId=${tokenId}`,
+        `centrifugeId=${centrifugeId}`,
+        `accountAddress=${accountAddress}`,
+        `txHash=${event.transaction.hash}`,
+        `block=${event.block.number}`,
+        `amount=${amount}`
+      );
+      await position.setBalance(balanceAfter).save(event);
+      return;
+    }
+
+    const costBasisBefore = positionData.costBasis ?? 0n;
+
+    const accounting = computeInvestorPositionCheckpoint({
+      amount,
+      balanceBefore,
+      balanceAfter,
+      tokenPrice,
+      tokenDecimals: decimals,
+      tokenPriceAtLastChange: positionData.tokenPriceAtLastChange ?? null,
+      cumulativeEarningsBefore: positionData.cumulativeEarnings ?? 0n,
+      costBasisBefore,
+      cumulativeRealizedPnlBefore: positionData.cumulativeRealizedPnl ?? 0n,
+      isIncrease,
+    });
+
+    await InvestorPositionCheckpointService.createCheckpoint(
+      context,
+      {
+        tokenId,
+        centrifugeId,
+        accountAddress,
+        poolId,
+        balanceBefore,
+        balanceAfter,
+        tokenPrice,
+        periodEarnings: accounting.periodEarnings,
+        cumulativeEarnings: accounting.cumulativeEarningsAfter,
+        costBasisBefore,
+        costBasisAfter: accounting.costBasisAfter,
+        realizedPnl: accounting.realizedPnl,
+        cumulativeRealizedPnl: accounting.cumulativeRealizedPnlAfter,
+        trigger,
+        logIndex,
+      },
+      event
+    );
+
+    await position
+      .applyCheckpointAccounting({
+        balanceAfter,
+        tokenPrice,
+        cumulativeEarnings: accounting.cumulativeEarningsAfter,
+        costBasisAfter: accounting.costBasisAfter,
+        cumulativeRealizedPnl: accounting.cumulativeRealizedPnlAfter,
+      })
+      .save(event);
+  };
+
+  if (isSelfTransfer) {
+    serviceLog(
+      "InvestorPositionCheckpoint skipped for self-transfer",
+      `tokenId=${tokenId}`,
+      `centrifugeId=${centrifugeId}`,
+      `accountAddress=${from}`,
+      `txHash=${event.transaction.hash}`,
+      `block=${event.block.number}`,
+      `amount=${amount}`
+    );
+  } else {
+    if (isFromUserAccount) {
+      await handleUserPositionChange({ accountAddress: from, isIncrease: false });
+    }
+
+    if (isToUserAccount) {
+      await handleUserPositionChange({ accountAddress: to, isIncrease: true });
+    }
   }
 
   // Handle tokenInstance and token total issuance change
@@ -133,7 +214,6 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
       poolId: poolId,
       tokenId: tokenId,
       tokenAmount: amount,
-      txHash: event.transaction.hash,
       centrifugeId,
       fromAccount: from,
       toAccount: to,

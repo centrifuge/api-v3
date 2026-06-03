@@ -1,4 +1,6 @@
 import type { Event, Context } from "ponder:registry";
+import { loadBasinConfig } from "../config/basin";
+import { linkBasinRedeemOrderToEpoch } from "../helpers/basinReconciliation";
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceLog, serviceError, expandInlineObject } from "../helpers/logger";
 import { snapshotter } from "../helpers/snapshotter";
@@ -10,8 +12,6 @@ import {
   RedeemOrderService,
   PendingInvestOrderService,
   PendingRedeemOrderService,
-  OutstandingInvestService,
-  OutstandingRedeemService,
   HoldingEscrowService,
   EpochOutstandingInvestService,
   EpochOutstandingRedeemService,
@@ -38,7 +38,6 @@ export async function updateDepositRequest({
 
   const { poolId, investor, ...args } = event.args;
   const tokenId = "shareClassId" in args ? args.shareClassId : args.scId;
-  const epochIndex = "epochId" in args ? args.epochId : args.epoch;
   const depositAssetId = "assetId" in args ? args.assetId : args.depositAssetId;
   const queuedUserAssetAmount =
     "queuedAmount" in args ? args.queuedAmount : args.queuedUserAssetAmount;
@@ -73,26 +72,6 @@ export async function updateDepositRequest({
   if (queuedUserAssetAmount === 0n) pendingInvestOrder.updatePendingAmount(pendingUserAssetAmount);
   await pendingInvestOrder.saveOrClear(event);
 
-  // TODO: DEPRECATED to be deleted in future releases
-  const outstandingInvest = (await OutstandingInvestService.getOrInit(
-    context,
-    {
-      poolId,
-      tokenId,
-      assetId: depositAssetId,
-      account: investorAddress,
-      depositAmount: queuedUserAssetAmount + pendingUserAssetAmount,
-      approvedAt: null,
-      approvedAtBlock: null,
-    },
-    event,
-    undefined,
-    true
-  )) as OutstandingInvestService;
-  await outstandingInvest
-    .processHubDepositRequest(queuedUserAssetAmount, pendingUserAssetAmount, epochIndex)
-    .saveOrClear(event);
-
   const epochOutstandingInvest = (await EpochOutstandingInvestService.getOrInit(
     context,
     {
@@ -123,7 +102,6 @@ export async function updateRedeemRequest({
   const _centrifugeId = await BlockchainService.getCentrifugeId(context);
   const { poolId, investor, ...args } = event.args;
   const tokenId = "shareClassId" in args ? args.shareClassId : args.scId;
-  const epochIndex = "epochId" in args ? args.epochId : args.epoch;
   const payoutAssetId = "payoutAssetId" in args ? args.payoutAssetId : args.assetId;
   const pendingUserShareAmount =
     "pendingUserShareAmount" in args ? args.pendingUserShareAmount : args.pendingAmount;
@@ -158,26 +136,6 @@ export async function updateRedeemRequest({
   if (queuedUserShareAmount === 0n) pendingRedeemOrder.updatePendingAmount(pendingUserShareAmount);
 
   await pendingRedeemOrder.saveOrClear(event);
-
-  // TODO: DEPRECATED to be deleted in future releases
-  const outstandingRedeem = (await OutstandingRedeemService.getOrInit(
-    context,
-    {
-      poolId,
-      tokenId,
-      assetId: payoutAssetId,
-      account: investorAddress,
-      depositAmount: queuedUserShareAmount + pendingUserShareAmount,
-      approvedAt: null,
-      approvedAtBlock: null,
-    },
-    event,
-    undefined,
-    true
-  )) as OutstandingRedeemService;
-  await outstandingRedeem
-    .processHubRedeemRequest(queuedUserShareAmount, pendingUserShareAmount, epochIndex)
-    .saveOrClear(event);
 
   const epochOutstandingRedeem = (await EpochOutstandingRedeemService.getOrInit(
     context,
@@ -292,21 +250,6 @@ export async function approveDeposits({
     holdingEscrows,
     HoldingEscrowSnapshot
   );
-
-  // TODO: DEPRECATED to be deleted in future releases
-  const outstandingInvests = (await OutstandingInvestService.query(context, {
-    tokenId,
-    assetId: depositAssetId,
-    depositAmount_not: 0n,
-  })) as OutstandingInvestService[];
-  const outstandingInvestSaves: Promise<OutstandingInvestService>[] = [];
-  for (const outstandingInvest of outstandingInvests) {
-    const { pendingAmount } = outstandingInvest.read();
-    const approvedAssetAmount = computeApprovedUserAmount(pendingAmount!, approvedPercentage);
-    outstandingInvest.approveInvest(approvedAssetAmount, epochIndex, event);
-    outstandingInvestSaves.push(outstandingInvest.clear(event));
-  }
-  await Promise.all(outstandingInvestSaves);
 }
 
 multiMapper("batchRequestManager:ApproveRedeems", approveRedeems);
@@ -396,6 +339,16 @@ export async function approveRedeems({
     redeemOrderSaves.push(redeemOrder.save(event));
     pendingRedeemOrder.updatePendingAmount(pendingSharesAmount - approvedUserShareAmount);
     pendingRedeemOrderSaves.push(pendingRedeemOrder.saveOrClear(event));
+
+    const basinCfg = loadBasinConfig(context);
+    if (basinCfg) {
+      await linkBasinRedeemOrderToEpoch(context, event, basinCfg, {
+        tokenId,
+        assetId: payoutAssetId,
+        account,
+        epochIndex,
+      });
+    }
   }
   await Promise.all([...redeemOrderSaves, ...pendingRedeemOrderSaves]);
 
@@ -410,21 +363,6 @@ export async function approveRedeems({
     holdingEscrows,
     HoldingEscrowSnapshot
   );
-
-  // TODO: DEPRECATED to be deleted in future releases
-  const outstandingRedeems = (await OutstandingRedeemService.query(context, {
-    tokenId,
-    assetId: payoutAssetId,
-    pendingAmount_not: 0n,
-  })) as OutstandingRedeemService[];
-  const outstandingRedeemSaves: Promise<OutstandingRedeemService>[] = [];
-  for (const outstandingRedeem of outstandingRedeems) {
-    const { pendingAmount } = outstandingRedeem.read();
-    const approvedShareAmount = computeApprovedUserAmount(pendingAmount!, approvedPercentage);
-    outstandingRedeem.approveRedeem(approvedShareAmount, epochIndex, event);
-    outstandingRedeemSaves.push(outstandingRedeem.clear(event));
-  }
-  await Promise.all(outstandingRedeemSaves);
 }
 
 multiMapper("batchRequestManager:IssueShares", issueShares);

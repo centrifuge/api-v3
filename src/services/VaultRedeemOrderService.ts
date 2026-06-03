@@ -63,9 +63,10 @@ export class VaultRedeemOrderService extends Service<typeof VaultRedeemOrder> {
    * @returns The service instance for method chaining
    */
   public saveOrClear(event: Event) {
-    if (this.data.requestedSharesAmount === 0n && this.data.claimableSharesAmount === 0n) {
-      return this.delete();
-    }
+    const clearing =
+      this.data.requestedSharesAmount === 0n && this.data.claimableSharesAmount === 0n;
+    serviceLog(`VaultRedeemOrder saveOrClear clearing=${clearing}`);
+    if (clearing) return this.delete();
     return this.save(event);
   }
 }

@@ -1,5 +1,6 @@
 import { EpochRedeemOrder } from "ponder:schema";
 import type { Event } from "ponder:registry";
+import { serviceLog } from "../helpers/logger";
 import { Service } from "./Service";
 import { timestamper } from "../helpers/timestamper";
 
@@ -30,6 +31,9 @@ export class EpochRedeemOrderService extends Service<typeof EpochRedeemOrder> {
     revokedWithNavAssetPerShare: bigint,
     event: Extract<Event, { transaction: any }>
   ) {
+    serviceLog(
+      `EpochRedeemOrder revokedShares poolId=${this.data.poolId} shares=${revokedSharesAmount}`
+    );
     this.data = {
       ...this.data,
       ...timestamper("revoked", event),

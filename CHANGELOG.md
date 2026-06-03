@@ -1,5 +1,27 @@
 # Changelog
 
+## [3.8.1](https://github.com/centrifuge/api-v3/compare/v3.8.0...v3.8.1) (2026-04-30)
+
+
+### Bug Fixes
+
+* correct operation priority when variating supply ([#376](https://github.com/centrifuge/api-v3/issues/376)) ([6cd1d1f](https://github.com/centrifuge/api-v3/commit/6cd1d1f5b1815e7555da40e9ad4de1398b4d4064))
+* scope investor position checkpoints to user accounts ([#362](https://github.com/centrifuge/api-v3/issues/362)) ([2bfbcad](https://github.com/centrifuge/api-v3/commit/2bfbcadf87f5de83f849537219ab8103a84a736a))
+
+## [3.8.0](https://github.com/centrifuge/api-v3/compare/v3.7.0...v3.8.0) (2026-04-22)
+
+
+### Features
+
+* add per user realized performance tracking ([#357](https://github.com/centrifuge/api-v3/issues/357)) ([807c18a](https://github.com/centrifuge/api-v3/commit/807c18a8c062602110afb146b8d6da011f18526f))
+* add tracking for rely and deny events on every contract ([#356](https://github.com/centrifuge/api-v3/issues/356)) ([97fd3ec](https://github.com/centrifuge/api-v3/commit/97fd3ecb3b15ccd7b8dfd56929513948b2a1874e))
+* track adapters per pool ([#353](https://github.com/centrifuge/api-v3/issues/353)) ([9b35e3b](https://github.com/centrifuge/api-v3/commit/9b35e3b87d425ffad6c9e234e6c1ac5d4d0c3b92))
+
+
+### Bug Fixes
+
+* test indexer stuck ([#359](https://github.com/centrifuge/api-v3/issues/359)) ([6c0d07d](https://github.com/centrifuge/api-v3/commit/6c0d07df72ae339d8d752d6eb4c752ce63efab95))
+
 ## [3.7.0](https://github.com/centrifuge/api-v3/compare/v3.6.0...v3.7.0) (2026-04-10)
 
 

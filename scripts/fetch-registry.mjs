@@ -9,8 +9,15 @@
  * REGISTRY_<versionSlug>_<pathSegmentsJoinedByUnderscore>, where versionSlug matches the generated
  * file key (e.g. v3.1 → 3_1). An optional leading "v" on the slug is accepted.
  * Example: REGISTRY_v3_1_chains_42161_deployment_startBlock=1234
+ * REGISTRY_ALL_<pathSegmentsJoinedByUnderscore> applies the same path to every resolved registry
+ * version (before per-version patches; version-specific keys win on collision).
+ * Example: REGISTRY_ALL_chains_42161_deployment_startBlock=1234
  * Path segments are split on "_"; values are coerced (numbers, booleans, null). Unrecognized keys
- * (e.g. REGISTRY_URL) are ignored because they do not start with a known version slug.
+ * (e.g. REGISTRY_URL) are ignored because they do not start with a known version slug or ALL_.
+ *
+ * SELECTED_REGISTRY_VERSIONS: optional comma-separated list of registry file slugs to emit
+ * (e.g. v3_1,v3_2 or 3_1,3_2). When unset, every version in the resolved chain is generated.
+ * Order follows the resolved chain (oldest → newest), not the env var order.
  */
 
 import { promises as fs } from "fs";
@@ -53,6 +60,77 @@ function registryVersionToFileSlug(rawVersion) {
     }
   }
   return parts.join("_");
+}
+
+/**
+ * Normalize a version slug from SELECTED_REGISTRY_VERSIONS (strip optional leading "v").
+ * @param {string} raw
+ * @returns {string}
+ */
+function normalizeRegistryVersionSlug(raw) {
+  return raw.trim().replace(/^v/i, "");
+}
+
+/**
+ * Parse SELECTED_REGISTRY_VERSIONS (comma-separated slugs). Returns null when unset/empty.
+ * @returns {string[] | null}
+ */
+function parseSelectedRegistryVersions() {
+  const raw = process.env.SELECTED_REGISTRY_VERSIONS;
+  if (raw == null || raw.trim() === "") return null;
+  const slugs = raw
+    .split(",")
+    .map((part) => normalizeRegistryVersionSlug(part))
+    .filter((slug) => slug.length > 0);
+  if (slugs.length === 0) return null;
+  return slugs;
+}
+
+/**
+ * Keep only registries whose file slug is listed in SELECTED_REGISTRY_VERSIONS.
+ * Preserves resolved-chain order. Throws when a requested slug is missing from the chain.
+ * @param {object[]} registryChain
+ * @param {string[]} versionSlugs
+ * @param {string[] | null} selectedSlugs
+ * @returns {{ registryChain: object[], versionSlugs: string[] }}
+ */
+function filterRegistryChainBySelectedVersions(registryChain, versionSlugs, selectedSlugs) {
+  if (selectedSlugs == null) {
+    return { registryChain, versionSlugs };
+  }
+  const selectedSet = new Set(selectedSlugs);
+  /** @type {object[]} */
+  const filteredChain = [];
+  /** @type {string[]} */
+  const filteredSlugs = [];
+  for (let i = 0; i < registryChain.length; i++) {
+    const slug = versionSlugs[i];
+    if (selectedSet.has(slug)) {
+      filteredChain.push(registryChain[i]);
+      filteredSlugs.push(slug);
+    }
+  }
+  const available = new Set(versionSlugs);
+  const missing = selectedSlugs.filter((slug) => !available.has(slug));
+  if (missing.length > 0) {
+    throw new Error(
+      `SELECTED_REGISTRY_VERSIONS: unknown or unavailable version(s): ${missing.join(", ")}. ` +
+        `Available in resolved chain: ${versionSlugs.join(", ")}`
+    );
+  }
+  if (filteredChain.length === 0) {
+    throw new Error(
+      `SELECTED_REGISTRY_VERSIONS matched no registries. ` +
+        `Requested: ${selectedSlugs.join(", ")}; available: ${versionSlugs.join(", ")}`
+    );
+  }
+  const skipped = versionSlugs.filter((slug) => !selectedSet.has(slug));
+  if (skipped.length > 0) {
+    console.log(
+      `SELECTED_REGISTRY_VERSIONS: emitting ${filteredSlugs.join(", ")} (skipping ${skipped.join(", ")})`
+    );
+  }
+  return { registryChain: filteredChain, versionSlugs: filteredSlugs };
 }
 
 /**
@@ -226,6 +304,28 @@ function parseRegistryPatchEnvValue(raw) {
   return raw;
 }
 
+const REGISTRY_ENV_PREFIX = "REGISTRY_";
+const REGISTRY_ALL_ENV_PREFIX = "REGISTRY_ALL_";
+
+/**
+ * Collect REGISTRY_ALL_<path> entries applied to every registry version.
+ * @returns {Array<{ segments: string[], value: unknown }>}
+ */
+function collectRegistryAllPatchesFromEnv() {
+  /** @type {Array<{ segments: string[], value: unknown }>} */
+  const patches = [];
+  for (const key of Object.keys(process.env)) {
+    if (!key.startsWith(REGISTRY_ALL_ENV_PREFIX)) continue;
+    const pathRest = key.slice(REGISTRY_ALL_ENV_PREFIX.length);
+    const segments = pathRest.split("_").filter((s) => s.length > 0);
+    if (segments.length === 0) continue;
+    const raw = process.env[key];
+    if (raw === undefined) continue;
+    patches.push({ segments, value: parseRegistryPatchEnvValue(raw) });
+  }
+  return patches;
+}
+
 /**
  * Collect REGISTRY_<versionSlug>_<path> entries for known version slugs (longest slug wins first).
  * @param {string[]} versionSlugs
@@ -235,11 +335,11 @@ function collectRegistryPatchesFromEnv(versionSlugs) {
   /** @type {Map<string, Array<{ segments: string[], value: unknown }>>} */
   const byVersion = new Map();
   const sorted = [...new Set(versionSlugs)].sort((a, b) => b.length - a.length);
-  const prefix = "REGISTRY_";
 
   for (const key of Object.keys(process.env)) {
-    if (!key.startsWith(prefix)) continue;
-    const rest = key.slice(prefix.length);
+    if (!key.startsWith(REGISTRY_ENV_PREFIX)) continue;
+    if (key.startsWith(REGISTRY_ALL_ENV_PREFIX)) continue;
+    const rest = key.slice(REGISTRY_ENV_PREFIX.length);
     let matchedSlug = null;
     let pathRest = null;
     for (const slug of sorted) {
@@ -354,14 +454,29 @@ async function main() {
         );
       }
     }
-    const versions = registryChain.map((registry) => registryVersionToFileSlug(registry.version));
+    const allVersionSlugs = registryChain.map((registry) =>
+      registryVersionToFileSlug(registry.version)
+    );
+    const selectedVersions = parseSelectedRegistryVersions();
+    const { registryChain: selectedChain, versionSlugs: versions } =
+      filterRegistryChainBySelectedVersions(registryChain, allVersionSlugs, selectedVersions);
+    const allPatches = collectRegistryAllPatchesFromEnv();
     const patchesByVersion = collectRegistryPatchesFromEnv(versions);
-    const patchedChain = registryChain.map((registry, index) => {
+    const patchedChain = selectedChain.map((registry, index) => {
       const slug = versions[index];
+      let out = registry;
+      if (allPatches.length) {
+        console.log(
+          `Applying ${allPatches.length} cross-version env patch(es) for registry ${slug}:`
+        );
+        out = applyLocalRegistryPatches(out, allPatches);
+      }
       const patches = patchesByVersion.get(slug);
-      if (!patches?.length) return registry;
-      console.log(`Applying ${patches.length} local env patch(es) for registry ${slug}:`);
-      return applyLocalRegistryPatches(registry, patches);
+      if (patches?.length) {
+        console.log(`Applying ${patches.length} local env patch(es) for registry ${slug}:`);
+        out = applyLocalRegistryPatches(out, patches);
+      }
+      return out;
     });
     await Promise.all(
       patchedChain.map((registry, index) => generateTypeScriptRegistry(registry, versions[index]))

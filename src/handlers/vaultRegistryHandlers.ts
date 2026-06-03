@@ -1,6 +1,7 @@
 import type { Event, Context } from "ponder:registry";
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceError } from "../helpers/logger";
+import { registerProtocolAddress } from "../helpers/protocolAddresses";
 import { VaultKinds } from "ponder:schema";
 import { BlockchainService, AssetService, VaultService } from "../services";
 import { getContractNameForAddress } from "../contracts";
@@ -77,6 +78,8 @@ export async function deployVault({
     },
     event
   )) as VaultService;
+
+  registerProtocolAddress(context.chain.id, vaultId);
 }
 
 multiMapper("vaultRegistry:LinkVault", linkVault);

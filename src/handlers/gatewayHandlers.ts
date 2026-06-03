@@ -1,7 +1,7 @@
 import { CrosschainMessage } from "ponder:schema";
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceError } from "../helpers/logger";
-import { BlockchainService } from "../services";
+import { BlockchainService, PoolAdapterService } from "../services";
 import type { DataWithoutDefaults } from "../services/Service";
 import { timestamper } from "../helpers/timestamper";
 
@@ -88,6 +88,22 @@ multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
     },
     event
   )) as CrosschainMessageService | null;
+
+  // TODO: move this event info to a proper in Hub.SetAdapters event.
+  const setPoolAdapters = PoolAdapterService.parseSetPoolAdaptersMessageData(data);
+  if (setPoolAdapters) {
+    await PoolAdapterService.setCrosschainInProgressFromMessage(
+      context,
+      {
+        localCentrifugeId: toCentrifugeId.toString(),
+        remoteCentrifugeId: fromCentrifugeId,
+        poolId: setPoolAdapters.poolId,
+        adapterAddresses: setPoolAdapters.adapterAddresses,
+        enabledTransition: true,
+      },
+      event
+    );
+  }
 });
 
 multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
@@ -354,12 +370,25 @@ multiMapper("gateway:FailMessage", async ({ event, context }) => {
     return;
   }
 
-  const { status, payloadId, payloadIndex: failPayloadIndex } = crosschainMessage.read();
+  const { status, payloadId, payloadIndex: failPayloadIndex, data } = crosschainMessage.read();
   if (status === "Failed") return;
 
   crosschainMessage.setStatus("Failed");
   crosschainMessage.setFailReason(error);
   await crosschainMessage.save(event);
+
+  const setPoolAdapters = PoolAdapterService.parseSetPoolAdaptersMessageData(data);
+  if (setPoolAdapters) {
+    await PoolAdapterService.clearCrosschainInProgress(
+      context,
+      {
+        localCentrifugeId: toCentrifugeId,
+        remoteCentrifugeId: fromCentrifugeId.toString(),
+        poolId: setPoolAdapters.poolId,
+      },
+      event
+    );
+  }
 
   if (!payloadId || failPayloadIndex == null)
     return serviceError("Payload ID and index are required");

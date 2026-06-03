@@ -35,6 +35,7 @@ export class TokenService extends Service<typeof Token> {
    * @returns The decimals of the token.
    */
   static async getDecimals(context: Context, tokenId: `0x${string}`) {
+    serviceLog(`Token getDecimals tokenId=${tokenId}`);
     const token = (await this.get(context, { id: tokenId })) as TokenService;
     if (!token) return undefined;
     const { decimals } = token.read();
@@ -113,9 +114,8 @@ export class TokenService extends Service<typeof Token> {
    * @throws {Error} When totalIssuance is null (not initialized)
    */
   public increaseTotalIssuance(tokenAmount: bigint) {
-    if (this.data.totalIssuance === null)
-      throw new Error(`totalIssuance for token ${this.data.id} is not set`);
-    this.data.totalIssuance += tokenAmount;
+    const { totalIssuance } = this.data;
+    this.data.totalIssuance = (totalIssuance ?? 0n) + tokenAmount;
     serviceLog(
       `Increased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`
     );
@@ -130,9 +130,8 @@ export class TokenService extends Service<typeof Token> {
    * @throws {Error} When totalIssuance is null (not initialized)
    */
   public decreaseTotalIssuance(tokenAmount: bigint) {
-    if (this.data.totalIssuance === null)
-      throw new Error(`totalIssuance for token ${this.data.id} is not set`);
-    this.data.totalIssuance -= tokenAmount;
+    const { totalIssuance } = this.data;
+    this.data.totalIssuance = (totalIssuance ?? 0n) - tokenAmount;
     serviceLog(
       `Decreased totalIssuance for token ${this.data.id} by ${tokenAmount} to ${this.data.totalIssuance}`
     );
@@ -145,10 +144,11 @@ export class TokenService extends Service<typeof Token> {
    * @returns The normalised TVL of the tokens in fixed point 18 precision.
    */
   static async getNormalisedTvl(context: Context | ReadOnlyContext) {
+    serviceLog("Token getNormalisedTvl");
     const tokens = (await TokenService.query(context, {
       isActive: true,
     })) as TokenService[];
-    return tokens.reduce((acc, token) => {
+    const tvl = tokens.reduce((acc, token) => {
       const { totalIssuance, tokenPrice, decimals } = token.read();
       if (!totalIssuance || !tokenPrice || !decimals) return acc;
       // totalIssuance is in 'decimals' precision, tokenPrice is in 18 precision
@@ -158,6 +158,8 @@ export class TokenService extends Service<typeof Token> {
       const product = totalIssuance * tokenPrice;
       return acc + product / 10n ** BigInt(decimals);
     }, 0n);
+    serviceLog("Token getNormalisedTvl result", tvl.toString());
+    return tvl;
   }
 
   /**
@@ -166,14 +168,17 @@ export class TokenService extends Service<typeof Token> {
    * @returns The normalised aggregated supply of the tokens in fixed point 18 precision.
    */
   static async getNormalisedAggregatedSupply(context: Context | ReadOnlyContext) {
+    serviceLog("Token getNormalisedAggregatedSupply");
     const tokens = (await TokenService.query(context, {})) as TokenService[];
-    return tokens.reduce((acc, token) => {
+    const supply = tokens.reduce((acc, token) => {
       const { totalIssuance, decimals } = token.read();
       if (!totalIssuance || !decimals) return acc;
       // totalIssuance is in 'decimals' precision, we want the result in 18 precision
       // We need to multiply by 10^18 / 10^decimals to normalize to 18 precision
       return acc + totalIssuance * 10n ** BigInt(18 - decimals);
     }, 0n);
+    serviceLog("Token getNormalisedAggregatedSupply result", supply.toString());
+    return supply;
   }
 
   /** Bounded distinct-on load: inception + latest price at each yield cap ≤ `asOf`. */
@@ -183,7 +188,10 @@ export class TokenService extends Service<typeof Token> {
     asOf: Date
   ): Promise<Map<`0x${string}`, TokenSnapshotPricePoint[]>> {
     const result = new Map<`0x${string}`, TokenSnapshotPricePoint[]>();
-    if (tokenIds.length === 0) return result;
+    if (tokenIds.length === 0) {
+      serviceLog("loadTokenSnapshotHistoryForYields", expandInlineObject({ tokenCount: 0 }));
+      return result;
+    }
     const uniqueIds = [...new Set(tokenIds)] as `0x${string}`[];
     const caps = yieldSnapshotCapTimes(asOf);
     serviceLog(
@@ -280,6 +288,10 @@ export class TokenService extends Service<typeof Token> {
     snapshotTokenPrice: bigint | null,
     snapshotAsOf: Date
   ): Promise<Record<string, bigint | null>> {
+    serviceLog(
+      "Token computeSnapshotYieldFields",
+      expandInlineObject({ tokenId, snapshotAsOf: snapshotAsOf.getTime() })
+    );
     const history = await this.loadTokenSnapshotHistoryForYields(context, [tokenId], snapshotAsOf);
     const sorted = sortTokenYieldPricePoints(history.get(tokenId) ?? []);
     return sanitizeTokenYieldSnapshotFields(

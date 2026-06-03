@@ -1,6 +1,6 @@
 {
   "name": "@centrifuge/api-v3",
-  "version": "3.7.0",
+  "version": "3.8.1",
   "repository": "https://github.com/centrifuge/api-v3",
   "private": false,
   "type": "module",
@@ -35,7 +35,7 @@
     "bn.js": "^5.2.3",
     "dotenv": "^16.3.1",
     "drizzle-orm": "0.41.0",
-    "hono": "^4.9.12",
+    "hono": "^4.11.10",
     "node-fetch": "^3.3.2",
     "pg": "^8.11.3",
     "pg-copy-streams": "^6.0.6",
@@ -65,6 +65,7 @@
     "prettier": "^3.8.0",
     "typescript": "^5.9.3"
   },
+  "packageManager": "pnpm@10.15.1",
   "engines": {
     "node": ">=22"
   },
@@ -78,6 +79,9 @@
       "eslint>ajv": "^6.12.6",
       "@eslint/eslintrc>ajv": "^6.12.6",
       "rollup": "^4.59.0"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

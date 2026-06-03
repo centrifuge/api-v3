@@ -1,5 +1,6 @@
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent } from "../helpers/logger";
+import { registerProtocolAddress } from "../helpers/protocolAddresses";
 import { BlockchainService, EscrowService } from "../services";
 
 multiMapper("poolEscrowFactory:DeployPoolEscrow", async ({ event, context }) => {
@@ -16,4 +17,6 @@ multiMapper("poolEscrowFactory:DeployPoolEscrow", async ({ event, context }) => 
     },
     event
   )) as EscrowService | null;
+
+  registerProtocolAddress(context.chain.id, escrowAddress);
 });

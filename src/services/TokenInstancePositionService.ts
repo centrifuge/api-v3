@@ -30,7 +30,24 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    * @returns {TokenPositionService} The current service instance for method chaining
    */
   public addBalance(amount: bigint) {
+    serviceLog(
+      `TokenInstancePosition addBalance account=${this.data.accountAddress} amount=${amount}`
+    );
     this.data.balance = (this.data.balance ?? 0n) + amount;
+    return this;
+  }
+
+  /**
+   * Sets the balance for the token position.
+   *
+   * @param amount - The balance amount to set
+   * @returns The current service instance for method chaining
+   */
+  public setBalance(amount: bigint) {
+    serviceLog(
+      `TokenInstancePosition setBalance account=${this.data.accountAddress} amount=${amount}`
+    );
+    this.data.balance = amount;
     return this;
   }
 
@@ -41,7 +58,90 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    * @returns {TokenPositionService} The current service instance for method chaining
    */
   public subBalance(amount: bigint) {
+    serviceLog(
+      `TokenInstancePosition subBalance account=${this.data.accountAddress} amount=${amount}`
+    );
     this.data.balance = (this.data.balance ?? 0n) - amount;
+    return this;
+  }
+
+  /**
+   * Sets the token price observed on the latest balance change.
+   *
+   * @param price - The token price in WAD precision
+   * @returns The current service instance for method chaining
+   */
+  public setTokenPriceAtLastChange(price: bigint | null) {
+    serviceLog(
+      `TokenInstancePosition setTokenPriceAtLastChange account=${this.data.accountAddress} price=${price}`
+    );
+    this.data.tokenPriceAtLastChange = price;
+    return this;
+  }
+
+  /**
+   * Sets cumulative period earnings for the position.
+   *
+   * @param amount - The cumulative earnings amount
+   * @returns The current service instance for method chaining
+   */
+  public setCumulativeEarnings(amount: bigint) {
+    serviceLog(
+      `TokenInstancePosition setCumulativeEarnings account=${this.data.accountAddress} amount=${amount}`
+    );
+    this.data.cumulativeEarnings = amount;
+    return this;
+  }
+
+  /**
+   * Sets the live cost basis for the position.
+   *
+   * @param amount - The new cost basis
+   * @returns The current service instance for method chaining
+   */
+  public setCostBasis(amount: bigint) {
+    serviceLog(
+      `TokenInstancePosition setCostBasis account=${this.data.accountAddress} amount=${amount}`
+    );
+    this.data.costBasis = amount;
+    return this;
+  }
+
+  /**
+   * Sets cumulative realized pnl for the position.
+   *
+   * @param amount - The cumulative realized pnl amount
+   * @returns The current service instance for method chaining
+   */
+  public setCumulativeRealizedPnl(amount: bigint) {
+    serviceLog(
+      `TokenInstancePosition setCumulativeRealizedPnl account=${this.data.accountAddress} amount=${amount}`
+    );
+    this.data.cumulativeRealizedPnl = amount;
+    return this;
+  }
+
+  /**
+   * Applies checkpoint-derived accounting state to the latest position view.
+   *
+   * @param checkpoint - Derived accounting values for the position
+   * @returns The current service instance for method chaining
+   */
+  public applyCheckpointAccounting(checkpoint: {
+    balanceAfter: bigint;
+    tokenPrice: bigint;
+    cumulativeEarnings: bigint;
+    costBasisAfter: bigint;
+    cumulativeRealizedPnl: bigint;
+  }) {
+    serviceLog(
+      `TokenInstancePosition applyCheckpointAccounting account=${this.data.accountAddress} balanceAfter=${checkpoint.balanceAfter}`
+    );
+    this.data.balance = checkpoint.balanceAfter;
+    this.data.tokenPriceAtLastChange = checkpoint.tokenPrice;
+    this.data.cumulativeEarnings = checkpoint.cumulativeEarnings;
+    this.data.costBasis = checkpoint.costBasisAfter;
+    this.data.cumulativeRealizedPnl = checkpoint.cumulativeRealizedPnl;
     return this;
   }
 
@@ -51,6 +151,7 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    * @returns {TokenPositionService} The current service instance for method chaining
    */
   public freeze() {
+    serviceLog(`TokenInstancePosition freeze account=${this.data.accountAddress}`);
     this.data.isFrozen = true;
     return this;
   }
@@ -61,6 +162,7 @@ export class TokenInstancePositionService extends Service<typeof TokenInstancePo
    * @returns {TokenPositionService} The current service instance for method chaining
    */
   public unfreeze() {
+    serviceLog(`TokenInstancePosition unfreeze account=${this.data.accountAddress}`);
     this.data.isFrozen = false;
     return this;
   }

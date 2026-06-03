@@ -144,7 +144,7 @@ type ValidFactoryConfig<
 
 type ValidAdditionalMappingEntry<
   V extends RegistryVersions,
-  MappingAbi extends AbiName<V> | AbiName<V>[] | DirectAbi,
+  MappingAbi extends AbiName<V> | readonly AbiMappingElement<V>[] | DirectAbi,
   FactoryAbi extends AbiName<V>,
   EventName extends AbiEventName<V, FactoryAbi>,
   EventParameter extends string,
@@ -161,11 +161,7 @@ type SingleContractConfig<V extends RegistryVersions, N extends AbiName<V>> = {
   [K in ContractKeys<V, N>]: {
     abi: AbiItem<V, N>;
     chain: {
-      [K in NetworkNames<V>]: {
-        address: `0x${string}`;
-        startBlock: number;
-        endBlock: number | undefined;
-      };
+      [K in NetworkNames<V>]: PonderChainEntry;
     };
   };
 };
@@ -174,14 +170,41 @@ type MultipleContractsConfig<V extends RegistryVersions, A extends AbiName<V>> =
   [K in A as ContractKeys<V, K>]: {
     abi: AbiItem<V, K>;
     chain: {
-      [ChainKey in NetworkNames<V>]: {
-        address: `0x${string}`;
-        startBlock: number;
-        endBlock?: number;
-      };
+      [ChainKey in NetworkNames<V>]: PonderChainEntry;
     };
   };
 };
+
+type AbiMappingElement<V extends RegistryVersions> = AbiName<V> | DirectAbi;
+type PonderChainEntry = {
+  address: `0x${string}` | ReturnType<typeof factory>;
+  startBlock: number;
+  endBlock?: number;
+};
+
+type AbiEntry<TAbi extends Abi> = TAbi extends readonly (infer Item)[] ? Item : never;
+
+type ResolvedAbiEntry<V extends RegistryVersions, T> =
+  T extends AbiName<V>
+    ? AbiItem<V, T> extends Abi
+      ? AbiEntry<AbiItem<V, T>>
+      : never
+    : T extends readonly AbiMappingElement<V>[]
+      ? never
+      : T extends Abi
+        ? AbiEntry<T>
+        : never;
+
+type ResolvedAbiFromInput<V extends RegistryVersions, T> =
+  T extends AbiName<V>
+    ? AbiItem<V, T> extends Abi
+      ? AbiItem<V, T>
+      : Abi
+    : T extends readonly AbiMappingElement<V>[]
+      ? readonly ResolvedAbiEntry<V, T[number]>[]
+      : T extends Abi
+        ? T
+        : Abi;
 
 type AdditionalMappingsContracts<
   V extends RegistryVersions,
@@ -190,21 +213,9 @@ type AdditionalMappingsContracts<
 > = {
   [Key in K]: Key extends keyof AM
     ? {
-        // Preserve exact ABI type from input mapping for Ponder's type system
-        // This allows event type extraction from const ABIs
-        abi: AM[Key]["abi"] extends readonly unknown[]
-          ? AM[Key]["abi"] extends AbiName<V>[]
-            ? AbiItem<V, AM[Key]["abi"][number]>
-            : AM[Key]["abi"] // Direct ABI - preserve exact type for event inference
-          : AM[Key]["abi"] extends AbiName<V>
-            ? AbiItem<V, AM[Key]["abi"]>
-            : Abi;
+        abi: ResolvedAbiFromInput<V, AM[Key]["abi"]>;
         chain: {
-          [ChainKey in NetworkNames<V>]: {
-            address: `0x${string}`;
-            startBlock: number;
-            endBlock?: number;
-          };
+          [ChainKey in NetworkNames<V>]: PonderChainEntry;
         };
       }
     : never;
@@ -232,11 +243,22 @@ type ValidateMappingEntry<
   FactoryAbi extends AbiName<V>,
   EventName,
   EventParameter,
-> = MappingAbi extends AbiName<V> | AbiName<V>[] | DirectAbi
-  ? EventName extends AbiEventName<V, FactoryAbi>
-    ? ValidAdditionalMappingEntry<V, MappingAbi, FactoryAbi, EventName, EventParameter & string>
-    : never
-  : never;
+> =
+  EventName extends AbiEventName<V, FactoryAbi>
+    ? MappingAbi extends DirectAbi
+      ? ValidAdditionalMappingEntry<V, MappingAbi, FactoryAbi, EventName, EventParameter & string>
+      : MappingAbi extends readonly AbiMappingElement<V>[]
+        ? ValidAdditionalMappingEntry<V, MappingAbi, FactoryAbi, EventName, EventParameter & string>
+        : MappingAbi extends AbiName<V>
+          ? ValidAdditionalMappingEntry<
+              V,
+              MappingAbi,
+              FactoryAbi,
+              EventName,
+              EventParameter & string
+            >
+          : never
+    : never;
 
 type AdditionalMappingsConstraint<
   V extends RegistryVersions,
@@ -253,6 +275,21 @@ type AdditionalMappingsConstraint<
     ? ValidateMappingEntry<V, MappingAbi, FactoryAbi, EventName, EventParameter>
     : never;
 };
+
+/**
+ * Type guard to check if an ABI is a direct ABI.
+ * @param abi - The ABI to check.
+ * @returns True if the ABI is a direct ABI, false otherwise.
+ */
+function isDirectAbi(abi: unknown): abi is Abi {
+  return (
+    Array.isArray(abi) &&
+    abi.length > 0 &&
+    isValidAbiItem(abi[0]) &&
+    isValidAbiType(abi[0]) &&
+    isValidAbi(abi)
+  );
+}
 
 // ============================================================================
 // Main Function
@@ -306,7 +343,7 @@ export function decorateDeploymentContracts<
   const additionalMappingsContracts = Object.entries(additionalMappings).map(
     ([mappingName, mapping]) => {
       const m = mapping as {
-        abi: AbiName<V> | AbiName<V>[] | DirectAbi;
+        abi: AbiName<V> | readonly AbiMappingElement<V>[] | DirectAbi;
         factory: {
           abi: AbiName<V>;
           eventName: AbiEventName<V, AbiName<V>>;
@@ -314,42 +351,38 @@ export function decorateDeploymentContracts<
         };
       };
 
-      // Detect if ABI is a direct ABI (bypassing registry)
-      // Improved detection: checks for valid ABI structure with proper type validation
-      const isDirectAbi =
-        Array.isArray(m.abi) &&
-        m.abi.length > 0 &&
-        isValidAbiItem(m.abi[0]) &&
-        isValidAbiType(m.abi[0]) &&
-        isValidAbi(m.abi);
-
       // Resolve ABI: preserve exact type for direct ABIs, resolve registry ABIs
       let resolvedAbi: Abi;
-      if (isDirectAbi) {
+
+      // Detect if ABI is a direct ABI (bypassing registry)
+      // Improved detection: checks for valid ABI structure with proper type validation
+      if (isDirectAbi(m.abi)) {
         // Direct ABI - preserve exact type for Ponder event inference
-        resolvedAbi = m.abi as Abi;
+        resolvedAbi = m.abi;
       } else if (Array.isArray(m.abi)) {
-        // Array of ABI names - validate all exist and merge them
-        const missingAbis = m.abi.filter((name) => !abis[name as AbiName<V>]);
-        if (missingAbis.length > 0) {
-          throw new Error(
-            `ABIs not found in registry version "${registryVersion}": ${missingAbis.join(
-              ", "
-            )}. Available ABIs: ${Object.keys(abis).join(", ")}`
-          );
+        // TODO: Tighten debugging — e.g. throw on missing registry ABI names in production CI,
+        // warn-only in local dev, plus optional validation that merged ABI still exposes events
+        // handlers rely on (catch typos / partial merges without silent no-ops).
+        const abiParts: Abi[] = [];
+        for (const abiPart of m.abi) {
+          if (isDirectAbi(abiPart)) {
+            abiParts.push(abiPart);
+          } else if (typeof abiPart === "string") {
+            const resolved = abis[abiPart as AbiName<V>];
+            if (!resolved) {
+              // throw warning
+              process.stdout.write(
+                `WARNING: ABI "${abiPart}" not found in registry version "${registryVersion}" skipping...\n`
+              );
+            } else {
+              abiParts.push(resolved as Abi);
+            }
+          } else {
+            throw new Error(`Invalid ABI part: ${JSON.stringify(abiPart)}`);
+          }
         }
 
-        // Map ABI names to actual ABIs and merge
-        const abiArray = m.abi.map((abiName) => {
-          const resolved = abis[abiName as AbiName<V>];
-          if (!resolved) {
-            throw new Error(`ABI "${abiName}" not found in registry version "${registryVersion}"`);
-          }
-          // Type assertion: registry ABIs are guaranteed to be valid Abi types
-          return resolved as Abi;
-        });
-
-        resolvedAbi = mergeAbis(abiArray);
+        resolvedAbi = mergeAbis(abiParts);
       } else {
         // Single ABI name - validate it exists
         const abiName = m.abi as AbiName<V>;
