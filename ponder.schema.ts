@@ -709,6 +709,7 @@ export const Asset = onchainTable("asset", AssetColumns, (t) => ({
   centrifugeIdIdx: index().on(t.centrifugeId),
   addressIdx: index().on(t.address),
   centrifugeIdAddressIdx: index().on(t.centrifugeId, t.address),
+  centrifugeIdAddressAssetTokenIdIdx: index().on(t.centrifugeId, t.address, t.assetTokenId),
 }));
 export const AssetRelations = relations(Asset, ({ one, many }) => ({
   blockchain: one(Blockchain, {
@@ -878,8 +879,8 @@ export const HoldingEscrowRelations = relations(HoldingEscrow, ({ one }) => ({
     references: [Holding.tokenId, Holding.assetId],
   }),
   asset: one(Asset, {
-    fields: [HoldingEscrow.assetAddress],
-    references: [Asset.address],
+    fields: [HoldingEscrow.assetId],
+    references: [Asset.id],
   }),
   escrow: one(Escrow, {
     fields: [HoldingEscrow.escrowAddress, HoldingEscrow.centrifugeId],

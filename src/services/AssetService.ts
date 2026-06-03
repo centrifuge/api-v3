@@ -1,7 +1,7 @@
 import { Context } from "ponder:registry";
 import { Asset } from "ponder:schema";
-import { serviceLog } from "../helpers/logger";
-import { Service } from "./Service";
+import { serviceLog, serviceWarn } from "../helpers/logger";
+import { Service, type ReadOnlyContext } from "./Service";
 
 /**
  * Service class for managing Asset entities in the database.
@@ -53,6 +53,40 @@ export class AssetService extends Service<typeof Asset> {
     if (!asset) return undefined;
     const { decimals } = asset.read();
     return decimals;
+  }
+
+  /**
+   * Resolves an asset by its full identity `(centrifugeId, address, assetTokenId)`.
+   *
+   * This is the correct lookup for ERC-6909 assets, where a single contract `address` holds many
+   * tokens distinguished by `assetTokenId` (ERC-20 is the `assetTokenId = 0` case). Looking up by
+   * `address` alone is ambiguous for ERC-6909 and must not be used to derive an `assetId`.
+   *
+   * If more than one asset matches — a duplicate on-chain registration assigning two `assetId`s to
+   * the same token — this returns the lowest `id` deterministically and logs a warning, rather than
+   * failing, so indexing stays stable. The underlying duplicate must be resolved on-chain.
+   *
+   * @param context - Database context
+   * @param query - The chain, contract address, and ERC-6909 token id
+   * @returns The matching asset (lowest id if several), or `null` when none is registered
+   */
+  static async getByToken(
+    context: Context | ReadOnlyContext,
+    query: { centrifugeId: string; address: `0x${string}`; assetTokenId: bigint }
+  ): Promise<AssetService | null> {
+    const assets = (await AssetService.query(context, {
+      ...query,
+      _sort: [{ field: "id", direction: "asc" }],
+    })) as AssetService[];
+    if (assets.length > 1) {
+      serviceWarn(
+        `Multiple assets registered for (centrifugeId=${query.centrifugeId}, ` +
+          `address=${query.address}, assetTokenId=${query.assetTokenId}) ` +
+          `[ids: ${assets.map((a) => a.read().id).join(", ")}] — using lowest id. ` +
+          `Likely duplicate on-chain registration; resolve idempotency on-chain.`
+      );
+    }
+    return assets[0] ?? null;
   }
 }
 

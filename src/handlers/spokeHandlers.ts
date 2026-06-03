@@ -1,5 +1,5 @@
 import { multiMapper } from "../helpers/multiMapper";
-import { logEvent, serviceError } from "../helpers/logger";
+import { logEvent, serviceError, serviceWarn } from "../helpers/logger";
 import {
   BlockchainService,
   AssetService,
@@ -34,6 +34,24 @@ multiMapper("spoke:RegisterAsset", async ({ event, context }) => {
   } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
+
+  // Detect a duplicate registration: the same (chain, address, ERC-6909 tokenId) already registered
+  // under a different assetId. The assetId is assigned on-chain, so both rows are recorded faithfully;
+  // this surfaces the anomaly. Idempotency per (chain, address, tokenId) must be enforced on-chain.
+  const existingForToken = await AssetService.query(context, {
+    centrifugeId,
+    address: assetAddress,
+    assetTokenId,
+  });
+  const duplicate = existingForToken.find((existing) => existing.read().id !== assetId);
+  if (duplicate) {
+    serviceWarn(
+      `Duplicate asset registration for (centrifugeId=${centrifugeId}, address=${assetAddress}, ` +
+        `assetTokenId=${assetTokenId}): existing assetId ${duplicate.read().id}, new assetId ${assetId}. ` +
+        `Recording both; resolve idempotency on-chain.`
+    );
+  }
+
   const _asset = (await AssetService.upsert(
     context,
     {
@@ -151,6 +169,7 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
     poolId: poolId,
     scId: tokenId,
     asset: assetAddress,
+    tokenId: assetTokenId,
     price: assetPrice,
     //computedAt,
   } = event.args;
@@ -164,17 +183,16 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
   }
   const { address: escrowAddress } = escrow.read();
 
-  const assetQuery = await AssetService.query(context, {
-    address: assetAddress,
+  const asset = await AssetService.getByToken(context, {
     centrifugeId,
+    address: assetAddress,
+    assetTokenId,
   });
-  if (assetQuery.length !== 1) {
+  if (!asset) {
     serviceError(`Asset not found. Cannot retrieve assetId for holding escrow`);
     return;
   }
-
-  const asset = assetQuery.pop();
-  const { id: assetId } = asset!.read();
+  const { id: assetId } = asset.read();
 
   const holdingEscrow = (await HoldingEscrowService.getOrInit(
     context,
@@ -207,7 +225,13 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
 multiMapper("spoke:UpdateMaxAssetPriceAge", async ({ event, context }) => {
   logEvent(event, context, "spoke:UpdateMaxAssetPriceAge");
 
-  const { poolId, scId: tokenId, asset: assetAddress, maxPriceAge } = event.args;
+  const {
+    poolId,
+    scId: tokenId,
+    asset: assetAddress,
+    tokenId: assetTokenId,
+    maxPriceAge,
+  } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
@@ -218,17 +242,16 @@ multiMapper("spoke:UpdateMaxAssetPriceAge", async ({ event, context }) => {
   }
   const { address: escrowAddress } = escrow.read();
 
-  const assetQuery = await AssetService.query(context, {
-    address: assetAddress,
+  const asset = await AssetService.getByToken(context, {
     centrifugeId,
+    address: assetAddress,
+    assetTokenId,
   });
-  if (assetQuery.length !== 1) {
+  if (!asset) {
     serviceError(`Asset not found. Cannot retrieve assetId for holding escrow`);
     return;
   }
-
-  const asset = assetQuery.pop();
-  const { id: assetId } = asset!.read();
+  const { id: assetId } = asset.read();
 
   const holdingEscrow = (await HoldingEscrowService.getOrInit(
     context,

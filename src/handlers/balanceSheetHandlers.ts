@@ -13,14 +13,22 @@ import { HoldingEscrowSnapshot } from "ponder:schema";
 
 multiMapper("balanceSheet:NoteDeposit", async ({ event, context }) => {
   logEvent(event, context, "balanceSheet:NoteDeposit");
-  const { poolId, scId: tokenId, asset: assetAddress, amount, pricePoolPerAsset } = event.args;
+  const {
+    poolId,
+    scId: tokenId,
+    asset: assetAddress,
+    tokenId: assetTokenId,
+    amount,
+    pricePoolPerAsset,
+  } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const asset = (await AssetService.get(context, {
-    address: assetAddress,
+  const asset = await AssetService.getByToken(context, {
     centrifugeId,
-  })) as AssetService | null;
+    address: assetAddress,
+    assetTokenId,
+  });
   if (!asset) return serviceError(`Asset not found. Cannot retrieve assetId for holding escrow`);
   const { id: assetId } = asset.read();
 
@@ -61,14 +69,22 @@ multiMapper("balanceSheet:NoteDeposit", async ({ event, context }) => {
 
 multiMapper("balanceSheet:Withdraw", async ({ event, context }) => {
   logEvent(event, context, "balanceSheet:Withdraw");
-  const { poolId, scId: tokenId, asset: assetAddress, amount, pricePoolPerAsset } = event.args;
+  const {
+    poolId,
+    scId: tokenId,
+    asset: assetAddress,
+    tokenId: assetTokenId,
+    amount,
+    pricePoolPerAsset,
+  } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const asset = (await AssetService.get(context, {
-    address: assetAddress,
+  const asset = await AssetService.getByToken(context, {
     centrifugeId,
-  })) as AssetService | null;
+    address: assetAddress,
+    assetTokenId,
+  });
   if (!asset) return serviceError(`Asset not found. Cannot retrieve assetId for holding escrow`);
   const { id: assetId } = asset.read();
 
