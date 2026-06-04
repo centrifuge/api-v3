@@ -3,8 +3,8 @@ import { Asset } from "ponder:schema";
 import { serviceLog, serviceWarn } from "../helpers/logger";
 import { Service, type ReadOnlyContext } from "./Service";
 
-/** ERC-6909 token id used for vault-indexed assets; vaults support ERC-20 only (`tokenId = 0`). */
-export const VAULT_ERC20_ASSET_TOKEN_ID = 0n;
+/** ERC-6909 token id for vault-indexed assets; vaults support ERC-20 only (`tokenId = 0`). */
+const VAULT_ERC20_ASSET_TOKEN_ID = 0n;
 
 /**
  * Service class for managing Asset entities in the database.
@@ -62,7 +62,7 @@ export class AssetService extends Service<typeof Asset> {
    * Resolves the ERC-20 asset for a vault deploy or sync-manager event (`assetTokenId = 0`).
    *
    * Vault indexing does not support ERC-6909 multi-token assets yet; event `tokenId` fields on
-   * `DeployVault` / `SetMaxReserve` are ignored in favour of {@link VAULT_ERC20_ASSET_TOKEN_ID}.
+   * `DeployVault` / `SetMaxReserve` are ignored in favour of `assetTokenId = 0`.
    *
    * @param context - Database context
    * @param query - Chain and vault asset contract address

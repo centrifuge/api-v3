@@ -406,7 +406,7 @@ async function handleOnOfframpUpdate(
     }
     const onRampAsset = (await OnRampAssetService.getOrInit(
       context,
-      { poolId, centrifugeId, tokenId, assetId, assetAddress },
+      { poolId, centrifugeId, tokenId, assetAddress },
       event,
       undefined,
       true
@@ -451,7 +451,6 @@ async function handleOnOfframpUpdate(
         poolId,
         centrifugeId,
         tokenId,
-        assetId,
         assetAddress: formatBytes32ToAddress(rawAssetAddress),
         receiverAddress: formatBytes32ToAddress(receiverAddress),
       },

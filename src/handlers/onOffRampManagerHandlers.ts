@@ -7,7 +7,7 @@ import {
   OnOffRampManagerService,
 } from "../services";
 import { logEvent, serviceError } from "../helpers/logger";
-import { AssetService, OnRampAssetService } from "../services";
+import { OnRampAssetService } from "../services";
 
 multiMapper("onOfframpManagerFactory:DeployOnOfframpManager", async ({ event, context }) => {
   logEvent(event, context, "onOffRampManagerFactory:DeployOnOffRampManager");
@@ -81,24 +81,9 @@ multiMapper("onOfframpManager:UpdateOnramp", async ({ event, context }) => {
 
   const { poolId, tokenId } = onOffRampManager.read();
 
-  // Spoke UpdateOnramp ABI exposes `address asset` only; ERC-20 is tokenId 0 until the contract adds tokenId.
-  const indexedAsset = await AssetService.getByToken(context, {
-    centrifugeId,
-    address: asset,
-    assetTokenId: 0n,
-  });
-  if (!indexedAsset) {
-    serviceError(
-      `Asset not found for on-ramp update (centrifugeId=${centrifugeId}, address=${asset}, assetTokenId=0)`
-    );
-    return;
-  }
-  const { id: assetId } = indexedAsset.read();
-
   const onRampAsset = (await OnRampAssetService.getOrInit(
     context,
     {
-      assetId,
       assetAddress: asset,
       poolId,
       centrifugeId,
@@ -137,26 +122,12 @@ multiMapper("onOfframpManager:UpdateOfframp", async ({ event, context }) => {
   )) as AccountService;
   const { address: receiverAddress } = receiverAccount.read();
 
-  const indexedAsset = await AssetService.getByToken(context, {
-    centrifugeId,
-    address: asset,
-    assetTokenId: 0n,
-  });
-  if (!indexedAsset) {
-    serviceError(
-      `Asset not found for off-ramp update (centrifugeId=${centrifugeId}, address=${asset}, assetTokenId=0)`
-    );
-    return;
-  }
-  const { id: assetId } = indexedAsset.read();
-
   const offRampAddress = (await OffRampAddressService.getOrInit(
     context,
     {
       poolId,
       centrifugeId,
       tokenId,
-      assetId,
       assetAddress: asset,
       receiverAddress,
     },
