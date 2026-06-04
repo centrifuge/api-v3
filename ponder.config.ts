@@ -4,9 +4,8 @@ import { decorateDeploymentContracts } from "./src/contracts";
 import { logIndexingPlan } from "./src/helpers/logger";
 import { ERC20Abi } from "./abis/ERC20";
 import { V3_1_MIGRATION_BLOCKS } from "./src/config";
-// TODO: enable basin
-// import { GrooveBasinAbi } from "./abis/GrooveBasin";
-// import { BASIN_MAINNET_STATIC } from "./src/config/basin";
+import { GrooveBasinAbi } from "./abis/GrooveBasin";
+import { getGroveBasinPonderChain } from "./src/config/basin";
 
 export const contractsV3 = decorateDeploymentContracts(
   "v3",
@@ -165,19 +164,17 @@ export const contractsV3_1 = decorateDeploymentContracts(
 );
 
 const protocolContracts = { ...contractsV3, ...contractsV3_1 };
+const groveBasinChain = getGroveBasinPonderChain() as Record<
+  string,
+  { address: `0x${string}`; startBlock: number }
+>;
 
 export const contracts = {
   ...protocolContracts,
-  // TODO: enable basin
-  // groveBasin: {
-  //   abi: GrooveBasinAbi,
-  //   chain: {
-  //     ethereum: {
-  //       address: BASIN_MAINNET_STATIC.basinAddress,
-  //       startBlock: BASIN_MAINNET_STATIC.startBlock,
-  //     },
-  //   },
-  // },
+  groveBasin: {
+    abi: GrooveBasinAbi,
+    chain: groveBasinChain,
+  },
 } as const;
 
 logIndexingPlan(contracts, blocks);
