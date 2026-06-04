@@ -45,7 +45,7 @@ export function logEvent(event: Event, context: Context, name?: string) {
       }, [])
     : ["{}"];
   process.stdout.write(
-    `Received event ${name} on block ${block.number} with chainId ${chain.id}, timestamp ${date.toISOString()}, args: ${eventDetails.join(", ")}, txHash: ${transaction?.hash || "unknown"}\n`
+    `Received event ${name} on block ${block.number} with chainId ${chain?.id}, timestamp ${date.toISOString()}, args: ${eventDetails.join(", ")}, txHash: ${transaction?.hash || "unknown"}\n`
   );
 }
 
@@ -187,5 +187,11 @@ export function logIndexingPlan(contracts: ContractsConfig, blocks: BlocksConfig
   process.stdout.write("[index] === contracts ===\n");
   for (const { line } of contractLines) {
     process.stdout.write(`${line}\n`);
+  }
+
+  if (blockLines.length === 0 && contractLines.length === 0) {
+    process.stdout.write(
+      "[index] WARNING: No chains in indexing plan. Check SELECTED_NETWORKS matches generated registry (ENVIRONMENT=testnet pnpm update-registry for Sepolia 11155111).\n"
+    );
   }
 }
