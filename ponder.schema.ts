@@ -217,8 +217,8 @@ export const VaultRelations = relations(Vault, ({ one }) => ({
     references: [Token.id],
   }),
   asset: one(Asset, {
-    fields: [Vault.assetAddress],
-    references: [Asset.address],
+    fields: [Vault.assetId],
+    references: [Asset.id],
   }),
   tokenInstance: one(TokenInstance, {
     fields: [Vault.tokenId],
@@ -709,6 +709,7 @@ export const Asset = onchainTable("asset", AssetColumns, (t) => ({
   centrifugeIdIdx: index().on(t.centrifugeId),
   addressIdx: index().on(t.address),
   centrifugeIdAddressIdx: index().on(t.centrifugeId, t.address),
+  centrifugeIdAddressAssetTokenIdIdx: index().on(t.centrifugeId, t.address, t.assetTokenId),
 }));
 export const AssetRelations = relations(Asset, ({ one, many }) => ({
   blockchain: one(Blockchain, {
@@ -878,8 +879,8 @@ export const HoldingEscrowRelations = relations(HoldingEscrow, ({ one }) => ({
     references: [Holding.tokenId, Holding.assetId],
   }),
   asset: one(Asset, {
-    fields: [HoldingEscrow.assetAddress],
-    references: [Asset.address],
+    fields: [HoldingEscrow.assetId],
+    references: [Asset.id],
   }),
   escrow: one(Escrow, {
     fields: [HoldingEscrow.escrowAddress, HoldingEscrow.centrifugeId],
@@ -982,16 +983,14 @@ const OnRampAssetColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   assetAddress: t.hex().notNull(),
   isEnabled: t.boolean().notNull().default(false),
-  crosschainInProgress: OnRampAssetCrosschainInProgress(
-    "on_ramp_asset_crosschain_in_progress"
-  ),
+  crosschainInProgress: OnRampAssetCrosschainInProgress("on_ramp_asset_crosschain_in_progress"),
   ...defaultColumns(t),
 });
 
 export const OnRampAsset = onchainTable("on_ramp_asset", OnRampAssetColumns, (t) => ({
   id: primaryKey({ columns: [t.tokenId, t.centrifugeId, t.assetAddress] }),
   tokenIdx: index().on(t.tokenId),
-  assetIdx: index().on(t.assetAddress),
+  assetAddressIdx: index().on(t.assetAddress),
   centrifugeIdIdx: index().on(t.centrifugeId),
 }));
 
@@ -1739,7 +1738,11 @@ export const BasinRedeemRequestRelations = relations(BasinRedeemRequest, ({ one,
   }),
   pendingRedeemOrder: one(PendingRedeemOrder, {
     fields: [BasinRedeemRequest.tokenId, BasinRedeemRequest.assetId, BasinRedeemRequest.redeemer],
-    references: [PendingRedeemOrder.tokenId, PendingRedeemOrder.assetId, PendingRedeemOrder.account],
+    references: [
+      PendingRedeemOrder.tokenId,
+      PendingRedeemOrder.assetId,
+      PendingRedeemOrder.account,
+    ],
   }),
   redeemOrder: one(RedeemOrder, {
     fields: [

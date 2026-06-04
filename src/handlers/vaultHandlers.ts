@@ -39,7 +39,7 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
   })) as VaultService;
   if (!vault) return serviceError(`Vault not found. Cannot retrieve vault configuration`);
 
-  const { poolId, tokenId, assetAddress } = vault.read();
+  const { poolId, tokenId, assetId } = vault.read();
 
   const token = await TokenService.get(context, {
     poolId: poolId,
@@ -74,12 +74,8 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
       await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
   )) as TokenInstancePositionService;
 
-  const asset = (await AssetService.get(context, {
-    address: assetAddress,
-    centrifugeId,
-  })) as AssetService;
+  const asset = await AssetService.getForVault(context, assetId);
   if (!asset) return serviceError(`Asset not found. Cannot retrieve assetId`);
-  const { id: assetId } = asset.read();
 
   const _it = await InvestorTransactionService.updateDepositRequest(
     context,
@@ -132,7 +128,7 @@ multiMapper("vault:RedeemRequest", async ({ event, context }) => {
     centrifugeId,
   })) as VaultService;
   if (!vault) return serviceError(`Vault not found. Cannot retrieve vault configuration`);
-  const { poolId, tokenId, assetAddress } = vault.read();
+  const { poolId, tokenId, assetId } = vault.read();
 
   const token = (await TokenService.get(context, {
     poolId,
@@ -148,12 +144,8 @@ multiMapper("vault:RedeemRequest", async ({ event, context }) => {
     event
   )) as AccountService;
 
-  const asset = (await AssetService.get(context, {
-    address: assetAddress,
-    centrifugeId,
-  })) as AssetService;
+  const asset = await AssetService.getForVault(context, assetId);
   if (!asset) return serviceError(`Asset not found. Cannot retrieve assetId`);
-  const { id: assetId } = asset.read();
 
   const _it = await InvestorTransactionService.updateRedeemRequest(
     context,
@@ -205,16 +197,13 @@ multiMapper("vault:DepositClaimable", async ({ event, context }) => {
     centrifugeId,
   })) as VaultService;
   if (!vault) return serviceError(`Vault not found. Cannot retrieve vault configuration`);
-  const { poolId, tokenId, kind, assetAddress } = vault.read();
+  const { poolId, tokenId, kind, assetId } = vault.read();
 
   if (kind !== "Async") return;
 
-  const asset = (await AssetService.get(context, {
-    address: assetAddress,
-    centrifugeId,
-  })) as AssetService;
+  const asset = await AssetService.getForVault(context, assetId);
   if (!asset) return serviceError(`Asset not found. Cannot compute share price`);
-  const { decimals: assetDecimals, id: assetId } = asset.read();
+  const { decimals: assetDecimals } = asset.read();
   if (typeof assetDecimals !== "number") return serviceError("Asset decimals is required");
 
   const token = await TokenService.get(context, { poolId, id: tokenId });
@@ -275,14 +264,11 @@ multiMapper("vault:RedeemClaimable", async ({ event, context }) => {
     centrifugeId,
   })) as VaultService;
   if (!vault) return serviceError(`Vault not found. Cannot retrieve vault configuration`);
-  const { poolId, tokenId, assetAddress } = vault.read();
+  const { poolId, tokenId, assetId } = vault.read();
 
-  const asset = (await AssetService.get(context, {
-    address: assetAddress,
-    centrifugeId,
-  })) as AssetService;
+  const asset = await AssetService.getForVault(context, assetId);
   if (!asset) return serviceError(`Asset not found. Cannot compute share price`);
-  const { decimals: assetDecimals, id: assetId } = asset.read();
+  const { decimals: assetDecimals } = asset.read();
   if (typeof assetDecimals !== "number") return serviceError("Asset decimals is required");
 
   const token = await TokenService.get(context, { poolId, id: tokenId });
@@ -342,19 +328,16 @@ multiMapper("vault:Deposit", async ({ event, context }) => {
     centrifugeId,
   })) as VaultService;
   if (!vault) return serviceError(`Vault not found. Cannot retrieve vault configuration`);
-  const { poolId, tokenId, kind, assetAddress } = vault.read();
+  const { poolId, tokenId, kind, assetId } = vault.read();
 
   const token = await TokenService.get(context, { poolId, id: tokenId });
   if (!token) return serviceError(`Token not found. Cannot retrieve token configuration`);
   const { decimals: shareDecimals } = token.read();
   if (typeof shareDecimals !== "number")
     return serviceError("Share decimals is required to compute share price");
-  const asset = (await AssetService.get(context, {
-    address: assetAddress,
-    centrifugeId,
-  })) as AssetService;
+  const asset = await AssetService.getForVault(context, assetId);
   if (!asset) return serviceError(`Asset not found. Cannot retrieve assetId`);
-  const { decimals: assetDecimals, id: assetId } = asset.read();
+  const { decimals: assetDecimals } = asset.read();
   if (typeof assetDecimals !== "number")
     return serviceError("Asset decimals is required to compute share price");
 
@@ -485,14 +468,11 @@ multiMapper("vault:Withdraw", async ({ event, context }) => {
     centrifugeId,
   })) as VaultService;
   if (!vault) return serviceError(`Vault not found. Cannot retrieve vault configuration`);
-  const { poolId, tokenId, kind, assetAddress } = vault.read();
+  const { poolId, tokenId, kind, assetId } = vault.read();
 
-  const asset = (await AssetService.get(context, {
-    address: assetAddress,
-    centrifugeId,
-  })) as AssetService;
+  const asset = await AssetService.getForVault(context, assetId);
   if (!asset) return serviceError(`Asset not found. Cannot retrieve assetId`);
-  const { decimals: assetDecimals, id: assetId } = asset.read();
+  const { decimals: assetDecimals } = asset.read();
   if (typeof assetDecimals !== "number") return serviceError("Asset decimals is required");
 
   const token = await TokenService.get(context, { poolId, id: tokenId });
