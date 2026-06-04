@@ -17,14 +17,7 @@ export async function deployVault({
 }) {
   logEvent(event, context, "spoke:DeployVault");
 
-  const {
-    poolId,
-    scId: tokenId,
-    asset: assetAddress,
-    factory,
-    vault: vaultId,
-    kind,
-  } = event.args;
+  const { poolId, scId: tokenId, asset: assetAddress, factory, vault: vaultId, kind } = event.args;
 
   const contractName = getContractNameForAddress(context.chain.id, event.log.address);
   if (!contractName) return serviceError(`Contract name not found. Cannot deploy vault`);
