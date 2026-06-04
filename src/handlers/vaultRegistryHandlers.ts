@@ -21,7 +21,6 @@ export async function deployVault({
     poolId,
     scId: tokenId,
     asset: assetAddress,
-    tokenId: assetTokenId,
     factory,
     vault: vaultId,
     kind,
@@ -50,10 +49,9 @@ export async function deployVault({
           args: [],
         });
 
-  const asset = await AssetService.getByToken(context, {
+  const asset = await AssetService.getByTokenForVault(context, {
     centrifugeId,
     address: assetAddress,
-    assetTokenId,
   });
   if (!asset) return serviceError(`Asset not found. Cannot retrieve assetId for vault deployment`);
 

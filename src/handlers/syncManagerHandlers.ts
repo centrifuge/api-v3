@@ -5,22 +5,15 @@ import { AssetService, BlockchainService, TokenInstanceService, VaultService } f
 multiMapper("syncManager:SetMaxReserve", async ({ event, context }) => {
   logEvent(event, context, "syncManager:SetMaxReserve");
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
-  const {
-    poolId,
-    scId: tokenId,
-    asset: assetAddress,
-    tokenId: assetTokenId,
-    maxReserve,
-  } = event.args;
+  const { poolId, scId: tokenId, asset: assetAddress, maxReserve } = event.args;
 
-  const asset = await AssetService.getByToken(context, {
+  const asset = await AssetService.getByTokenForVault(context, {
     centrifugeId,
     address: assetAddress,
-    assetTokenId,
   });
   if (!asset)
     return serviceLog(
-      `Asset not found for SetMaxReserve (centrifugeId=${centrifugeId}, address=${assetAddress}, assetTokenId=${assetTokenId}). Maybe not registered yet?`
+      `Asset not found for SetMaxReserve (centrifugeId=${centrifugeId}, address=${assetAddress}, ERC-20 assetTokenId=0). Maybe not registered yet?`
     );
   const { id: assetId } = asset.read();
 

@@ -69,7 +69,7 @@ ESLint enforces **`jsdoc/require-jsdoc`** on `src/**/*.ts` (`pnpm lint`). **Alwa
 
 ## ERC-6909 assets and reindex
 
-- **Identity:** on-chain assets are `(centrifugeId, contract address, assetTokenId)`; ERC-20 uses `assetTokenId = 0`. `AssetService.getByToken` is the canonical lookup when events carry `tokenId`; `AssetService.getForVault` loads by protocol `assetId` from an indexed vault row.
+- **Identity:** on-chain assets are `(centrifugeId, contract address, assetTokenId)`; ERC-20 uses `assetTokenId = 0`. `AssetService.getByToken` is the canonical lookup when events carry `tokenId` (balance sheet, spoke prices, escrow). **Vaults:** indexing assumes ERC-20 only — use `AssetService.getByTokenForVault` at deploy/sync (`VAULT_ERC20_ASSET_TOKEN_ID = 0`, ignore deploy `tokenId` in handlers); `AssetService.getForVault` loads by `vault.assetId` on vault transaction handlers.
 - **Registration:** `spoke:RegisterAsset` persists `assetTokenId` on the `Asset` row. Duplicate registrations (same token, different `assetId`) are stored for on-chain fidelity; `getByToken` resolves the **newest** row by `createdAtBlock` and logs a warning.
 - **GraphQL relations:** `HoldingEscrow`, `Vault`, `OnRampAsset`, and `OffRampAddress` join `Asset` via `assetId`, not `address` alone.
 - **Deploy / release:** ship handler and schema changes together; run `pnpm update-registry` then `pnpm codegen` before `pnpm typecheck`. **Full reindex** is required after ERC-6909 fixes or on-ramp PK changes (wrong historical `assetId` on escrows/vaults is not backfilled in place).

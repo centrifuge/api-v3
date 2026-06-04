@@ -3,6 +3,9 @@ import { Asset } from "ponder:schema";
 import { serviceLog, serviceWarn } from "../helpers/logger";
 import { Service, type ReadOnlyContext } from "./Service";
 
+/** ERC-6909 token id used for vault-indexed assets; vaults support ERC-20 only (`tokenId = 0`). */
+export const VAULT_ERC20_ASSET_TOKEN_ID = 0n;
+
 /**
  * Service class for managing Asset entities in the database.
  *
@@ -56,10 +59,30 @@ export class AssetService extends Service<typeof Asset> {
   }
 
   /**
-   * Loads an asset by protocol `assetId` (e.g. from an indexed vault row).
+   * Resolves the ERC-20 asset for a vault deploy or sync-manager event (`assetTokenId = 0`).
+   *
+   * Vault indexing does not support ERC-6909 multi-token assets yet; event `tokenId` fields on
+   * `DeployVault` / `SetMaxReserve` are ignored in favour of {@link VAULT_ERC20_ASSET_TOKEN_ID}.
    *
    * @param context - Database context
-   * @param assetId - The protocol-assigned asset id
+   * @param query - Chain and vault asset contract address
+   * @returns The registered ERC-20 asset row, or `null` when not registered
+   */
+  static async getByTokenForVault(
+    context: Context | ReadOnlyContext,
+    query: { centrifugeId: string; address: `0x${string}` }
+  ): Promise<AssetService | null> {
+    return AssetService.getByToken(context, {
+      ...query,
+      assetTokenId: VAULT_ERC20_ASSET_TOKEN_ID,
+    });
+  }
+
+  /**
+   * Loads an asset by protocol `assetId` from an indexed vault row (set at deploy via {@link getByTokenForVault}).
+   *
+   * @param context - Database context
+   * @param assetId - The protocol-assigned asset id stored on the vault
    * @returns The asset row, or `null` when not registered
    */
   static async getForVault(
