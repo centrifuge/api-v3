@@ -56,6 +56,21 @@ export class AssetService extends Service<typeof Asset> {
   }
 
   /**
+   * Loads an asset by protocol `assetId` (e.g. from an indexed vault row).
+   *
+   * @param context - Database context
+   * @param assetId - The protocol-assigned asset id
+   * @returns The asset row, or `null` when not registered
+   */
+  static async getForVault(
+    context: Context | ReadOnlyContext,
+    assetId: bigint
+  ): Promise<AssetService | null> {
+    serviceLog(`Asset getForVault assetId=${assetId}`);
+    return (await AssetService.get(context, { id: assetId })) as AssetService | null;
+  }
+
+  /**
    * Resolves an asset by its full identity `(centrifugeId, address, assetTokenId)`.
    *
    * This is the correct lookup for ERC-6909 assets, where a single contract `address` holds many
@@ -63,26 +78,29 @@ export class AssetService extends Service<typeof Asset> {
    * `address` alone is ambiguous for ERC-6909 and must not be used to derive an `assetId`.
    *
    * If more than one asset matches — a duplicate on-chain registration assigning two `assetId`s to
-   * the same token — this returns the lowest `id` deterministically and logs a warning, rather than
-   * failing, so indexing stays stable. The underlying duplicate must be resolved on-chain.
+   * the same token — this returns the **newest** row by `createdAtBlock` and logs a warning, rather
+   * than failing, so indexing stays stable. The underlying duplicate must be resolved on-chain.
    *
    * @param context - Database context
    * @param query - The chain, contract address, and ERC-6909 token id
-   * @returns The matching asset (lowest id if several), or `null` when none is registered
+   * @returns The matching asset (newest registration if several), or `null` when none is registered
    */
   static async getByToken(
     context: Context | ReadOnlyContext,
     query: { centrifugeId: string; address: `0x${string}`; assetTokenId: bigint }
   ): Promise<AssetService | null> {
+    serviceLog(
+      `Asset getByToken centrifugeId=${query.centrifugeId} address=${query.address} assetTokenId=${query.assetTokenId}`
+    );
     const assets = (await AssetService.query(context, {
       ...query,
-      _sort: [{ field: "id", direction: "asc" }],
+      _sort: [{ field: "createdAtBlock", direction: "desc" }],
     })) as AssetService[];
     if (assets.length > 1) {
       serviceWarn(
         `Multiple assets registered for (centrifugeId=${query.centrifugeId}, ` +
           `address=${query.address}, assetTokenId=${query.assetTokenId}) ` +
-          `[ids: ${assets.map((a) => a.read().id).join(", ")}] — using lowest id. ` +
+          `[ids: ${assets.map((a) => a.read().id).join(", ")}] — using newest by createdAtBlock. ` +
           `Likely duplicate on-chain registration; resolve idempotency on-chain.`
       );
     }

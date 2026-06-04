@@ -67,6 +67,13 @@ ESLint enforces **`jsdoc/require-jsdoc`** on `src/**/*.ts` (`pnpm lint`). **Alwa
 
 [`src/helpers/`](src/helpers/) — utilities (`multiMapper`, `timekeeper`, `snapshotter`, IPFS, logger). Not a substitute for entity services for CRUD/domain. Handlers may use `logEvent` where appropriate.
 
+## ERC-6909 assets and reindex
+
+- **Identity:** on-chain assets are `(centrifugeId, contract address, assetTokenId)`; ERC-20 uses `assetTokenId = 0`. `AssetService.getByToken` is the canonical lookup when events carry `tokenId`; `AssetService.getForVault` loads by protocol `assetId` from an indexed vault row.
+- **Registration:** `spoke:RegisterAsset` persists `assetTokenId` on the `Asset` row. Duplicate registrations (same token, different `assetId`) are stored for on-chain fidelity; `getByToken` resolves the **newest** row by `createdAtBlock` and logs a warning.
+- **GraphQL relations:** `HoldingEscrow`, `Vault`, `OnRampAsset`, and `OffRampAddress` join `Asset` via `assetId`, not `address` alone.
+- **Deploy / release:** ship handler and schema changes together; run `pnpm update-registry` then `pnpm codegen` before `pnpm typecheck`. **Full reindex** is required after ERC-6909 fixes or on-ramp PK changes (wrong historical `assetId` on escrows/vaults is not backfilled in place).
+
 ## Key paths
 
 | Area             | Path                                                         |

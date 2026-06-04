@@ -217,8 +217,8 @@ export const VaultRelations = relations(Vault, ({ one }) => ({
     references: [Token.id],
   }),
   asset: one(Asset, {
-    fields: [Vault.assetAddress],
-    references: [Asset.address],
+    fields: [Vault.assetId],
+    references: [Asset.id],
   }),
   tokenInstance: one(TokenInstance, {
     fields: [Vault.tokenId],
@@ -981,6 +981,7 @@ const OnRampAssetColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   tokenId: t.hex().notNull(),
   centrifugeId: t.text().notNull(),
+  assetId: t.bigint().notNull(),
   assetAddress: t.hex().notNull(),
   isEnabled: t.boolean().notNull().default(false),
   crosschainInProgress: OnRampAssetCrosschainInProgress(
@@ -990,9 +991,10 @@ const OnRampAssetColumns = (t: PgColumnsBuilders) => ({
 });
 
 export const OnRampAsset = onchainTable("on_ramp_asset", OnRampAssetColumns, (t) => ({
-  id: primaryKey({ columns: [t.tokenId, t.centrifugeId, t.assetAddress] }),
+  id: primaryKey({ columns: [t.tokenId, t.centrifugeId, t.assetId] }),
   tokenIdx: index().on(t.tokenId),
-  assetIdx: index().on(t.assetAddress),
+  assetIdx: index().on(t.assetId),
+  assetAddressIdx: index().on(t.assetAddress),
   centrifugeIdIdx: index().on(t.centrifugeId),
 }));
 
@@ -1002,8 +1004,8 @@ export const OnRampAssetRelations = relations(OnRampAsset, ({ one }) => ({
     references: [Token.id],
   }),
   asset: one(Asset, {
-    fields: [OnRampAsset.assetAddress, OnRampAsset.centrifugeId],
-    references: [Asset.address, Asset.centrifugeId],
+    fields: [OnRampAsset.assetId],
+    references: [Asset.id],
   }),
 }));
 
@@ -1017,6 +1019,7 @@ const OffRampAddressColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   tokenId: t.hex().notNull(),
   centrifugeId: t.text().notNull(),
+  assetId: t.bigint().notNull(),
   assetAddress: t.hex().notNull(),
   receiverAddress: t.hex().notNull(),
   isEnabled: t.boolean().default(false),
@@ -1026,11 +1029,13 @@ const OffRampAddressColumns = (t: PgColumnsBuilders) => ({
   ...defaultColumns(t),
 });
 export const OffRampAddress = onchainTable("off_ramp_address", OffRampAddressColumns, (t) => ({
-  id: primaryKey({ columns: [t.tokenId, t.assetAddress, t.receiverAddress] }),
+  id: primaryKey({ columns: [t.tokenId, t.centrifugeId, t.assetId, t.receiverAddress] }),
   poolIdx: index().on(t.poolId),
   tokenIdx: index().on(t.tokenId),
-  assetIdx: index().on(t.assetAddress),
+  assetIdx: index().on(t.assetId),
+  assetAddressIdx: index().on(t.assetAddress),
   receiverIdx: index().on(t.receiverAddress),
+  centrifugeIdIdx: index().on(t.centrifugeId),
 }));
 
 export const OffRampAddressRelations = relations(OffRampAddress, ({ one }) => ({
@@ -1039,8 +1044,8 @@ export const OffRampAddressRelations = relations(OffRampAddress, ({ one }) => ({
     references: [Token.id],
   }),
   asset: one(Asset, {
-    fields: [OffRampAddress.assetAddress, OffRampAddress.centrifugeId],
-    references: [Asset.address, Asset.centrifugeId],
+    fields: [OffRampAddress.assetId],
+    references: [Asset.id],
   }),
 }));
 

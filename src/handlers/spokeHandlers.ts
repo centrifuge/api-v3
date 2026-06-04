@@ -36,8 +36,8 @@ multiMapper("spoke:RegisterAsset", async ({ event, context }) => {
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   // Detect a duplicate registration: the same (chain, address, ERC-6909 tokenId) already registered
-  // under a different assetId. The assetId is assigned on-chain, so both rows are recorded faithfully;
-  // this surfaces the anomaly. Idempotency per (chain, address, tokenId) must be enforced on-chain.
+  // under a different assetId. Both rows are recorded faithfully; spoke lookups via getByToken use the
+  // newest by createdAtBlock. Idempotency per (chain, address, tokenId) must be enforced on-chain.
   const existingForToken = await AssetService.query(context, {
     centrifugeId,
     address: assetAddress,
@@ -48,7 +48,7 @@ multiMapper("spoke:RegisterAsset", async ({ event, context }) => {
     serviceWarn(
       `Duplicate asset registration for (centrifugeId=${centrifugeId}, address=${assetAddress}, ` +
         `assetTokenId=${assetTokenId}): existing assetId ${duplicate.read().id}, new assetId ${assetId}. ` +
-        `Recording both; resolve idempotency on-chain.`
+        `Recording both; getByToken will use the newest registration. Resolve idempotency on-chain.`
     );
   }
 

@@ -350,18 +350,11 @@ async function handleSyncManagerTrustedCall(
       serviceError(`Asset not found for assetId ${assetId}. Cannot update vault maxReserve`);
       return true;
     }
-    const rawAssetAddress = asset.read().address as `0x${string}`;
-    if (!rawAssetAddress) {
-      serviceError(`Asset has no address for assetId ${assetId}`);
-      return true;
-    }
-    const assetAddress = formatBytes32ToAddress(rawAssetAddress);
-
     const vault = (await VaultService.get(context, {
       centrifugeId,
       poolId,
       tokenId,
-      assetAddress,
+      assetId,
     })) as VaultService | null;
     if (!vault) {
       serviceError(`Vault not found. Cannot update maxReserve`);
@@ -413,7 +406,7 @@ async function handleOnOfframpUpdate(
     }
     const onRampAsset = (await OnRampAssetService.getOrInit(
       context,
-      { poolId, centrifugeId, tokenId, assetAddress },
+      { poolId, centrifugeId, tokenId, assetId, assetAddress },
       event,
       undefined,
       true
@@ -458,6 +451,7 @@ async function handleOnOfframpUpdate(
         poolId,
         centrifugeId,
         tokenId,
+        assetId,
         assetAddress: formatBytes32ToAddress(rawAssetAddress),
         receiverAddress: formatBytes32ToAddress(receiverAddress),
       },
