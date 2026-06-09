@@ -1,5 +1,24 @@
 # Changelog
 
+## [4.0.0](https://github.com/centrifuge/api-v3/compare/v3.8.1...v4.0.0) (2026-06-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove deprecated fields ([#410](https://github.com/centrifuge/api-v3/issues/410))
+
+### Features
+
+* first run basin indexer rollout for OPS reconciliation ([65090f6](https://github.com/centrifuge/api-v3/commit/65090f634d63962c2df25df249a6974ca23e36b8))
+
+
+### Bug Fixes
+
+* **asset:** erc-6909 asset identity in escrow + registration flows ([#419](https://github.com/centrifuge/api-v3/issues/419)) ([7438f98](https://github.com/centrifuge/api-v3/commit/7438f984630474e64b302da1f6d95f72448670d7))
+* **escrow:** use latest pool escrow and fix holding amount accumulation ([#417](https://github.com/centrifuge/api-v3/issues/417)) ([cd81f48](https://github.com/centrifuge/api-v3/commit/cd81f48659af36bb6d7cdacce51147ce0647b227))
+* remove deprecated fields ([#410](https://github.com/centrifuge/api-v3/issues/410)) ([2ab2e7c](https://github.com/centrifuge/api-v3/commit/2ab2e7cd23f11a0d1b2ba194e9d0d890e90bd4db))
+* testnet registry missing handlers for v3.2 ([65090f6](https://github.com/centrifuge/api-v3/commit/65090f634d63962c2df25df249a6974ca23e36b8))
+
 ## [3.8.1](https://github.com/centrifuge/api-v3/compare/v3.8.0...v3.8.1) (2026-04-30)
 
 
