@@ -290,6 +290,52 @@ export const InvestorTransactionRelations = relations(InvestorTransaction, ({ on
   }),
 }));
 
+// Direct share mints/burns via BalanceSheet.issue()/revoke() (V3_1+). Captures
+// every mint/burn — including async- and sync-deposit-driven ones — with the NAV
+// price (only present on the Issue/Revoke events, not on the ERC-20 Transfer). The
+// `isManual` flag isolates issuances NOT driven by the deposit flow (i.e. the
+// caller is neither the async nor the sync request manager).
+export const ShareIssuanceType = onchainEnum("share_issuance_type", ["ISSUE", "REVOKE"] as const);
+
+const ShareIssuanceColumns = (t: PgColumnsBuilders) => ({
+  centrifugeId: t.text().notNull(),
+  poolId: t.bigint().notNull(),
+  tokenId: t.hex().notNull(),
+  type: ShareIssuanceType("share_issuance_type").notNull(),
+  sender: t.hex().notNull(), // msgSender() of the issue()/revoke() call — the classifier
+  account: t.hex().notNull(), // `to` for ISSUE, `from` for REVOKE
+  shares: t.bigint().notNull(),
+  pricePoolPerShare: t.bigint().notNull(), // D18 NAV struck at mint/burn
+  isManual: t.boolean().notNull(), // caller is neither the async nor the sync request manager
+  logIndex: t.integer().notNull(),
+  ...defaultColumns(t, false),
+});
+export const ShareIssuance = onchainTable(
+  "share_issuance",
+  ShareIssuanceColumns,
+  (t) => ({
+    // logIndex in the PK guards against multiple issue()/revoke() in one tx
+    id: primaryKey({
+      columns: [t.tokenId, t.centrifugeId, t.type, t.createdAtTxHash, t.logIndex],
+    }),
+  })
+);
+
+export const ShareIssuanceRelations = relations(ShareIssuance, ({ one }) => ({
+  blockchain: one(Blockchain, {
+    fields: [ShareIssuance.centrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
+  pool: one(Pool, {
+    fields: [ShareIssuance.poolId],
+    references: [Pool.id],
+  }),
+  token: one(Token, {
+    fields: [ShareIssuance.tokenId],
+    references: [Token.id],
+  }),
+}));
+
 const WhitelistedInvestorColumns = (t: PgColumnsBuilders) => ({
   poolId: t.bigint().notNull(),
   tokenId: t.hex().notNull(),

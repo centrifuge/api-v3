@@ -1,3 +1,4 @@
+import { ponder } from "ponder:registry";
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceError } from "../helpers/logger";
 import {
@@ -7,9 +8,29 @@ import {
   EscrowService,
   HoldingEscrowService,
   PoolManagerService,
+  ShareIssuanceService,
 } from "../services";
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
+import { REGISTRY_VERSION_ORDER, getContractAddressesForChain } from "../contracts";
+
+/**
+ * A `BalanceSheet.issue()` / `revoke()` is "flow-driven" when its caller is the
+ * async or sync request manager (i.e. it backs a deposit claim or sync deposit).
+ * Anything else is a manual/operator issuance. We scan every registry version on
+ * the chain because the manager address can differ across deployment versions.
+ */
+function isFlowMinter(chainId: number, sender: `0x${string}`): boolean {
+  const target = sender.toLowerCase();
+  for (let versionIndex = 0; versionIndex < REGISTRY_VERSION_ORDER.length; versionIndex++) {
+    const addresses = getContractAddressesForChain(chainId, versionIndex);
+    if (!addresses) continue;
+    for (const name of ["asyncRequestManager", "syncManager"] as const) {
+      if (addresses[name]?.toLowerCase() === target) return true;
+    }
+  }
+  return false;
+}
 
 multiMapper("balanceSheet:NoteDeposit", async ({ event, context }) => {
   logEvent(event, context, "balanceSheet:NoteDeposit");
@@ -152,4 +173,54 @@ multiMapper("balanceSheet:UpdateManager", async ({ event, context }) => {
   )) as PoolManagerService;
 
   await poolManager.setCrosschainInProgress().setIsBalancesheetManager(canManage).save(event);
+});
+
+// Registered V3_1-only (not via multiMapper): the V3 Issue/Revoke ABI lacks the
+// `sender` field that drives the manual-vs-flow classification.
+ponder.on("balanceSheetV3_1:Issue", async ({ event, context }) => {
+  logEvent(event, context, "balanceSheet:Issue");
+  const { poolId, scId: tokenId, sender, to, pricePoolPerShare, shares } = event.args;
+
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const chainId = context.chain.id;
+
+  await ShareIssuanceService.recordIssue(
+    context,
+    {
+      centrifugeId,
+      poolId,
+      tokenId,
+      sender,
+      account: to,
+      shares,
+      pricePoolPerShare,
+      isManual: !isFlowMinter(chainId, sender),
+      logIndex: event.log.logIndex,
+    },
+    event
+  );
+});
+
+ponder.on("balanceSheetV3_1:Revoke", async ({ event, context }) => {
+  logEvent(event, context, "balanceSheet:Revoke");
+  const { poolId, scId: tokenId, sender, from, pricePoolPerShare, shares } = event.args;
+
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const chainId = context.chain.id;
+
+  await ShareIssuanceService.recordRevoke(
+    context,
+    {
+      centrifugeId,
+      poolId,
+      tokenId,
+      sender,
+      account: from,
+      shares,
+      pricePoolPerShare,
+      isManual: !isFlowMinter(chainId, sender),
+      logIndex: event.log.logIndex,
+    },
+    event
+  );
 });
