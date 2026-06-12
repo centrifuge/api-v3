@@ -24,10 +24,7 @@ export class ShareIssuanceService extends Service<typeof ShareIssuance> {
    * @returns Promise resolving to the created share issuance record
    */
   static async recordIssue(context: Context, data: ShareIssuanceData, event: Event) {
-    serviceLog(
-      "Creating share issuance of type ISSUE with data:",
-      expandInlineObject(data)
-    );
+    serviceLog("Creating share issuance of type ISSUE with data:", expandInlineObject(data));
     return this.insert(context, { ...data, type: "ISSUE" }, event);
   }
 
@@ -40,10 +37,7 @@ export class ShareIssuanceService extends Service<typeof ShareIssuance> {
    * @returns Promise resolving to the created share issuance record
    */
   static async recordRevoke(context: Context, data: ShareIssuanceData, event: Event) {
-    serviceLog(
-      "Creating share issuance of type REVOKE with data:",
-      expandInlineObject(data)
-    );
+    serviceLog("Creating share issuance of type REVOKE with data:", expandInlineObject(data));
     return this.insert(context, { ...data, type: "REVOKE" }, event);
   }
 }
