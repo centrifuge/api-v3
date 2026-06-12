@@ -40,6 +40,7 @@ export * from "./SmartContractWardService";
 export * from "./TokenInstancePositionService";
 export * from "./TokenInstanceService";
 export * from "./TokenService";
+export * from "./TransactionService";
 export * from "./VaultInvestOrderService";
 export * from "./VaultRedeemOrderService";
 export * from "./VaultService";
