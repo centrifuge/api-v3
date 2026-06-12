@@ -98,12 +98,16 @@ export function appendUnique(existing: string[], additions: string[]): string[] 
   return merged;
 }
 
+/** Length of a bytes16 share class id as a 0x-prefixed hex string. */
+const SHARE_CLASS_ID_HEX_LENGTH = 34;
+
 /**
  * Best-effort pool / share-class attribution from event args. Reads `poolId` (decimal string)
- * and `scId` / `shareClassId` (bytes16 hex of the share class token). Deliberately ignores
- * `tokenId`, which in ERC-6909 contexts is an asset sub-identifier, not a share class.
- * Events resolving pool context indirectly (e.g. share token transfers) yield empty arrays.
- * Exported for unit testing.
+ * and `scId` / `shareClassId` / `tokenId` (bytes16 hex of the share class token; a bigint
+ * `tokenId` is an ERC-6909 asset sub-identifier and is ignored). Because
+ * `ShareClassId = (poolId << 64) | index`, the pool is derived from the share class id's top
+ * 8 bytes whenever a literal `poolId` arg is absent — this covers claim transactions, which
+ * carry only the token id. Exported for unit testing.
  * @param args - The event args, if any
  * @returns Pool and share-class ids touched by the event
  */
@@ -113,9 +117,17 @@ export function extractIdsFromArgs(args: unknown): { poolIds: string[]; tokenIds
   if (typeof args === "object" && args !== null && !Array.isArray(args)) {
     const record = args as Record<string, unknown>;
     if (typeof record["poolId"] === "bigint") poolIds.push(record["poolId"].toString());
-    const shareClassId = record["scId"] ?? record["shareClassId"];
-    if (typeof shareClassId === "string" && shareClassId.startsWith("0x")) {
+    const shareClassId = record["scId"] ?? record["shareClassId"] ?? record["tokenId"];
+    if (
+      typeof shareClassId === "string" &&
+      shareClassId.startsWith("0x") &&
+      shareClassId.length === SHARE_CLASS_ID_HEX_LENGTH &&
+      BigInt(shareClassId) !== 0n
+    ) {
       tokenIds.push(shareClassId.toLowerCase());
+      // Top 8 bytes of the bytes16 share class id are the uint64 poolId.
+      const derivedPoolId = BigInt(shareClassId.slice(0, 18)).toString();
+      if (!poolIds.includes(derivedPoolId)) poolIds.push(derivedPoolId);
     }
   }
   return { poolIds, tokenIds };
