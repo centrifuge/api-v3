@@ -31,7 +31,8 @@ export interface RegistryChain<N extends number, C extends string> {
     etherscanUrl?: string;
     network?: string;
     batchLimit?: number;
-    safeAdmin?: string;
+    // Registry publishes explicit null for chains without a safe admin (e.g. testnets).
+    safeAdmin?: string | null;
     baseRpcUrl?: string;
     verifier?: string;
     verifierUrl?: string;

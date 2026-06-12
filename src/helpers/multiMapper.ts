@@ -1,6 +1,8 @@
 import { ponder } from "ponder:registry";
 import type { Context, Event } from "ponder:registry";
 import { contracts } from "../../ponder.config";
+// Concrete-file import (not the services barrel) to avoid a module cycle through ponder.config.
+import { TransactionService } from "../services/TransactionService";
 
 type ContractEvents = Parameters<typeof ponder.on>[0];
 
@@ -61,6 +63,14 @@ export function multiMapper<E extends UnversionedContractEvents>(
   // Setup is a Ponder lifecycle hook, not an ABI event; register for each version without ABI lookup
   const isSetupEvent = event.endsWith(":setup");
 
+  // Record every log event's transaction into the gas-cost ledger before the domain handler;
+  // setup events keep the bare handler (no transaction to record).
+  const unversionedLabel = `${contractName}:${eventNameWithoutParameters}`;
+  const wrappedHandler = (async ({ event, context }: { event: Event; context: Context }) => {
+    await TransactionService.record(context, event, unversionedLabel);
+    return handler({ event, context } as never);
+  }) as Parameters<typeof ponder.on>[1];
+
   for (const version of versions) {
     const versionedContract = `${contractName}${version}` as keyof typeof contracts;
     const versionedEvent = `${versionedContract}:${eventName}` as ContractEvents;
@@ -82,12 +92,12 @@ export function multiMapper<E extends UnversionedContractEvents>(
         continue;
       case 1:
         if (isParameterizedEvent) continue;
-        ponder.on(versionedEvent, handler as Parameters<typeof ponder.on>[1]);
+        ponder.on(versionedEvent, wrappedHandler);
         registeredEvents.push(versionedEvent);
         break;
       default:
         if (!isParameterizedEvent) continue;
-        ponder.on(versionedEvent, handler as Parameters<typeof ponder.on>[1]);
+        ponder.on(versionedEvent, wrappedHandler);
         registeredEvents.push(versionedEvent);
         break;
       // Map the exact event in the available versions
