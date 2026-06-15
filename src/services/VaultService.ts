@@ -1,7 +1,10 @@
 import { Vault, VaultCrosschainInProgressTypes } from "ponder:schema";
-import { Service } from "./Service";
+import { Service, type DataWithoutDefaults } from "./Service";
 import { VaultStatuses } from "ponder:schema";
 import { serviceLog } from "../helpers/logger";
+import type { Context, Event } from "ponder:registry";
+import { timestamperWithChain } from "../helpers/timestamper";
+import { upsertHubSpokeFacts } from "../helpers/hubSpokeUpsert";
 
 /**
  * Service class for managing Vault entities.
@@ -14,6 +17,92 @@ import { serviceLog } from "../helpers/logger";
 export class VaultService extends Service<typeof Vault> {
   static readonly entityTable = Vault;
   static readonly entityName = "Vault";
+
+  /**
+   * Upserts hub signal facts and derived crosschainInProgress.
+   * @param context - Ponder context
+   * @param event - Hub event
+   * @param key - Vault PK
+   * @param hubSignalType - Signal enum value
+   * @param stubs - Optional domain fields for first insert
+   * @returns Vault service instance
+   */
+  static async upsertHubSignal(
+    context: Context,
+    event: Extract<Event, { transaction: { hash: `0x${string}` } }>,
+    key: { id: `0x${string}`; centrifugeId: string },
+    hubSignalType: (typeof VaultCrosschainInProgressTypes)[number],
+    stubs: Partial<DataWithoutDefaults<typeof Vault>> = {}
+  ): Promise<VaultService> {
+    const ts = new Date(Number(event.block.timestamp) * 1000);
+    return upsertHubSpokeFacts(
+      context,
+      event,
+      Vault,
+      "vault",
+      VaultService,
+      "Vault",
+      "hub",
+      {
+        poolId: stubs.poolId ?? 0n,
+        tokenId: stubs.tokenId ?? (`0x${"00".repeat(32)}` as `0x${string}`),
+        assetId: stubs.assetId ?? 0n,
+        isActive: stubs.isActive ?? false,
+        ...stubs,
+        ...key,
+        hubSignalType,
+        ...timestamperWithChain("hubSignal", event, context.chain.id),
+        createdAt: ts,
+        createdAtBlock: Number(event.block.number),
+        createdAtTxHash: event.transaction.hash,
+        updatedAt: ts,
+        updatedAtBlock: Number(event.block.number),
+        updatedAtTxHash: event.transaction.hash,
+      }
+    );
+  }
+
+  /**
+   * Upserts spoke ack facts and derived crosschainInProgress.
+   * @param context - Ponder context
+   * @param event - Spoke event
+   * @param key - Vault PK
+   * @param stubs - Optional domain fields
+   * @returns Vault service instance
+   */
+  static async upsertSpokeAck(
+    context: Context,
+    event: Extract<Event, { transaction: { hash: `0x${string}` } }>,
+    key: { id: `0x${string}`; centrifugeId: string },
+    stubs: Partial<DataWithoutDefaults<typeof Vault>> = {}
+  ): Promise<VaultService> {
+    const ts = new Date(Number(event.block.timestamp) * 1000);
+    return upsertHubSpokeFacts(
+      context,
+      event,
+      Vault,
+      "vault",
+      VaultService,
+      "Vault",
+      "spoke",
+      {
+        poolId: stubs.poolId ?? 0n,
+        tokenId: stubs.tokenId ?? (`0x${"00".repeat(32)}` as `0x${string}`),
+        assetId: stubs.assetId ?? 0n,
+        isActive: stubs.isActive ?? false,
+        ...stubs,
+        ...key,
+        ...timestamperWithChain("spokeAck", event, context.chain.id),
+        createdAt: ts,
+        createdAtBlock: Number(event.block.number),
+        createdAtTxHash: event.transaction.hash,
+        updatedAt: ts,
+        updatedAtBlock: Number(event.block.number),
+        updatedAtTxHash: event.transaction.hash,
+      }
+    );
+  }
+
   /**
    * Sets the status of the vault.
    *

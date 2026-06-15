@@ -189,6 +189,8 @@ export async function initialisePosition(
     args: [accountAddress] as const,
   };
   const balance = await readContractSafe(context, event, readArgs);
+  if (balance === undefined) return;
+
   serviceLog(
     `Setting initial balance for account ${accountAddress} of token ${tokenAddress} to ${balance}`
   );

@@ -214,6 +214,7 @@ export const skipBlocks = {
   "143": 9000,
   "999": 18000,
   "998": 18000,
+  "1672": 14400,
 };
 
 const blocks = Object.fromEntries(

@@ -9,7 +9,7 @@
     "dev": "ponder dev --port 8000 --disable-ui",
     "postdev": "docker compose down",
     "prestart": "pnpm update-registry",
-    "start": "ponder start",
+    "start": "ponder start --port 8000",
     "preserve": "pnpm update-registry",
     "serve": "ponder serve",
     "db": "ponder db",
@@ -26,6 +26,7 @@
     "evgrep": "scripts/evgrep.sh",
     "sync": "node scripts/cache.mjs",
     "compare-schema": "graphql-inspector diff https://api.centrifuge.io generated/schema.graphql --rule safeUnreachable --rule ignoreDescriptionChanges | grep 'Field.*removed'",
+    "test:parity:crosschain": "node --experimental-strip-types --test scripts/parity/crosschain-reconciliation.test.ts",
     "sync:export": "mkdir -p .ponder && docker compose exec -T db sh -lc 'pg_dump --dbname=postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB --schema=ponder_sync --no-owner --no-privileges --clean --if-exists' | gzip > .ponder/$(date +%Y%m%d)_ponder_sync.sql.gz",
     "sync:push": "LATEST=$(ls -t .ponder/*_ponder_sync.sql.gz 2>/dev/null | head -n 1); TAG=$(basename \"$LATEST\" | sed 's/_ponder_sync.sql.gz$//'); cp \"$LATEST\" ponder_sync.sql.gz; REPO=$(node -p \"(() => { const repo=require('./package.json').repository; const url=typeof repo==='string'?repo:repo?.url; return new URL(url).pathname.replace(/^\\\\//,'').replace(/\\\\.git$/,''); })()\"); USER=$(gh api user -q .login); gh auth token | oras login ghcr.io -u \"$USER\" --password-stdin; oras push ghcr.io/$REPO/ponder-sync:$TAG ponder_sync.sql.gz:application/gzip; oras tag ghcr.io/$REPO/ponder-sync:$TAG latest; rm -f ponder_sync.sql.gz"
   },

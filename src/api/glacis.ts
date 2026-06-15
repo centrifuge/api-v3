@@ -6,7 +6,7 @@ import { emptyMessage, MessageType } from "../helpers/messaging";
 import { centrifugeId, poolId } from "../helpers/tokenId";
 import * as Services from "../services";
 import { getContractAbi, getPublicClient } from "./helpers/contracts";
-import type { ApiContext } from "./types";
+import { apiContext, type ApiContext, type ApiEnv } from "./types";
 
 const V3_1_REGISTRY_INDEX = REGISTRY_VERSION_ORDER.indexOf("v3_1");
 if (V3_1_REGISTRY_INDEX < 0) {
@@ -247,10 +247,11 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
 }
 
 /** Glacis / Airlift-style routes: `GET /transactions/:txHash`, `GET /routes`, `POST /quote`. */
-export function createGlacisApp(ctx: ApiContext) {
-  const app = new Hono();
+export function createGlacisApp() {
+  const app = new Hono<ApiEnv>();
 
   app.get("/transactions/:txHash", async (c) => {
+    const ctx = apiContext(c);
     const txHash = c.req.param("txHash");
     if (!TX_HASH_PATTERN.test(txHash)) {
       return c.json({ error: "Bad Request" }, 400);
@@ -318,6 +319,7 @@ export function createGlacisApp(ctx: ApiContext) {
   });
 
   app.get("/routes", sValidator("query", routesParams), async (c) => {
+    const ctx = apiContext(c);
     const { limit, offset, isEnabled } = c.req.valid("query");
     const requestUrl = new URL(c.req.url);
     const pagingIncludesIsEnabled = requestUrl.searchParams.has("isEnabled");
@@ -455,6 +457,7 @@ export function createGlacisApp(ctx: ApiContext) {
   });
 
   app.post("/quote", sValidator("query", quoteParams), async (c) => {
+    const ctx = apiContext(c);
     const q = c.req.valid("query");
     return handleQuote(c, ctx, {
       fromChainId: q.fromChain,

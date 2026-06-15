@@ -1,12 +1,13 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { CrosschainPayload, CrosschainPayloadStatuses } from "ponder:schema";
-import { Service, type ReadOnlyContext } from "./Service";
+import { Service, type DataWithoutDefaults, type ReadOnlyContext } from "./Service";
 import { Event, Context } from "ponder:registry";
 import { getCrosschainMessageLength } from ".";
 import { keccak256, encodePacked } from "viem";
 import { expandInlineObject, serviceError, serviceLog } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
 import { RegistryVersions } from "../chains";
+import { buildCrosschainPayloadConflictSet, NULL_CROSSCHAIN_PAYLOAD_FACTS } from "../helpers/crosschainUpsert";
 
 /**
  * Service class for managing CrosschainPayload entities (primary key `id` + `payloadIndex`).
@@ -20,6 +21,80 @@ import { RegistryVersions } from "../chains";
 export class CrosschainPayloadService extends Service<typeof CrosschainPayload> {
   static readonly entityTable = CrosschainPayload;
   static readonly entityName = "CrosschainPayload";
+
+  /**
+   * Next payload index for a payloadId (MAX(index)+1).
+   * @param context - Ponder context
+   * @param payloadId - Payload id
+   * @returns Next index (0 when none exist)
+   */
+  static async nextPayloadIndex(
+    context: Context,
+    payloadId: `0x${string}`
+  ): Promise<number> {
+    const db = context.db.sql;
+    const [result] = await db
+      .select({ maxIndex: sql<number>`coalesce(max(${CrosschainPayload.index}), -1)::int` })
+      .from(CrosschainPayload)
+      .where(eq(CrosschainPayload.id, payloadId));
+    return (result?.maxIndex ?? -1) + 1;
+  }
+
+  /**
+   * Upserts fact columns and recomputes status via SQL CASE (multichain-safe).
+   * @param context - Ponder context
+   * @param event - Source event
+   * @param key - Payload primary key
+   * @param facts - Fact fields (status derived on conflict)
+   * @returns Service instance
+   */
+  static async upsertFacts(
+    context: Context,
+    event: Extract<Event, { transaction: { hash: `0x${string}` } }>,
+    key: { id: `0x${string}`; index: number },
+    facts: Partial<DataWithoutDefaults<typeof CrosschainPayload>>
+  ): Promise<CrosschainPayloadService> {
+    serviceLog(
+      "CrosschainPayload upsertFacts",
+      expandInlineObject({ id: key.id, index: key.index })
+    );
+    const row = {
+      ...NULL_CROSSCHAIN_PAYLOAD_FACTS,
+      ...facts,
+      ...key,
+      rawData: facts.rawData ?? "0x",
+      fromCentrifugeId: facts.fromCentrifugeId ?? "0",
+      toCentrifugeId: facts.toCentrifugeId ?? "0",
+      status: facts.status ?? "Underpaid",
+      preparedAt: facts.preparedAt ?? new Date(Number(event.block.timestamp) * 1000),
+      preparedAtBlock: facts.preparedAtBlock ?? Number(event.block.number),
+      preparedAtTxHash: facts.preparedAtTxHash ?? event.transaction.hash,
+      createdAt: new Date(Number(event.block.timestamp) * 1000),
+      createdAtBlock: Number(event.block.number),
+      createdAtTxHash: event.transaction.hash,
+      updatedAt: new Date(Number(event.block.timestamp) * 1000),
+      updatedAtBlock: Number(event.block.number),
+      updatedAtTxHash: event.transaction.hash,
+    };
+
+    const conflictSet = buildCrosschainPayloadConflictSet();
+    const [entity] = await context.db.sql
+      .insert(CrosschainPayload)
+      .values(row)
+      .onConflictDoUpdate({
+        target: [CrosschainPayload.id, CrosschainPayload.index],
+        set: conflictSet as unknown as Partial<typeof row>,
+      })
+      .returning();
+
+    if (!entity) throw new Error(`CrosschainPayload upsertFacts failed for ${key.id}`);
+    return new CrosschainPayloadService(
+      CrosschainPayload,
+      "CrosschainPayload",
+      context,
+      entity
+    );
+  }
 
   /**
    * Looks up a payload by the transaction hash that prepared it on the source chain.

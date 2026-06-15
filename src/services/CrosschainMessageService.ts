@@ -1,10 +1,13 @@
 import { CrosschainMessage, CrosschainMessageStatuses } from "ponder:schema";
-import { Service, type ReadOnlyContext } from "./Service";
+import { Service, type DataWithoutDefaults, type ReadOnlyContext } from "./Service";
 import { expandInlineObject, serviceError, serviceLog } from "../helpers/logger";
 import { encodePacked, keccak256 } from "viem";
 import { Event, Context } from "ponder:registry";
 import { timestamper } from "../helpers/timestamper";
 import { RegistryVersions } from "../chains";
+import { buildCrosschainMessageConflictSet, NULL_CROSSCHAIN_MESSAGE_FACTS } from "../helpers/crosschainUpsert";
+import { defaultCrosschainMessageStatus } from "../helpers/crosschainStatusCase";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 
 /**
  * Service class for managing CrosschainMessage entities.
@@ -17,6 +20,89 @@ import { RegistryVersions } from "../chains";
 export class CrosschainMessageService extends Service<typeof CrosschainMessage> {
   static readonly entityTable = CrosschainMessage;
   static readonly entityName = "CrosschainMessage";
+
+  /**
+   * Upserts fact columns and recomputes status via SQL CASE (multichain-safe).
+   * @param context - Ponder context
+   * @param event - Source event for created/updated defaults
+   * @param key - Message primary key
+   * @param facts - Fact fields to merge (status is derived, not set here)
+   * @returns Service instance for the upserted row
+   */
+  static async upsertFacts(
+    context: Context,
+    event: Extract<Event, { transaction: { hash: `0x${string}` } }>,
+    key: { id: `0x${string}`; index: number },
+    facts: Partial<DataWithoutDefaults<typeof CrosschainMessage>>
+  ): Promise<CrosschainMessageService> {
+    serviceLog(
+      "CrosschainMessage upsertFacts",
+      expandInlineObject({ id: key.id, index: key.index })
+    );
+    const hasPrepared = facts.preparedAt != null;
+    const hasPayload = facts.payloadId != null;
+    const status =
+      facts.status ??
+      defaultCrosschainMessageStatus(hasPrepared, hasPayload);
+    const row = {
+      ...NULL_CROSSCHAIN_MESSAGE_FACTS,
+      ...facts,
+      ...key,
+      messageType: facts.messageType ?? "_Stub",
+      hash: facts.hash ?? (`0x${"00".repeat(32)}` as `0x${string}`),
+      rawData: facts.rawData ?? "0x",
+      fromCentrifugeId: facts.fromCentrifugeId ?? "0",
+      toCentrifugeId: facts.toCentrifugeId ?? "0",
+      status,
+      createdAt: new Date(Number(event.block.timestamp) * 1000),
+      createdAtBlock: Number(event.block.number),
+      createdAtTxHash: event.transaction.hash,
+      updatedAt: new Date(Number(event.block.timestamp) * 1000),
+      updatedAtBlock: Number(event.block.number),
+      updatedAtTxHash: event.transaction.hash,
+    };
+
+    const conflictSet = buildCrosschainMessageConflictSet();
+    const [entity] = await context.db.sql
+      .insert(CrosschainMessage)
+      .values(row)
+      .onConflictDoUpdate({
+        target: [CrosschainMessage.id, CrosschainMessage.index],
+        set: conflictSet as unknown as Partial<typeof row>,
+      })
+      .returning();
+
+    if (!entity) throw new Error(`CrosschainMessage upsertFacts failed for ${key.id}`);
+    return new CrosschainMessageService(
+      CrosschainMessage,
+      "CrosschainMessage",
+      context,
+      entity
+    );
+  }
+
+  /**
+   * Batch upsert fact rows (each row gets its own conflict merge + status CASE).
+   * @param context - Ponder context
+   * @param event - Source event
+   * @param rows - Rows with keys and facts
+   * @returns Upserted service instances
+   */
+  static async upsertFactsMany(
+    context: Context,
+    event: Extract<Event, { transaction: { hash: `0x${string}` } }>,
+    rows: Array<
+      { id: `0x${string}`; index: number } & Partial<DataWithoutDefaults<typeof CrosschainMessage>>
+    >
+  ): Promise<CrosschainMessageService[]> {
+    const results: CrosschainMessageService[] = [];
+    for (const row of rows) {
+      const { id, index, ...facts } = row;
+      results.push(await CrosschainMessageService.upsertFacts(context, event, { id, index }, facts));
+    }
+    return results;
+  }
+
   /**
    * Groups rows by message `id`, each group sorted by `index` (for in-memory use after a batched query).
    */
@@ -33,6 +119,24 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
       list.sort((a, b) => a.read().index - b.read().index);
     }
     return map;
+  }
+
+  /**
+   * Next message index for a message id (`MAX(index) + 1` on committed rows only).
+   * @param context - Ponder context
+   * @param messageId - Message id
+   * @returns Next index (0 when none exist)
+   */
+  static async nextMessageIndex(
+    context: Context,
+    messageId: `0x${string}`
+  ): Promise<number> {
+    const db = context.db.sql;
+    const [result] = await db
+      .select({ maxIndex: sql<number>`coalesce(max(${CrosschainMessage.index}), -1)::int` })
+      .from(CrosschainMessage)
+      .where(eq(CrosschainMessage.id, messageId));
+    return (result?.maxIndex ?? -1) + 1;
   }
 
   /**
@@ -152,11 +256,18 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
       "CrosschainMessage countPayloadExecutedMessages",
       expandInlineObject({ payloadId, payloadIndex })
     );
-    return await CrosschainMessageService.count(context, {
-      payloadId,
-      payloadIndex,
-      status: "Executed",
-    });
+    const db = context.db.sql;
+    const [result] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(CrosschainMessage)
+      .where(
+        and(
+          eq(CrosschainMessage.payloadId, payloadId),
+          eq(CrosschainMessage.payloadIndex, payloadIndex),
+          isNotNull(CrosschainMessage.executedAt)
+        )
+      );
+    return result?.count ?? 0;
   }
 
   /**
@@ -215,7 +326,7 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
    */
   static async linkMessagesToPayload(
     context: Context,
-    event: Event,
+    event: Extract<Event, { transaction: { hash: `0x${string}` } }>,
     messageIds: `0x${string}`[],
     payloadId: `0x${string}`,
     payloadIndex: number
@@ -225,7 +336,7 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
       expandInlineObject({ payloadId, payloadIndex, messageCount: messageIds.length })
     );
     const uniqueIds = [...new Set(messageIds)];
-    const unlinkedRows =
+    const unlinkedRows = (
       uniqueIds.length === 0
         ? []
         : ((await CrosschainMessageService.query(context, {
@@ -236,25 +347,27 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
               { field: "id", direction: "asc" },
               { field: "index", direction: "asc" },
             ],
-          })) as CrosschainMessageService[]);
+          })) as CrosschainMessageService[])
+    ).filter((row) => {
+      const d = row.read();
+      return d.preparedAt != null || d.batchedAt != null;
+    });
 
     const queueById = CrosschainMessageService.groupRowsByMessageId(unlinkedRows);
 
-    const toSave: CrosschainMessageService[] = [];
     const poolIdSet = new Set<bigint>();
     const tokenIdSet = new Set<`0x${string}`>();
     for (const messageId of messageIds) {
       const q = queueById.get(messageId);
       const crosschainMessage = q?.shift();
       if (!crosschainMessage) continue;
-      const { poolId, tokenId } = crosschainMessage.read();
-      crosschainMessage.setPayloadId(payloadId, payloadIndex);
-      toSave.push(crosschainMessage);
+      const { poolId, tokenId, index } = crosschainMessage.read();
+      await CrosschainMessageService.upsertFacts(context, event, { id: messageId, index }, {
+        payloadId,
+        payloadIndex,
+      });
       if (poolId) poolIdSet.add(poolId);
       if (tokenId) tokenIdSet.add(tokenId);
-    }
-    if (toSave.length > 0) {
-      await CrosschainMessageService.saveMany(context, toSave, event);
     }
     const poolIds = Array.from(poolIdSet);
     const tokenIds = Array.from(tokenIdSet);

@@ -73,11 +73,12 @@ multiMapper("spoke:AddShareClass", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const totalSupply = await readContractSafe(context, event, {
+  const totalSupplyResult = await readContractSafe(context, event, {
     abi: ERC20Abi,
     address: tokenAddress,
     functionName: "totalSupply",
   });
+  const totalSupply = totalSupplyResult ?? 0n;
 
   // Get the existing token instance
   const tokenInstance = (await TokenInstanceService.getOrInit(

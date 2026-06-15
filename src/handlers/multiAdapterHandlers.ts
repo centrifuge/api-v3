@@ -13,19 +13,16 @@ import {
   extractMessagesFromPayload,
 } from "../services";
 import { effectiveGasPriceFromEvent } from "../helpers/effectiveGasPrice";
-import { timestamper } from "../helpers/timestamper";
+import { timestamperWithChain } from "../helpers/timestamper";
 import { getVersionForContract } from "../contracts";
+import {
+  payloadReceiveEntryFromEvent,
+  reconcilePayloadReceives,
+  runWithSendReconciliation,
+} from "../helpers/crosschainReconciliation";
 
 /**
- * Multi-adapter cross-chain delivery differs by registry version:
- *
- * **v3** — One payload per `payloadId` for the underpaid → in-transit leg (see `getUnderpaidFromQueue`
- * in `SendPayload`), plus **0..n** adapter **proof** rounds (`SendProof` / `HandleProof`) that count
- * toward `AdapterParticipationService.checkPayloadVerified` together with payload sends/handles.
- *
- * **v3_1** — **1..n** payload rows can share the same `payloadId` (different `payloadIndex`);
- * `SendPayload` may attach to an existing in-transit row. There is **no** proof phase on the protocol;
- * `SendProof` / `HandleProof` exit early when the emitting contract is `v3_1`.
+ * Multi-adapter cross-chain delivery differs by registry version — see prior module comment.
  */
 
 multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
@@ -35,8 +32,6 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
     payload: payloadData,
     payloadId,
     adapter,
-    // adapterData,
-    // refund,
   } = event.args;
 
   const gasLimit = "gasLimit" in event.args ? event.args.gasLimit : null;
@@ -53,69 +48,84 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
     getMessageId(fromCentrifugeId, toCentrifugeId.toString(), getMessageHash(message))
   );
 
-  let payload: CrosschainPayloadService | null = null;
-
-  // v3: at most one underpaid row per payloadId before adapters send. v3_1: multiple indices / resend.
-  if (version === "v3_1")
-    payload = await CrosschainPayloadService.getUnderpaidOrInTransitFromQueue(context, payloadId);
-  else payload = await CrosschainPayloadService.getUnderpaidFromQueue(context, payloadId);
-
-  let payloadIndex: number;
-  if (!payload) {
-    payloadIndex = await CrosschainPayloadService.count(context, {
-      id: payloadId,
-    });
-    const [poolId, tokenId] = await CrosschainMessageService.linkMessagesToPayload(
-      context,
-      event,
-      messageIds,
-      payloadId,
-      payloadIndex
-    );
-    payload = (await CrosschainPayloadService.insert(
-      context,
-      {
-        id: payloadId,
-        index: payloadIndex,
-        rawData: payloadData,
-        status: "InTransit",
-        toCentrifugeId: toCentrifugeId.toString(),
-        fromCentrifugeId: fromCentrifugeId,
-        poolId,
-        tokenId,
-        gasLimit,
-        gasPrice,
-        ...timestamper("prepared", event),
-      },
-      event
-    )) as CrosschainPayloadService;
-  } else {
-    payloadIndex = payload.read().index;
-    await CrosschainMessageService.linkMessagesToPayload(
-      context,
-      event,
-      messageIds,
-      payloadId,
-      payloadIndex
-    );
-  }
-  await AdapterParticipationService.insert(
+  await runWithSendReconciliation(
     context,
-    {
-      payloadId,
-      payloadIndex,
-      adapterId: (adapter as string).toLowerCase(),
-      centrifugeId: fromCentrifugeId,
-      fromCentrifugeId: fromCentrifugeId,
-      toCentrifugeId: toCentrifugeId.toString(),
-      side: "SEND",
-      type: "PAYLOAD",
-      gasPaid,
-      timestamp: new Date(Number(event.block.timestamp) * 1000),
-      blockNumber: Number(event.block.number),
-      transactionHash: event.transaction.hash,
-    },
-    event
+    event,
+    { messageIds, payloadIds: [payloadId] },
+    async () => {
+      let payload: CrosschainPayloadService | null = null;
+
+      if (version === "v3_1")
+        payload = await CrosschainPayloadService.getUnderpaidOrInTransitFromQueue(
+          context,
+          payloadId
+        );
+      else payload = await CrosschainPayloadService.getUnderpaidFromQueue(context, payloadId);
+
+      let payloadIndex: number;
+      if (!payload) {
+        payloadIndex = await CrosschainPayloadService.nextPayloadIndex(context, payloadId);
+        const [poolId, tokenId] = await CrosschainMessageService.linkMessagesToPayload(
+          context,
+          event,
+          messageIds,
+          payloadId,
+          payloadIndex
+        );
+        payload = await CrosschainPayloadService.upsertFacts(
+          context,
+          event,
+          { id: payloadId, index: payloadIndex },
+          {
+            rawData: payloadData,
+            toCentrifugeId: toCentrifugeId.toString(),
+            fromCentrifugeId,
+            poolId,
+            tokenId,
+            gasLimit,
+            gasPrice,
+            ...timestamperWithChain("prepared", event, context.chain.id),
+            ...timestamperWithChain("repaid", event, context.chain.id),
+          }
+        );
+      } else {
+        payloadIndex = payload.read().index;
+        await CrosschainMessageService.linkMessagesToPayload(
+          context,
+          event,
+          messageIds,
+          payloadId,
+          payloadIndex
+        );
+        await CrosschainPayloadService.upsertFacts(
+          context,
+          event,
+          { id: payloadId, index: payloadIndex },
+          {
+            ...timestamperWithChain("repaid", event, context.chain.id),
+          }
+        );
+      }
+
+      await AdapterParticipationService.insert(
+        context,
+        {
+          payloadId,
+          payloadIndex,
+          adapterId: (adapter as string).toLowerCase(),
+          centrifugeId: fromCentrifugeId,
+          fromCentrifugeId: fromCentrifugeId,
+          toCentrifugeId: toCentrifugeId.toString(),
+          side: "SEND",
+          type: "PAYLOAD",
+          gasPaid,
+          timestamp: new Date(Number(event.block.timestamp) * 1000),
+          blockNumber: Number(event.block.number),
+          transactionHash: event.transaction.hash,
+        },
+        event
+      );
+    }
   );
 });
 
@@ -128,102 +138,56 @@ multiMapper("multiAdapter:SendProof", async ({ event, context }) => {
     return logEvent(event, context, "multiAdapter:SendProof skipped (v3_1 has no adapter proofs)");
 
   const { payloadId, adapter, centrifugeId: toCentrifugeId } = event.args;
-
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const payload = (await CrosschainPayloadService.getIncompleteFromQueue(
-    context,
-    payloadId
-  )) as CrosschainPayloadService | null;
-  if (!payload) {
-    serviceError(`CrosschainPayload not found in Incomplete queue. Cannot send proof`);
-    return;
-  }
-  const { index: payloadIndex } = payload.read();
+  await runWithSendReconciliation(context, event, { payloadIds: [payloadId] }, async () => {
+    const payload = (await CrosschainPayloadService.getIncompleteFromQueue(
+      context,
+      payloadId
+    )) as CrosschainPayloadService | null;
+    if (!payload) return;
 
-  await AdapterParticipationService.insert(
-    context,
-    {
-      payloadId,
-      payloadIndex,
-      adapterId: (adapter as string).toLowerCase(),
-      centrifugeId: fromCentrifugeId,
-      fromCentrifugeId: fromCentrifugeId.toString(),
-      toCentrifugeId: toCentrifugeId.toString(),
-      side: "SEND",
-      type: "PROOF",
-      timestamp: new Date(Number(event.block.timestamp) * 1000),
-      blockNumber: Number(event.block.number),
-      transactionHash: event.transaction.hash,
-    },
-    event
-  );
+    const { index: payloadIndex } = payload.read();
+
+    await AdapterParticipationService.insert(
+      context,
+      {
+        payloadId,
+        payloadIndex,
+        adapterId: (adapter as string).toLowerCase(),
+        centrifugeId: fromCentrifugeId,
+        fromCentrifugeId: fromCentrifugeId.toString(),
+        toCentrifugeId: toCentrifugeId.toString(),
+        side: "SEND",
+        type: "PROOF",
+        timestamp: new Date(Number(event.block.timestamp) * 1000),
+        blockNumber: Number(event.block.number),
+        transactionHash: event.transaction.hash,
+      },
+      event
+    );
+  });
 });
 
 multiMapper("multiAdapter:HandlePayload", async ({ event, context }) => {
-  // RECEIVING CHAIN
   logEvent(event, context, "multiAdapter:HandlePayload");
-  const {
-    payloadId,
-    adapter,
-    // adapterData,
-    // refund,
-    centrifugeId: fromCentrifugeId,
-  } = event.args;
+  const { payloadId, adapter, centrifugeId: fromCentrifugeId } = event.args;
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const payload = (await CrosschainPayloadService.getInTransitOrDeliveredFromQueue(
-    context,
-    payloadId
-  )) as CrosschainPayloadService | null;
-  if (!payload)
-    return serviceError(
-      `CrosschainPayload not found in InTransit or Delivered queue. Cannot handle payload`
-    );
-
-  const { index: payloadIndex } = payload.read();
-  await AdapterParticipationService.insert(
-    context,
-    {
-      payloadId,
-      payloadIndex,
-      adapterId: (adapter as string).toLowerCase(),
-      centrifugeId: toCentrifugeId.toString(),
-      fromCentrifugeId: fromCentrifugeId.toString(),
-      toCentrifugeId: toCentrifugeId.toString(),
-      side: "HANDLE",
+  await reconcilePayloadReceives(context, event, [payloadId], [
+    payloadReceiveEntryFromEvent(event, context.chain.id, {
       type: "PAYLOAD",
-      timestamp: new Date(Number(event.block.timestamp) * 1000),
-      blockNumber: Number(event.block.number),
-      transactionHash: event.transaction.hash,
-    },
-    event
-  );
-
-  const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(
-    context,
-    payloadId,
-    payloadIndex
-  );
-  if (!isPayloadVerified) return;
-
-  payload.delivered(event);
-  await payload.save(event);
-
-  const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(
-    context,
-    payloadId,
-    payloadIndex
-  );
-  if (!isPayloadFullyExecuted) return;
-
-  payload.completed(event);
-  await payload.save(event);
+      payloadId,
+      adapterId: (adapter as string).toLowerCase(),
+      fromCentrifugeId: fromCentrifugeId.toString(),
+      toCentrifugeId,
+    }),
+  ]);
 });
 
 multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
-  logEvent(event, context, "multiAdapterHandleProof"); // RECEIVING CHAIN
+  logEvent(event, context, "multiAdapterHandleProof");
 
   const version = getVersionForContract("multiAdapter", context.chain.id, event.log.address);
   if (!version) return serviceError("Failed to get registry version");
@@ -235,55 +199,17 @@ multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
     );
 
   const { payloadId, adapter, centrifugeId: fromCentrifugeId } = event.args;
-
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
-  const crosschainPayload = (await CrosschainPayloadService.getIncompleteFromQueue(
-    context,
-    payloadId
-  )) as CrosschainPayloadService | null;
-  if (!crosschainPayload) {
-    serviceError(`CrosschainPayload not found in Incomplete queue. Cannot handle proof`);
-    return;
-  }
-  const { index: payloadIndex } = crosschainPayload.read();
 
-  await AdapterParticipationService.insert(
-    context,
-    {
-      payloadId,
-      payloadIndex,
-      adapterId: (adapter as string).toLowerCase(),
-      centrifugeId: toCentrifugeId.toString(),
-      fromCentrifugeId: fromCentrifugeId.toString(),
-      toCentrifugeId: toCentrifugeId.toString(),
-      side: "HANDLE",
+  await reconcilePayloadReceives(context, event, [payloadId], [
+    payloadReceiveEntryFromEvent(event, context.chain.id, {
       type: "PROOF",
-      timestamp: new Date(Number(event.block.timestamp) * 1000),
-      blockNumber: Number(event.block.number),
-      transactionHash: event.transaction.hash,
-    },
-    event
-  );
-
-  const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(
-    context,
-    payloadId,
-    payloadIndex
-  );
-  if (!isPayloadVerified) return;
-
-  crosschainPayload.delivered(event);
-  await crosschainPayload.save(event);
-
-  const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(
-    context,
-    payloadId,
-    payloadIndex
-  );
-  if (!isPayloadFullyExecuted) return;
-
-  crosschainPayload.completed(event);
-  await crosschainPayload.save(event);
+      payloadId,
+      adapterId: (adapter as string).toLowerCase(),
+      fromCentrifugeId: fromCentrifugeId.toString(),
+      toCentrifugeId,
+    }),
+  ]);
 });
 
 multiMapper("multiAdapter:SetAdapters", async ({ event, context }) => {
@@ -320,33 +246,46 @@ multiMapper(
         centrifugeId: localCentrifugeId.toString(),
       })) as AdapterService[]
     ).map((adapter) => adapter.read());
-    const adapterWirings: Promise<AdapterWiringService | null>[] = [];
+
     for (const remoteAdapterAddress of adapters) {
       const remoteAdapter = await AdapterService.get(context, {
         centrifugeId: remoteCentrifugeId.toString(),
         address: remoteAdapterAddress,
       });
-      if (!remoteAdapter) continue;
+      if (!remoteAdapter) {
+        for (const localAdapter of localAdapters) {
+          await AdapterWiringService.upsertDeferred(
+            context,
+            {
+              fromAddress: localAdapter.address,
+              fromCentrifugeId: localCentrifugeId,
+              toAddress: remoteAdapterAddress as `0x${string}`,
+              pendingRemoteAdapter: remoteAdapterAddress as `0x${string}`,
+              toCentrifugeId: remoteCentrifugeId.toString(),
+            },
+            event
+          );
+        }
+        continue;
+      }
       const { name: remoteAdapterName } = remoteAdapter.read();
-      const localAdapter = localAdapters.find(
-        (localAdapter) => localAdapter.name === remoteAdapterName
-      );
+      const localAdapter = localAdapters.find((la) => la.name === remoteAdapterName);
       if (!localAdapter) continue;
       serviceLog(
         `Wiring adapter ${localAdapter.name} on chain ${localCentrifugeId} to adapter ${remoteAdapterName} on chain ${remoteCentrifugeId}`
       );
-      const adapterWiring = AdapterWiringService.insert(
+      await AdapterWiringService.upsert(
         context,
         {
           fromAddress: localAdapter.address,
           fromCentrifugeId: localCentrifugeId,
           toAddress: remoteAdapterAddress,
           toCentrifugeId: remoteCentrifugeId.toString(),
+          ...timestamperWithChain("wired", event, context.chain.id),
         },
         event
-      ) as Promise<AdapterWiringService | null>;
-      adapterWirings.push(adapterWiring);
+      );
     }
-    await Promise.all(adapterWirings);
+    await AdapterWiringService.reconcilePending(context, remoteCentrifugeId.toString());
   }
 );
