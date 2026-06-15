@@ -4,7 +4,7 @@
  */
 import type { Abi } from "viem";
 import { ERC20Abi } from "../../abis/ERC20";
-import { getPublicClient } from "../api/helpers/contracts";
+import { getPublicClient } from "./publicClient";
 import type { RegistryVersions } from "../chains";
 import {
   Abis,

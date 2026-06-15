@@ -11,6 +11,7 @@ import {
 import { Service, type ReadOnlyContext } from "./Service";
 import { BlockchainService } from "./BlockchainService";
 import { PoolService } from "./PoolService";
+import { TokenService } from "./TokenService";
 
 /** ERC-6909 token id for vault-indexed assets; vaults support ERC-20 only (`tokenId = 0`). */
 const VAULT_ERC20_ASSET_TOKEN_ID = 0n;
@@ -128,6 +129,7 @@ export class AssetService extends Service<typeof Asset> {
       pool.setDecimals(decimals);
     }
     await PoolService.saveMany(context, pools, event);
+    await TokenService.backfillTokenDecimals(context, assetId, decimals, event);
   }
 
   /**

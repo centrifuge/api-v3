@@ -9,6 +9,10 @@ import {
   sortMessageQueueFifo,
 } from "./crosschainReconciliationCore";
 import {
+  payloadIndexFromMessages,
+  resolvePayloadKeyForEvent,
+} from "./crosschainIndex";
+import {
   AdapterParticipationService,
   CrosschainMessageQueueService,
   CrosschainMessageService,
@@ -379,29 +383,52 @@ async function tryApplyMessageReceive(
 }
 
 /**
- * Resolves the best committed payload row for a handle receive.
+ * Resolves the committed payload row for a handle receive using `(payloadId, index)`.
  * @param context - Ponder context
- * @param payloadId - Payload id
- * @returns Payload service instance or null
+ * @param entry - Payload receive entry (adapter + type for SEND linkage)
+ * @returns Payload service instance or null when send row not indexed yet
  */
 async function resolvePayloadRowForHandle(
   context: Context,
-  payloadId: `0x${string}`
+  entry: PayloadReceiveEntry
 ): Promise<CrosschainPayloadService | null> {
-  return (
-    ((await CrosschainPayloadService.getInTransitOrDeliveredFromQueue(
-      context,
-      payloadId
-    )) as CrosschainPayloadService | null) ??
-    ((await CrosschainPayloadService.getUnderpaidOrInTransitFromQueue(
-      context,
-      payloadId
-    )) as CrosschainPayloadService | null) ??
-    ((await CrosschainPayloadService.getIncompleteFromQueue(
-      context,
-      payloadId
-    )) as CrosschainPayloadService | null)
+  const { payloadId } = entry;
+  const rows = await CrosschainPayloadService.loadAllForPayloadId(context, payloadId);
+  if (rows.length === 0) return null;
+
+  const rowByIndex = (index: number) => rows.find((r) => r.read().index === index) ?? null;
+
+  const sendParticipations = (await AdapterParticipationService.query(context, {
+    payloadId,
+    adapterId: entry.adapterId.toLowerCase(),
+    side: "SEND",
+    type: entry.type,
+  })) as AdapterParticipationService[];
+  const participationIndices = [
+    ...new Set(sendParticipations.map((p) => p.read().payloadIndex)),
+  ];
+  if (participationIndices.length === 1) {
+    const fromParticipation = rowByIndex(participationIndices[0]!);
+    if (fromParticipation) return fromParticipation;
+  }
+
+  const linkedMessages = (await CrosschainMessageService.query(context, {
+    payloadId,
+  })) as CrosschainMessageService[];
+  const messageIndex = payloadIndexFromMessages(linkedMessages.map((m) => m.read()));
+  if (messageIndex != null) {
+    const fromMessages = rowByIndex(messageIndex);
+    if (fromMessages) return fromMessages;
+  }
+
+  const key = resolvePayloadKeyForEvent(
+    "HandlePayload",
+    rows.map((r) => r.read()),
+    { deferAllowed: true }
   );
+  if (key.action === "mutate") return rowByIndex(key.index);
+
+  return null;
 }
 
 /**
@@ -458,7 +485,7 @@ async function tryApplyPayloadReceive(
   event: TxEvent,
   entry: PayloadReceiveEntry
 ): Promise<"applied" | "waiting"> {
-  const payload = await resolvePayloadRowForHandle(context, entry.payloadId);
+  const payload = await resolvePayloadRowForHandle(context, entry);
   if (!payload) return "waiting";
 
   const payloadData = payload.read();

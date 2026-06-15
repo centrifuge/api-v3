@@ -3,6 +3,7 @@ import { logEvent, serviceError, serviceWarn } from "../helpers/logger";
 import {
   BlockchainService,
   AssetService,
+  PoolService,
   TokenInstanceService,
   HoldingEscrowService,
   TokenService,
@@ -101,15 +102,27 @@ multiMapper("spoke:AddShareClass", async ({ event, context }) => {
   tokenInstance.activate();
   await tokenInstance.save(event);
 
+  const pool = (await PoolService.get(context, { id: poolId })) as PoolService | null;
+  if (!pool) {
+    return serviceError(`Pool not found. Cannot add share class on spoke for poolId ${poolId}`);
+  }
+
+  const shareDecimals = await AssetService.resolvePoolCurrencyDecimals(context, pool, event);
+
   // Get or create token
   const token = (await TokenService.getOrInit(
     context,
     {
       id: tokenId,
       poolId,
+      centrifugeId,
     },
     event
   )) as TokenService;
+
+  if (typeof shareDecimals === "number") {
+    token.setDecimals(shareDecimals);
+  }
 
   // Only increase token total issuance if this is a new token instance
   if (prevInstanceIssuance === 0n) {

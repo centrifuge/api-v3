@@ -3,7 +3,7 @@ import type { Context, Event } from "ponder:registry";
 import type { ReadOnlyContext } from "./Service";
 import { and, asc, desc, gt, inArray, isNotNull, lte } from "drizzle-orm";
 import { Service } from "./Service";
-import { serviceLog } from "../helpers/logger";
+import { expandInlineObject, serviceLog } from "../helpers/logger";
 import {
   ALL_TOKEN_YIELD_SNAPSHOT_COLUMN_NAMES,
   type TokenSnapshotPricePoint,
@@ -14,7 +14,7 @@ import {
   yieldSnapshotCapTimes,
   yieldSnapshotPointKey,
 } from "../helpers/tokenYields";
-import { expandInlineObject } from "../helpers/logger";
+import { PoolService } from "./PoolService";
 
 export type { TokenSnapshotPricePoint };
 
@@ -41,6 +41,37 @@ export class TokenService extends Service<typeof Token> {
     const { decimals } = token.read();
     return decimals;
   }
+
+  /**
+   * Sets `token.decimals` on share classes for pools with the given currency when still null.
+   * @param context - Database context
+   * @param assetId - Pool currency asset id
+   * @param decimals - Known decimals from the registration event
+   * @param event - Handler event for update timestamps
+   */
+  static async backfillTokenDecimals(
+    context: Context,
+    assetId: bigint,
+    decimals: number,
+    event: Event
+  ): Promise<void> {
+    serviceLog(`Token backfillTokenDecimals assetId=${assetId} decimals=${decimals}`);
+    const pools = (await PoolService.query(context, {
+      currency: assetId,
+    })) as PoolService[];
+    if (pools.length === 0) return;
+    const poolIds = pools.map((pool) => pool.read().id);
+    const tokens = (await TokenService.query(context, {
+      poolId_in: poolIds,
+      decimals: null,
+    })) as TokenService[];
+    if (tokens.length === 0) return;
+    for (const token of tokens) {
+      token.setDecimals(decimals);
+    }
+    await TokenService.saveMany(context, tokens, event);
+  }
+
   /**
    * Activates the token by setting its isActive property to true.
    *
@@ -72,6 +103,16 @@ export class TokenService extends Service<typeof Token> {
   public setIndex(index: number) {
     serviceLog(`Setting index for shareClass ${this.data.id} to ${index}`);
     this.data.index = index;
+    return this;
+  }
+
+  /**
+   * Sets ERC-20-style decimal places for the share token (matches pool currency decimals).
+   * @param decimals - Decimal places for share amounts
+   */
+  public setDecimals(decimals: number) {
+    serviceLog(`Setting decimals for shareClass ${this.data.id} to ${decimals}`);
+    this.data.decimals = decimals;
     return this;
   }
 

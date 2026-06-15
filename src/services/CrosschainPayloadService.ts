@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { CrosschainPayload, CrosschainPayloadStatuses } from "ponder:schema";
 import { Service, type DataWithoutDefaults, type ReadOnlyContext } from "./Service";
 import { Event, Context } from "ponder:registry";
@@ -7,7 +7,19 @@ import { keccak256, encodePacked } from "viem";
 import { expandInlineObject, serviceError, serviceLog } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
 import { RegistryVersions } from "../chains";
-import { buildCrosschainPayloadConflictSet, NULL_CROSSCHAIN_PAYLOAD_FACTS } from "../helpers/crosschainUpsert";
+import {
+  buildCrosschainPayloadConflictSet,
+  CROSSCHAIN_RAW_DATA_STUB,
+  NULL_CROSSCHAIN_PAYLOAD_FACTS,
+} from "../helpers/crosschainUpsert";
+import {
+  findOpenPayloadCandidate,
+  payloadIndexFromMessages,
+  resolvePayloadKeyForEvent,
+  type PayloadEventKind,
+  type ResolvePayloadKeyResult,
+} from "../helpers/crosschainIndex";
+import { CrosschainMessageService } from "./CrosschainMessageService";
 
 /**
  * Service class for managing CrosschainPayload entities (primary key `id` + `payloadIndex`).
@@ -32,12 +44,84 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
     context: Context,
     payloadId: `0x${string}`
   ): Promise<number> {
-    const db = context.db.sql;
-    const [result] = await db
-      .select({ maxIndex: sql<number>`coalesce(max(${CrosschainPayload.index}), -1)::int` })
-      .from(CrosschainPayload)
-      .where(eq(CrosschainPayload.id, payloadId));
-    return (result?.maxIndex ?? -1) + 1;
+    const rows = await CrosschainPayloadService.loadAllForPayloadId(context, payloadId);
+    return rows.length === 0
+      ? 0
+      : Math.max(...rows.map((r) => r.read().index)) + 1;
+  }
+
+  /**
+   * All payload rows for a `payloadId`, sorted by `index` ascending.
+   * @param context - Ponder context
+   * @param payloadId - Payload id
+   * @returns Service instances
+   */
+  static async loadAllForPayloadId(
+    context: Context | ReadOnlyContext,
+    payloadId: `0x${string}`
+  ): Promise<CrosschainPayloadService[]> {
+    serviceLog("CrosschainPayload loadAllForPayloadId", expandInlineObject({ payloadId }));
+    return (await CrosschainPayloadService.query(context, {
+      id: payloadId,
+      _sort: [{ field: "index", direction: "asc" }],
+    })) as CrosschainPayloadService[];
+  }
+
+  /**
+   * Lowest-index open payload row for a `payloadId`.
+   * @param context - Ponder context
+   * @param payloadId - Payload id
+   * @returns Open row or null
+   */
+  static async findOpenPayloadCandidate(
+    context: Context | ReadOnlyContext,
+    payloadId: `0x${string}`
+  ): Promise<CrosschainPayloadService | null> {
+    const rows = await CrosschainPayloadService.loadAllForPayloadId(context, payloadId);
+    const candidate = findOpenPayloadCandidate(rows.map((r) => r.read()));
+    if (!candidate) return null;
+    return rows.find((r) => r.read().index === candidate.index) ?? null;
+  }
+
+  /**
+   * Resolves which `(payloadId, index)` key an event should upsert.
+   * @param context - Ponder context
+   * @param payloadId - Payload id
+   * @param eventKind - Sender/handle event kind
+   * @param options - Defer flag and optional batch message ids for linkage
+   * @returns Mutate, create, or defer
+   */
+  static async resolvePayloadKey(
+    context: Context,
+    payloadId: `0x${string}`,
+    eventKind: PayloadEventKind,
+    options: {
+      deferAllowed: boolean;
+      messageIds?: readonly `0x${string}`[];
+    }
+  ): Promise<ResolvePayloadKeyResult> {
+    const rows = await CrosschainPayloadService.loadAllForPayloadId(context, payloadId);
+    const rowData = rows.map((r) => r.read());
+
+    let messagePayloadIndex: number | null = null;
+    if (options.messageIds?.length) {
+      const byId = await CrosschainMessageService.loadCrosschainMessagesByMessageIds(
+        context,
+        options.messageIds
+      );
+      const flat = [...byId.values()].flat().map((r) => r.read());
+      messagePayloadIndex = payloadIndexFromMessages(flat);
+    }
+
+    serviceLog(
+      "CrosschainPayload resolvePayloadKey",
+      expandInlineObject({ payloadId, eventKind, messagePayloadIndex, rowCount: rowData.length })
+    );
+
+    return resolvePayloadKeyForEvent(eventKind, rowData, {
+      deferAllowed: options.deferAllowed,
+      messagePayloadIndex,
+    });
   }
 
   /**
@@ -62,7 +146,7 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
       ...NULL_CROSSCHAIN_PAYLOAD_FACTS,
       ...facts,
       ...key,
-      rawData: facts.rawData ?? "0x",
+      rawData: facts.rawData ?? CROSSCHAIN_RAW_DATA_STUB,
       fromCentrifugeId: facts.fromCentrifugeId ?? "0",
       toCentrifugeId: facts.toCentrifugeId ?? "0",
       status: facts.status ?? "Underpaid",

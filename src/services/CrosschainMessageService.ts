@@ -5,7 +5,12 @@ import { encodePacked, keccak256 } from "viem";
 import { Event, Context } from "ponder:registry";
 import { timestamper } from "../helpers/timestamper";
 import { RegistryVersions } from "../chains";
-import { buildCrosschainMessageConflictSet, NULL_CROSSCHAIN_MESSAGE_FACTS } from "../helpers/crosschainUpsert";
+import {
+  buildCrosschainMessageConflictSet,
+  CROSSCHAIN_MESSAGE_TYPE_STUB,
+  CROSSCHAIN_RAW_DATA_STUB,
+  NULL_CROSSCHAIN_MESSAGE_FACTS,
+} from "../helpers/crosschainUpsert";
 import { defaultCrosschainMessageStatus } from "../helpers/crosschainStatusCase";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 
@@ -48,9 +53,9 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
       ...NULL_CROSSCHAIN_MESSAGE_FACTS,
       ...facts,
       ...key,
-      messageType: facts.messageType ?? "_Stub",
+      messageType: facts.messageType ?? CROSSCHAIN_MESSAGE_TYPE_STUB,
       hash: facts.hash ?? (`0x${"00".repeat(32)}` as `0x${string}`),
-      rawData: facts.rawData ?? "0x",
+      rawData: facts.rawData ?? CROSSCHAIN_RAW_DATA_STUB,
       fromCentrifugeId: facts.fromCentrifugeId ?? "0",
       toCentrifugeId: facts.toCentrifugeId ?? "0",
       status,
@@ -942,15 +947,12 @@ function setPoolAdaptersLengthDecoder(message: Buffer) {
  * @param versionIndex - The index in the CrosschainMessageType array (0 for V3, 1 for V3_1, defaults to 0)
  * @returns The string name of the message type
  */
-export function getCrosschainMessageType(
+export function getCrosschainMessageType<V extends keyof typeof messageDecoders>(
   messageType: number,
-  versionIndex: keyof typeof CrosschainMessageType
-) {
-  const messageTypes = CrosschainMessageType[versionIndex];
-  if (!messageTypes) {
-    return "_Invalid" as const;
-  }
-  return (Object.keys(messageTypes)[messageType] ?? "_Invalid") as keyof typeof messageTypes;
+  versionIndex: V
+): keyof (typeof messageDecoders)[V] {
+  const names = Object.keys(messageDecoders[versionIndex]);
+  return (names[messageType] ?? "_Invalid") as keyof (typeof messageDecoders)[V];
 }
 
 /**

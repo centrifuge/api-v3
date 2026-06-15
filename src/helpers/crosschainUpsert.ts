@@ -4,12 +4,18 @@ import {
   mergeCoalesce,
   mergeEarliest,
   mergeSenderWins,
+  mergeSenderWinsUnlessPlaceholder,
 } from "./upsertMerge";
 import { crosschainMessageStatusCase, crosschainPayloadStatusCase } from "./crosschainStatusCase";
 import { nullTimestamperWithChain } from "./hubSpokeUpsert";
 
 const MESSAGE_TABLE = "crosschain_message";
 const PAYLOAD_TABLE = "crosschain_payload";
+
+/** Insert-only sentinel for partial message upserts (must not win on conflict). */
+export const CROSSCHAIN_MESSAGE_TYPE_STUB = "_Stub";
+/** Insert-only sentinel for partial message/payload upserts (must not win on conflict). */
+export const CROSSCHAIN_RAW_DATA_STUB = "0x";
 
 /** Null fact columns referenced in message merge SET (Ponder excluded.* gate). */
 export const NULL_CROSSCHAIN_MESSAGE_FACTS = {
@@ -74,9 +80,17 @@ export function buildCrosschainMessageConflictSet(): Record<string, SQL> {
   set.payloadIndex = mergeCoalesce(MESSAGE_TABLE, "payload_index");
   set.poolId = mergeCoalesce(MESSAGE_TABLE, "pool_id");
   set.tokenId = mergeCoalesce(MESSAGE_TABLE, "token_id");
-  set.rawData = mergeSenderWins(MESSAGE_TABLE, "raw_data");
+  set.rawData = mergeSenderWinsUnlessPlaceholder(
+    MESSAGE_TABLE,
+    "raw_data",
+    `'${CROSSCHAIN_RAW_DATA_STUB}'`
+  );
   set.data = mergeSenderWins(MESSAGE_TABLE, "data");
-  set.messageType = mergeSenderWins(MESSAGE_TABLE, "message_type");
+  set.messageType = mergeSenderWinsUnlessPlaceholder(
+    MESSAGE_TABLE,
+    "message_type",
+    `'${CROSSCHAIN_MESSAGE_TYPE_STUB}'`
+  );
   set.hash = mergeCoalesce(MESSAGE_TABLE, "hash");
   set.fromCentrifugeId = mergeCoalesce(MESSAGE_TABLE, "from_centrifuge_id");
   set.toCentrifugeId = mergeCoalesce(MESSAGE_TABLE, "to_centrifuge_id");
@@ -111,7 +125,11 @@ export function buildCrosschainPayloadConflictSet(): Record<string, SQL> {
 
   set.poolId = mergeCoalesce(PAYLOAD_TABLE, "pool_id");
   set.tokenId = mergeCoalesce(PAYLOAD_TABLE, "token_id");
-  set.rawData = mergeSenderWins(PAYLOAD_TABLE, "raw_data");
+  set.rawData = mergeSenderWinsUnlessPlaceholder(
+    PAYLOAD_TABLE,
+    "raw_data",
+    `'${CROSSCHAIN_RAW_DATA_STUB}'`
+  );
   set.fromCentrifugeId = mergeCoalesce(PAYLOAD_TABLE, "from_centrifuge_id");
   set.toCentrifugeId = mergeCoalesce(PAYLOAD_TABLE, "to_centrifuge_id");
   set.gasLimit = mergeCoalesce(PAYLOAD_TABLE, "gas_limit");

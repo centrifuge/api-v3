@@ -23,10 +23,10 @@ import {
 import { getVersionForContract } from "../contracts";
 
 /**
- * Gateway outbound batching matches `Gateway.send` in cfg-protocol (`src/core/messaging/Gateway.sol`):
- * `emit PrepareMessage` runs unconditionally at the start of `send` (before batching / `_send`), and
- * `UnderpaidBatch` is only emitted from `_addUnpaidBatch` inside `_send` after that. Same-chain ordering
- * only; under multichain, handlers upsert facts in any order.
+ * Gateway outbound paths in cfg-protocol:
+ * - `gateway.send()` always `emit PrepareMessage` before `_send` / `UnderpaidBatch` (v3.1+ and v3 `send()`).
+ * - **v3 only:** `gateway.addUnpaidMessage()` emits `UnderpaidBatch` with no `PrepareMessage`
+ *   (`MessageDispatcher.sendExecuteTransferShares`). Same-chain log order is deterministic per path.
  */
 
 multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
@@ -121,49 +121,22 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
     event,
     { messageIds: orderedMessageIds, payloadIds: [payloadId] },
     async () => {
-      const alreadyInitialized = (await CrosschainPayloadService.getUnderpaidFromQueue(
+      const key = await CrosschainPayloadService.resolvePayloadKey(
         context,
-        payloadId
-      )) as CrosschainPayloadService | null;
-
-      if (alreadyInitialized) {
-        const { index: existingPayloadIndex } = alreadyInitialized.read();
-        for (let i = 0; i < orderedMessageIds.length; i++) {
-          const messageId = orderedMessageIds[i]!;
-          const message = messages[i]!;
-          const messageBuffer = Buffer.from(message.substring(2), "hex");
-          const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0), version);
-          const messagePayload = messageBuffer.subarray(1);
-          const data = decodeMessage(messageType, messagePayload, version);
-          const rowsForId = (await CrosschainMessageService.query(context, {
-            id: messageId,
-            _sort: [{ field: "index", direction: "asc" }],
-          })) as CrosschainMessageService[];
-          const pending = CrosschainMessageService.getFirstUnlinkedAwaiting(rowsForId);
-          const index = pending?.read().index ?? rowsForId.length;
-          await CrosschainMessageService.upsertFacts(context, event, { id: messageId, index }, {
-            payloadId,
-            payloadIndex: existingPayloadIndex,
-            ...timestamperWithChain("batched", event, context.chain.id),
-            ...(data && "poolId" in data ? { poolId: BigInt(data.poolId) } : {}),
-            ...(data && "scId" in data ? { tokenId: data.scId as `0x${string}` } : {}),
-          });
-        }
-        logEvent(
-          event,
-          context,
-          `UnderpaidBatch already initialized for payloadId ${payloadId}; linked awaiting rows`
-        );
+        payloadId,
+        "UnderpaidBatch",
+        { deferAllowed: false, messageIds: orderedMessageIds }
+      );
+      if (key.action === "defer") {
+        serviceError(`UnderpaidBatch: cannot resolve payload key for ${payloadId}`);
         return;
       }
-
-      const payloadIndex = await CrosschainPayloadService.nextPayloadIndex(context, payloadId);
+      const payloadIndex = key.index;
 
       const poolIdSet = new Set<bigint>();
       const tokenIdSet = new Set<`0x${string}`>();
       const crosschainMessagesByMessageId =
         await CrosschainMessageService.loadCrosschainMessagesByMessageIds(context, orderedMessageIds);
-      const pendingInsertsById = new Map<`0x${string}`, number>();
 
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
@@ -190,7 +163,7 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
           continue;
         }
 
-        const messageIndex = rowsForId.length + (pendingInsertsById.get(messageId) ?? 0);
+        const messageIndex = i;
         const rawData = `0x${Buffer.from(messageBuffer.toString("hex"))}` as `0x${string}`;
         const data = decodeMessage(messageType, messagePayload, version);
         if (!data) {
@@ -218,7 +191,6 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
           ...timestamperWithChain("batched", event, context.chain.id),
         });
 
-        pendingInsertsById.set(messageId, (pendingInsertsById.get(messageId) ?? 0) + 1);
       }
 
       const poolIds = Array.from(poolIdSet);
@@ -228,6 +200,23 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
       }
       const poolId = poolIds.pop() ?? null;
       const tokenId = Array.from(tokenIdSet).pop() ?? null;
+
+      if (key.action === "mutate") {
+        await CrosschainPayloadService.upsertFacts(
+          context,
+          event,
+          { id: payloadId, index: payloadIndex },
+          {
+            poolId,
+            tokenId,
+            rawData: batch,
+            toCentrifugeId: toCentrifugeId.toString(),
+            fromCentrifugeId,
+            ...timestamperWithChain("prepared", event, context.chain.id),
+          }
+        );
+        return;
+      }
 
       await CrosschainPayloadService.upsertFacts(
         context,
@@ -266,15 +255,17 @@ multiMapper("gateway:RepayBatch", async ({ event, context }) => {
     event,
     { messageIds: batchMessageIds, payloadIds: [payloadId] },
     async () => {
-      const existingPayload = (await CrosschainPayloadService.query(context, {
-        id: payloadId,
-        status_in: ["Underpaid", "InTransit"],
-        _sort: [{ field: "index", direction: "asc" }],
-      })) as CrosschainPayloadService[];
-
-      const payloadIndex =
-        existingPayload[0]?.read().index ??
-        (await CrosschainPayloadService.nextPayloadIndex(context, payloadId));
+      const key = await CrosschainPayloadService.resolvePayloadKey(
+        context,
+        payloadId,
+        "RepayBatch",
+        { deferAllowed: false, messageIds: batchMessageIds }
+      );
+      if (key.action !== "mutate") {
+        serviceError(`RepayBatch: no open payload row for ${payloadId}`);
+        return;
+      }
+      const payloadIndex = key.index;
 
       await CrosschainPayloadService.upsertFacts(
         context,

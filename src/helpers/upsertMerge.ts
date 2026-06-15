@@ -75,6 +75,30 @@ export function mergeSenderWins(tablePgName: string, colPgName: string): SQL {
 }
 
 /**
+ * Sender wins when excluded carries a real value; insert placeholders are ignored on conflict.
+ * Used when partial upserts must satisfy NOT NULL columns on first insert without clobbering
+ * existing decode fields (e.g. message_type `_Stub`, raw_data `0x`).
+ * @param tablePgName - Existing row table name in SQL
+ * @param colPgName - Snake_case column name
+ * @param placeholderSqlLiteral - SQL literal for the insert-only sentinel (e.g. `'_Stub'`, `'0x'`)
+ * @returns SQL fragment for ON CONFLICT SET
+ */
+export function mergeSenderWinsUnlessPlaceholder(
+  tablePgName: string,
+  colPgName: string,
+  placeholderSqlLiteral: string
+): SQL {
+  const t = quotePgIdent(tablePgName);
+  const c = quotePgIdent(colPgName);
+  return sql.raw(`
+    CASE
+      WHEN excluded.${c} IS NOT NULL AND excluded.${c} IS DISTINCT FROM ${placeholderSqlLiteral} THEN excluded.${c}
+      ELSE ${t}.${c}
+    END
+  `);
+}
+
+/**
  * Clears fail facts when execute merge sets executed_at.
  * @param tablePgName - Existing row table name in SQL
  * @param colPgName - Snake_case column name (failed_at or fail_reason)

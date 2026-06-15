@@ -53,18 +53,20 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
     event,
     { messageIds, payloadIds: [payloadId] },
     async () => {
-      let payload: CrosschainPayloadService | null = null;
+      const key = await CrosschainPayloadService.resolvePayloadKey(
+        context,
+        payloadId,
+        "SendPayload",
+        { deferAllowed: false, messageIds }
+      );
+      if (key.action === "defer") {
+        serviceError(`SendPayload: cannot resolve payload key for ${payloadId}`);
+        return;
+      }
+      const payloadIndex = key.index;
+      const isCreate = key.action === "create";
 
-      if (version === "v3_1")
-        payload = await CrosschainPayloadService.getUnderpaidOrInTransitFromQueue(
-          context,
-          payloadId
-        );
-      else payload = await CrosschainPayloadService.getUnderpaidFromQueue(context, payloadId);
-
-      let payloadIndex: number;
-      if (!payload) {
-        payloadIndex = await CrosschainPayloadService.nextPayloadIndex(context, payloadId);
+      if (isCreate) {
         const [poolId, tokenId] = await CrosschainMessageService.linkMessagesToPayload(
           context,
           event,
@@ -72,7 +74,7 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
           payloadId,
           payloadIndex
         );
-        payload = await CrosschainPayloadService.upsertFacts(
+        await CrosschainPayloadService.upsertFacts(
           context,
           event,
           { id: payloadId, index: payloadIndex },
@@ -89,7 +91,6 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
           }
         );
       } else {
-        payloadIndex = payload.read().index;
         await CrosschainMessageService.linkMessagesToPayload(
           context,
           event,
@@ -141,13 +142,13 @@ multiMapper("multiAdapter:SendProof", async ({ event, context }) => {
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   await runWithSendReconciliation(context, event, { payloadIds: [payloadId] }, async () => {
-    const payload = (await CrosschainPayloadService.getIncompleteFromQueue(
+    const openPayload = await CrosschainPayloadService.findOpenPayloadCandidate(
       context,
       payloadId
-    )) as CrosschainPayloadService | null;
-    if (!payload) return;
+    );
+    if (!openPayload) return;
 
-    const { index: payloadIndex } = payload.read();
+    const { index: payloadIndex } = openPayload.read();
 
     await AdapterParticipationService.insert(
       context,
