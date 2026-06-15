@@ -19,7 +19,9 @@ multiMapper("hubRegistry:NewPool", async ({ event, context }) => {
   const { poolId, currency, manager } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
-  const decimals = await AssetService.getDecimals(context, currency);
+  const decimals = await AssetService.getDecimals(context, currency, event, {
+    hubRegistryAddress: event.log.address,
+  });
 
   const _pool = (await PoolService.upsert(
     context,
@@ -100,6 +102,8 @@ multiMapper("hubRegistry:NewAsset", async ({ event, context }) => {
       event
     )) as AssetService;
   }
+
+  await AssetService.backfillPoolDecimals(context, assetId, Number(decimals), event);
 });
 
 multiMapper("hubRegistry:UpdateManager", async ({ event, context }) => {

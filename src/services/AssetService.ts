@@ -1,10 +1,23 @@
-import { Context } from "ponder:registry";
+import { Context, Event } from "ponder:registry";
 import { Asset } from "ponder:schema";
 import { serviceLog, serviceWarn } from "../helpers/logger";
+import {
+  resolveAssetDecimals,
+  resolveHubChainId,
+  readHubRegistryDecimalsAtTip,
+  readSpokeAssetDecimalsAtTip,
+  type AssetDecimalsKeys,
+} from "../helpers/assetDecimals";
 import { Service, type ReadOnlyContext } from "./Service";
+import { BlockchainService } from "./BlockchainService";
+import { PoolService } from "./PoolService";
 
 /** ERC-6909 token id for vault-indexed assets; vaults support ERC-20 only (`tokenId = 0`). */
 const VAULT_ERC20_ASSET_TOKEN_ID = 0n;
+
+/** Re-export for handlers that decode asset home spoke from asset id. */
+export { centrifugeIdFromAssetId } from "../helpers/assetDecimals";
+export type { AssetDecimalsKeys };
 
 /**
  * Service class for managing Asset entities in the database.
@@ -41,21 +54,80 @@ const VAULT_ERC20_ASSET_TOKEN_ID = 0n;
 export class AssetService extends Service<typeof Asset> {
   static readonly entityTable = Asset;
   static readonly entityName = "Asset";
+
   /**
-   * Get the decimals of an asset.
-   * @param context - The context.
-   * @param assetId - The id of the asset.
-   * @returns The decimals of the asset.
+   * Resolves asset decimals: ISO short-circuit, DB row, then revert-safe hub/spoke RPC at tip.
+   * Read-only — never creates asset rows.
+   * @param context - Database context
+   * @param assetId - Protocol asset id
+   * @param event - Handler event (chain id for hub RPC routing)
+   * @param keys - Optional hub registry address or pool home hub centrifuge id
    */
-  static async getDecimals(context: Context, assetId: bigint) {
+  static async getDecimals(
+    context: Context,
+    assetId: bigint,
+    _event: Event,
+    keys?: AssetDecimalsKeys
+  ): Promise<number | undefined> {
     serviceLog(`Asset getDecimals assetId=${assetId}`);
-    if (assetId < 1000n) return 18;
-    const asset = (await this.get(context, {
-      id: assetId,
-    })) as AssetService;
-    if (!asset) return undefined;
-    const { decimals } = asset.read();
-    return decimals;
+    const hubChainId = resolveHubChainId(
+      context.chain.id,
+      keys,
+      BlockchainService.getChainIdFromCentrifugeId.bind(BlockchainService)
+    );
+    return resolveAssetDecimals(assetId, hubChainId, keys, {
+      getAssetDecimalsFromDb: async (id) => {
+        const asset = (await AssetService.get(context, { id })) as AssetService | null;
+        if (!asset) return undefined;
+        const { decimals: dbDecimals } = asset.read();
+        return typeof dbDecimals === "number" ? dbDecimals : undefined;
+      },
+      readHubRegistryDecimals: (chainId, id, hubRegistryAddress) =>
+        readHubRegistryDecimalsAtTip(chainId, id, hubRegistryAddress),
+      readSpokeAssetDecimals: (id) => readSpokeAssetDecimalsAtTip(id),
+    });
+  }
+
+  /**
+   * Resolves decimal places for a pool currency: `pool.decimals` when set, else {@link getDecimals}.
+   * @param context - Database context
+   * @param pool - Indexed pool row
+   * @param event - Handler event for RPC routing
+   */
+  static async resolvePoolCurrencyDecimals(
+    context: Context,
+    pool: PoolService,
+    event: Event
+  ): Promise<number | undefined> {
+    const { decimals, currency, centrifugeId } = pool.read();
+    if (typeof decimals === "number") return decimals;
+    if (currency == null) return undefined;
+    return AssetService.getDecimals(context, currency, event, { poolCentrifugeId: centrifugeId });
+  }
+
+  /**
+   * Sets `pool.decimals` on pools whose currency matches a newly registered asset.
+   * @param context - Database context
+   * @param assetId - Pool currency asset id
+   * @param decimals - Known decimals from the registration event
+   * @param event - Handler event for update timestamps
+   */
+  static async backfillPoolDecimals(
+    context: Context,
+    assetId: bigint,
+    decimals: number,
+    event: Event
+  ): Promise<void> {
+    serviceLog(`Asset backfillPoolDecimals assetId=${assetId} decimals=${decimals}`);
+    const pools = (await PoolService.query(context, {
+      currency: assetId,
+      decimals: null,
+    })) as PoolService[];
+    if (pools.length === 0) return;
+    for (const pool of pools) {
+      pool.setDecimals(decimals);
+    }
+    await PoolService.saveMany(context, pools, event);
   }
 
   /**
@@ -129,16 +201,4 @@ export class AssetService extends Service<typeof Asset> {
     }
     return assets[0] ?? null;
   }
-}
-
-/**
- * Decodes the centrifuge chain ID from an AssetId (high 16 bits of the uint128).
- * Matches the protocol's AssetId.sol centrifugeId(AssetId) logic.
- * @param assetId - The raw AssetId as bigint (uint128).
- * @returns The centrifugeId as string, or null for zero assetId.
- */
-export function centrifugeIdFromAssetId(assetId: bigint): string | null {
-  if (assetId === 0n) return null;
-  const centrifugeId = Number((assetId >> 112n) & 0xffffn);
-  return String(centrifugeId);
 }

@@ -482,7 +482,7 @@ async function tryApplyPayloadReceive(
       blockNumber: entry.receivedAtBlock,
       transactionHash: entry.receivedAtTxHash,
     },
-    null
+    event
   );
 
   await applyPayloadDeliverySideEffects(context, event, entry, entry.payloadId, payloadIndex);

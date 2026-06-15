@@ -42,4 +42,15 @@ export class PoolService extends Service<typeof Pool> {
     this.data.currency = currency;
     return this;
   }
+
+  /**
+   * Sets the decimals for the pool currency.
+   * @param decimals - ERC-20-style decimal places for the pool currency
+   * @returns The PoolService instance for chaining
+   */
+  public setDecimals(decimals: number) {
+    serviceLog(`Setting decimals to ${decimals}`);
+    this.data.decimals = decimals;
+    return this;
+  }
 }

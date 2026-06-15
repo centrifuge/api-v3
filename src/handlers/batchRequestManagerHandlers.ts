@@ -168,7 +168,7 @@ export async function approveDeposits({
   const epochIndex = "epochId" in args ? args.epochId : args.epoch;
   const depositAssetId = "assetId" in args ? args.assetId : args.depositAssetId;
 
-  const assetDecimals = await AssetService.getDecimals(context, depositAssetId);
+  const assetDecimals = await AssetService.getDecimals(context, depositAssetId, event);
   if (!assetDecimals)
     return serviceError(
       `Asset decimals not found. Cannot compute approved percentage for invest order`
@@ -398,7 +398,7 @@ export async function issueShares({
   epochInvestOrder.issuedShares(issuedShareAmount, navPoolPerShare, navAssetPerShare, event);
   await epochInvestOrder.save(event);
 
-  const assetDecimals = await AssetService.getDecimals(context, depositAssetId);
+  const assetDecimals = await AssetService.getDecimals(context, depositAssetId, event);
   if (!assetDecimals) return serviceError(`Asset decimals not found. Cannot compute issued shares`);
 
   const tokenDecimals = await TokenService.getDecimals(context, tokenId);
@@ -483,7 +483,7 @@ export async function revokeShares({
   if (!tokenDecimals)
     return serviceError(`Token decimals not found. Cannot compute revoked shares`);
 
-  const assetDecimals = await AssetService.getDecimals(context, payoutAssetId);
+  const assetDecimals = await AssetService.getDecimals(context, payoutAssetId, event);
   if (!assetDecimals)
     return serviceError(`Asset decimals not found. Cannot compute revoked shares`);
 

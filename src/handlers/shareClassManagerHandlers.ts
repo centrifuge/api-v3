@@ -1,7 +1,7 @@
 import { type Event, type Context } from "ponder:registry";
 import { multiMapper } from "../helpers/multiMapper";
 import { expandInlineObject, logEvent, serviceError } from "../helpers/logger";
-import { TokenService, BlockchainService, PoolService } from "../services";
+import { TokenService, BlockchainService, PoolService, AssetService } from "../services";
 import { snapshotter } from "../helpers/snapshotter";
 import { getPeriodStart } from "../helpers/timekeeper";
 import { TokenSnapshot } from "ponder:schema";
@@ -38,8 +38,8 @@ async function addShareClassLong({
   if (!pool) {
     return serviceError("Pool not found. Cannot add share class");
   }
-  const { decimals: poolDecimals } = pool.read();
-  if (typeof poolDecimals !== "number") {
+  const decimals = await AssetService.resolvePoolCurrencyDecimals(context, pool, event);
+  if (decimals === undefined) {
     return serviceError("Pool decimals is not a initialised", expandInlineObject(pool.read()));
   }
 
@@ -52,7 +52,7 @@ async function addShareClassLong({
       name,
       symbol,
       salt,
-      decimals: poolDecimals,
+      decimals,
       isActive: true,
       index,
     },
@@ -71,9 +71,10 @@ multiMapper(
     const pool = (await PoolService.get(context, {
       id: poolId,
     })) as PoolService;
-    const { decimals: poolDecimals } = pool.read();
-    if (typeof poolDecimals !== "number")
-      serviceError("Pool decimals is not a initialised", expandInlineObject(pool.read()));
+    const decimals = await AssetService.resolvePoolCurrencyDecimals(context, pool, event);
+    if (decimals === undefined) {
+      return serviceError("Pool decimals is not a initialised", expandInlineObject(pool.read()));
+    }
 
     const _token = (await TokenService.upsert(
       context,
@@ -83,7 +84,7 @@ multiMapper(
         centrifugeId,
         isActive: true,
         index,
-        decimals: poolDecimals,
+        decimals,
       },
       event
     )) as TokenService;

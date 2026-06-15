@@ -65,6 +65,8 @@ multiMapper("spoke:RegisterAsset", async ({ event, context }) => {
     },
     event
   )) as AssetService | null;
+
+  await AssetService.backfillPoolDecimals(context, assetId, Number(decimals), event);
 });
 
 multiMapper("spoke:AddShareClass", async ({ event, context }) => {
