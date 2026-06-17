@@ -10,7 +10,6 @@ import {
   InvestorPositionCheckpointService,
   TokenService,
   InvestorTransactionService,
-  PoolService,
 } from "../services";
 
 multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
@@ -19,37 +18,33 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
   const { address: tokenAddress } = event.log;
 
   const chainId = context.chain.id;
+  const isFromNull = BigInt(from) === 0n;
+  const isToNull = BigInt(to) === 0n;
+  const isFromUserAccount = isUserAccount(chainId, from);
+  const isToUserAccount = isUserAccount(chainId, to);
+
+  if (!isFromNull && !isToNull && !isFromUserAccount && !isToUserAccount) {
+    return;
+  }
+
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const tokenInstanceQuery = (await TokenInstanceService.query(context, {
+  const tokenInstance = (await TokenInstanceService.get(context, {
     address: tokenAddress,
     centrifugeId,
-  })) as TokenInstanceService[];
-  const tokenInstance = tokenInstanceQuery.pop();
+  })) as TokenInstanceService | null;
   if (!tokenInstance) {
     serviceError(`TokenInstance not found. Cannot retrieve tokenId`);
     return;
   }
-  const { tokenId } = tokenInstance.read();
+  const { tokenId, tokenPrice, decimals: tokenDecimals } = tokenInstance.read();
 
   const token = (await TokenService.get(context, { id: tokenId })) as TokenService | null;
-  if (!token) return serviceError(`Token not found. Cannot retrieve poolId`);
-  const { poolId, decimals: tokenDecimals } = token.read();
-  const pool = (await PoolService.get(context, { id: poolId })) as PoolService | null;
-  const poolDecimals = pool?.read().decimals;
-  const shareDecimals =
-    typeof tokenDecimals === "number"
-      ? tokenDecimals
-      : typeof poolDecimals === "number"
-        ? poolDecimals
-        : undefined;
-  const { tokenPrice } = tokenInstance.read();
-
-  const [isFromNull, isToNull] = [BigInt(from) === 0n, BigInt(to) === 0n];
-  const [isFromUserAccount, isToUserAccount] = [
-    isUserAccount(chainId, from),
-    isUserAccount(chainId, to),
-  ];
+  if (!token) {
+    serviceWarn(`Token not found for tokenInstance transfer tokenId=${tokenId}`);
+    return;
+  }
+  const { poolId } = token.read();
 
   const isSelfTransfer = isFromUserAccount && isToUserAccount && from === to;
   const trigger = "tokenInstance:Transfer" as const;
@@ -105,7 +100,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
       return;
     }
 
-    if (shareDecimals === undefined) {
+    if (tokenDecimals === undefined) {
       serviceError(
         "InvestorPositionCheckpoint skipped due to missing token decimals",
         `tokenId=${tokenId}`,
@@ -140,7 +135,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
       balanceBefore,
       balanceAfter,
       tokenPrice,
-      tokenDecimals: shareDecimals,
+      tokenDecimals: tokenDecimals,
       tokenPriceAtLastChange: positionData.tokenPriceAtLastChange ?? null,
       cumulativeEarningsBefore: positionData.cumulativeEarnings ?? 0n,
       costBasisBefore,
@@ -201,19 +196,17 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
     }
   }
 
-  // Handle tokenInstance and token total issuance change
+  // Handle tokenInstance total issuance change; hub token is synced from all instances
   if (isFromNull) {
     tokenInstance.increaseTotalIssuance(amount);
     await tokenInstance.save(event);
-    token.increaseTotalIssuance(amount);
-    await token.save(event);
+    await TokenService.syncTotalIssuanceFromInstances(context, tokenId, event);
   }
 
   if (isToNull) {
     tokenInstance.decreaseTotalIssuance(amount);
     await tokenInstance.save(event);
-    token.decreaseTotalIssuance(amount);
-    await token.save(event);
+    await TokenService.syncTotalIssuanceFromInstances(context, tokenId, event);
   }
 
   // Handle transfers IN and OUT

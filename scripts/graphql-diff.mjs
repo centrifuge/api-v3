@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * GraphQL parity diff for multichain migration.
- * Usage: node scripts/parity/graphql-diff.mjs <baseline.json> <candidate.json>
+ * Usage: node scripts/graphql-diff.mjs <baseline.json> <candidate.json>
  */
 import { readFileSync } from "node:fs";
 

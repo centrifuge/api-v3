@@ -65,7 +65,7 @@ ESLint enforces **`jsdoc/require-jsdoc`** on `src/**/*.ts` (`pnpm lint`). **Alwa
 
 ## Helpers vs services
 
-[`src/helpers/`](src/helpers/) — utilities (`multiMapper`, `timekeeper`, `snapshotter`, IPFS, logger). Not a substitute for entity services for CRUD/domain. Handlers may use `logEvent` where appropriate.
+[`src/helpers/`](src/helpers/) — utilities (`multiMapper`, `timekeeper`, `snapshotter`, IPFS, logger). Not a substitute for entity services for CRUD/domain. Handlers may use `logEvent` where appropriate. **Raw SQL:** [`sqlSafety.ts`](src/helpers/sqlSafety.ts) `bindPg*` helpers for `context.db.sql.execute` — see `test/parity/raw-sql-bindings.test.ts`.
 
 ## ERC-6909 assets and reindex
 

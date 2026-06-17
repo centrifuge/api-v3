@@ -94,9 +94,9 @@ Use table-qualified names for the **existing row** and `excluded.*` for the **in
 |------------|--------|
 | `preparedAt*` | `UnderpaidBatch` (existing) |
 | `repaidAt*` | `gateway:RepayBatch` and/or `multiAdapter:SendPayload` (v3_1 skip-underpaid path must set `repaidAt*`, not only `preparedAt*`) |
-| `deliveredAt*` | `multiAdapter:HandlePayload` / `HandleProof` |
-| `completedAt*` | when all child messages executed (handler writes fact only) |
-| `partiallyFailedAt*` | `FailMessage` when any child failed — **only after** `delivered_at` set |
+| `deliveredAt*` | first child `ExecuteMessage` / `FailMessage` (destination gateway handled batch) |
+| `completedAt*` | all adapter SEND/HANDLE participations verified **and** all child messages executed |
+| `partiallyFailedAt*` | any linked child message has `failedAt` (not gated on `delivered_at`) |
 
 **Schema:** writable enum. **Status CASE** (in `upsertFacts` SET):
 
@@ -116,7 +116,7 @@ CASE
 END
 ```
 
-Final `ELSE 'Underpaid'` duplicates the `prepared_at` branch — harmless; ordering is sound **if** handlers gate `partially_failed_at` until `delivered_at`.
+Final `ELSE 'Underpaid'` duplicates the `prepared_at` branch — harmless; ordering is sound when handlers set `delivered_at` on first execute/fail and `partially_failed_at` when any child fails.
 
 ### `adapter_participation`
 

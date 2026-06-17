@@ -1,7 +1,7 @@
 import { type Event, type Context } from "ponder:registry";
 import { multiMapper } from "../helpers/multiMapper";
 import { expandInlineObject, logEvent, serviceError } from "../helpers/logger";
-import { TokenService, BlockchainService, PoolService, AssetService } from "../services";
+import { TokenService, BlockchainService, PoolService } from "../services";
 import { snapshotter } from "../helpers/snapshotter";
 import { getPeriodStart } from "../helpers/timekeeper";
 import { TokenSnapshot } from "ponder:schema";
@@ -38,7 +38,7 @@ async function addShareClassLong({
   if (!pool) {
     return serviceError("Pool not found. Cannot add share class");
   }
-  const decimals = await AssetService.resolvePoolCurrencyDecimals(context, pool, event);
+  const decimals = await PoolService.resolveShareClassDecimalsForInit(context, event, pool);
   if (decimals === undefined) {
     return serviceError("Pool decimals is not a initialised", expandInlineObject(pool.read()));
   }
@@ -58,6 +58,8 @@ async function addShareClassLong({
     },
     event
   )) as TokenService;
+
+  await TokenService.activatePendingInstances(context, event, tokenId, decimals);
 }
 
 // SHARE CLASS LIFECYCLE
@@ -71,7 +73,7 @@ multiMapper(
     const pool = (await PoolService.get(context, {
       id: poolId,
     })) as PoolService;
-    const decimals = await AssetService.resolvePoolCurrencyDecimals(context, pool, event);
+    const decimals = await PoolService.resolveShareClassDecimalsForInit(context, event, pool);
     if (decimals === undefined) {
       return serviceError("Pool decimals is not a initialised", expandInlineObject(pool.read()));
     }
@@ -88,6 +90,8 @@ multiMapper(
       },
       event
     )) as TokenService;
+
+    await TokenService.activatePendingInstances(context, event, tokenId, decimals);
   }
 );
 
@@ -98,15 +102,14 @@ multiMapper("shareClassManager:UpdateMetadata", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const token = (await TokenService.getOrInit(
-    context,
-    {
-      id: tokenId,
-      poolId,
-      centrifugeId,
-    },
-    event
-  )) as TokenService;
+  const token = (await TokenService.get(context, {
+    id: tokenId,
+    poolId,
+    centrifugeId,
+  })) as TokenService | null;
+  if (!token) {
+    return serviceError(`Token not found. Cannot update metadata tokenId=${tokenId}`);
+  }
   await token.setMetadata(name, symbol);
   await token.save(event);
 });
@@ -117,16 +120,14 @@ multiMapper("shareClassManager:UpdateShareClass", async ({ event, context }) => 
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const token = (await TokenService.getOrInit(
-    context,
-    {
-      id: tokenId,
-      poolId,
-      centrifugeId,
-    },
-    event
-  )) as TokenService;
-  if (!token) return serviceError(`Token not found. Cannot update token price`);
+  const token = (await TokenService.get(context, {
+    id: tokenId,
+    poolId,
+    centrifugeId,
+  })) as TokenService | null;
+  if (!token) {
+    return serviceError(`Token not found. Cannot update share class tokenId=${tokenId}`);
+  }
   await token.setTokenPrice(tokenPrice);
   await token.save(event);
   const asOf = new Date(Number(event.block.timestamp) * 1000);
@@ -151,16 +152,14 @@ multiMapper("shareClassManager:UpdatePricePoolPerShare", async ({ event, context
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
   const computedAt = new Date(Number(computedAtTimestamp.toString()) * 1000);
 
-  const token = (await TokenService.getOrInit(
-    context,
-    {
-      id: tokenId,
-      poolId,
-      centrifugeId,
-    },
-    event
-  )) as TokenService;
-  if (!token) return serviceError(`Token not found. Cannot update token price`);
+  const token = (await TokenService.get(context, {
+    id: tokenId,
+    poolId,
+    centrifugeId,
+  })) as TokenService | null;
+  if (!token) {
+    return serviceError(`Token not found. Cannot update token price tokenId=${tokenId}`);
+  }
   await token.setTokenPrice(tokenPrice, computedAt);
   await token.save(event);
   const asOf = new Date(Number(event.block.timestamp) * 1000);

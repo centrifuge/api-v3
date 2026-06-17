@@ -1,4 +1,5 @@
 import { sql, type SQL } from "drizzle-orm";
+import { assertPgIdentSegment } from "./sqlSafety";
 
 /** Columns recomputed in ON CONFLICT SET — must not be blind-copied via saveMany. */
 export const DERIVED_COLUMN_KEYS = new Set([
@@ -13,6 +14,7 @@ export const DERIVED_COLUMN_KEYS = new Set([
  * @returns Quoted identifier safe for embedding in sql.raw
  */
 export function quotePgIdent(name: string): string {
+  assertPgIdentSegment(name, "identifier");
   return `"${name.replace(/"/g, '""')}"`;
 }
 
@@ -23,7 +25,9 @@ export function quotePgIdent(name: string): string {
  * @returns Quoted `"schema"."enum_name"` fragment safe for sql.raw
  */
 export function quotePgEnumType(enumName: string): string {
+  assertPgIdentSegment(enumName, "enum type");
   const schema = process.env.DATABASE_SCHEMA ?? "public";
+  assertPgIdentSegment(schema, "schema");
   return `${quotePgIdent(schema)}.${quotePgIdent(enumName)}`;
 }
 

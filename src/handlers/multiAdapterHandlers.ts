@@ -86,12 +86,11 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
             tokenId,
             gasLimit,
             gasPrice,
-            ...timestamperWithChain("prepared", event, context.chain.id),
-            ...timestamperWithChain("repaid", event, context.chain.id),
+            ...timestamperWithChain("sent", event, context.chain.id),
           }
         );
       } else {
-        await CrosschainMessageService.linkMessagesToPayload(
+        const [poolId, tokenId] = await CrosschainMessageService.linkMessagesToPayload(
           context,
           event,
           messageIds,
@@ -103,7 +102,9 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
           event,
           { id: payloadId, index: payloadIndex },
           {
-            ...timestamperWithChain("repaid", event, context.chain.id),
+            poolId,
+            tokenId,
+            ...timestamperWithChain("sent", event, context.chain.id),
           }
         );
       }

@@ -19,6 +19,7 @@ import { deployVault, linkVault, unlinkVault } from "./vaultRegistryHandlers";
 import { getInitialHolders } from "../config";
 import { initialisePosition } from "../services";
 import { readContractSafe } from "../helpers/readContractSafe";
+import { resolveDecimalsForInit } from "../helpers/decimalsResolver";
 
 multiMapper("spoke:DeployVault", deployVault);
 
@@ -83,73 +84,80 @@ multiMapper("spoke:AddShareClass", async ({ event, context }) => {
   });
   const totalSupply = totalSupplyResult ?? 0n;
 
-  // Get the existing token instance
-  const tokenInstance = (await TokenInstanceService.getOrInit(
-    context,
-    {
-      address: tokenAddress,
-      tokenId,
-      centrifugeId,
-    },
-    event
-  )) as TokenInstanceService;
-
-  // Store previous issuance
-  const prevInstanceIssuance = tokenInstance.read().totalIssuance ?? 0n;
-
-  // Set token instance properties
-  tokenInstance.setTotalIssuance(totalSupply);
-  tokenInstance.activate();
-  await tokenInstance.save(event);
-
-  const pool = (await PoolService.get(context, { id: poolId })) as PoolService | null;
-  if (!pool) {
-    return serviceError(`Pool not found. Cannot add share class on spoke for poolId ${poolId}`);
+  const shareDecimals = await resolveDecimalsForInit(context, event, {
+    tokenId,
+    centrifugeId,
+    poolId,
+    poolCentrifugeId: centrifugeId,
+    tokenAddress,
+    pinToEvent: true,
+  });
+  if (typeof shareDecimals !== "number") {
+    serviceError(
+      `spoke:AddShareClass decimals not resolved tokenId=${tokenId} address=${tokenAddress}`
+    );
+    return;
   }
 
-  const shareDecimals = await AssetService.resolvePoolCurrencyDecimals(context, pool, event);
-
-  // Get or create token
   const token = (await TokenService.getOrInit(
     context,
     {
       id: tokenId,
       poolId,
       centrifugeId,
+      decimals: shareDecimals,
     },
     event
   )) as TokenService;
 
-  if (typeof shareDecimals === "number") {
-    token.setDecimals(shareDecimals);
-  }
+  const init = await TokenInstanceService.initializeShareClass(context, event, {
+    address: tokenAddress,
+    tokenId,
+    poolId,
+    centrifugeId,
+    totalSupply,
+    decimals: shareDecimals,
+  });
 
-  // Only increase token total issuance if this is a new token instance
-  if (prevInstanceIssuance === 0n) {
-    token.increaseTotalIssuance(totalSupply);
+  const { instance: tokenInstance, prevInstanceIssuance } = init;
+  token.setDecimals(shareDecimals);
 
-    // Fetch initial holders from hardcoded list
-    const initialHolders: string[] = getInitialHolders(poolId, tokenId, centrifugeId);
-    if (initialHolders.length > 0) {
-      await Promise.all(
-        initialHolders.map(async (holder: string) => {
-          (await TokenInstancePositionService.getOrInit(
-            context,
-            {
-              tokenId,
-              centrifugeId,
-              accountAddress: holder.toLowerCase() as `0x${string}`,
-            },
-            event,
-            async (tokenInstancePosition) =>
-              await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
-          )) as TokenInstancePositionService;
-        })
-      );
+  const pool = (await PoolService.get(context, { id: poolId })) as PoolService | null;
+  const canActivate = pool != null;
+
+  if (!canActivate) {
+    serviceWarn(
+      `spoke:AddShareClass deferred activation poolId=${poolId} tokenId=${tokenId} ` +
+        `poolIndexed=${pool != null}`
+    );
+  } else {
+    token.activate();
+    tokenInstance.activate();
+
+    if (prevInstanceIssuance === 0n) {
+      const initialHolders: string[] = getInitialHolders(poolId, tokenId, centrifugeId);
+      if (initialHolders.length > 0) {
+        await Promise.all(
+          initialHolders.map(async (holder: string) => {
+            (await TokenInstancePositionService.getOrInit(
+              context,
+              {
+                tokenId,
+                centrifugeId,
+                accountAddress: holder.toLowerCase() as `0x${string}`,
+              },
+              event,
+              async (tokenInstancePosition) =>
+                await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
+            )) as TokenInstancePositionService;
+          })
+        );
+      }
     }
   }
 
-  await token.save(event);
+  await tokenInstance.save(event);
+  await TokenService.syncTotalIssuanceFromInstances(context, tokenId, event, token);
 });
 
 multiMapper("spoke:UpdateSharePrice", async ({ event, context }) => {

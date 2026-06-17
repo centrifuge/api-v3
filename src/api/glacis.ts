@@ -258,7 +258,7 @@ export function createGlacisApp() {
     }
     const txHashNorm = txHash as `0x${string}`;
 
-    const payloadSvc = await Services.CrosschainPayloadService.getByPreparedAtTxHash(
+    const payloadSvc = await Services.CrosschainPayloadService.getByCreatedAtTxHash(
       ctx,
       txHashNorm
     );
@@ -275,7 +275,7 @@ export function createGlacisApp() {
     }
 
     const payload = payloadSvc.read();
-    const explorerLink = `https://centrifugescan.io/tx/${payload.preparedAtTxHash}`;
+    const explorerLink = `https://centrifugescan.io/tx/${payload.createdAtTxHash}`;
 
     let status: string;
     let substatus: string;
@@ -311,7 +311,7 @@ export function createGlacisApp() {
       data: {
         status,
         substatus,
-        sourceTx: payload.preparedAtTxHash,
+        sourceTx: payload.createdAtTxHash,
         destinationTx: payload.deliveredAtTxHash || null,
         explorerLink,
       },
@@ -370,7 +370,7 @@ export function createGlacisApp() {
           toChainName: spokeBlockchain.name,
           minTransferSize: "0",
           maxTransferSize: "340282366920938463463374607431768211455", // uint128 max
-          decimals: row.token.decimals || 18,
+          decimals: row.token.decimals,
           estimatedDuration: ESTIMATED_DURATION,
           estimatedGas: 1000000,
           standard: "CentrifugeV31",
@@ -387,7 +387,7 @@ export function createGlacisApp() {
           toChainName: hubBlockchain.name,
           minTransferSize: "0",
           maxTransferSize: "340282366920938463463374607431768211455", // uint128 max
-          decimals: row.token.decimals || 18,
+          decimals: row.token.decimals,
           estimatedDuration: ESTIMATED_DURATION,
           estimatedGas: 1000000,
           standard: "CentrifugeV31",
@@ -416,7 +416,7 @@ export function createGlacisApp() {
               toChainName: otherSpokeBlockchain.name,
               minTransferSize: "0",
               maxTransferSize: "340282366920938463463374607431768211455", // uint128 max
-              decimals: row.token.decimals || 18,
+              decimals: row.token.decimals,
               estimatedDuration: ESTIMATED_DURATION * 2,
               estimatedGas: ESTIMATED_GAS * 2,
               standard: "CentrifugeV31",

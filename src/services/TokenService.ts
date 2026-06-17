@@ -15,6 +15,7 @@ import {
   yieldSnapshotPointKey,
 } from "../helpers/tokenYields";
 import { PoolService } from "./PoolService";
+import { TokenInstanceService } from "./TokenInstanceService";
 
 export type { TokenSnapshotPricePoint };
 
@@ -28,18 +29,31 @@ export type { TokenSnapshotPricePoint };
 export class TokenService extends Service<typeof Token> {
   static readonly entityTable = Token;
   static readonly entityName = "Token";
+
   /**
-   * Get the decimals of a token.
-   * @param context - The context.
-   * @param tokenId - The id of the token.
-   * @returns The decimals of the token.
+   * Activates spoke token instances and sets decimals after hub canonical share-class init.
+   * @param context - Database context
+   * @param event - Handler event
+   * @param tokenId - Share class id
+   * @param decimals - Resolved pool-currency decimals
    */
-  static async getDecimals(context: Context, tokenId: `0x${string}`) {
-    serviceLog(`Token getDecimals tokenId=${tokenId}`);
-    const token = (await this.get(context, { id: tokenId })) as TokenService;
-    if (!token) return undefined;
-    const { decimals } = token.read();
-    return decimals;
+  static async activatePendingInstances(
+    context: Context,
+    event: Event,
+    tokenId: `0x${string}`,
+    decimals: number
+  ): Promise<void> {
+    const instances = (await TokenInstanceService.query(context, {
+      tokenId,
+    })) as TokenInstanceService[];
+    if (instances.length === 0) return;
+    serviceLog(
+      `Token activatePendingInstances tokenId=${tokenId} count=${instances.length} decimals=${decimals}`
+    );
+    for (const instance of instances) {
+      instance.setDecimals(decimals).activate();
+    }
+    await TokenInstanceService.saveMany(context, instances, event);
   }
 
   /**
@@ -63,13 +77,56 @@ export class TokenService extends Service<typeof Token> {
     const poolIds = pools.map((pool) => pool.read().id);
     const tokens = (await TokenService.query(context, {
       poolId_in: poolIds,
-      decimals: null,
     })) as TokenService[];
     if (tokens.length === 0) return;
     for (const token of tokens) {
-      token.setDecimals(decimals);
+      if (token.read().decimals !== decimals) {
+        token.setDecimals(decimals);
+      }
     }
     await TokenService.saveMany(context, tokens, event);
+  }
+
+  /**
+   * Sums `totalIssuance` across all indexed token instances for a share class.
+   * @param context - Database context
+   * @param tokenId - Share class id (scId)
+   */
+  static async sumInstanceTotalIssuance(
+    context: Context | ReadOnlyContext,
+    tokenId: `0x${string}`
+  ): Promise<bigint> {
+    const instances = (await TokenInstanceService.query(context, {
+      tokenId,
+    })) as TokenInstanceService[];
+    return instances.reduce((sum, instance) => sum + (instance.read().totalIssuance ?? 0n), 0n);
+  }
+
+  /**
+   * Sets hub `token.totalIssuance` from the sum of all chain instances (eventual consistency).
+   * @param context - Database context
+   * @param tokenId - Share class id (scId)
+   * @param event - Handler event for update timestamps
+   * @param token - Optional loaded token row to update in memory
+   */
+  static async syncTotalIssuanceFromInstances(
+    context: Context,
+    tokenId: `0x${string}`,
+    event: Event,
+    token?: TokenService
+  ): Promise<TokenService | null> {
+    const row = (token ?? (await TokenService.get(context, { id: tokenId }))) as TokenService | null;
+    if (!row) {
+      serviceLog(`Token syncTotalIssuanceFromInstances skipped tokenId=${tokenId} (token row missing)`);
+      return null;
+    }
+    const totalIssuance = await TokenService.sumInstanceTotalIssuance(context, tokenId);
+    row.setTotalIssuance(totalIssuance);
+    serviceLog(
+      `Token syncTotalIssuanceFromInstances tokenId=${tokenId} totalIssuance=${totalIssuance}`
+    );
+    await row.save(event);
+    return row;
   }
 
   /**
@@ -144,6 +201,16 @@ export class TokenService extends Service<typeof Token> {
     );
     this.data.tokenPrice = price;
     this.data.tokenPriceComputedAt = computedAt ?? null;
+    return this;
+  }
+
+  /**
+   * Sets aggregate total issuance (sum of all chain instances).
+   * @param tokenAmount - Total issuance in share-token decimals
+   */
+  public setTotalIssuance(tokenAmount: bigint) {
+    this.data.totalIssuance = tokenAmount;
+    serviceLog(`Set totalIssuance for token ${this.data.id} to ${tokenAmount}`);
     return this;
   }
 

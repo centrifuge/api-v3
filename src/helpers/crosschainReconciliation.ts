@@ -2,16 +2,16 @@ import type { Context, Event } from "ponder:registry";
 import { CrosschainMessageQueue, CrosschainPayloadQueue } from "ponder:schema";
 import { expandInlineObject, serviceLog } from "./logger";
 import {
-  getMessageSendAnchorAt,
   getPayloadSendAnchorAt,
+  payloadIndexFromMessages,
+  resolvePayloadKeyForEvent,
+} from "../services/CrosschainPayloadService";
+import {
+  getMessageSendAnchorAt,
   passesCausalOrder,
   pickSendTarget,
   sortMessageQueueFifo,
-} from "./crosschainReconciliationCore";
-import {
-  payloadIndexFromMessages,
-  resolvePayloadKeyForEvent,
-} from "./crosschainIndex";
+} from "../services/CrosschainMessageService";
 import {
   AdapterParticipationService,
   CrosschainMessageQueueService,
@@ -22,13 +22,13 @@ import {
   type CrosschainQueuePk,
 } from "../services";
 
+export { getPayloadSendAnchorAt } from "../services/CrosschainPayloadService";
 export {
   getMessageSendAnchorAt,
-  getPayloadSendAnchorAt,
   passesCausalOrder,
   pickSendTarget,
   sortMessageQueueFifo,
-} from "./crosschainReconciliationCore";
+} from "../services/CrosschainMessageService";
 
 type TxEvent = Extract<Event, { transaction: { hash: `0x${string}` } }>;
 
@@ -252,6 +252,35 @@ function payloadEntryToQueueInsert(entry: PayloadReceiveEntry): Parameters<
 }
 
 /**
+ * Refreshes payload derived facts after a receive event (SQL aggregates).
+ * @param context - Ponder context
+ * @param entry - Receive anchor timestamps
+ * @param payloadId - Payload id
+ * @param payloadIndex - Payload index
+ * @param options - Whether to set deliveredAt from anchor (gateway message receive)
+ */
+async function refreshLinkedPayloadStatus(
+  context: Context,
+  entry: {
+    receivedAt: Date;
+    receivedAtBlock: number;
+    receivedAtTxHash: `0x${string}`;
+    receivedAtChainId: number;
+  },
+  payloadId: `0x${string}`,
+  payloadIndex: number,
+  options: { setDeliveredFromAnchor?: boolean } = {}
+): Promise<void> {
+  await CrosschainPayloadService.refreshPayloadStatusFromAggregates(
+    context,
+    entry,
+    payloadId,
+    payloadIndex,
+    options
+  );
+}
+
+/**
  * Post-apply side effects for message receives (pool adapter clear, payload completion).
  * @param context - Ponder context
  * @param event - Handler event
@@ -287,36 +316,18 @@ async function applyMessageReceiveSideEffects(
 
   if (!payloadId || payloadIndex == null) return;
 
-  if (entry.status === "execute") {
-    const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(
-      context,
-      payloadId,
-      payloadIndex
-    );
-    if (!isPayloadFullyExecuted) return;
-
-    await CrosschainPayloadService.upsertFacts(context, event, { id: payloadId, index: payloadIndex }, {
-      completedAt: entry.receivedAt,
-      completedAtBlock: entry.receivedAtBlock,
-      completedAtTxHash: entry.receivedAtTxHash,
-    });
-    return;
-  }
-
-  const deliveredPayload = (await CrosschainPayloadService.get(context, {
-    id: payloadId,
-    index: payloadIndex,
-    deliveredAt_not: null,
-  })) as CrosschainPayloadService | null;
-
-  if (!deliveredPayload) return;
-
-  await CrosschainPayloadService.upsertFacts(context, event, { id: payloadId, index: payloadIndex }, {
-    partiallyFailedAt: entry.receivedAt,
-    partiallyFailedAtBlock: entry.receivedAtBlock,
-    partiallyFailedAtTxHash: entry.receivedAtTxHash,
-    partiallyFailedAtChainId: entry.receivedAtChainId,
-  });
+  await refreshLinkedPayloadStatus(
+    context,
+    {
+      receivedAt: entry.receivedAt,
+      receivedAtBlock: entry.receivedAtBlock,
+      receivedAtTxHash: entry.receivedAtTxHash,
+      receivedAtChainId: entry.receivedAtChainId,
+    },
+    payloadId,
+    payloadIndex,
+    { setDeliveredFromAnchor: true }
+  );
 }
 
 /**
@@ -333,7 +344,31 @@ async function tryApplyMessageReceive(
   entry: MessageReceiveEntry,
   committedRows: CrosschainMessageService[]
 ): Promise<"applied" | "waiting"> {
-  const targetRef = pickSendTarget(committedRows, entry.status);
+  const payloadAnchors = new Map<
+    string,
+    { sentAt: Date | null; underpaidAt: Date | null }
+  >();
+  for (const row of committedRows) {
+    const d = row.read();
+    if (!d.payloadId || d.payloadIndex == null) continue;
+    const key = `${d.payloadId}:${d.payloadIndex}`;
+    if (payloadAnchors.has(key)) continue;
+    const payloadRow = (await CrosschainPayloadService.get(context, {
+      id: d.payloadId,
+      index: d.payloadIndex,
+    })) as CrosschainPayloadService | null;
+    if (payloadRow) payloadAnchors.set(key, payloadRow.read());
+  }
+
+  const payloadAnchorFor = (row: {
+    payloadId?: `0x${string}` | null;
+    payloadIndex?: number | null;
+  }) => {
+    if (!row.payloadId || row.payloadIndex == null) return null;
+    return payloadAnchors.get(`${row.payloadId}:${row.payloadIndex}`) ?? null;
+  };
+
+  const targetRef = pickSendTarget(committedRows, entry.status, payloadAnchorFor);
   if (!targetRef) return "waiting";
 
   const targetIndex = targetRef.read().index;
@@ -345,7 +380,7 @@ async function tryApplyMessageReceive(
     return "applied";
   }
 
-  const sendAnchor = getMessageSendAnchorAt(targetData);
+  const sendAnchor = getMessageSendAnchorAt(targetData, payloadAnchorFor(targetData));
   if (!passesCausalOrder(entry.receivedAt, sendAnchor)) return "waiting";
 
   const receiveFacts =
@@ -432,7 +467,7 @@ async function resolvePayloadRowForHandle(
 }
 
 /**
- * Marks payload completed when delivery preconditions are met.
+ * Marks payload completed when adapter verification and message execution preconditions are met.
  * @param context - Ponder context
  * @param event - Handler event
  * @param entry - Applied payload receive entry
@@ -446,31 +481,32 @@ async function applyPayloadDeliverySideEffects(
   payloadId: `0x${string}`,
   payloadIndex: number
 ): Promise<void> {
-  const isPayloadVerified = await AdapterParticipationService.checkPayloadVerified(
+  const payloadRow = (await CrosschainPayloadService.get(context, {
+    id: payloadId,
+    index: payloadIndex,
+  })) as CrosschainPayloadService | null;
+  if (!payloadRow) return;
+
+  const current = payloadRow.read();
+  if (current.deliveredAt == null) {
+    await CrosschainPayloadService.upsertFacts(context, event, { id: payloadId, index: payloadIndex }, {
+      deliveredAt: entry.receivedAt,
+      deliveredAtBlock: entry.receivedAtBlock,
+      deliveredAtTxHash: entry.receivedAtTxHash,
+    });
+  }
+
+  await refreshLinkedPayloadStatus(
     context,
+    {
+      receivedAt: entry.receivedAt,
+      receivedAtBlock: entry.receivedAtBlock,
+      receivedAtTxHash: entry.receivedAtTxHash,
+      receivedAtChainId: entry.receivedAtChainId,
+    },
     payloadId,
     payloadIndex
   );
-  if (!isPayloadVerified) return;
-
-  await CrosschainPayloadService.upsertFacts(context, event, { id: payloadId, index: payloadIndex }, {
-    deliveredAt: entry.receivedAt,
-    deliveredAtBlock: entry.receivedAtBlock,
-    deliveredAtTxHash: entry.receivedAtTxHash,
-  });
-
-  const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(
-    context,
-    payloadId,
-    payloadIndex
-  );
-  if (!isPayloadFullyExecuted) return;
-
-  await CrosschainPayloadService.upsertFacts(context, event, { id: payloadId, index: payloadIndex }, {
-    completedAt: entry.receivedAt,
-    completedAtBlock: entry.receivedAtBlock,
-    completedAtTxHash: entry.receivedAtTxHash,
-  });
 }
 
 /**

@@ -156,7 +156,7 @@ export const endpoints = {
 
 const getLogsBlockRange = {
   "*": 10000,
-  "143": 1000,
+  //"143": 1000,
 };
 
 // Package loadedChains into a ChainConfig object for ponder to consume

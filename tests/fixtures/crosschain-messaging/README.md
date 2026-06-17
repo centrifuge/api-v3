@@ -11,4 +11,4 @@ Commit GraphQL snapshots and permuted event-order replay vectors here.
 5. Permuted order vectors (execute-before-prepare, handle-before-send, …)
 6. v3 proof quorum regression
 
-Export baseline from omnichain indexer at block `B`; diff against multichain reindex via `scripts/parity/graphql-diff.mjs`.
+Export baseline from omnichain indexer at block `B`; diff against multichain reindex via `scripts/graphql-diff.mjs`.

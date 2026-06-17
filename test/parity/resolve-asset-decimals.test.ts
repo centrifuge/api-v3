@@ -1,23 +1,18 @@
-/**
- * Parity tests: asset decimal resolution pipeline (ISO → DB → hub RPC → spoke RPC).
- * Run: node --experimental-strip-types --test scripts/parity/resolve-asset-decimals.test.ts
- */
-import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, expect, it } from "vitest";
 import {
   centrifugeIdFromAssetId,
   resolveAssetDecimals,
   resolveHubChainId,
-} from "../../src/helpers/assetDecimals.ts";
+} from "../../src/helpers/decimalsResolver";
 
 describe("centrifugeIdFromAssetId", () => {
   it("returns null for zero asset id", () => {
-    assert.equal(centrifugeIdFromAssetId(0n), null);
+    expect(centrifugeIdFromAssetId(0n)).toBeNull();
   });
 
   it("decodes high 16 bits as centrifuge id string", () => {
     const assetId = (42n << 112n) | 1000n;
-    assert.equal(centrifugeIdFromAssetId(assetId), "42");
+    expect(centrifugeIdFromAssetId(assetId)).toBe("42");
   });
 });
 
@@ -25,18 +20,17 @@ describe("resolveHubChainId", () => {
   const lookup = (id: string) => (id === "7" ? 42161 : null);
 
   it("uses event chain when hub registry address is provided", () => {
-    assert.equal(
-      resolveHubChainId(1, { hubRegistryAddress: "0x0000000000000000000000000000000000000001" }, lookup),
-      1
-    );
+    expect(
+      resolveHubChainId(1, { hubRegistryAddress: "0x0000000000000000000000000000000000000001" }, lookup)
+    ).toBe(1);
   });
 
   it("uses pool home hub chain from centrifuge id", () => {
-    assert.equal(resolveHubChainId(8453, { poolCentrifugeId: "7" }, lookup), 42161);
+    expect(resolveHubChainId(8453, { poolCentrifugeId: "7" }, lookup)).toBe(42161);
   });
 
   it("falls back to event chain when pool hub lookup misses", () => {
-    assert.equal(resolveHubChainId(8453, { poolCentrifugeId: "999" }, lookup), 8453);
+    expect(resolveHubChainId(8453, { poolCentrifugeId: "999" }, lookup)).toBe(8453);
   });
 });
 
@@ -58,8 +52,8 @@ describe("resolveAssetDecimals", () => {
         readSpokeAssetDecimals: async () => 6,
       }
     );
-    assert.equal(result, 18);
-    assert.equal(called, false);
+    expect(result).toBe(18);
+    expect(called).toBe(false);
   });
 
   it("returns DB decimals and skips RPC", async () => {
@@ -83,8 +77,8 @@ describe("resolveAssetDecimals", () => {
         },
       }
     );
-    assert.equal(result, 6);
-    assert.deepEqual(calls, ["db"]);
+    expect(result).toBe(6);
+    expect(calls).toEqual(["db"]);
   });
 
   it("falls through hub RPC to spoke RPC on hub miss", async () => {
@@ -105,8 +99,8 @@ describe("resolveAssetDecimals", () => {
         },
       }
     );
-    assert.equal(result, 18);
-    assert.deepEqual(calls, ["hub", "spoke"]);
+    expect(result).toBe(18);
+    expect(calls).toEqual(["hub", "spoke"]);
   });
 
   it("returns hub RPC decimals when DB misses", async () => {
@@ -117,13 +111,13 @@ describe("resolveAssetDecimals", () => {
       {
         getAssetDecimalsFromDb: async () => undefined,
         readHubRegistryDecimals: async (_chainId, _assetId, hubRegistryAddress) => {
-          assert.equal(hubRegistryAddress, "0x00000000000000000000000000000000000000aa");
+          expect(hubRegistryAddress).toBe("0x00000000000000000000000000000000000000aa");
           return 6;
         },
         readSpokeAssetDecimals: async () => 18,
       }
     );
-    assert.equal(result, 6);
+    expect(result).toBe(6);
   });
 
   it("returns undefined when all sources miss", async () => {
@@ -137,6 +131,6 @@ describe("resolveAssetDecimals", () => {
         readSpokeAssetDecimals: async () => undefined,
       }
     );
-    assert.equal(result, undefined);
+    expect(result).toBeUndefined();
   });
 });
