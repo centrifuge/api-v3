@@ -68,7 +68,7 @@
     "husky": "^9.1.7",
     "prettier": "^3.8.0",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4",
+    "vitest": "^3.2.6",
     "vitest-drizzle-mock": "^0.6.0"
   },
   "packageManager": "pnpm@10.15.1",
