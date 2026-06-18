@@ -2,13 +2,14 @@ import { Hono } from "hono";
 import { formatBigIntToDecimal } from "../helpers/formatter";
 import * as Services from "../services";
 import { jsonDefaultHeaders } from "./shared";
-import type { ApiContext } from "./types";
+import { apiContext, type ApiEnv } from "./types";
 
 /** Token address endpoints mounted at `/tokens`. */
-export function createTokensApp(ctx: ApiContext) {
-  const app = new Hono();
+export function createTokensApp() {
+  const app = new Hono<ApiEnv>();
 
   app.get("/:address/total-issuance", async (c) => {
+    const ctx = apiContext(c);
     const address = c.req.param("address") as `0x${string}`;
     const tokenInstance = await Services.TokenInstanceService.get(ctx, { address });
     if (!tokenInstance) {
@@ -36,6 +37,7 @@ export function createTokensApp(ctx: ApiContext) {
   });
 
   app.get("/:address/price", async (c) => {
+    const ctx = apiContext(c);
     const address = c.req.param("address") as `0x${string}`;
     const tokenInstance = await Services.TokenInstanceService.get(ctx, { address });
     if (!tokenInstance) {

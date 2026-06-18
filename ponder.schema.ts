@@ -71,7 +71,7 @@ const PoolColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   isActive: t.boolean().notNull().default(true),
   currency: t.bigint(),
-  decimals: t.integer(),
+  decimals: t.integer().notNull(),
   metadata: t.text(),
   name: t.text(),
   ...defaultColumns(t),
@@ -138,7 +138,7 @@ const TokenColumns = (t: PgColumnsBuilders) => ({
   isActive: t.boolean().notNull().default(false),
   centrifugeId: t.text(),
   poolId: t.bigint().notNull(),
-  decimals: t.integer(),
+  decimals: t.integer().notNull(),
   // Metadata fields
   name: t.text(),
   symbol: t.text(),
@@ -199,6 +199,9 @@ const VaultColumns = (t: PgColumnsBuilders) => ({
   maxReserve: t.bigint().default(0n),
   crosschainInProgress: VaultCrosschainInProgress("vault_crosschain_in_progress"),
   crosschainInProgressValue: t.bigint(),
+  hubSignalType: VaultCrosschainInProgress("vault_hub_signal_type"),
+  ...timestamperFieldsWithChain(t, "hubSignal"),
+  ...timestamperFieldsWithChain(t, "spokeAck"),
   ...defaultColumns(t),
 });
 export const Vault = onchainTable("vault", VaultColumns, (t) => ({
@@ -225,6 +228,9 @@ export const VaultRelations = relations(Vault, ({ one }) => ({
     references: [TokenInstance.tokenId],
   }),
 }));
+
+export const InvestorTransferLegs = ["OUT", "IN"] as const;
+export const InvestorTransferLeg = onchainEnum("investor_transfer_leg", InvestorTransferLegs);
 
 export const InvestorTransactionType = onchainEnum("investor_transaction_type", [
   "DEPOSIT_REQUEST_UPDATED",
@@ -259,6 +265,8 @@ const InvestorTransactionColumns = (t: PgColumnsBuilders) => ({
   fromCentrifugeId: t.text(),
   toCentrifugeId: t.text(),
   currencyAssetId: t.bigint(),
+  transferMessageId: t.hex(),
+  transferLeg: InvestorTransferLeg("investor_transfer_leg"),
   ...defaultColumns(t, false),
 });
 export const InvestorTransaction = onchainTable(
@@ -701,6 +709,8 @@ const AssetColumns = (t: PgColumnsBuilders) => ({
   decimals: t.integer().notNull(),
   name: t.text(),
   symbol: t.text(),
+  ...timestamperFieldsWithChain(t, "registeredOnSpoke"),
+  ...timestamperFieldsWithChain(t, "registeredOnHub"),
   ...defaultColumns(t),
 });
 
@@ -735,7 +745,11 @@ export const TokenInstanceColumns = (t: PgColumnsBuilders) => ({
   tokenPrice: t.bigint().default(0n),
   computedAt: t.timestamp(),
   totalIssuance: t.bigint().default(0n),
+  decimals: t.integer().notNull(),
   crosschainInProgress: TokenInstanceCrosschainInProgress("token_instance_crosschain_in_progress"),
+  hubSignalType: TokenInstanceCrosschainInProgress("token_instance_hub_signal_type"),
+  ...timestamperFieldsWithChain(t, "hubSignal"),
+  ...timestamperFieldsWithChain(t, "spokeAck"),
   ...defaultColumns(t),
 });
 export const TokenInstance = onchainTable("token_instance", TokenInstanceColumns, (t) => ({
@@ -832,6 +846,7 @@ export const Escrow = onchainTable("escrow", EscrowColumns, (t) => ({
   id: primaryKey({ columns: [t.address, t.centrifugeId] }),
   poolIdx: index().on(t.poolId),
   centrifugeIdIdx: index().on(t.centrifugeId),
+  poolCentrifugeCreatedIdx: index().on(t.poolId, t.centrifugeId, t.createdAtBlock),
 }));
 
 export const EscrowRelations = relations(Escrow, ({ one, many }) => ({
@@ -859,6 +874,9 @@ export const HoldingEscrowColumns = (t: PgColumnsBuilders) => ({
   maxAssetPriceAge: t.bigint().default(0n),
   escrowAddress: t.hex().notNull(),
   crosschainInProgress: HoldingEscrowCrosschainInProgress("holding_escrow_crosschain_in_progress"),
+  hubSignalType: HoldingEscrowCrosschainInProgress("holding_escrow_hub_signal_type"),
+  ...timestamperFieldsWithChain(t, "hubSignal"),
+  ...timestamperFieldsWithChain(t, "spokeAck"),
   ...defaultColumns(t),
 });
 export const HoldingEscrow = onchainTable("holding_escrow", HoldingEscrowColumns, (t) => ({
@@ -901,6 +919,9 @@ const PoolManagerColumns = (t: PgColumnsBuilders) => ({
   isHubManager: t.boolean().notNull().default(false),
   isBalancesheetManager: t.boolean().notNull().default(false),
   crosschainInProgress: PoolManagerCrosschainInProgress("pool_manager_crosschain_in_progress"),
+  hubSignalType: PoolManagerCrosschainInProgress("pool_manager_hub_signal_type"),
+  ...timestamperFieldsWithChain(t, "hubSignal"),
+  ...timestamperFieldsWithChain(t, "spokeAck"),
   ...defaultColumns(t),
 });
 
@@ -961,6 +982,9 @@ const OfframpRelayerColumns = (t: PgColumnsBuilders) => ({
   crosschainInProgress: OfframpRelayerCrosschainInProgress(
     "offramp_relayer_crosschain_in_progress"
   ),
+  hubSignalType: OfframpRelayerCrosschainInProgress("offramp_relayer_hub_signal_type"),
+  ...timestamperFieldsWithChain(t, "hubSignal"),
+  ...timestamperFieldsWithChain(t, "spokeAck"),
   ...defaultColumns(t),
 });
 
@@ -984,6 +1008,9 @@ const OnRampAssetColumns = (t: PgColumnsBuilders) => ({
   assetAddress: t.hex().notNull(),
   isEnabled: t.boolean().notNull().default(false),
   crosschainInProgress: OnRampAssetCrosschainInProgress("on_ramp_asset_crosschain_in_progress"),
+  hubSignalType: OnRampAssetCrosschainInProgress("on_ramp_asset_hub_signal_type"),
+  ...timestamperFieldsWithChain(t, "hubSignal"),
+  ...timestamperFieldsWithChain(t, "spokeAck"),
   ...defaultColumns(t),
 });
 
@@ -1021,6 +1048,9 @@ const OffRampAddressColumns = (t: PgColumnsBuilders) => ({
   crosschainInProgress: OffRampAddressCrosschainInProgress(
     "off_ramp_address_crosschain_in_progress"
   ),
+  hubSignalType: OffRampAddressCrosschainInProgress("off_ramp_address_hub_signal_type"),
+  ...timestamperFieldsWithChain(t, "hubSignal"),
+  ...timestamperFieldsWithChain(t, "spokeAck"),
   ...defaultColumns(t),
 });
 export const OffRampAddress = onchainTable("off_ramp_address", OffRampAddressColumns, (t) => ({
@@ -1054,6 +1084,9 @@ const PolicyColumns = (t: PgColumnsBuilders) => ({
   strategistAddress: t.hex().notNull(),
   root: t.hex(),
   crosschainInProgress: PolicyCrosschainInProgress("policy_crosschain_in_progress"),
+  hubSignalType: PolicyCrosschainInProgress("policy_hub_signal_type"),
+  ...timestamperFieldsWithChain(t, "hubSignal"),
+  ...timestamperFieldsWithChain(t, "spokeAck"),
   ...defaultColumns(t),
 });
 
@@ -1096,7 +1129,9 @@ const CrosschainPayloadColumns = (t: PgColumnsBuilders) => ({
   gasPrice: t.bigint(),
   ...timestamperFields(t, "delivered"),
   ...timestamperFields(t, "completed"),
-  ...timestamperFields(t, "prepared", true),
+  ...timestamperFieldsWithChain(t, "underpaid"),
+  ...timestamperFieldsWithChain(t, "sent"),
+  ...timestamperFieldsWithChain(t, "partiallyFailed"),
   ...defaultColumns(t, false),
 });
 
@@ -1167,6 +1202,9 @@ const CrosschainMessageColumns = (t: PgColumnsBuilders) => ({
   fromCentrifugeId: t.text().notNull(),
   toCentrifugeId: t.text().notNull(),
   ...timestamperFields(t, "executed"),
+  executedAtChainId: t.integer(),
+  ...timestamperFieldsWithChain(t, "prepared"),
+  ...timestamperFieldsWithChain(t, "failed"),
   ...defaultColumns(t, false),
 });
 
@@ -1181,6 +1219,7 @@ export const CrosschainMessage = onchainTable(
     poolIdx: index().on(t.poolId),
     statusIdx: index().on(t.status),
     payloadIdPayloadIndexIdx: index().on(t.payloadId, t.payloadIndex),
+    payloadExecutedIdx: index().on(t.payloadId, t.payloadIndex, t.executedAt),
     idIndexIdx: index().on(t.id, t.index),
   })
 );
@@ -1208,6 +1247,68 @@ export const CrosschainMessageRelations = relations(CrosschainMessage, ({ one })
   }),
 }));
 
+export const CrosschainMessageQueueStatuses = ["execute", "fail"] as const;
+export const CrosschainMessageQueueStatus = onchainEnum(
+  "crosschain_message_queue_status",
+  CrosschainMessageQueueStatuses
+);
+
+const CrosschainMessageQueueColumns = (t: PgColumnsBuilders) => ({
+  chainId: t.integer().notNull(),
+  transactionHash: t.hex().notNull(),
+  logIndex: t.integer().notNull(),
+  status: CrosschainMessageQueueStatus("crosschain_message_queue_status").notNull(),
+  messageId: t.hex().notNull(),
+  hash: t.hex().notNull(),
+  fromCentrifugeId: t.text().notNull(),
+  toCentrifugeId: t.text().notNull(),
+  failReason: t.hex(),
+  rawData: t.hex().notNull(),
+  receivedAt: t.timestamp().notNull(),
+  receivedAtBlock: t.integer().notNull(),
+  receivedAtChainId: t.integer().notNull(),
+  receivedAtTxHash: t.hex().notNull(),
+});
+
+export const CrosschainMessageQueue = onchainTable(
+  "crosschain_message_queue",
+  CrosschainMessageQueueColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.chainId, t.transactionHash, t.logIndex] }),
+    messageIdFifoIdx: index().on(t.messageId, t.receivedAtBlock, t.receivedAt),
+  })
+);
+
+export const CrosschainPayloadQueueTypes = ["PAYLOAD", "PROOF"] as const;
+export const CrosschainPayloadQueueType = onchainEnum(
+  "crosschain_payload_queue_type",
+  CrosschainPayloadQueueTypes
+);
+
+const CrosschainPayloadQueueColumns = (t: PgColumnsBuilders) => ({
+  chainId: t.integer().notNull(),
+  transactionHash: t.hex().notNull(),
+  logIndex: t.integer().notNull(),
+  type: CrosschainPayloadQueueType("crosschain_payload_queue_type").notNull(),
+  payloadId: t.hex().notNull(),
+  adapterId: t.text().notNull(),
+  fromCentrifugeId: t.text().notNull(),
+  toCentrifugeId: t.text().notNull(),
+  receivedAt: t.timestamp().notNull(),
+  receivedAtBlock: t.integer().notNull(),
+  receivedAtChainId: t.integer().notNull(),
+  receivedAtTxHash: t.hex().notNull(),
+});
+
+export const CrosschainPayloadQueue = onchainTable(
+  "crosschain_payload_queue",
+  CrosschainPayloadQueueColumns,
+  (t) => ({
+    id: primaryKey({ columns: [t.chainId, t.transactionHash, t.logIndex] }),
+    payloadIdFifoIdx: index().on(t.payloadId, t.receivedAtBlock, t.receivedAt),
+  })
+);
+
 const AdapterColumns = (t: PgColumnsBuilders) => ({
   address: t.hex().notNull(),
   centrifugeId: t.text().notNull(),
@@ -1233,6 +1334,8 @@ const AdapterWiringColumns = (t: PgColumnsBuilders) => ({
   fromCentrifugeId: t.text().notNull(),
   toAddress: t.text().notNull(),
   toCentrifugeId: t.text().notNull(),
+  pendingRemoteAdapter: t.hex(),
+  ...timestamperFieldsWithChain(t, "wired"),
   ...defaultColumns(t, false),
 });
 export const AdapterWiring = onchainTable("adapter_wiring", AdapterWiringColumns, (t) => ({
@@ -1265,6 +1368,10 @@ const PoolAdapterColumns = (t: PgColumnsBuilders) => ({
   adapterAddress: t.hex().notNull(),
   isEnabled: t.boolean().notNull().default(false),
   crosschainInProgress: PoolAdapterCrosschainInProgress("pool_adapter_crosschain_in_progress"),
+  hubSignalType: PoolAdapterCrosschainInProgress("pool_adapter_hub_signal_type"),
+  hubSignalCancelledAt: t.timestamp(),
+  ...timestamperFieldsWithChain(t, "hubSignal"),
+  ...timestamperFieldsWithChain(t, "spokeAck"),
   ...defaultColumns(t),
 });
 
@@ -1885,4 +1992,24 @@ function timestamperFields<N extends string>(
       [fieldName + "AtTxHash"]: t.hex(),
     } as TimestamperFields<N>;
   }
+}
+
+type TimestamperWithChainFields<N extends string> = TimestamperFields<N> & {
+  [K in `${N}AtChainId`]: PgColumn<"integer">;
+};
+
+/**
+ * Timestamper fields plus chain id for multichain fact columns.
+ * @param t - PgColumnsBuilders instance
+ * @param fieldName - Base field name (e.g. prepared)
+ * @returns At, AtBlock, AtTxHash, AtChainId fields (all nullable)
+ */
+function timestamperFieldsWithChain<N extends string>(
+  t: PgColumnsBuilders,
+  fieldName: N
+): TimestamperWithChainFields<N> {
+  return {
+    ...timestamperFields(t, fieldName, false),
+    [fieldName + "AtChainId"]: t.integer(),
+  } as TimestamperWithChainFields<N>;
 }

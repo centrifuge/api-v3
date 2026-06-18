@@ -202,20 +202,13 @@ multiMapper("hub:UpdateVault", async ({ event, context }) => {
   const vaultUpdateKind = VaultCrosschainInProgressTypes[kind];
   if (!vaultUpdateKind) return serviceError(`Invalid vault update kind. Cannot update vault`);
 
-  const vault = (await VaultService.getOrInit(
+  await VaultService.upsertHubSignal(
     context,
-    {
-      id: vaultAddress,
-      centrifugeId: destCentrifugeId,
-      poolId,
-      tokenId,
-      assetId,
-    },
     event,
-    undefined,
-    true
-  )) as VaultService;
-  await vault.setCrosschainInProgress(vaultUpdateKind).save(event);
+    { id: vaultAddress, centrifugeId: destCentrifugeId },
+    vaultUpdateKind,
+    { poolId, tokenId, assetId }
+  );
 });
 
 multiMapper("hub:UpdateContract", async ({ event, context }) => {

@@ -1,8 +1,15 @@
 import { Token, TokenInstance, TokenInstanceCrosschainInProgressTypes } from "ponder:schema";
 import { eq } from "drizzle-orm";
-import type { Context } from "ponder:registry";
+import type { Context, Event } from "ponder:registry";
 import { ReadOnlyContext, Service } from "./Service";
 import { serviceLog } from "../helpers/logger";
+
+/** Result of spoke share-class instance initialization. */
+export type InitializeShareClassResult = {
+  instance: TokenInstanceService;
+  prevInstanceIssuance: bigint;
+  decimals: number;
+};
 
 /** Row shape for token_instance ⟕ token (same as cross-chain route / quote SQL joins). */
 export type TokenInstanceWithTokenRow = {
@@ -21,6 +28,42 @@ export type TokenInstanceWithTokenRow = {
 export class TokenInstanceService extends Service<typeof TokenInstance> {
   static readonly entityTable = TokenInstance;
   static readonly entityName = "TokenInstance";
+
+  /**
+   * Initializes or updates a spoke share token instance with decimals set at init.
+   * @param context - Ponder context
+   * @param event - `spoke:AddShareClass` event
+   * @param params - Deployed share token identity, supply snapshot, and init decimals
+   */
+  static async initializeShareClass(
+    context: Context,
+    event: Event,
+    params: {
+      address: `0x${string}`;
+      tokenId: `0x${string}`;
+      poolId: bigint;
+      centrifugeId: string;
+      totalSupply: bigint;
+      decimals: number;
+    }
+  ): Promise<InitializeShareClassResult> {
+    const { address, tokenId, centrifugeId, totalSupply, decimals } = params;
+
+    const instance = (await TokenInstanceService.getOrInit(
+      context,
+      { address, tokenId, centrifugeId, decimals },
+      event
+    )) as TokenInstanceService;
+
+    const prevInstanceIssuance = instance.read().totalIssuance ?? 0n;
+    instance.setTotalIssuance(totalSupply);
+    instance.setDecimals(decimals);
+    serviceLog(
+      `TokenInstance initializeShareClass tokenId=${tokenId} centrifugeId=${centrifugeId} decimals=${decimals}`
+    );
+
+    return { instance, prevInstanceIssuance, decimals };
+  }
 
   /**
    * All token instances joined to their token row (for bridge route listing).
@@ -123,6 +166,18 @@ export class TokenInstanceService extends Service<typeof TokenInstance> {
     serviceLog(
       `Set totalIssuance for token ${this.data.centrifugeId}-${this.data.tokenId} to ${this.data.totalIssuance}`
     );
+    return this;
+  }
+
+  /**
+   * Sets ERC-20-style decimal places for this share token instance (pool currency decimals).
+   * @param decimals - Decimal places for share amounts on this chain
+   */
+  public setDecimals(decimals: number) {
+    serviceLog(
+      `Setting decimals for token instance ${this.data.centrifugeId}-${this.data.tokenId} to ${decimals}`
+    );
+    this.data.decimals = decimals;
     return this;
   }
 

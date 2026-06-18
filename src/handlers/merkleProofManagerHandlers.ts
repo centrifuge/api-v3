@@ -37,6 +37,11 @@ multiMapper("merkleProofManager:UpdatePolicy", async ({ event, context }) => {
     abi: Abis[indexerVersion as keyof typeof Abis].MerkleProofManager,
     functionName: "poolId",
   });
+  if (poolId === undefined) {
+    return serviceError(
+      `MerkleProofManager poolId eth_call failed at ${event.log.address}. Cannot update policy`
+    );
+  }
 
   const policy = (await PolicyService.getOrInit(
     context,

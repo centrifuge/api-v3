@@ -43,12 +43,13 @@ async function getTokenDecimals(
   context: Context,
   event: ReadContractSafeEvent,
   token: `0x${string}`
-): Promise<bigint> {
+): Promise<bigint | undefined> {
   const decimals = await readContractSafe(context, event, {
     abi: ERC20Abi,
     address: token,
     functionName: "decimals",
   });
+  if (decimals === undefined) return undefined;
   return 10n ** BigInt(decimals);
 }
 
@@ -66,7 +67,7 @@ async function getTokenRateAndPrecision(
   event: ReadContractSafeEvent,
   cfg: BasinConfig,
   token: `0x${string}`
-): Promise<RateTriple> {
+): Promise<RateTriple | undefined> {
   const credit = formatBytes32ToAddress(cfg.creditToken);
   const collateral = formatBytes32ToAddress(cfg.collateralToken);
   const swap = formatBytes32ToAddress(cfg.swapToken);
@@ -99,8 +100,10 @@ async function getTokenRateAndPrecision(
       functionName: "getRatePrecision",
     }),
   ]);
+  if (rateResult === undefined || ratePrecision === undefined) return undefined;
 
   const tokenPrecision = await getTokenDecimals(context, event, tokenAddress);
+  if (tokenPrecision === undefined) return undefined;
   return { rate: rateResult[0], ratePrecision, tokenPrecision };
 }
 
@@ -164,7 +167,7 @@ export async function getSwapQuote(
   quoteAsset: `0x${string}`,
   amount: bigint,
   roundUp: boolean
-): Promise<bigint> {
+): Promise<bigint | undefined> {
   const assetNorm = formatBytes32ToAddress(asset);
   const quoteNorm = formatBytes32ToAddress(quoteAsset);
   const credit = formatBytes32ToAddress(cfg.creditToken);
@@ -177,6 +180,7 @@ export async function getSwapQuote(
     getTokenRateAndPrecision(context, event, cfg, assetNorm),
     getTokenRateAndPrecision(context, event, cfg, quoteNorm),
   ]);
+  if (inRate === undefined || outRate === undefined) return undefined;
 
   return convertAmount(
     amount,
@@ -226,7 +230,7 @@ export async function computeRedeemRequestIdAtBlock(
   cfg: BasinConfig,
   redeemer: `0x${string}`,
   creditTokenAmount: bigint
-): Promise<`0x${string}`> {
+): Promise<`0x${string}` | undefined> {
   const collateralTokenAmount = await getSwapQuote(
     context,
     event,
@@ -236,6 +240,8 @@ export async function computeRedeemRequestIdAtBlock(
     creditTokenAmount,
     false
   );
+  if (collateralTokenAmount === undefined) return undefined;
+
   return computeRedeemRequestId({
     blockNumber: event.block.number,
     redeemer: formatBytes32ToAddress(redeemer),

@@ -1,10 +1,229 @@
-import { CrosschainMessage, CrosschainMessageStatuses } from "ponder:schema";
-import { Service, type ReadOnlyContext } from "./Service";
+import { CrosschainMessage } from "ponder:schema";
+import { Service, type DataWithoutDefaults, type ReadOnlyContext } from "./Service";
 import { expandInlineObject, serviceError, serviceLog } from "../helpers/logger";
 import { encodePacked, keccak256 } from "viem";
 import { Event, Context } from "ponder:registry";
-import { timestamper } from "../helpers/timestamper";
 import { RegistryVersions } from "../chains";
+import { and, eq, isNotNull, sql, type SQL } from "drizzle-orm";
+import {
+  mergeClearOnExecute,
+  mergeCoalesce,
+  mergeEarliest,
+  mergeSenderWins,
+  mergeSenderWinsUnlessPlaceholder,
+} from "../helpers/upsertMerge";
+import { messageStatusSetSql } from "./crosschainStatusSql";
+import { getPayloadSendAnchorAt } from "./CrosschainPayloadService";
+
+const MESSAGE_TABLE = "crosschain_message";
+
+/** Null timestamp + chain-id facts for merge SET excluded.* gates. */
+function nullTimestamperWithChain<N extends string>(fieldName: N) {
+  return {
+    [`${fieldName}At`]: null,
+    [`${fieldName}AtBlock`]: null,
+    [`${fieldName}AtTxHash`]: null,
+    [`${fieldName}AtChainId`]: null,
+  } as Record<string, null>;
+}
+
+/**
+ * Default status for first insert of a crosschain message (no facts yet).
+ * @param hasPrepared - Whether preparedAt is set on insert
+ * @param hasPayload - Whether payloadId is set on insert
+ * @returns Initial status string
+ */
+export function defaultCrosschainMessageStatus(
+  hasPrepared: boolean,
+  hasPayload: boolean
+): "AwaitingBatchDelivery" {
+  void hasPrepared;
+  void hasPayload;
+  return "AwaitingBatchDelivery";
+}
+
+/** Insert-only sentinel for partial message upserts (must not win on conflict). */
+export const CROSSCHAIN_MESSAGE_TYPE_STUB = "_Stub";
+/** Insert-only sentinel for partial message/payload upserts (must not win on conflict). */
+export const CROSSCHAIN_RAW_DATA_STUB = "0x";
+
+/** Null fact columns referenced in message merge SET (Ponder excluded.* gate). */
+export const NULL_CROSSCHAIN_MESSAGE_FACTS = {
+  payloadId: null,
+  payloadIndex: null,
+  poolId: null,
+  tokenId: null,
+  failReason: null,
+  executedAtChainId: null,
+  ...nullTimestamperWithChain("prepared"),
+  ...nullTimestamperWithChain("failed"),
+  ...nullTimestamperWithChain("executed"),
+};
+
+const MESSAGE_TIMESTAMP_FACTS = ["prepared", "failed", "executed"] as const;
+
+/**
+ * Converts camelCase to snake_case for SQL column names.
+ * @param s - camelCase string
+ * @returns snake_case string
+ */
+function camelToSnake(s: string): string {
+  return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+}
+
+/**
+ * Builds ON CONFLICT SET for crosschain_message fact merge + derived status.
+ * @returns Conflict set map for Drizzle upsert
+ */
+export function buildCrosschainMessageConflictSet(): Record<string, SQL> {
+  const set: Record<string, SQL> = {};
+
+  for (const base of MESSAGE_TIMESTAMP_FACTS) {
+    const pgAt = `${camelToSnake(base)}_at`;
+    const pgBlock = `${camelToSnake(base)}_at_block`;
+    const pgTx = `${camelToSnake(base)}_at_tx_hash`;
+    const pgChain = `${camelToSnake(base)}_at_chain_id`;
+    const tsKey = `${base}At`;
+    set[`${tsKey}`] = mergeEarliest(MESSAGE_TABLE, pgAt);
+    set[`${tsKey}Block`] = mergeCoalesce(MESSAGE_TABLE, pgBlock);
+    set[`${tsKey}TxHash`] = mergeCoalesce(MESSAGE_TABLE, pgTx);
+    set[`${tsKey}ChainId`] = mergeCoalesce(MESSAGE_TABLE, pgChain);
+  }
+
+  set.payloadId = mergeCoalesce(MESSAGE_TABLE, "payload_id");
+  set.payloadIndex = mergeCoalesce(MESSAGE_TABLE, "payload_index");
+  set.poolId = mergeCoalesce(MESSAGE_TABLE, "pool_id");
+  set.tokenId = mergeCoalesce(MESSAGE_TABLE, "token_id");
+  set.rawData = mergeSenderWinsUnlessPlaceholder(
+    MESSAGE_TABLE,
+    "raw_data",
+    `'${CROSSCHAIN_RAW_DATA_STUB}'`
+  );
+  set.data = mergeSenderWins(MESSAGE_TABLE, "data");
+  set.messageType = mergeSenderWinsUnlessPlaceholder(
+    MESSAGE_TABLE,
+    "message_type",
+    `'${CROSSCHAIN_MESSAGE_TYPE_STUB}'`
+  );
+  set.hash = mergeCoalesce(MESSAGE_TABLE, "hash");
+  set.fromCentrifugeId = mergeCoalesce(MESSAGE_TABLE, "from_centrifuge_id");
+  set.toCentrifugeId = mergeCoalesce(MESSAGE_TABLE, "to_centrifuge_id");
+  set.failedAt = mergeClearOnExecute(MESSAGE_TABLE, "failed_at");
+  set.failedAtBlock = mergeClearOnExecute(MESSAGE_TABLE, "failed_at_block");
+  set.failedAtTxHash = mergeClearOnExecute(MESSAGE_TABLE, "failed_at_tx_hash");
+  set.failedAtChainId = mergeClearOnExecute(MESSAGE_TABLE, "failed_at_chain_id");
+  set.failReason = mergeClearOnExecute(MESSAGE_TABLE, "fail_reason");
+  set.status = messageStatusSetSql();
+
+  return set;
+}
+
+/** Minimal message row shape for send-target selection. */
+export type MessageRowForPick = {
+  index: number;
+  preparedAt: Date | null;
+  payloadId?: `0x${string}` | null;
+  payloadIndex?: number | null;
+  failedAt?: Date | null;
+  executedAt?: Date | null;
+};
+
+/** Row accessor used by pickSendTarget. */
+export type MessageRowRef = { read: () => MessageRowForPick };
+
+/** Fields required for FIFO ordering of message receive entries. */
+type MessageReceiveFifoFields = {
+  status: "execute" | "fail";
+  receivedAt: Date;
+  receivedAtBlock: number;
+};
+
+/**
+ * Send anchor timestamp for a committed message row (latest send-side fact before receive).
+ * @param row - Message row data
+ * @param payload - Optional linked payload row for batch-linked messages
+ * @returns Anchor time or null
+ */
+export function getMessageSendAnchorAt(
+  row: {
+    preparedAt: Date | null;
+    payloadId?: `0x${string}` | null;
+    payloadIndex?: number | null;
+  },
+  payload?: { sentAt: Date | null; underpaidAt: Date | null } | null
+): Date | null {
+  if (row.payloadId && payload) return getPayloadSendAnchorAt(payload);
+  return row.preparedAt ?? null;
+}
+
+/**
+ * Causal ordering: receive must not precede the send anchor.
+ * @param receivedAt - Receive timestamp
+ * @param sendAnchorAt - Send anchor timestamp
+ * @returns Whether causal rule passes
+ */
+export function passesCausalOrder(receivedAt: Date, sendAnchorAt: Date | null): boolean {
+  if (!sendAnchorAt) return false;
+  return receivedAt.getTime() >= sendAnchorAt.getTime();
+}
+
+/**
+ * Picks the committed message row index for a receive fact.
+ * @param rows - Committed rows for one message id
+ * @param status - execute or fail
+ * @param payloadAnchorFor - Optional resolver for linked payload send anchors
+ * @returns Target row or null
+ */
+export function pickSendTarget(
+  rows: MessageRowRef[],
+  status: "execute" | "fail",
+  payloadAnchorFor?: (
+    row: MessageRowForPick
+  ) => { sentAt: Date | null; underpaidAt: Date | null } | null | undefined
+): MessageRowRef | null {
+  const withAnchor = rows.filter((r) => {
+    const d = r.read();
+    return getMessageSendAnchorAt(d, payloadAnchorFor?.(d) ?? null) != null;
+  });
+  if (withAnchor.length === 0) return null;
+
+  if (status === "fail") {
+    const open = withAnchor.filter((r) => r.read().executedAt == null);
+    if (open.length === 0) return null;
+    return open.reduce((min, r) => (r.read().index < min.read().index ? r : min));
+  }
+
+  const retryFailed = withAnchor.filter((r) => {
+    const d = r.read();
+    return d.failedAt != null && d.executedAt == null;
+  });
+  if (retryFailed.length > 0) {
+    return retryFailed.reduce((min, r) => (r.read().index < min.read().index ? r : min));
+  }
+
+  const open = withAnchor.filter((r) => {
+    const d = r.read();
+    return d.executedAt == null && d.failedAt == null;
+  });
+  if (open.length === 0) return null;
+  return open.reduce((min, r) => (r.read().index < min.read().index ? r : min));
+}
+
+/**
+ * FIFO sort for message receive work list (fail before execute at equal time).
+ * @param entries - Entries to sort
+ * @returns Sorted copy
+ */
+export function sortMessageQueueFifo<T extends MessageReceiveFifoFields>(entries: T[]): T[] {
+  return [...entries].sort((a, b) => {
+    const ta = a.receivedAt.getTime();
+    const tb = b.receivedAt.getTime();
+    if (ta !== tb) return ta - tb;
+    if (a.status === "fail" && b.status === "execute") return -1;
+    if (a.status === "execute" && b.status === "fail") return 1;
+    return a.receivedAtBlock - b.receivedAtBlock;
+  });
+}
 
 /**
  * Service class for managing CrosschainMessage entities.
@@ -17,6 +236,81 @@ import { RegistryVersions } from "../chains";
 export class CrosschainMessageService extends Service<typeof CrosschainMessage> {
   static readonly entityTable = CrosschainMessage;
   static readonly entityName = "CrosschainMessage";
+
+  /**
+   * Upserts fact columns and recomputes status via SQL CASE (multichain-safe).
+   * @param context - Ponder context
+   * @param event - Source event for created/updated defaults
+   * @param key - Message primary key
+   * @param facts - Fact fields to merge (status is derived, not set here)
+   * @returns Service instance for the upserted row
+   */
+  static async upsertFacts(
+    context: Context,
+    event: Extract<Event, { transaction: { hash: `0x${string}` } }>,
+    key: { id: `0x${string}`; index: number },
+    facts: Partial<DataWithoutDefaults<typeof CrosschainMessage>>
+  ): Promise<CrosschainMessageService> {
+    serviceLog(
+      "CrosschainMessage upsertFacts",
+      expandInlineObject({ id: key.id, index: key.index })
+    );
+    const hasPrepared = facts.preparedAt != null;
+    const hasPayload = facts.payloadId != null;
+    const status = facts.status ?? defaultCrosschainMessageStatus(hasPrepared, hasPayload);
+    const row = {
+      ...NULL_CROSSCHAIN_MESSAGE_FACTS,
+      ...facts,
+      ...key,
+      messageType: facts.messageType ?? CROSSCHAIN_MESSAGE_TYPE_STUB,
+      hash: facts.hash ?? (`0x${"00".repeat(32)}` as `0x${string}`),
+      rawData: facts.rawData ?? CROSSCHAIN_RAW_DATA_STUB,
+      fromCentrifugeId: facts.fromCentrifugeId ?? "0",
+      toCentrifugeId: facts.toCentrifugeId ?? "0",
+      status,
+      createdAt: new Date(Number(event.block.timestamp) * 1000),
+      createdAtBlock: Number(event.block.number),
+      createdAtTxHash: event.transaction.hash,
+    };
+
+    const conflictSet = buildCrosschainMessageConflictSet();
+    const [entity] = await context.db.sql
+      .insert(CrosschainMessage)
+      .values(row)
+      .onConflictDoUpdate({
+        target: [CrosschainMessage.id, CrosschainMessage.index],
+        set: conflictSet as unknown as Partial<typeof row>,
+      })
+      .returning();
+
+    if (!entity) throw new Error(`CrosschainMessage upsertFacts failed for ${key.id}`);
+    return new CrosschainMessageService(CrosschainMessage, "CrosschainMessage", context, entity);
+  }
+
+  /**
+   * Batch upsert fact rows (each row gets its own conflict merge + status CASE).
+   * @param context - Ponder context
+   * @param event - Source event
+   * @param rows - Rows with keys and facts
+   * @returns Upserted service instances
+   */
+  static async upsertFactsMany(
+    context: Context,
+    event: Extract<Event, { transaction: { hash: `0x${string}` } }>,
+    rows: Array<
+      { id: `0x${string}`; index: number } & Partial<DataWithoutDefaults<typeof CrosschainMessage>>
+    >
+  ): Promise<CrosschainMessageService[]> {
+    const results: CrosschainMessageService[] = [];
+    for (const row of rows) {
+      const { id, index, ...facts } = row;
+      results.push(
+        await CrosschainMessageService.upsertFacts(context, event, { id, index }, facts)
+      );
+    }
+    return results;
+  }
+
   /**
    * Groups rows by message `id`, each group sorted by `index` (for in-memory use after a batched query).
    */
@@ -36,16 +330,61 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
   }
 
   /**
-   * First row that is `AwaitingBatchDelivery` with no `payloadId` (`rows` must be sorted by index).
+   * Next message index for a message id (`MAX(index) + 1` on committed rows only).
+   * @param context - Ponder context
+   * @param messageId - Message id
+   * @returns Next index (0 when none exist)
+   */
+  static async nextMessageIndex(context: Context, messageId: `0x${string}`): Promise<number> {
+    const db = context.db.sql;
+    const [result] = await db
+      .select({ maxIndex: sql<number>`coalesce(max(${CrosschainMessage.index}), -1)::int` })
+      .from(CrosschainMessage)
+      .where(eq(CrosschainMessage.id, messageId));
+    return (result?.maxIndex ?? -1) + 1;
+  }
+
+  /**
+   * First prepared row that is `AwaitingBatchDelivery` with no `payloadId` (`rows` sorted by index).
    */
   static getFirstUnlinkedAwaiting(rows: CrosschainMessageService[] | undefined) {
     serviceLog(`CrosschainMessage getFirstUnlinkedAwaiting rows=${rows?.length ?? 0}`);
     if (!rows) return null;
     for (const row of rows) {
       const d = row.read();
-      if (d.status === "AwaitingBatchDelivery" && d.payloadId == null) return row;
+      if (d.status === "AwaitingBatchDelivery" && d.payloadId == null && d.preparedAt != null) {
+        return row;
+      }
     }
     return null;
+  }
+
+  /**
+   * Aggregates a single poolId and tokenId from message rows (errors when multiple pools).
+   * @param rows - Message service rows or minimal `{ poolId, tokenId }` shapes
+   * @returns Tuple of poolId and tokenId, or `[null, null]` on multi-pool conflict
+   */
+  static aggregatePoolAndTokenFromRows(
+    rows: readonly { read: () => { poolId: bigint | null; tokenId: `0x${string}` | null } }[]
+  ): [poolId: bigint | null, tokenId: `0x${string}` | null] {
+    serviceLog(
+      "CrosschainMessage aggregatePoolAndTokenFromRows",
+      expandInlineObject({ rowCount: rows.length })
+    );
+    const data = rows.map((row) => row.read());
+    const poolIdSet = new Set<bigint>();
+    const tokenIdSet = new Set<`0x${string}`>();
+    for (const { poolId, tokenId } of data) {
+      if (poolId != null) poolIdSet.add(poolId);
+      if (tokenId != null) tokenIdSet.add(tokenId);
+    }
+    const poolIds = Array.from(poolIdSet);
+    const tokenIds = Array.from(tokenIdSet);
+    if (poolIds.length > 1) {
+      serviceError("Multiple pools found among messages");
+      return [null, null];
+    }
+    return [poolIds.pop() ?? null, tokenIds.pop() ?? null];
   }
 
   /**
@@ -152,11 +491,18 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
       "CrosschainMessage countPayloadExecutedMessages",
       expandInlineObject({ payloadId, payloadIndex })
     );
-    return await CrosschainMessageService.count(context, {
-      payloadId,
-      payloadIndex,
-      status: "Executed",
-    });
+    const db = context.db.sql;
+    const [result] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(CrosschainMessage)
+      .where(
+        and(
+          eq(CrosschainMessage.payloadId, payloadId),
+          eq(CrosschainMessage.payloadIndex, payloadIndex),
+          isNotNull(CrosschainMessage.executedAt)
+        )
+      );
+    return result?.count ?? 0;
   }
 
   /**
@@ -215,7 +561,7 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
    */
   static async linkMessagesToPayload(
     context: Context,
-    event: Event,
+    event: Extract<Event, { transaction: { hash: `0x${string}` } }>,
     messageIds: `0x${string}`[],
     payloadId: `0x${string}`,
     payloadIndex: number
@@ -225,7 +571,7 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
       expandInlineObject({ payloadId, payloadIndex, messageCount: messageIds.length })
     );
     const uniqueIds = [...new Set(messageIds)];
-    const unlinkedRows =
+    const unlinkedRows = (
       uniqueIds.length === 0
         ? []
         : ((await CrosschainMessageService.query(context, {
@@ -236,103 +582,29 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
               { field: "id", direction: "asc" },
               { field: "index", direction: "asc" },
             ],
-          })) as CrosschainMessageService[]);
+          })) as CrosschainMessageService[])
+    ).filter((row) => row.read().preparedAt != null);
 
     const queueById = CrosschainMessageService.groupRowsByMessageId(unlinkedRows);
 
-    const toSave: CrosschainMessageService[] = [];
-    const poolIdSet = new Set<bigint>();
-    const tokenIdSet = new Set<`0x${string}`>();
+    const linkedRows: CrosschainMessageService[] = [];
     for (const messageId of messageIds) {
       const q = queueById.get(messageId);
       const crosschainMessage = q?.shift();
       if (!crosschainMessage) continue;
-      const { poolId, tokenId } = crosschainMessage.read();
-      crosschainMessage.setPayloadId(payloadId, payloadIndex);
-      toSave.push(crosschainMessage);
-      if (poolId) poolIdSet.add(poolId);
-      if (tokenId) tokenIdSet.add(tokenId);
+      const { index } = crosschainMessage.read();
+      await CrosschainMessageService.upsertFacts(
+        context,
+        event,
+        { id: messageId, index },
+        {
+          payloadId,
+          payloadIndex,
+        }
+      );
+      linkedRows.push(crosschainMessage);
     }
-    if (toSave.length > 0) {
-      await CrosschainMessageService.saveMany(context, toSave, event);
-    }
-    const poolIds = Array.from(poolIdSet);
-    const tokenIds = Array.from(tokenIdSet);
-    if (poolIds.length > 1) {
-      serviceError("Multiple pools found among messages");
-      return [null, null];
-    }
-    return [poolIds.pop() ?? null, tokenIds.pop() ?? null];
-  }
-
-  /**
-   * Sets the status of the CrosschainMessage
-   * @param status - The new status to set. Must be one of the valid CrosschainMessageStatuses
-   * @returns The CrosschainMessageService instance for chaining
-   */
-  public setStatus(status: (typeof CrosschainMessageStatuses)[number]) {
-    serviceLog(
-      `CrosschainMessage setStatus id=${this.data.id} index=${this.data.index} status=${status}`
-    );
-    this.data.status = status;
-    return this;
-  }
-
-  /**
-   * Sets the fail reason of the CrosschainMessage
-   * @param failReason - The new fail reason to set.
-   * @returns The CrosschainMessageService instance for chaining
-   */
-  public setFailReason(failReason: `0x${string}`) {
-    serviceLog(
-      `CrosschainMessage setFailReason id=${this.data.id} index=${this.data.index} reason=${failReason}`
-    );
-    this.data.failReason = failReason;
-    return this;
-  }
-
-  /**
-   * Sets the payload ID for the CrosschainMessage
-   * @param payloadId - The hex string payload ID to set
-   * @param payloadIndex - The index of the payload to set
-   * @returns The CrosschainMessageService instance for chaining
-   */
-  public setPayloadId(payloadId: `0x${string}`, payloadIndex: number) {
-    serviceLog(
-      `CrosschainMessage setPayloadId id=${this.data.id} index=${this.data.index} payloadId=${payloadId} payloadIndex=${payloadIndex}`
-    );
-    this.data.payloadId = payloadId;
-    this.data.payloadIndex = payloadIndex;
-    return this;
-  }
-
-  /**
-   * Marks the CrosschainMessage as executed.
-   *
-   * @param {Event} event - The event that marks the CrosschainMessage as executed
-   * @returns {CrosschainMessageService} Returns the current instance for method chaining
-   */
-  public executed(event: Event<"gatewayV3:ExecuteMessage" | "gatewayV3_1:ExecuteMessage">) {
-    serviceLog(`CrosschainMessage executed id=${this.data.id} index=${this.data.index}`);
-    this.data = {
-      ...this.data,
-      ...timestamper("executed", event),
-      status: "Executed",
-    };
-    return this;
-  }
-
-  /**
-   * Marks the CrosschainMessage as awaiting batch delivery.
-   *
-   * @returns {CrosschainMessageService} Returns the current instance for method chaining
-   */
-  public awaitingBatchDelivery() {
-    serviceLog(
-      `CrosschainMessage awaitingBatchDelivery id=${this.data.id} index=${this.data.index}`
-    );
-    this.data.status = "AwaitingBatchDelivery";
-    return this;
+    return CrosschainMessageService.aggregatePoolAndTokenFromRows(linkedRows);
   }
 }
 
@@ -829,15 +1101,12 @@ function setPoolAdaptersLengthDecoder(message: Buffer) {
  * @param versionIndex - The index in the CrosschainMessageType array (0 for V3, 1 for V3_1, defaults to 0)
  * @returns The string name of the message type
  */
-export function getCrosschainMessageType(
+export function getCrosschainMessageType<V extends keyof typeof messageDecoders>(
   messageType: number,
-  versionIndex: keyof typeof CrosschainMessageType
-) {
-  const messageTypes = CrosschainMessageType[versionIndex];
-  if (!messageTypes) {
-    return "_Invalid" as const;
-  }
-  return (Object.keys(messageTypes)[messageType] ?? "_Invalid") as keyof typeof messageTypes;
+  versionIndex: V
+): keyof (typeof messageDecoders)[V] {
+  const names = Object.keys(messageDecoders[versionIndex]);
+  return (names[messageType] ?? "_Invalid") as keyof (typeof messageDecoders)[V];
 }
 
 /**

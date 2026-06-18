@@ -156,7 +156,7 @@ export const endpoints = {
 
 const getLogsBlockRange = {
   "*": 10000,
-  "143": 1000,
+  //"143": 1000,
 };
 
 // Package loadedChains into a ChainConfig object for ponder to consume
@@ -214,6 +214,7 @@ export const skipBlocks = {
   "143": 9000,
   "999": 18000,
   "998": 18000,
+  "1672": 14400,
 };
 
 const blocks = Object.fromEntries(

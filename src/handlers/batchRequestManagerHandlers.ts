@@ -168,11 +168,13 @@ export async function approveDeposits({
   const epochIndex = "epochId" in args ? args.epochId : args.epoch;
   const depositAssetId = "assetId" in args ? args.assetId : args.depositAssetId;
 
-  const assetDecimals = await AssetService.getDecimals(context, depositAssetId);
-  if (!assetDecimals)
+  const asset = (await AssetService.get(context, { id: depositAssetId })) as AssetService | null;
+  if (!asset) {
     return serviceError(
-      `Asset decimals not found. Cannot compute approved percentage for invest order`
+      `Asset not found assetId=${depositAssetId}. Cannot compute approved percentage for invest order`
     );
+  }
+  const { decimals: _assetDecimals } = asset.read();
 
   const approvedPercentage = computeApprovedPercentage(approvedAssetAmount, pendingAssetAmount);
 
@@ -398,11 +400,17 @@ export async function issueShares({
   epochInvestOrder.issuedShares(issuedShareAmount, navPoolPerShare, navAssetPerShare, event);
   await epochInvestOrder.save(event);
 
-  const assetDecimals = await AssetService.getDecimals(context, depositAssetId);
-  if (!assetDecimals) return serviceError(`Asset decimals not found. Cannot compute issued shares`);
+  const asset = (await AssetService.get(context, { id: depositAssetId })) as AssetService | null;
+  if (!asset) {
+    return serviceError(`Asset not found assetId=${depositAssetId}. Cannot compute issued shares`);
+  }
+  const { decimals: assetDecimals } = asset.read();
 
-  const tokenDecimals = await TokenService.getDecimals(context, tokenId);
-  if (!tokenDecimals) return serviceError(`Token decimals not found. Cannot compute issued shares`);
+  const token = (await TokenService.get(context, { id: tokenId })) as TokenService | null;
+  if (!token) {
+    return serviceError(`Token not found tokenId=${tokenId}. Cannot compute issued shares`);
+  }
+  const { decimals: tokenDecimals } = token.read();
 
   const investOrders = (await InvestOrderService.query(context, {
     tokenId,
@@ -479,13 +487,17 @@ export async function revokeShares({
   );
   await epochRedeemOrder.save(event);
 
-  const tokenDecimals = await TokenService.getDecimals(context, tokenId);
-  if (!tokenDecimals)
-    return serviceError(`Token decimals not found. Cannot compute revoked shares`);
+  const token = (await TokenService.get(context, { id: tokenId })) as TokenService | null;
+  if (!token) {
+    return serviceError(`Token not found tokenId=${tokenId}. Cannot compute revoked shares`);
+  }
+  const { decimals: tokenDecimals } = token.read();
 
-  const assetDecimals = await AssetService.getDecimals(context, payoutAssetId);
-  if (!assetDecimals)
-    return serviceError(`Asset decimals not found. Cannot compute revoked shares`);
+  const asset = (await AssetService.get(context, { id: payoutAssetId })) as AssetService | null;
+  if (!asset) {
+    return serviceError(`Asset not found assetId=${payoutAssetId}. Cannot compute revoked shares`);
+  }
+  const { decimals: assetDecimals } = asset.read();
 
   const redeemOrders = (await RedeemOrderService.query(context, {
     tokenId,

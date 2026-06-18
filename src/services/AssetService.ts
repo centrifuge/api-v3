@@ -1,10 +1,16 @@
-import { Context } from "ponder:registry";
+import { Context, Event } from "ponder:registry";
 import { Asset } from "ponder:schema";
 import { serviceLog, serviceWarn } from "../helpers/logger";
+import { centrifugeIdFromAssetId } from "../helpers/decimalsResolver";
 import { Service, type ReadOnlyContext } from "./Service";
+import { PoolService } from "./PoolService";
+import { TokenService } from "./TokenService";
 
 /** ERC-6909 token id for vault-indexed assets; vaults support ERC-20 only (`tokenId = 0`). */
 const VAULT_ERC20_ASSET_TOKEN_ID = 0n;
+
+/** Re-export for handlers that decode asset home spoke from asset id. */
+export { centrifugeIdFromAssetId };
 
 /**
  * Service class for managing Asset entities in the database.
@@ -16,24 +22,6 @@ const VAULT_ERC20_ASSET_TOKEN_ID = 0n;
  * This service provides CRUD operations and database interaction utilities for Asset entities,
  * extending the abstract [`Service`](./Service.ts) base (standard entity statics).
  *
- * @example
- * ```typescript
- * // Create a new asset
- * const asset = await AssetService.init(context, {
- *   id: 123n,
- *   centrifugeId: "centrifuge:123",
- *   address: "0x...",
- *   name: "Loan #123",
- *   // ... other asset properties
- * });
- *
- * // Find an existing asset
- * const asset = await AssetService.get(context, { id: 123n });
- *
- * // Query multiple assets
- * const activeAssets = await AssetService.query(context, { isActive: true });
- * ```
- *
  * @extends {Service<typeof Asset>}
  * @see {@link Service} Base service class for common CRUD operations
  * @see {@link Asset} Asset entity schema definition
@@ -41,21 +29,31 @@ const VAULT_ERC20_ASSET_TOKEN_ID = 0n;
 export class AssetService extends Service<typeof Asset> {
   static readonly entityTable = Asset;
   static readonly entityName = "Asset";
+
   /**
-   * Get the decimals of an asset.
-   * @param context - The context.
-   * @param assetId - The id of the asset.
-   * @returns The decimals of the asset.
+   * Sets `pool.decimals` on pools whose currency matches a newly registered asset.
+   * @param context - Database context
+   * @param assetId - Pool currency asset id
+   * @param decimals - Known decimals from the registration event
+   * @param event - Handler event for update timestamps
    */
-  static async getDecimals(context: Context, assetId: bigint) {
-    serviceLog(`Asset getDecimals assetId=${assetId}`);
-    if (assetId < 1000n) return 18;
-    const asset = (await this.get(context, {
-      id: assetId,
-    })) as AssetService;
-    if (!asset) return undefined;
-    const { decimals } = asset.read();
-    return decimals;
+  static async backfillPoolDecimals(
+    context: Context,
+    assetId: bigint,
+    decimals: number,
+    event: Event
+  ): Promise<void> {
+    serviceLog(`Asset backfillPoolDecimals assetId=${assetId} decimals=${decimals}`);
+    const pools = (await PoolService.query(context, {
+      currency: assetId,
+    })) as PoolService[];
+    if (pools.length > 0) {
+      for (const pool of pools) {
+        pool.setDecimals(decimals);
+      }
+      await PoolService.saveMany(context, pools, event);
+    }
+    await TokenService.backfillTokenDecimals(context, assetId, decimals, event);
   }
 
   /**
@@ -96,14 +94,6 @@ export class AssetService extends Service<typeof Asset> {
   /**
    * Resolves an asset by its full identity `(centrifugeId, address, assetTokenId)`.
    *
-   * This is the correct lookup for ERC-6909 assets, where a single contract `address` holds many
-   * tokens distinguished by `assetTokenId` (ERC-20 is the `assetTokenId = 0` case). Looking up by
-   * `address` alone is ambiguous for ERC-6909 and must not be used to derive an `assetId`.
-   *
-   * If more than one asset matches — a duplicate on-chain registration assigning two `assetId`s to
-   * the same token — this returns the **newest** row by `createdAtBlock` and logs a warning, rather
-   * than failing, so indexing stays stable. The underlying duplicate must be resolved on-chain.
-   *
    * @param context - Database context
    * @param query - The chain, contract address, and ERC-6909 token id
    * @returns The matching asset (newest registration if several), or `null` when none is registered
@@ -129,16 +119,4 @@ export class AssetService extends Service<typeof Asset> {
     }
     return assets[0] ?? null;
   }
-}
-
-/**
- * Decodes the centrifuge chain ID from an AssetId (high 16 bits of the uint128).
- * Matches the protocol's AssetId.sol centrifugeId(AssetId) logic.
- * @param assetId - The raw AssetId as bigint (uint128).
- * @returns The centrifugeId as string, or null for zero assetId.
- */
-export function centrifugeIdFromAssetId(assetId: bigint): string | null {
-  if (assetId === 0n) return null;
-  const centrifugeId = Number((assetId >> 112n) & 0xffffn);
-  return String(centrifugeId);
 }
