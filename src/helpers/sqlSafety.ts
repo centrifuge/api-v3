@@ -19,8 +19,11 @@ export const PG_TYPED_BIND_HELPERS = [
   "bindPgHexBytes32",
 ] as const;
 
-/** PostgreSQL unquoted identifier: letter/underscore start, then alphanumeric/underscore. */
-const PG_IDENT_SEGMENT = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+/**
+ * Identifier segment safe inside double-quoted PostgreSQL names (see quotePgIdent).
+ * Allows deploy schemas such as sha-e758a75; rejects quote/null bytes that break escaping.
+ */
+const PG_QUOTED_IDENT_SEGMENT = /^[a-zA-Z_][a-zA-Z0-9_-]*$/;
 
 /** `bytes32` hex string (payload id, tx hash, message hash). */
 const HEX_BYTES32 = /^0x[0-9a-fA-F]{64}$/;
@@ -32,7 +35,7 @@ const HEX_BYTES32 = /^0x[0-9a-fA-F]{64}$/;
  * @param label - Context for error messages
  */
 export function assertPgIdentSegment(name: string, label: string): void {
-  if (!PG_IDENT_SEGMENT.test(name)) {
+  if (!PG_QUOTED_IDENT_SEGMENT.test(name)) {
     throw new Error(`Invalid SQL identifier for ${label}`);
   }
 }

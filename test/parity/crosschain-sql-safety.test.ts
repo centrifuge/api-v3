@@ -11,7 +11,7 @@ import {
   bindPgInteger,
   bindPgTimestamp,
 } from "../../src/helpers/sqlSafety";
-import { quotePgIdent } from "../../src/helpers/upsertMerge";
+import { quotePgEnumType, quotePgIdent } from "../../src/helpers/upsertMerge";
 import { refreshPayloadStatusSql } from "../../src/services/crosschainStatusSql";
 
 const VALID_ID = `0x${"ab".repeat(32)}` as `0x${string}`;
@@ -46,6 +46,22 @@ describe("sqlSafety validators", () => {
   it("accepts valid PostgreSQL identifier segments", () => {
     expect(() => assertPgIdentSegment("crosschain_payload", "table")).not.toThrow();
     expect(quotePgIdent("public")).toBe('"public"');
+  });
+
+  it("accepts hyphenated deploy schema names in quoted identifiers", () => {
+    expect(() => assertPgIdentSegment("sha-e758a75", "schema")).not.toThrow();
+    expect(quotePgIdent("sha-e758a75")).toBe('"sha-e758a75"');
+
+    const prev = process.env.DATABASE_SCHEMA;
+    process.env.DATABASE_SCHEMA = "sha-e758a75";
+    try {
+      expect(quotePgEnumType("crosschain_message_status")).toBe(
+        '"sha-e758a75"."crosschain_message_status"'
+      );
+    } finally {
+      if (prev === undefined) delete process.env.DATABASE_SCHEMA;
+      else process.env.DATABASE_SCHEMA = prev;
+    }
   });
 
   it("rejects identifier injection attempts", () => {
