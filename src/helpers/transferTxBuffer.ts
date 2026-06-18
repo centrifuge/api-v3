@@ -127,11 +127,7 @@ async function flushBatchByKey(context: Context, key: string): Promise<void> {
 /**
  * Flushes all batches for a chain and transaction hash.
  */
-async function flushTx(
-  context: Context,
-  chainId: number,
-  txHash: `0x${string}`
-): Promise<void> {
+async function flushTx(context: Context, chainId: number, txHash: `0x${string}`): Promise<void> {
   const prefix = `${chainId}:${txHash}:`;
   const keys = [...batches.keys()].filter((key) => key.startsWith(prefix));
   for (const key of keys) {

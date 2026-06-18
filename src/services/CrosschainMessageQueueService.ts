@@ -53,10 +53,7 @@ export class CrosschainMessageQueueService extends Service<typeof CrosschainMess
       .select()
       .from(CrosschainMessageQueue)
       .where(inArray(CrosschainMessageQueue.messageId, unique))
-      .orderBy(
-        asc(CrosschainMessageQueue.receivedAtBlock),
-        asc(CrosschainMessageQueue.receivedAt)
-      );
+      .orderBy(asc(CrosschainMessageQueue.receivedAtBlock), asc(CrosschainMessageQueue.receivedAt));
   }
 
   /**

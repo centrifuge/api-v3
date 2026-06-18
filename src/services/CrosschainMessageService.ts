@@ -257,9 +257,7 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
     );
     const hasPrepared = facts.preparedAt != null;
     const hasPayload = facts.payloadId != null;
-    const status =
-      facts.status ??
-      defaultCrosschainMessageStatus(hasPrepared, hasPayload);
+    const status = facts.status ?? defaultCrosschainMessageStatus(hasPrepared, hasPayload);
     const row = {
       ...NULL_CROSSCHAIN_MESSAGE_FACTS,
       ...facts,
@@ -286,12 +284,7 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
       .returning();
 
     if (!entity) throw new Error(`CrosschainMessage upsertFacts failed for ${key.id}`);
-    return new CrosschainMessageService(
-      CrosschainMessage,
-      "CrosschainMessage",
-      context,
-      entity
-    );
+    return new CrosschainMessageService(CrosschainMessage, "CrosschainMessage", context, entity);
   }
 
   /**
@@ -311,7 +304,9 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
     const results: CrosschainMessageService[] = [];
     for (const row of rows) {
       const { id, index, ...facts } = row;
-      results.push(await CrosschainMessageService.upsertFacts(context, event, { id, index }, facts));
+      results.push(
+        await CrosschainMessageService.upsertFacts(context, event, { id, index }, facts)
+      );
     }
     return results;
   }
@@ -340,10 +335,7 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
    * @param messageId - Message id
    * @returns Next index (0 when none exist)
    */
-  static async nextMessageIndex(
-    context: Context,
-    messageId: `0x${string}`
-  ): Promise<number> {
+  static async nextMessageIndex(context: Context, messageId: `0x${string}`): Promise<number> {
     const db = context.db.sql;
     const [result] = await db
       .select({ maxIndex: sql<number>`coalesce(max(${CrosschainMessage.index}), -1)::int` })
@@ -601,10 +593,15 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
       const crosschainMessage = q?.shift();
       if (!crosschainMessage) continue;
       const { index } = crosschainMessage.read();
-      await CrosschainMessageService.upsertFacts(context, event, { id: messageId, index }, {
-        payloadId,
-        payloadIndex,
-      });
+      await CrosschainMessageService.upsertFacts(
+        context,
+        event,
+        { id: messageId, index },
+        {
+          payloadId,
+          payloadIndex,
+        }
+      );
       linkedRows.push(crosschainMessage);
     }
     return CrosschainMessageService.aggregatePoolAndTokenFromRows(linkedRows);

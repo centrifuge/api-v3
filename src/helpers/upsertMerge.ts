@@ -2,11 +2,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { assertPgIdentSegment } from "./sqlSafety";
 
 /** Columns recomputed in ON CONFLICT SET — must not be blind-copied via saveMany. */
-export const DERIVED_COLUMN_KEYS = new Set([
-  "status",
-  "crosschainInProgress",
-  "state",
-]);
+export const DERIVED_COLUMN_KEYS = new Set(["status", "crosschainInProgress", "state"]);
 
 /**
  * Escapes a PostgreSQL identifier for use inside double-quoted SQL.

@@ -26,10 +26,7 @@ type NulledTimestampWithChainObject<N extends string> = NulledTimestampObject<N>
 
 type TxEvent = Extract<Event, { transaction: { hash: `0x${string}` } }>;
 
-export function timestamper<N extends string>(
-  fieldName: N,
-  event: TxEvent
-): TimestampObject<N>;
+export function timestamper<N extends string>(fieldName: N, event: TxEvent): TimestampObject<N>;
 
 export function timestamper<N extends string>(
   fieldName: N,

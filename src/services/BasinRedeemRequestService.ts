@@ -63,12 +63,7 @@ export class BasinRedeemRequestService extends Service<typeof BasinRedeemRequest
       .returning();
 
     if (!entity) throw new Error("BasinRedeemRequest upsertFacts failed");
-    return new BasinRedeemRequestService(
-      BasinRedeemRequest,
-      "BasinRedeemRequest",
-      context,
-      entity
-    );
+    return new BasinRedeemRequestService(BasinRedeemRequest, "BasinRedeemRequest", context, entity);
   }
 
   /**

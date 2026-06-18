@@ -47,10 +47,7 @@ export class CrosschainPayloadQueueService extends Service<typeof CrosschainPayl
       .select()
       .from(CrosschainPayloadQueue)
       .where(inArray(CrosschainPayloadQueue.payloadId, unique))
-      .orderBy(
-        asc(CrosschainPayloadQueue.receivedAtBlock),
-        asc(CrosschainPayloadQueue.receivedAt)
-      );
+      .orderBy(asc(CrosschainPayloadQueue.receivedAtBlock), asc(CrosschainPayloadQueue.receivedAt));
   }
 
   /**

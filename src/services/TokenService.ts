@@ -115,9 +115,12 @@ export class TokenService extends Service<typeof Token> {
     event: Event,
     token?: TokenService
   ): Promise<TokenService | null> {
-    const row = (token ?? (await TokenService.get(context, { id: tokenId }))) as TokenService | null;
+    const row = (token ??
+      (await TokenService.get(context, { id: tokenId }))) as TokenService | null;
     if (!row) {
-      serviceLog(`Token syncTotalIssuanceFromInstances skipped tokenId=${tokenId} (token row missing)`);
+      serviceLog(
+        `Token syncTotalIssuanceFromInstances skipped tokenId=${tokenId} (token row missing)`
+      );
       return null;
     }
     const totalIssuance = await TokenService.sumInstanceTotalIssuance(context, tokenId);

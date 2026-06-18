@@ -35,31 +35,22 @@ export class VaultService extends Service<typeof Vault> {
     stubs: Partial<DataWithoutDefaults<typeof Vault>> = {}
   ): Promise<VaultService> {
     const ts = new Date(Number(event.block.timestamp) * 1000);
-    return upsertHubSpokeFacts(
-      context,
-      event,
-      Vault,
-      "vault",
-      VaultService,
-      "Vault",
-      "hub",
-      {
-        poolId: stubs.poolId ?? 0n,
-        tokenId: stubs.tokenId ?? (`0x${"00".repeat(32)}` as `0x${string}`),
-        assetId: stubs.assetId ?? 0n,
-        isActive: stubs.isActive ?? false,
-        ...stubs,
-        ...key,
-        hubSignalType,
-        ...timestamperWithChain("hubSignal", event, context.chain.id),
-        createdAt: ts,
-        createdAtBlock: Number(event.block.number),
-        createdAtTxHash: event.transaction.hash,
-        updatedAt: ts,
-        updatedAtBlock: Number(event.block.number),
-        updatedAtTxHash: event.transaction.hash,
-      }
-    );
+    return upsertHubSpokeFacts(context, event, Vault, "vault", VaultService, "Vault", "hub", {
+      poolId: stubs.poolId ?? 0n,
+      tokenId: stubs.tokenId ?? (`0x${"00".repeat(32)}` as `0x${string}`),
+      assetId: stubs.assetId ?? 0n,
+      isActive: stubs.isActive ?? false,
+      ...stubs,
+      ...key,
+      hubSignalType,
+      ...timestamperWithChain("hubSignal", event, context.chain.id),
+      createdAt: ts,
+      createdAtBlock: Number(event.block.number),
+      createdAtTxHash: event.transaction.hash,
+      updatedAt: ts,
+      updatedAtBlock: Number(event.block.number),
+      updatedAtTxHash: event.transaction.hash,
+    });
   }
 
   /**
@@ -77,30 +68,21 @@ export class VaultService extends Service<typeof Vault> {
     stubs: Partial<DataWithoutDefaults<typeof Vault>> = {}
   ): Promise<VaultService> {
     const ts = new Date(Number(event.block.timestamp) * 1000);
-    return upsertHubSpokeFacts(
-      context,
-      event,
-      Vault,
-      "vault",
-      VaultService,
-      "Vault",
-      "spoke",
-      {
-        poolId: stubs.poolId ?? 0n,
-        tokenId: stubs.tokenId ?? (`0x${"00".repeat(32)}` as `0x${string}`),
-        assetId: stubs.assetId ?? 0n,
-        isActive: stubs.isActive ?? false,
-        ...stubs,
-        ...key,
-        ...timestamperWithChain("spokeAck", event, context.chain.id),
-        createdAt: ts,
-        createdAtBlock: Number(event.block.number),
-        createdAtTxHash: event.transaction.hash,
-        updatedAt: ts,
-        updatedAtBlock: Number(event.block.number),
-        updatedAtTxHash: event.transaction.hash,
-      }
-    );
+    return upsertHubSpokeFacts(context, event, Vault, "vault", VaultService, "Vault", "spoke", {
+      poolId: stubs.poolId ?? 0n,
+      tokenId: stubs.tokenId ?? (`0x${"00".repeat(32)}` as `0x${string}`),
+      assetId: stubs.assetId ?? 0n,
+      isActive: stubs.isActive ?? false,
+      ...stubs,
+      ...key,
+      ...timestamperWithChain("spokeAck", event, context.chain.id),
+      createdAt: ts,
+      createdAtBlock: Number(event.block.number),
+      createdAtTxHash: event.transaction.hash,
+      updatedAt: ts,
+      updatedAtBlock: Number(event.block.number),
+      updatedAtTxHash: event.transaction.hash,
+    });
   }
 
   /**

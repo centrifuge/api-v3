@@ -137,7 +137,10 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
       const poolIdSet = new Set<bigint>();
       const tokenIdSet = new Set<`0x${string}`>();
       const crosschainMessagesByMessageId =
-        await CrosschainMessageService.loadCrosschainMessagesByMessageIds(context, orderedMessageIds);
+        await CrosschainMessageService.loadCrosschainMessagesByMessageIds(
+          context,
+          orderedMessageIds
+        );
 
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
@@ -151,8 +154,7 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
         const rawData = `0x${Buffer.from(messageBuffer.toString("hex"))}` as `0x${string}`;
         const data = decodeMessage(messageType, messagePayload, version);
         const decodedPoolId = data && "poolId" in data ? BigInt(data.poolId) : null;
-        const decodedTokenId =
-          data && "scId" in data ? (data.scId as `0x${string}`) : null;
+        const decodedTokenId = data && "scId" in data ? (data.scId as `0x${string}`) : null;
 
         const rowsForId = crosschainMessagesByMessageId.get(messageId) ?? [];
         const pendingMessage = CrosschainMessageService.getFirstUnlinkedAwaiting(rowsForId);
@@ -172,7 +174,8 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
             if (prior.tokenId == null && decodedTokenId != null) linkFacts.tokenId = decodedTokenId;
             if (prior.data == null) linkFacts.data = data;
             if (prior.rawData === CROSSCHAIN_RAW_DATA_STUB) linkFacts.rawData = rawData;
-            if (prior.messageType === CROSSCHAIN_MESSAGE_TYPE_STUB) linkFacts.messageType = messageType;
+            if (prior.messageType === CROSSCHAIN_MESSAGE_TYPE_STUB)
+              linkFacts.messageType = messageType;
             if (!prior.hash) linkFacts.hash = messageHash;
           }
 
@@ -194,18 +197,23 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
         if (decodedTokenId) tokenIdSet.add(decodedTokenId);
 
         const messageIndex = i;
-        await CrosschainMessageService.upsertFacts(context, event, { id: messageId, index: messageIndex }, {
-          poolId: decodedPoolId,
-          tokenId: decodedTokenId,
-          fromCentrifugeId,
-          toCentrifugeId: toCentrifugeId.toString(),
-          messageType,
-          rawData,
-          data,
-          hash: messageHash,
-          payloadId,
-          payloadIndex,
-        });
+        await CrosschainMessageService.upsertFacts(
+          context,
+          event,
+          { id: messageId, index: messageIndex },
+          {
+            poolId: decodedPoolId,
+            tokenId: decodedTokenId,
+            fromCentrifugeId,
+            toCentrifugeId: toCentrifugeId.toString(),
+            messageType,
+            rawData,
+            data,
+            hash: messageHash,
+            payloadId,
+            payloadIndex,
+          }
+        );
       }
 
       const linkedMessages = (await CrosschainMessageService.query(context, {
@@ -320,16 +328,21 @@ multiMapper("gateway:ExecuteMessage", async ({ event, context }) => {
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
   const messageId = getMessageId(fromCentrifugeId.toString(), toCentrifugeId, messageHash);
 
-  await reconcileMessageReceives(context, event, [messageId], [
-    messageReceiveEntryFromEvent(event, context.chain.id, {
-      status: "execute",
-      messageId,
-      hash: messageHash,
-      fromCentrifugeId: fromCentrifugeId.toString(),
-      toCentrifugeId,
-      rawData: (message ?? "0x") as `0x${string}`,
-    }),
-  ]);
+  await reconcileMessageReceives(
+    context,
+    event,
+    [messageId],
+    [
+      messageReceiveEntryFromEvent(event, context.chain.id, {
+        status: "execute",
+        messageId,
+        hash: messageHash,
+        fromCentrifugeId: fromCentrifugeId.toString(),
+        toCentrifugeId,
+        rawData: (message ?? "0x") as `0x${string}`,
+      }),
+    ]
+  );
 });
 
 multiMapper("gateway:FailMessage", async ({ event, context }) => {
@@ -342,15 +355,20 @@ multiMapper("gateway:FailMessage", async ({ event, context }) => {
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
   const messageId = getMessageId(fromCentrifugeId.toString(), toCentrifugeId, messageHash);
 
-  await reconcileMessageReceives(context, event, [messageId], [
-    messageReceiveEntryFromEvent(event, context.chain.id, {
-      status: "fail",
-      messageId,
-      hash: messageHash,
-      fromCentrifugeId: fromCentrifugeId.toString(),
-      toCentrifugeId,
-      failReason: error,
-      rawData: (message ?? "0x") as `0x${string}`,
-    }),
-  ]);
+  await reconcileMessageReceives(
+    context,
+    event,
+    [messageId],
+    [
+      messageReceiveEntryFromEvent(event, context.chain.id, {
+        status: "fail",
+        messageId,
+        hash: messageHash,
+        fromCentrifugeId: fromCentrifugeId.toString(),
+        toCentrifugeId,
+        failReason: error,
+        rawData: (message ?? "0x") as `0x${string}`,
+      }),
+    ]
+  );
 });

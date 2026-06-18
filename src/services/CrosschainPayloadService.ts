@@ -160,9 +160,7 @@ function isPayloadRowOpen(row: PayloadRowForIndex): boolean {
  * @param rows - All rows for one payload id (any order)
  * @returns Open row with minimum `index`, or null
  */
-export function pickOpenPayloadRowAmong(
-  rows: PayloadRowForIndex[]
-): PayloadRowForIndex | null {
+export function pickOpenPayloadRowAmong(rows: PayloadRowForIndex[]): PayloadRowForIndex | null {
   const open = rows.filter(isPayloadRowOpen).sort((a, b) => a.index - b.index);
   return open[0] ?? null;
 }
@@ -211,9 +209,7 @@ function nextPayloadIndexWhenAllClosed(rows: PayloadRowForIndex[]): number {
  * @param messages - Message rows sharing a payload id
  * @returns Single index, or null when none linked
  */
-export function payloadIndexFromMessages(
-  messages: MessageRowForPayloadIndex[]
-): number | null {
+export function payloadIndexFromMessages(messages: MessageRowForPayloadIndex[]): number | null {
   const indices = new Set<number>();
   for (const message of messages) {
     if (message.payloadIndex != null) indices.add(message.payloadIndex);
@@ -240,8 +236,7 @@ export function resolvePayloadKeyForEvent(
   if (options.messagePayloadIndex != null) {
     const linked = rows.find((r) => r.index === options.messagePayloadIndex);
     if (linked) {
-      const senderEvent =
-        eventKind === "UnderpaidBatch" || eventKind === "SendPayload";
+      const senderEvent = eventKind === "UnderpaidBatch" || eventKind === "SendPayload";
       if (isPayloadRowOpen(linked) || senderEvent) {
         return { action: "mutate", index: linked.index };
       }
@@ -319,14 +314,9 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
    * @param payloadId - Payload id
    * @returns Next index (0 when none exist)
    */
-  static async nextPayloadIndex(
-    context: Context,
-    payloadId: `0x${string}`
-  ): Promise<number> {
+  static async nextPayloadIndex(context: Context, payloadId: `0x${string}`): Promise<number> {
     const rows = await CrosschainPayloadService.loadAllForPayloadId(context, payloadId);
-    return rows.length === 0
-      ? 0
-      : Math.max(...rows.map((r) => r.read().index)) + 1;
+    return rows.length === 0 ? 0 : Math.max(...rows.map((r) => r.read().index)) + 1;
   }
 
   /**
@@ -445,12 +435,7 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
       .returning();
 
     if (!entity) throw new Error(`CrosschainPayload upsertFacts failed for ${key.id}`);
-    return new CrosschainPayloadService(
-      CrosschainPayload,
-      "CrosschainPayload",
-      context,
-      entity
-    );
+    return new CrosschainPayloadService(CrosschainPayload, "CrosschainPayload", context, entity);
   }
 
   /**
@@ -472,9 +457,7 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
       "CrosschainPayload refreshPayloadStatusFromAggregates",
       expandInlineObject({ payloadId, payloadIndex, setDelivered: options.setDeliveredFromAnchor })
     );
-    await context.db.sql.execute(
-      refreshPayloadStatusSql(anchor, payloadId, payloadIndex, options)
-    );
+    await context.db.sql.execute(refreshPayloadStatusSql(anchor, payloadId, payloadIndex, options));
   }
 
   /**

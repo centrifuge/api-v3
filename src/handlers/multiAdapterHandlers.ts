@@ -27,12 +27,7 @@ import {
 
 multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
   logEvent(event, context, "multiAdapterSendPayload");
-  const {
-    centrifugeId: toCentrifugeId,
-    payload: payloadData,
-    payloadId,
-    adapter,
-  } = event.args;
+  const { centrifugeId: toCentrifugeId, payload: payloadData, payloadId, adapter } = event.args;
 
   const gasLimit = "gasLimit" in event.args ? event.args.gasLimit : null;
   const gasPaid = "gasPaid" in event.args ? event.args.gasPaid : null;
@@ -143,10 +138,7 @@ multiMapper("multiAdapter:SendProof", async ({ event, context }) => {
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
   await runWithSendReconciliation(context, event, { payloadIds: [payloadId] }, async () => {
-    const openPayload = await CrosschainPayloadService.findOpenPayloadCandidate(
-      context,
-      payloadId
-    );
+    const openPayload = await CrosschainPayloadService.findOpenPayloadCandidate(context, payloadId);
     if (!openPayload) return;
 
     const { index: payloadIndex } = openPayload.read();
@@ -177,15 +169,20 @@ multiMapper("multiAdapter:HandlePayload", async ({ event, context }) => {
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  await reconcilePayloadReceives(context, event, [payloadId], [
-    payloadReceiveEntryFromEvent(event, context.chain.id, {
-      type: "PAYLOAD",
-      payloadId,
-      adapterId: (adapter as string).toLowerCase(),
-      fromCentrifugeId: fromCentrifugeId.toString(),
-      toCentrifugeId,
-    }),
-  ]);
+  await reconcilePayloadReceives(
+    context,
+    event,
+    [payloadId],
+    [
+      payloadReceiveEntryFromEvent(event, context.chain.id, {
+        type: "PAYLOAD",
+        payloadId,
+        adapterId: (adapter as string).toLowerCase(),
+        fromCentrifugeId: fromCentrifugeId.toString(),
+        toCentrifugeId,
+      }),
+    ]
+  );
 });
 
 multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
@@ -203,15 +200,20 @@ multiMapper("multiAdapter:HandleProof", async ({ event, context }) => {
   const { payloadId, adapter, centrifugeId: fromCentrifugeId } = event.args;
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  await reconcilePayloadReceives(context, event, [payloadId], [
-    payloadReceiveEntryFromEvent(event, context.chain.id, {
-      type: "PROOF",
-      payloadId,
-      adapterId: (adapter as string).toLowerCase(),
-      fromCentrifugeId: fromCentrifugeId.toString(),
-      toCentrifugeId,
-    }),
-  ]);
+  await reconcilePayloadReceives(
+    context,
+    event,
+    [payloadId],
+    [
+      payloadReceiveEntryFromEvent(event, context.chain.id, {
+        type: "PROOF",
+        payloadId,
+        adapterId: (adapter as string).toLowerCase(),
+        fromCentrifugeId: fromCentrifugeId.toString(),
+        toCentrifugeId,
+      }),
+    ]
+  );
 });
 
 multiMapper("multiAdapter:SetAdapters", async ({ event, context }) => {

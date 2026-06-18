@@ -1,9 +1,5 @@
 import { getTableColumns, sql, type SQL } from "drizzle-orm";
-import {
-  AdapterParticipation,
-  CrosschainMessage,
-  CrosschainPayload,
-} from "ponder:schema";
+import { AdapterParticipation, CrosschainMessage, CrosschainPayload } from "ponder:schema";
 import { quotePgEnumType, quotePgIdent } from "../helpers/upsertMerge";
 import {
   assertHexBytes32,

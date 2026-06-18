@@ -104,11 +104,7 @@ export async function resolveAssetDecimals(
   const fromDb = await deps.getAssetDecimalsFromDb(assetId);
   if (typeof fromDb === "number") return fromDb;
 
-  const fromHub = await deps.readHubRegistryDecimals(
-    hubChainId,
-    assetId,
-    keys?.hubRegistryAddress
-  );
+  const fromHub = await deps.readHubRegistryDecimals(hubChainId, assetId, keys?.hubRegistryAddress);
   if (typeof fromHub === "number") return fromHub;
 
   return deps.readSpokeAssetDecimals(assetId);
@@ -431,40 +427,34 @@ async function resolveFromTokenId(
     centrifugeId,
   })) as InstanceType<typeof TokenInstanceService> | null;
 
-  const fromLadder = await resolveTokenIdDecimalsLadder(
-    chainId,
-    tokenId,
-    centrifugeId,
-    query,
-    {
-      getInstanceDecimalsFromDb: async (id, cid) => {
-        const row = (await TokenInstanceService.get(context, {
-          tokenId: id,
-          centrifugeId: cid,
-        })) as InstanceType<typeof TokenInstanceService> | null;
-        if (!row) return undefined;
-        const { decimals } = row.read();
-        return typeof decimals === "number" ? decimals : undefined;
-      },
-      getTokenDecimalsFromDb: async (id) => {
-        const token = (await TokenService.get(context, { id })) as InstanceType<
-          typeof TokenService
-        > | null;
-        if (!token) return undefined;
-        const { decimals } = token.read();
-        return typeof decimals === "number" ? decimals : undefined;
-      },
-      resolvePoolCurrencyDecimals: async (poolId) => {
-        const pool = (await PoolService.get(context, { id: poolId })) as InstanceType<
-          typeof PoolService
-        > | null;
-        if (!pool) return undefined;
-        return PoolService.resolveShareClassDecimalsForInit(context, event, pool);
-      },
-      readErc20Decimals: (_chainId, address, pinToEvent) =>
-        readErc20Decimals(chainId, address, context, event, pinToEvent),
-    }
-  );
+  const fromLadder = await resolveTokenIdDecimalsLadder(chainId, tokenId, centrifugeId, query, {
+    getInstanceDecimalsFromDb: async (id, cid) => {
+      const row = (await TokenInstanceService.get(context, {
+        tokenId: id,
+        centrifugeId: cid,
+      })) as InstanceType<typeof TokenInstanceService> | null;
+      if (!row) return undefined;
+      const { decimals } = row.read();
+      return typeof decimals === "number" ? decimals : undefined;
+    },
+    getTokenDecimalsFromDb: async (id) => {
+      const token = (await TokenService.get(context, { id })) as InstanceType<
+        typeof TokenService
+      > | null;
+      if (!token) return undefined;
+      const { decimals } = token.read();
+      return typeof decimals === "number" ? decimals : undefined;
+    },
+    resolvePoolCurrencyDecimals: async (poolId) => {
+      const pool = (await PoolService.get(context, { id: poolId })) as InstanceType<
+        typeof PoolService
+      > | null;
+      if (!pool) return undefined;
+      return PoolService.resolveShareClassDecimalsForInit(context, event, pool);
+    },
+    readErc20Decimals: (_chainId, address, pinToEvent) =>
+      readErc20Decimals(chainId, address, context, event, pinToEvent),
+  });
   if (typeof fromLadder === "number") return fromLadder;
 
   const { address } = instance?.read() ?? {};

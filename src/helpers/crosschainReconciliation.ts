@@ -152,7 +152,9 @@ export function sortPayloadQueueFifo(entries: PayloadReceiveEntry[]): PayloadRec
  * @param row - Queue table row
  * @returns Normalized message receive entry
  */
-function messageEntryFromQueueRow(row: (typeof CrosschainMessageQueue)["$inferSelect"]): MessageReceiveEntry {
+function messageEntryFromQueueRow(
+  row: (typeof CrosschainMessageQueue)["$inferSelect"]
+): MessageReceiveEntry {
   return {
     source: "queue",
     queuePk: {
@@ -179,7 +181,9 @@ function messageEntryFromQueueRow(row: (typeof CrosschainMessageQueue)["$inferSe
  * @param row - Queue table row
  * @returns Normalized payload receive entry
  */
-function payloadEntryFromQueueRow(row: (typeof CrosschainPayloadQueue)["$inferSelect"]): PayloadReceiveEntry {
+function payloadEntryFromQueueRow(
+  row: (typeof CrosschainPayloadQueue)["$inferSelect"]
+): PayloadReceiveEntry {
   return {
     source: "queue",
     queuePk: {
@@ -204,9 +208,9 @@ function payloadEntryFromQueueRow(row: (typeof CrosschainPayloadQueue)["$inferSe
  * @param entry - Receive entry with queue PK
  * @returns Row for `CrosschainMessageQueueService.enqueue`
  */
-function messageEntryToQueueInsert(entry: MessageReceiveEntry): Parameters<
-  typeof CrosschainMessageQueueService.enqueue
->[1] {
+function messageEntryToQueueInsert(
+  entry: MessageReceiveEntry
+): Parameters<typeof CrosschainMessageQueueService.enqueue>[1] {
   const pk = entry.queuePk!;
   return {
     chainId: pk.chainId,
@@ -231,9 +235,9 @@ function messageEntryToQueueInsert(entry: MessageReceiveEntry): Parameters<
  * @param entry - Receive entry with queue PK
  * @returns Row for `CrosschainPayloadQueueService.enqueue`
  */
-function payloadEntryToQueueInsert(entry: PayloadReceiveEntry): Parameters<
-  typeof CrosschainPayloadQueueService.enqueue
->[1] {
+function payloadEntryToQueueInsert(
+  entry: PayloadReceiveEntry
+): Parameters<typeof CrosschainPayloadQueueService.enqueue>[1] {
   const pk = entry.queuePk!;
   return {
     chainId: pk.chainId,
@@ -344,10 +348,7 @@ async function tryApplyMessageReceive(
   entry: MessageReceiveEntry,
   committedRows: CrosschainMessageService[]
 ): Promise<"applied" | "waiting"> {
-  const payloadAnchors = new Map<
-    string,
-    { sentAt: Date | null; underpaidAt: Date | null }
-  >();
+  const payloadAnchors = new Map<string, { sentAt: Date | null; underpaidAt: Date | null }>();
   for (const row of committedRows) {
     const d = row.read();
     if (!d.payloadId || d.payloadIndex == null) continue;
@@ -439,9 +440,7 @@ async function resolvePayloadRowForHandle(
     side: "SEND",
     type: entry.type,
   })) as AdapterParticipationService[];
-  const participationIndices = [
-    ...new Set(sendParticipations.map((p) => p.read().payloadIndex)),
-  ];
+  const participationIndices = [...new Set(sendParticipations.map((p) => p.read().payloadIndex))];
   if (participationIndices.length === 1) {
     const fromParticipation = rowByIndex(participationIndices[0]!);
     if (fromParticipation) return fromParticipation;
@@ -489,11 +488,16 @@ async function applyPayloadDeliverySideEffects(
 
   const current = payloadRow.read();
   if (current.deliveredAt == null) {
-    await CrosschainPayloadService.upsertFacts(context, event, { id: payloadId, index: payloadIndex }, {
-      deliveredAt: entry.receivedAt,
-      deliveredAtBlock: entry.receivedAtBlock,
-      deliveredAtTxHash: entry.receivedAtTxHash,
-    });
+    await CrosschainPayloadService.upsertFacts(
+      context,
+      event,
+      { id: payloadId, index: payloadIndex },
+      {
+        deliveredAt: entry.receivedAt,
+        deliveredAtBlock: entry.receivedAtBlock,
+        deliveredAtTxHash: entry.receivedAtTxHash,
+      }
+    );
   }
 
   await refreshLinkedPayloadStatus(
