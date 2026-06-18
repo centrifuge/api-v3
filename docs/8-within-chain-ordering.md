@@ -38,7 +38,7 @@ Replace error paths with upsert-then-update for epoch aggregate rows.
 
 ### 3. `tokenInstance:Transfer`
 
-No change — checkpoint PK includes `logIndex`; idempotent.
+Same-tx **net-delta** buffering applies only to transfers **older than 8 hours** (wall clock); recent chain-tip transfers are applied per leg immediately. Historical batches flush on tx/block boundaries inside handler callbacks. **Full reindex required** after deploy.
 
 ### 4. `balanceSheet` + same-block escrow
 
