@@ -5,9 +5,9 @@ import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceLog, serviceError, expandInlineObject } from "../helpers/logger";
 import { snapshotter } from "../helpers/snapshotter";
 import {
-  AssetService,
   BlockchainService,
   AccountService,
+  AssetRegistrationService,
   InvestOrderService,
   RedeemOrderService,
   PendingInvestOrderService,
@@ -17,7 +17,6 @@ import {
   EpochOutstandingRedeemService,
   EpochInvestOrderService,
   EpochRedeemOrderService,
-  PoolService,
   TokenService,
 } from "../services";
 import { timestamper } from "../helpers/timestamper";
@@ -168,17 +167,9 @@ export async function approveDeposits({
   const epochIndex = "epochId" in args ? args.epochId : args.epoch;
   const depositAssetId = "assetId" in args ? args.assetId : args.depositAssetId;
 
-  const asset = (await AssetService.get(context, { id: depositAssetId })) as AssetService | null;
-  if (!asset) {
-    return serviceError(
-      `Asset not found assetId=${depositAssetId}. Cannot compute approved percentage for invest order`
-    );
-  }
-  const { decimals: _assetDecimals } = asset.read();
-
   const approvedPercentage = computeApprovedPercentage(approvedAssetAmount, pendingAssetAmount);
 
-  const _epochInvestOrder = (await EpochInvestOrderService.insert(
+  await EpochInvestOrderService.upsert(
     context,
     {
       poolId,
@@ -191,7 +182,7 @@ export async function approveDeposits({
       ...timestamper("approved", event),
     },
     event
-  )) as EpochInvestOrderService | null;
+  );
 
   const epochOutstandingInvest = (await EpochOutstandingInvestService.getOrInit(
     context,
@@ -268,21 +259,9 @@ export async function approveRedeems({
   const epochIndex = "epochId" in args ? args.epochId : args.epoch;
   const payoutAssetId = "payoutAssetId" in args ? args.payoutAssetId : args.assetId;
 
-  const pool = (await PoolService.get(context, {
-    id: poolId,
-  })) as PoolService;
-  if (!pool)
-    return serviceError(
-      `Pool not found. Cannot retrieve currency to compute approved percentage for redeem order`
-    );
-
-  const { currency } = pool.read();
-  if (!currency)
-    return serviceError(`Currency not found. Cannot compute approved percentage for redeem order`);
-
   const approvedPercentage = computeApprovedPercentage(approvedShareAmount, pendingShareAmount);
 
-  const _epochRedeemOrder = (await EpochRedeemOrderService.insert(
+  await EpochRedeemOrderService.upsert(
     context,
     {
       poolId,
@@ -294,7 +273,7 @@ export async function approveRedeems({
       approvedPercentageOfTotalPending: approvedPercentage,
     },
     event
-  )) as EpochRedeemOrderService | null;
+  );
 
   const epochOutstandingRedeem = (await EpochOutstandingRedeemService.getOrInit(
     context,
@@ -376,11 +355,7 @@ export async function issueShares({
   context: Context;
 }) {
   logEvent(event, context, "batchRequestManager:IssueShares");
-  const {
-    //poolId,
-    issuedShareAmount,
-    ...args
-  } = event.args;
+  const { poolId, issuedShareAmount, ...args } = event.args;
   const tokenId = "shareClassId" in args ? args.shareClassId : args.scId;
   const epochIndex = "epochId" in args ? args.epochId : args.epoch;
   const depositAssetId = "assetId" in args ? args.assetId : args.depositAssetId;
@@ -389,28 +364,38 @@ export async function issueShares({
   const navPoolPerShare =
     "pricePoolPerShare" in args ? args.pricePoolPerShare : args.navPoolPerShare;
 
-  const epochInvestOrder = (await EpochInvestOrderService.get(context, {
-    tokenId,
-    assetId: depositAssetId,
-    index: epochIndex,
-  })) as EpochInvestOrderService | null;
-  if (!epochInvestOrder) {
-    return serviceError(`EpochInvestOrder not found. Cannot record issued shares`);
-  }
+  const epochInvestOrder = (await EpochInvestOrderService.getOrInit(
+    context,
+    {
+      poolId,
+      tokenId,
+      assetId: depositAssetId,
+      index: epochIndex,
+    },
+    event
+  )) as EpochInvestOrderService;
   epochInvestOrder.issuedShares(issuedShareAmount, navPoolPerShare, navAssetPerShare, event);
   await epochInvestOrder.save(event);
 
-  const asset = (await AssetService.get(context, { id: depositAssetId })) as AssetService | null;
-  if (!asset) {
-    return serviceError(`Asset not found assetId=${depositAssetId}. Cannot compute issued shares`);
-  }
-  const { decimals: assetDecimals } = asset.read();
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
   const token = (await TokenService.get(context, { id: tokenId })) as TokenService | null;
   if (!token) {
-    return serviceError(`Token not found tokenId=${tokenId}. Cannot compute issued shares`);
+    return serviceError(`Token not found tokenId=${tokenId}. Cannot issue shares`);
   }
-  const { decimals: tokenDecimals } = token.read();
+
+  const assetRegistration = (await AssetRegistrationService.get(context, {
+    assetId: depositAssetId,
+    centrifugeId,
+  })) as AssetRegistrationService | null;
+  if (!assetRegistration) {
+    return serviceError(
+      `AssetRegistration not found assetId=${depositAssetId} centrifugeId=${centrifugeId}. Cannot issue shares`
+    );
+  }
+
+  const { decimals: shareDecimals } = token.read();
+  const { decimals: assetDecimals } = assetRegistration.read();
 
   const investOrders = (await InvestOrderService.query(context, {
     tokenId,
@@ -427,7 +412,7 @@ export async function issueShares({
       expandInlineObject(investOrder.read())
     );
 
-    investOrder.issueShares(navAssetPerShare, navPoolPerShare, assetDecimals, tokenDecimals, event);
+    investOrder.issueShares(navAssetPerShare, navPoolPerShare, assetDecimals, shareDecimals, event);
     investOrderSaves.push(investOrder.save(event));
   }
 
@@ -459,24 +444,16 @@ export async function revokeShares({
   const navPoolPerShare =
     "pricePoolPerShare" in args ? args.pricePoolPerShare : args.navPoolPerShare;
 
-  const pool = (await PoolService.get(context, {
-    id: poolId,
-  })) as PoolService;
-  if (!pool) return serviceError(`Pool not found. Cannot compute revoked shares`);
-  const { currency: poolCurrency } = pool.read();
-  if (!poolCurrency) return serviceError(`Pool currency not found. Cannot compute revoked shares`);
-
-  const epochRedeemOrder = (await EpochRedeemOrderService.get(context, {
-    tokenId,
-    assetId: payoutAssetId,
-    index: epochIndex,
-  })) as EpochRedeemOrderService | null;
-  if (!epochRedeemOrder) {
-    serviceError(
-      `EpochRedeemOrder not found for token ${tokenId} asset ${payoutAssetId} index ${epochIndex}`
-    );
-    return;
-  }
+  const epochRedeemOrder = (await EpochRedeemOrderService.getOrInit(
+    context,
+    {
+      poolId,
+      tokenId,
+      assetId: payoutAssetId,
+      index: epochIndex,
+    },
+    event
+  )) as EpochRedeemOrderService;
   epochRedeemOrder.revokedShares(
     revokedShareAmount,
     revokedAssetAmount,
@@ -487,17 +464,25 @@ export async function revokeShares({
   );
   await epochRedeemOrder.save(event);
 
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
+
   const token = (await TokenService.get(context, { id: tokenId })) as TokenService | null;
   if (!token) {
-    return serviceError(`Token not found tokenId=${tokenId}. Cannot compute revoked shares`);
+    return serviceError(`Token not found tokenId=${tokenId}. Cannot revoke shares`);
   }
-  const { decimals: tokenDecimals } = token.read();
 
-  const asset = (await AssetService.get(context, { id: payoutAssetId })) as AssetService | null;
-  if (!asset) {
-    return serviceError(`Asset not found assetId=${payoutAssetId}. Cannot compute revoked shares`);
+  const assetRegistration = (await AssetRegistrationService.get(context, {
+    assetId: payoutAssetId,
+    centrifugeId,
+  })) as AssetRegistrationService | null;
+  if (!assetRegistration) {
+    return serviceError(
+      `AssetRegistration not found assetId=${payoutAssetId} centrifugeId=${centrifugeId}. Cannot revoke shares`
+    );
   }
-  const { decimals: assetDecimals } = asset.read();
+
+  const { decimals: shareDecimals } = token.read();
+  const { decimals: assetDecimals } = assetRegistration.read();
 
   const redeemOrders = (await RedeemOrderService.query(context, {
     tokenId,
@@ -517,7 +502,7 @@ export async function revokeShares({
     redeemOrder.revokeShares(
       navAssetPerShare,
       navPoolPerShare,
-      tokenDecimals,
+      shareDecimals,
       assetDecimals,
       event
     );

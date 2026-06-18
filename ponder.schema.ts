@@ -680,6 +680,7 @@ export const EpochRedeemOrderRelations = relations(EpochRedeemOrder, ({ one }) =
 const AssetRegistrationColumns = (t: PgColumnsBuilders) => ({
   assetId: t.bigint().notNull(),
   centrifugeId: t.text().notNull(),
+  decimals: t.integer().notNull(),
   ...defaultColumns(t),
 });
 

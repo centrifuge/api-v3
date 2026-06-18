@@ -87,6 +87,7 @@ multiMapper("hubRegistry:NewAsset", async ({ event, context }) => {
     {
       assetId,
       centrifugeId,
+      decimals: Number(decimals),
     },
     event
   )) as AssetRegistrationService;

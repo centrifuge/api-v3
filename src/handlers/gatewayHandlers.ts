@@ -22,6 +22,7 @@ import {
   reconcileMessageReceives,
   runWithSendReconciliation,
 } from "../helpers/crosschainReconciliation";
+import { isLiveIndexingBlock } from "../helpers/liveIndexingWindow";
 
 /**
  * Gateway outbound paths in cfg-protocol:
@@ -86,7 +87,7 @@ multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
     );
 
     const setPoolAdapters = PoolAdapterService.parseSetPoolAdaptersMessageData(data);
-    if (setPoolAdapters) {
+    if (setPoolAdapters && isLiveIndexingBlock(event.block.timestamp)) {
       await PoolAdapterService.setCrosschainInProgressFromMessage(
         context,
         {

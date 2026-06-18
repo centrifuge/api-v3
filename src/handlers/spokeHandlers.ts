@@ -20,6 +20,7 @@ import { getInitialHolders } from "../config";
 import { initialisePosition } from "../services";
 import { readContractSafe } from "../helpers/readContractSafe";
 import { resolveDecimalsForInit } from "../helpers/decimalsResolver";
+import { isLiveIndexingBlock } from "../helpers/liveIndexingWindow";
 
 multiMapper("spoke:DeployVault", deployVault);
 
@@ -179,11 +180,11 @@ multiMapper("spoke:UpdateSharePrice", async ({ event, context }) => {
   })) as TokenInstanceService;
   if (!tokenInstance) return serviceError(`TokenInstance not found. Cannot update token price`);
 
-  await tokenInstance
-    .setTokenPrice(tokenPrice)
-    .setComputedAt(computedAt)
-    .setCrosschainInProgress()
-    .save(event);
+  await tokenInstance.setTokenPrice(tokenPrice).setComputedAt(computedAt);
+  if (isLiveIndexingBlock(event.block.timestamp)) {
+    tokenInstance.setCrosschainInProgress();
+  }
+  await tokenInstance.save(event);
 });
 
 multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
@@ -231,11 +232,11 @@ multiMapper("spoke:UpdateAssetPrice", async ({ event, context }) => {
     event
   )) as HoldingEscrowService;
 
-  await holdingEscrow
-    .setEscrowAddress(escrowAddress)
-    .setAssetPrice(assetPrice)
-    .setCrosschainInProgress()
-    .save(event);
+  holdingEscrow.setEscrowAddress(escrowAddress).setAssetPrice(assetPrice);
+  if (isLiveIndexingBlock(event.block.timestamp)) {
+    holdingEscrow.setCrosschainInProgress();
+  }
+  await holdingEscrow.save(event);
 
   await snapshotter(
     context,

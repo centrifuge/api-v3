@@ -11,7 +11,6 @@ import {
   InvestOrderService,
   TokenInstancePositionService,
   TokenInstanceService,
-  TokenService,
   VaultInvestOrderService,
   VaultRedeemOrderService,
 } from "../services";
@@ -78,13 +77,6 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
 
   const { poolId, tokenId, assetId } = vault.read();
 
-  const token = (await TokenService.get(context, {
-    poolId: poolId,
-    id: tokenId,
-    centrifugeId,
-  })) as TokenService | null;
-  if (!token) return serviceError(`Token not found. Cannot retrieve token configuration`);
-
   const _investorAccount = (await AccountService.getOrInit(
     context,
     {
@@ -96,21 +88,26 @@ multiMapper("vault:DepositRequest", async ({ event, context }) => {
   const tokenInstance = (await TokenInstanceService.get(context, {
     tokenId,
     centrifugeId,
-  })) as TokenInstanceService;
-  if (!tokenInstance) return serviceError(`TokenInstance not found. Cannot initialize position`);
-  const { address: tokenAddress } = tokenInstance.read();
-
-  const _tokenInstancePosition = (await TokenInstancePositionService.getOrInit(
-    context,
-    {
-      tokenId,
-      centrifugeId,
-      accountAddress: investor,
-    },
-    event,
-    async (tokenInstancePosition) =>
-      await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
-  )) as TokenInstancePositionService;
+  })) as TokenInstanceService | null;
+  if (!tokenInstance) {
+    serviceWarn(
+      `TokenInstance not found for deposit request tokenId=${tokenId} centrifugeId=${centrifugeId}; ` +
+        `skipping position init`
+    );
+  } else {
+    const { address: tokenAddress } = tokenInstance.read();
+    const _tokenInstancePosition = (await TokenInstancePositionService.getOrInit(
+      context,
+      {
+        tokenId,
+        centrifugeId,
+        accountAddress: investor,
+      },
+      event,
+      async (tokenInstancePosition) =>
+        await initialisePosition(context, event, tokenAddress, tokenInstancePosition)
+    )) as TokenInstancePositionService;
+  }
 
   const _it = await InvestorTransactionService.updateDepositRequest(
     context,
@@ -164,13 +161,6 @@ multiMapper("vault:RedeemRequest", async ({ event, context }) => {
   })) as VaultService;
   if (!vault) return serviceError(`Vault not found. Cannot retrieve vault configuration`);
   const { poolId, tokenId, assetId } = vault.read();
-
-  const token = (await TokenService.get(context, {
-    poolId,
-    id: tokenId,
-    centrifugeId,
-  })) as TokenService | null;
-  if (!token) return serviceError(`Token not found. Cannot retrieve token configuration`);
 
   const _investorAccount = (await AccountService.getOrInit(
     context,
