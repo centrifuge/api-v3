@@ -14,16 +14,17 @@ global:
     PONDER_RPC_URL_42161: "http://cfg-api-erpc-us:4000/main/evm/42161"
     PONDER_RPC_URL_1672: "http://cfg-api-erpc-us:4000/main/evm/1672"
     REGISTRY_v3_1_chains_42161_deployment_startBlock: "425757109"
+    REGISTRY_v3_1_chains_98866_deployment_startBlock: "48512998"
   apiSecretName: cfg-api-v3-rpc-keys
   dbSecretName: cfg-api-v3-main-us-postgres-app
 indexer:
   enabled: true
   image:
-    tag: sha-7438f98
+    tag: sha-3855e02
 query:
   enabled: true
   image:
-    tag: sha-7438f98
+    tag: sha-3855e02
   replicaCount: 1
   ingress:
     enabled: true
