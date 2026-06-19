@@ -13,11 +13,11 @@ global:
 indexer:
   enabled: true
   image:
-    tag: sha-7438f98
+    tag: sha-dc5af8d
 query:
   enabled: true
   image:
-    tag: sha-7438f98
+    tag: sha-dc5af8d
   replicaCount: 1
   ingress:
     enabled: true
