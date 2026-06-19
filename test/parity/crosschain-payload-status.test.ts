@@ -3,7 +3,28 @@ import { CrosschainMessageService } from "../../src/services/CrosschainMessageSe
 import {
   messageStatusSetSql,
   payloadSimpleStatusSetSql,
+  payloadStatusForInsertSql,
 } from "../../src/services/crosschainStatusSql";
+
+/** Collects string fragments from a Drizzle SQL tree. */
+function collectSqlStrings(node: { queryChunks: unknown[] }): string {
+  let result = "";
+  for (const chunk of node.queryChunks) {
+    if (typeof chunk === "string") {
+      result += chunk;
+      continue;
+    }
+    if (!chunk || typeof chunk !== "object") continue;
+    if ("queryChunks" in chunk) {
+      result += collectSqlStrings(chunk as { queryChunks: unknown[] });
+      continue;
+    }
+    if ("value" in chunk && Array.isArray((chunk as { value: unknown }).value)) {
+      result += (chunk as { value: string[] }).value.join("");
+    }
+  }
+  return result;
+}
 
 /** Thin wrapper around `CrosschainMessageService.aggregatePoolAndTokenFromRows`. */
 function aggregatePoolAndTokenFromRows(
@@ -26,6 +47,37 @@ describe("crosschain status SQL builders", () => {
     const sqlText = JSON.stringify(payloadSimpleStatusSetSql());
     expect(sqlText).toContain("sent_at");
     expect(sqlText).toContain("underpaid_at");
+  });
+
+  it("insert and conflict payload status CASE share priority (sent before underpaid)", () => {
+    const conflict = collectSqlStrings(payloadSimpleStatusSetSql());
+    const insert = collectSqlStrings(
+      payloadStatusForInsertSql({ sentAt: new Date("2024-06-01T12:00:00Z") })
+    );
+    const sentIdx = (s: string) => s.indexOf("'InTransit'");
+    const underpaidIdx = (s: string) => s.indexOf("'Underpaid'");
+    expect(sentIdx(conflict)).toBeGreaterThan(-1);
+    expect(sentIdx(insert)).toBeGreaterThan(-1);
+    expect(sentIdx(conflict)).toBeLessThan(underpaidIdx(conflict));
+    expect(sentIdx(insert)).toBeLessThan(underpaidIdx(insert));
+  });
+});
+
+describe("payloadStatusForInsertSql", () => {
+  const t = new Date("2024-06-01T12:00:00Z");
+
+  it("uses parameterized timestamp binds for skip-underpaid create (sentAt only)", () => {
+    const sqlText = collectSqlStrings(payloadStatusForInsertSql({ sentAt: t }));
+    expect(sqlText).toContain("CASE");
+    expect(sqlText).toContain("CAST(");
+    expect(sqlText).toContain("AS timestamp");
+    expect(sqlText).toContain("'InTransit'");
+    expect(sqlText).not.toMatch(/sentAt|underpaidAt/);
+  });
+
+  it("binds NULL for unset fact timestamps", () => {
+    const sqlText = collectSqlStrings(payloadStatusForInsertSql({}));
+    expect(sqlText).toContain("CAST(NULL AS timestamp)");
   });
 });
 

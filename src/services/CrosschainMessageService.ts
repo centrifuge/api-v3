@@ -4,7 +4,12 @@ import { expandInlineObject, serviceError, serviceLog } from "../helpers/logger"
 import { encodePacked, keccak256 } from "viem";
 import { Event, Context } from "ponder:registry";
 import { RegistryVersions } from "../chains";
-import { and, eq, isNotNull, sql, type SQL } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
+import {
+  assignUpdateSetSql,
+  emptyUpdateSet,
+  type PgUpdateSetSource,
+} from "../helpers/drizzleUpsert";
 import {
   mergeClearOnExecute,
   mergeCoalesce,
@@ -75,19 +80,23 @@ function camelToSnake(s: string): string {
  * Builds ON CONFLICT SET for crosschain_message fact merge + derived status.
  * @returns Conflict set map for Drizzle upsert
  */
-export function buildCrosschainMessageConflictSet(): Record<string, SQL> {
-  const set: Record<string, SQL> = {};
+export function buildCrosschainMessageConflictSet(): PgUpdateSetSource<typeof CrosschainMessage> {
+  const set = emptyUpdateSet<typeof CrosschainMessage>();
+  type ConflictKey = keyof PgUpdateSetSource<typeof CrosschainMessage> & string;
 
   for (const base of MESSAGE_TIMESTAMP_FACTS) {
     const pgAt = `${camelToSnake(base)}_at`;
     const pgBlock = `${camelToSnake(base)}_at_block`;
     const pgTx = `${camelToSnake(base)}_at_tx_hash`;
     const pgChain = `${camelToSnake(base)}_at_chain_id`;
-    const tsKey = `${base}At`;
-    set[`${tsKey}`] = mergeEarliest(MESSAGE_TABLE, pgAt);
-    set[`${tsKey}Block`] = mergeCoalesce(MESSAGE_TABLE, pgBlock);
-    set[`${tsKey}TxHash`] = mergeCoalesce(MESSAGE_TABLE, pgTx);
-    set[`${tsKey}ChainId`] = mergeCoalesce(MESSAGE_TABLE, pgChain);
+    assignUpdateSetSql(set, `${base}At` as ConflictKey, mergeEarliest(MESSAGE_TABLE, pgAt));
+    assignUpdateSetSql(set, `${base}AtBlock` as ConflictKey, mergeCoalesce(MESSAGE_TABLE, pgBlock));
+    assignUpdateSetSql(set, `${base}AtTxHash` as ConflictKey, mergeCoalesce(MESSAGE_TABLE, pgTx));
+    assignUpdateSetSql(
+      set,
+      `${base}AtChainId` as ConflictKey,
+      mergeCoalesce(MESSAGE_TABLE, pgChain)
+    );
   }
 
   set.payloadId = mergeCoalesce(MESSAGE_TABLE, "payload_id");
@@ -279,7 +288,7 @@ export class CrosschainMessageService extends Service<typeof CrosschainMessage> 
       .values(row)
       .onConflictDoUpdate({
         target: [CrosschainMessage.id, CrosschainMessage.index],
-        set: conflictSet as unknown as Partial<typeof row>,
+        set: conflictSet,
       })
       .returning();
 

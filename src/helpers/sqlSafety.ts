@@ -13,6 +13,7 @@ import { sql, type SQL } from "drizzle-orm";
 /** Exported bind helper names (keep in sync with tests). */
 export const PG_TYPED_BIND_HELPERS = [
   "bindPgTimestamp",
+  "bindPgTimestampOrNull",
   "bindPgInteger",
   "bindPgBigint",
   "bindPgHex",
@@ -72,6 +73,16 @@ export function bindPgTimestamp(date: Date): SQL {
     throw new Error("Invalid timestamp bind");
   }
   return sql`CAST(${date.toISOString()} AS timestamp)`;
+}
+
+/**
+ * Binds a nullable timestamp for SQL `IS NOT NULL` status CASE branches on INSERT.
+ * @param value - Fact timestamp or null/undefined when unset
+ * @returns Parameterized timestamp bind or typed SQL NULL
+ */
+export function bindPgTimestampOrNull(value: Date | null | undefined): SQL {
+  if (value == null) return sql`CAST(NULL AS timestamp)`;
+  return bindPgTimestamp(value);
 }
 
 /**

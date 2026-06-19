@@ -1,6 +1,7 @@
-import { getTableColumns, type SQL } from "drizzle-orm";
+import { getTableColumns } from "drizzle-orm";
 import type { Context, Event } from "ponder:registry";
 import type { PgTableWithColumns } from "drizzle-orm/pg-core";
+import { assignUpdateSetSql, type PgUpdateSetSource } from "./drizzleUpsert";
 import { mergeCoalesce, mergeEarliest, mergeSenderWins } from "./upsertMerge";
 import {
   crosschainInProgressCaseFromHub,
@@ -71,10 +72,10 @@ function hubSpokePgCols(table: OnchainTable): HubSpokeFactPgCols {
  * @param tablePgName - PostgreSQL table name
  * @returns Conflict set for Drizzle upsert
  */
-export function buildHubSignalConflictSet(
-  table: OnchainTable,
+export function buildHubSignalConflictSet<T extends OnchainTable>(
+  table: T,
   tablePgName: string
-): Record<string, SQL> {
+): PgUpdateSetSource<T> {
   const cols = hubSpokePgCols(table);
   return {
     hubSignalType: mergeSenderWins(tablePgName, cols.hubSignalType),
@@ -93,14 +94,14 @@ export function buildHubSignalConflictSet(
  * @param row - Insert row (domain merges only when key is present)
  * @returns Conflict set for Drizzle upsert
  */
-export function buildSpokeAckConflictSet(
-  table: OnchainTable,
+export function buildSpokeAckConflictSet<T extends OnchainTable>(
+  table: T,
   tablePgName: string,
   row: Record<string, unknown>
-): Record<string, SQL> {
+): PgUpdateSetSource<T> {
   const cols = hubSpokePgCols(table);
   const tableColumns = getTableColumns(table);
-  const set: Record<string, SQL> = {
+  const set: PgUpdateSetSource<T> = {
     spokeAckAt: mergeEarliest(tablePgName, cols.spokeAckAt),
     spokeAckAtBlock: mergeCoalesce(tablePgName, cols.spokeAckAtBlock),
     spokeAckAtTxHash: mergeCoalesce(tablePgName, cols.spokeAckAtTxHash),
@@ -111,7 +112,11 @@ export function buildSpokeAckConflictSet(
   for (const key of SPOKE_DOMAIN_MERGE_KEYS) {
     if (key in row && key in tableColumns) {
       const pgName = (tableColumns[key] as { name: string }).name;
-      set[key] = mergeSenderWins(tablePgName, pgName);
+      assignUpdateSetSql(
+        set,
+        key as keyof PgUpdateSetSource<T> & string,
+        mergeSenderWins(tablePgName, pgName)
+      );
     }
   }
 
@@ -152,7 +157,7 @@ export async function upsertHubSpokeFacts<T extends OnchainTable, S>(
     .values(row)
     .onConflictDoUpdate({
       target: pkTarget,
-      set: conflictSet as unknown as Partial<T["$inferInsert"]>,
+      set: conflictSet,
     })
     .returning();
 

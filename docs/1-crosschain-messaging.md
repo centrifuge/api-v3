@@ -98,7 +98,38 @@ Use table-qualified names for the **existing row** and `excluded.*` for the **in
 | `completedAt*` | all adapter SEND/HANDLE participations verified **and** all child messages executed |
 | `partiallyFailedAt*` | any linked child message has `failedAt` (not gated on `delivered_at`) |
 
-**Schema:** writable enum. **Status CASE** (in `upsertFacts` SET):
+**Schema:** writable enum. **Status priority** (implemented in [`crosschainStatusSql.ts`](../src/services/crosschainStatusSql.ts)):
+
+```sql
+completed_at → Completed
+partially_failed_at → PartiallyFailed
+delivered_at → Delivered
+sent_at → InTransit
+underpaid_at → Underpaid
+ELSE → Underpaid
+```
+
+(`repaid_at` is planned — not in schema yet.)
+
+#### Payload status derivation (mandatory)
+
+Handlers **never** set `crosschainPayload.status` in TypeScript (except rare explicit `facts.status` on insert, e.g. `UnderpaidBatch`). All derivation lives in **SQL** in [`crosschainStatusSql.ts`](../src/services/crosschainStatusSql.ts):
+
+| Path | When | Function |
+|------|------|----------|
+| **INSERT** | First `upsertFacts` row (e.g. skip-underpaid `SendPayload` create) | `payloadStatusForInsertSql(facts)` — parameterized CASE on bound `*_at` facts |
+| **ON CONFLICT** | Later sender upserts on same `(id, index)` | `payloadSimpleStatusSetSql()` in `buildCrosschainPayloadConflictSet()` |
+| **Aggregate UPDATE** | After receive events (`ExecuteMessage`, `HandlePayload`, …) | `refreshPayloadStatusSql()` — status CASE must use **merged** new facts, not pre-update row values alone |
+
+**Do not:**
+
+- Default INSERT `status` to a constant (`"Underpaid"`) — `ON CONFLICT` SET does not run on first insert; skip-underpaid sends stayed `Underpaid` with `sentAt` set (production bug).
+- Duplicate status rules in TypeScript (`if (sentAt) return "InTransit"`) — drifts from SQL.
+- Reference only `p.completed_at` (etc.) in aggregate UPDATE `status` SET while assigning `completed_at` in the same statement — use `COALESCE(p.col, <new CASE>)` (Completed/Delivered desync bug).
+
+**Tests:** `test/parity/crosschain-payload-status.test.ts`, `test/parity/crosschain-sql-safety.test.ts`.
+
+**ON CONFLICT SET** (sender merge):
 
 ```sql
 CASE
@@ -108,15 +139,15 @@ CASE
   THEN 'PartiallyFailed'::crosschain_payload_status
   WHEN COALESCE(crosschain_payload.delivered_at, excluded.delivered_at) IS NOT NULL
   THEN 'Delivered'::crosschain_payload_status
-  WHEN COALESCE(crosschain_payload.repaid_at, excluded.repaid_at) IS NOT NULL
+  WHEN COALESCE(crosschain_payload.sent_at, excluded.sent_at) IS NOT NULL
   THEN 'InTransit'::crosschain_payload_status
-  WHEN COALESCE(crosschain_payload.prepared_at, excluded.prepared_at) IS NOT NULL
+  WHEN COALESCE(crosschain_payload.underpaid_at, excluded.underpaid_at) IS NOT NULL
   THEN 'Underpaid'::crosschain_payload_status
   ELSE 'Underpaid'::crosschain_payload_status
 END
 ```
 
-Final `ELSE 'Underpaid'` duplicates the `prepared_at` branch — harmless; ordering is sound when handlers set `delivered_at` on first execute/fail and `partially_failed_at` when any child fails.
+Final `ELSE 'Underpaid'` duplicates the `underpaid_at` branch — harmless; ordering is sound when handlers set `delivered_at` on first execute/fail and `partially_failed_at` when any child fails.
 
 ### `adapter_participation`
 

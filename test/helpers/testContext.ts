@@ -10,13 +10,15 @@ const NOW = new Date("2024-06-01T12:00:00Z");
 
 /**
  * Minimal Ponder context wired to an optional Drizzle mock `db`.
+ * `db` / `client` use field-level casts: `drizzle.mock()` and `null` do not structurally overlap Ponder's types.
  */
 export function testContext(db?: MockDb): Context {
   return {
-    db: { sql: db ?? ({} as MockDb), find: vi.fn() },
-    client: null,
+    db: { sql: db ?? ({} as MockDb), find: vi.fn() } as unknown as Context["db"],
+    client: null as unknown as Context["client"],
     chain: { id: 1, name: "ethereum" },
-  } as unknown as Context;
+    contracts: {} as Context["contracts"],
+  };
 }
 
 /**
@@ -31,7 +33,7 @@ export function testEvent(
     log: { logIndex: 0, address: `0x${"00".repeat(20)}` as `0x${string}` },
     args: {},
     ...overrides,
-  } as unknown as Extract<Event, { transaction: { hash: `0x${string}` } }>;
+  } as Extract<Event, { transaction: { hash: `0x${string}` } }>;
 }
 
 const nullChainTimestamps = {

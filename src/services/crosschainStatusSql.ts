@@ -9,13 +9,74 @@ import {
   bindPgHexBytes32,
   bindPgInteger,
   bindPgTimestamp,
+  bindPgTimestampOrNull,
 } from "../helpers/sqlSafety";
+
+/** @see docs/1-crosschain-messaging.md § Payload status derivation */
 
 const PAYLOAD_TABLE = "crosschain_payload";
 const MESSAGE_TABLE = "crosschain_message";
 const PAYLOAD_STATUS_ENUM = "crosschain_payload_status";
 const MESSAGE_STATUS_ENUM = "crosschain_message_status";
 const ADAPTER_PARTICIPATION_SIDE_ENUM = "adapter_participation_side";
+
+/** Ordered fact → status mapping (priority top to bottom). Single source for all payload status CASE builders. */
+const PAYLOAD_STATUS_FACT_BRANCHES = [
+  ["completedAt", "completed_at", "Completed"],
+  ["partiallyFailedAt", "partially_failed_at", "PartiallyFailed"],
+  ["deliveredAt", "delivered_at", "Delivered"],
+  ["sentAt", "sent_at", "InTransit"],
+  ["underpaidAt", "underpaid_at", "Underpaid"],
+] as const;
+
+type PayloadFactKey = (typeof PAYLOAD_STATUS_FACT_BRANCHES)[number][0];
+
+/** Timestamp facts passed into {@link payloadStatusForInsertSql}. */
+export type PayloadStatusDerivationFacts = {
+  completedAt?: Date | null;
+  partiallyFailedAt?: Date | null;
+  deliveredAt?: Date | null;
+  sentAt?: Date | null;
+  underpaidAt?: Date | null;
+};
+
+/**
+ * PostgreSQL enum cast for a payload status label.
+ * @param label - Writable status enum value
+ * @returns Raw SQL cast fragment
+ */
+function payloadStatusEnumCast(label: string): string {
+  return `'${label}'::${quotePgEnumType(PAYLOAD_STATUS_ENUM)}`;
+}
+
+/**
+ * Builds ordered WHEN branches from string fact expressions (ON CONFLICT merge path).
+ * @param expr - SQL expression per fact (e.g. `COALESCE(table.col, excluded.col)`)
+ * @returns Raw SQL fragment (no surrounding CASE/END)
+ */
+function payloadStatusWhenClausesSql(expr: Record<PayloadFactKey, string>): string {
+  const when = PAYLOAD_STATUS_FACT_BRANCHES.map(
+    ([factKey, , status]) =>
+      `WHEN ${expr[factKey]} IS NOT NULL THEN ${payloadStatusEnumCast(status)}`
+  ).join("\n      ");
+  return `\n      ${when}\n      ELSE ${payloadStatusEnumCast("Underpaid")}\n  `;
+}
+
+/**
+ * Builds a parameterized CASE from Drizzle SQL fact expressions (INSERT / aggregate refresh).
+ * @param expr - Bound or column fact expression per key
+ * @returns Drizzle SQL CASE … END
+ */
+function payloadStatusCaseSql(expr: Record<PayloadFactKey, SQL>): SQL {
+  const parts: SQL[] = [sql`CASE`];
+  for (const [factKey, , status] of PAYLOAD_STATUS_FACT_BRANCHES) {
+    parts.push(
+      sql`WHEN ${expr[factKey]} IS NOT NULL THEN ${sql.raw(payloadStatusEnumCast(status))}`
+    );
+  }
+  parts.push(sql`ELSE ${sql.raw(payloadStatusEnumCast("Underpaid"))}`, sql`END`);
+  return sql.join(parts, sql.raw(" "));
+}
 
 /**
  * FILTER predicate for adapter_participation side counts (enum column name differs from TS key).
@@ -52,28 +113,34 @@ export function messageStatusSetSql(): SQL {
 }
 
 /**
+ * SQL CASE for crosschain_payload.status on INSERT (first `upsertFacts` row).
+ * @param facts - Merged fact columns for the row being inserted
+ * @returns Parameterized SQL CASE expression for the `status` column
+ */
+export function payloadStatusForInsertSql(facts: PayloadStatusDerivationFacts): SQL {
+  const expr = Object.fromEntries(
+    PAYLOAD_STATUS_FACT_BRANCHES.map(([factKey]) => [
+      factKey,
+      bindPgTimestampOrNull(facts[factKey]),
+    ])
+  ) as Record<PayloadFactKey, SQL>;
+  return payloadStatusCaseSql(expr);
+}
+
+/**
  * SQL CASE for crosschain_payload.status from timestamp facts only (sender upserts).
  * @returns Raw SQL fragment for ON CONFLICT DO UPDATE SET status
  */
 export function payloadSimpleStatusSetSql(): SQL {
   assertPgIdentSegment(PAYLOAD_TABLE, "table");
   const t = quotePgIdent(PAYLOAD_TABLE);
-  const status = quotePgEnumType(PAYLOAD_STATUS_ENUM);
-  return sql.raw(`
-    CASE
-      WHEN COALESCE(${t}.completed_at, excluded.completed_at) IS NOT NULL
-      THEN 'Completed'::${status}
-      WHEN COALESCE(${t}.partially_failed_at, excluded.partially_failed_at) IS NOT NULL
-      THEN 'PartiallyFailed'::${status}
-      WHEN COALESCE(${t}.delivered_at, excluded.delivered_at) IS NOT NULL
-      THEN 'Delivered'::${status}
-      WHEN COALESCE(${t}.sent_at, excluded.sent_at) IS NOT NULL
-      THEN 'InTransit'::${status}
-      WHEN COALESCE(${t}.underpaid_at, excluded.underpaid_at) IS NOT NULL
-      THEN 'Underpaid'::${status}
-      ELSE 'Underpaid'::${status}
-    END
-  `);
+  const expr = Object.fromEntries(
+    PAYLOAD_STATUS_FACT_BRANCHES.map(([factKey, pgAt]) => [
+      factKey,
+      `COALESCE(${t}.${pgAt}, excluded.${pgAt})`,
+    ])
+  ) as Record<PayloadFactKey, string>;
+  return sql.raw(`CASE${payloadStatusWhenClausesSql(expr)} END`);
 }
 
 /**
@@ -116,7 +183,6 @@ export function refreshPayloadStatusSql(
   assertSafePayloadIndex(payloadIndex);
 
   const payloadStatusCol = quotedPayloadStatusColumn();
-  const payloadStatusEnum = quotePgEnumType(PAYLOAD_STATUS_ENUM);
   const receivedAtTs = bindPgTimestamp(anchor.receivedAt);
   const receivedAtBlock = bindPgInteger(anchor.receivedAtBlock);
   const receivedAtChainId = bindPgInteger(anchor.receivedAtChainId);
@@ -135,6 +201,23 @@ export function refreshPayloadStatusSql(
         delivered_at_tx_hash = COALESCE(p.delivered_at_tx_hash, ${receivedAtTxHash}),
       `
     : sql``;
+
+  const statusCase = payloadStatusCaseSql({
+    completedAt: sql`COALESCE(
+      p.completed_at,
+      CASE
+        WHEN agg.adapter_ok AND agg.total > 0 AND agg.executed = agg.total
+        THEN ${receivedAtTs}
+      END
+    )`,
+    partiallyFailedAt: sql`COALESCE(
+      p.partially_failed_at,
+      CASE WHEN ${deliveredAtExpr} IS NOT NULL AND agg.failed > 0 THEN ${receivedAtTs} END
+    )`,
+    deliveredAt: deliveredAtExpr,
+    sentAt: sql`p.sent_at`,
+    underpaidAt: sql`p.underpaid_at`,
+  });
 
   return sql`
     UPDATE ${CrosschainPayload} AS p
@@ -177,24 +260,7 @@ export function refreshPayloadStatusSql(
           THEN ${receivedAtTxHash}
         END
       ),
-      ${sql.raw(`${payloadStatusCol} = `)}
-      CASE
-        WHEN COALESCE(
-          p.completed_at,
-          CASE
-            WHEN agg.adapter_ok AND agg.total > 0 AND agg.executed = agg.total
-            THEN ${receivedAtTs}
-          END
-        ) IS NOT NULL THEN ${sql.raw(`'Completed'::${payloadStatusEnum}`)}
-        WHEN COALESCE(
-          p.partially_failed_at,
-          CASE WHEN ${deliveredAtExpr} IS NOT NULL AND agg.failed > 0 THEN ${receivedAtTs} END
-        ) IS NOT NULL THEN ${sql.raw(`'PartiallyFailed'::${payloadStatusEnum}`)}
-        WHEN ${deliveredAtExpr} IS NOT NULL THEN ${sql.raw(`'Delivered'::${payloadStatusEnum}`)}
-        WHEN p.sent_at IS NOT NULL THEN ${sql.raw(`'InTransit'::${payloadStatusEnum}`)}
-        WHEN p.underpaid_at IS NOT NULL THEN ${sql.raw(`'Underpaid'::${payloadStatusEnum}`)}
-        ELSE ${sql.raw(`'Underpaid'::${payloadStatusEnum}`)}
-      END
+      ${sql.raw(`${payloadStatusCol} = `)} ${statusCase}
     FROM (
       SELECT
         COALESCE(msg_counts.total, 0) AS total,
