@@ -13,7 +13,7 @@ import { BlockchainService } from "../services/BlockchainService";
 export const BASIN_MAINNET_STATIC = {
   chainId: 1,
   startBlock: 25079122,
-  basinAddress: "0x1fa4db8d545cbd22b7bba2084348a2e6ef36e363",
+  basinAddress: "0xf08943f817e1f902debc884c7b19ea5764594ac9",
   poolId: 281474976710662n,
   tokenId: "0x00010000000000060000000000000001",
   creditToken: "0x8c213ee79581ff4984583c6a801e5263418c4b86",
@@ -25,7 +25,7 @@ export const BASIN_MAINNET_STATIC = {
   swapTokenRateProvider: "0x7928a185b8137d1cd2a0996a810a04db2837419d",
   assetId: 242333941209166991950178742833476896417n,
   /** Update when contracts team publishes TokenRedeemer. */
-  tokenRedeemer: "0x0000000000000000000000000000000000000000",
+  tokenRedeemer: "0x7c5ce1a1d50a6cb3da97c9e202b3e7cd8e5b5b6c",
 } as const;
 
 /**

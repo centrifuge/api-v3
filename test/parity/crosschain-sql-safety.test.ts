@@ -10,6 +10,7 @@ import {
   bindPgBigint,
   bindPgInteger,
   bindPgTimestamp,
+  bindPgTimestampOrNull,
 } from "../../src/helpers/sqlSafety";
 import { quotePgEnumType, quotePgIdent } from "../../src/helpers/upsertMerge";
 import { refreshPayloadStatusSql } from "../../src/services/crosschainStatusSql";
@@ -102,6 +103,12 @@ describe("sqlSafety validators", () => {
     const sqlText = collectSqlStrings(bound);
     expect(sqlText).toContain("CAST(");
     expect(sqlText).toContain("AS timestamp");
+  });
+
+  it("bindPgTimestampOrNull emits typed NULL for unset facts", () => {
+    const bound = bindPgTimestampOrNull(null);
+    const sqlText = collectSqlStrings(bound);
+    expect(sqlText).toContain("CAST(NULL AS timestamp)");
   });
 
   it("bindPgInteger emits CAST AS integer", () => {

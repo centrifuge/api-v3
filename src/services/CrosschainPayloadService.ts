@@ -1,4 +1,10 @@
-import { eq, type SQL } from "drizzle-orm";
+import { eq } from "drizzle-orm";
+import {
+  assignUpdateSetSql,
+  emptyUpdateSet,
+  type PgInsertValue,
+  type PgUpdateSetSource,
+} from "../helpers/drizzleUpsert";
 import { CrosschainPayload } from "ponder:schema";
 import { Service, type DataWithoutDefaults, type ReadOnlyContext } from "./Service";
 import { Event, Context } from "ponder:registry";
@@ -15,6 +21,7 @@ import { CROSSCHAIN_RAW_DATA_STUB } from "./CrosschainMessageService";
 import { CrosschainMessageService } from "./CrosschainMessageService";
 import {
   payloadSimpleStatusSetSql,
+  payloadStatusForInsertSql,
   refreshPayloadStatusSql,
   type PayloadStatusReceiveAnchor,
 } from "./crosschainStatusSql";
@@ -71,29 +78,32 @@ function camelToSnake(s: string): string {
  * Builds ON CONFLICT SET for crosschain_payload fact merge + derived status.
  * @returns Conflict set map for Drizzle upsert
  */
-export function buildCrosschainPayloadConflictSet(): Record<string, SQL> {
-  const set: Record<string, SQL> = {};
+export function buildCrosschainPayloadConflictSet(): PgUpdateSetSource<typeof CrosschainPayload> {
+  const set = emptyUpdateSet<typeof CrosschainPayload>();
+  type ConflictKey = keyof PgUpdateSetSource<typeof CrosschainPayload> & string;
 
   for (const base of PAYLOAD_TIMESTAMP_FACTS_WITH_CHAIN) {
     const pgAt = `${camelToSnake(base)}_at`;
     const pgBlock = `${camelToSnake(base)}_at_block`;
     const pgTx = `${camelToSnake(base)}_at_tx_hash`;
     const pgChain = `${camelToSnake(base)}_at_chain_id`;
-    const tsKey = `${base}At`;
-    set[`${tsKey}`] = mergeEarliest(PAYLOAD_TABLE, pgAt);
-    set[`${tsKey}Block`] = mergeCoalesce(PAYLOAD_TABLE, pgBlock);
-    set[`${tsKey}TxHash`] = mergeCoalesce(PAYLOAD_TABLE, pgTx);
-    set[`${tsKey}ChainId`] = mergeCoalesce(PAYLOAD_TABLE, pgChain);
+    assignUpdateSetSql(set, `${base}At` as ConflictKey, mergeEarliest(PAYLOAD_TABLE, pgAt));
+    assignUpdateSetSql(set, `${base}AtBlock` as ConflictKey, mergeCoalesce(PAYLOAD_TABLE, pgBlock));
+    assignUpdateSetSql(set, `${base}AtTxHash` as ConflictKey, mergeCoalesce(PAYLOAD_TABLE, pgTx));
+    assignUpdateSetSql(
+      set,
+      `${base}AtChainId` as ConflictKey,
+      mergeCoalesce(PAYLOAD_TABLE, pgChain)
+    );
   }
 
   for (const base of PAYLOAD_TIMESTAMP_FACTS) {
     const pgAt = `${camelToSnake(base)}_at`;
     const pgBlock = `${camelToSnake(base)}_at_block`;
     const pgTx = `${camelToSnake(base)}_at_tx_hash`;
-    const tsKey = `${base}At`;
-    set[`${tsKey}`] = mergeEarliest(PAYLOAD_TABLE, pgAt);
-    set[`${tsKey}Block`] = mergeCoalesce(PAYLOAD_TABLE, pgBlock);
-    set[`${tsKey}TxHash`] = mergeCoalesce(PAYLOAD_TABLE, pgTx);
+    assignUpdateSetSql(set, `${base}At` as ConflictKey, mergeEarliest(PAYLOAD_TABLE, pgAt));
+    assignUpdateSetSql(set, `${base}AtBlock` as ConflictKey, mergeCoalesce(PAYLOAD_TABLE, pgBlock));
+    assignUpdateSetSql(set, `${base}AtTxHash` as ConflictKey, mergeCoalesce(PAYLOAD_TABLE, pgTx));
   }
 
   set.poolId = mergeCoalesce(PAYLOAD_TABLE, "pool_id");
@@ -395,10 +405,13 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
 
   /**
    * Upserts fact columns and recomputes status via SQL CASE (multichain-safe).
+   *
+   * INSERT `status` uses {@link payloadStatusForInsertSql}; ON CONFLICT uses
+   * {@link payloadSimpleStatusSetSql}. Never default INSERT status in TypeScript.
    * @param context - Ponder context
    * @param event - Source event
    * @param key - Payload primary key
-   * @param facts - Fact fields (status derived on conflict)
+   * @param facts - Fact fields (explicit `status` optional; otherwise SQL-derived on insert)
    * @returns Service instance
    */
   static async upsertFacts(
@@ -411,14 +424,14 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
       "CrosschainPayload upsertFacts",
       expandInlineObject({ id: key.id, index: key.index })
     );
-    const row = {
-      ...NULL_CROSSCHAIN_PAYLOAD_FACTS,
-      ...facts,
+    const mergedFacts = { ...NULL_CROSSCHAIN_PAYLOAD_FACTS, ...facts };
+    const row: PgInsertValue<typeof CrosschainPayload> = {
+      ...mergedFacts,
       ...key,
       rawData: facts.rawData ?? CROSSCHAIN_RAW_DATA_STUB,
       fromCentrifugeId: facts.fromCentrifugeId ?? "0",
       toCentrifugeId: facts.toCentrifugeId ?? "0",
-      status: facts.status ?? "Underpaid",
+      status: facts.status ?? payloadStatusForInsertSql(mergedFacts),
       createdAt: new Date(Number(event.block.timestamp) * 1000),
       createdAtBlock: Number(event.block.number),
       createdAtTxHash: event.transaction.hash,
@@ -430,7 +443,7 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
       .values(row)
       .onConflictDoUpdate({
         target: [CrosschainPayload.id, CrosschainPayload.index],
-        set: conflictSet as unknown as Partial<typeof row>,
+        set: conflictSet,
       })
       .returning();
 

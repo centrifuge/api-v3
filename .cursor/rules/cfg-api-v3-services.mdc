@@ -12,6 +12,7 @@ alwaysApply: false
 - **Batch APIs:** prefer **`insertMany`** / **`saveMany`** on **`Service`** when writing many rows; align semantics (`onConflictDoNothing` vs upsert) with existing callers.
 - **Extending batch upserts:** follow the **`saveMany` / `excluded`** comment in `Service.ts` (Ponder PG proxy — use `sql.raw(\`excluded."column"\`)` for column refs, not broken `excluded.*` expansions).
 - **Parameterized raw SQL:** only [`CrosschainPayloadService.refreshPayloadStatusFromAggregates`](src/services/CrosschainPayloadService.ts) uses `context.db.sql.execute`. Any new raw SQL must bind dynamic values via **`bindPg*`** in [`sqlSafety.ts`](src/helpers/sqlSafety.ts); add a test in [`raw-sql-bindings.test.ts`](test/parity/raw-sql-bindings.test.ts).
+- **`crosschain_payload.status`:** derive only in [`crosschainStatusSql.ts`](src/services/crosschainStatusSql.ts) — INSERT via `payloadStatusForInsertSql`, ON CONFLICT via `payloadSimpleStatusSetSql`, receive via `refreshPayloadStatusSql`. Never default INSERT status in TS. See [`docs/1-crosschain-messaging.md`](../docs/1-crosschain-messaging.md) § Payload status derivation.
 - **DB implementation:** handlers never call `context.db` directly; services use the patterns encapsulated in **`Service`** (`context.db.sql`, and `context.db.find` inside `getOrInit` only).
 
 Add **public** methods on the entity service for logic reused by multiple handlers.

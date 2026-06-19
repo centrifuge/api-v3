@@ -2,6 +2,7 @@ import type { Context, Event } from "ponder:registry";
 import { BasinRedeemRequest } from "ponder:schema";
 import { serviceLog } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
+import { type PgUpdateSetSource } from "../helpers/drizzleUpsert";
 import { Service, type DataWithoutDefaults } from "./Service";
 import { basinRedeemRequestStateCase } from "../helpers/crosschainInProgressCase";
 
@@ -53,12 +54,16 @@ export class BasinRedeemRequestService extends Service<typeof BasinRedeemRequest
       updatedAtTxHash: event.transaction.hash,
     };
 
+    const conflictSet: PgUpdateSetSource<typeof BasinRedeemRequest> = {
+      state: basinRedeemRequestStateCase(),
+    };
+
     const [entity] = await context.db.sql
       .insert(BasinRedeemRequest)
       .values(row)
       .onConflictDoUpdate({
         target: [BasinRedeemRequest.basinAddress, BasinRedeemRequest.requestId],
-        set: { state: basinRedeemRequestStateCase() } as unknown as Partial<typeof row>,
+        set: conflictSet,
       })
       .returning();
 

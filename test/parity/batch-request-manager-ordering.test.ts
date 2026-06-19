@@ -32,7 +32,13 @@ describe("batch request manager within-chain ordering policy", () => {
   });
 
   it("reads persisted decimals for per-investor epoch math", () => {
-    expect(src).toContain("readEpochInvestorDecimals");
+    expect(src).toContain("AssetRegistrationService");
+    expect(src).toMatch(/issueShares[\s\S]*?token\.read\(\)/);
+    expect(src).toMatch(/issueShares[\s\S]*?assetRegistration\.read\(\)/);
+    expect(src).toMatch(/revokeShares[\s\S]*?token\.read\(\)/);
+    expect(src).toMatch(/revokeShares[\s\S]*?assetRegistration\.read\(\)/);
+    expect(src).not.toContain("readEpochInvestorDecimals");
+    expect(src).not.toContain("requireVaultInvestorDecimals");
     expect(src).not.toContain("Asset not found assetId=${depositAssetId}. Cannot compute issued shares");
     expect(src).not.toContain("Token not found tokenId=${tokenId}. Cannot compute issued shares");
     expect(src).not.toContain("Asset not found assetId=${payoutAssetId}. Cannot compute revoked shares");

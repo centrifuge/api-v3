@@ -123,3 +123,4 @@ ESLint enforces **`jsdoc/require-jsdoc`** on `src/**/*.ts` (`pnpm lint`). **Alwa
 | Decimals resolver | `src/helpers/decimalsResolver.ts`                         |
 | Hub batch epochs | `src/handlers/batchRequestManagerHandlers.ts`                |
 | Vault investor   | `src/handlers/vaultHandlers.ts`                              |
+| Crosschain status SQL | `src/services/crosschainStatusSql.ts` (see doc § Payload status derivation) |

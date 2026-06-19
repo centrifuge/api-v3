@@ -16,7 +16,7 @@ export function testContext(db?: MockDb): Context {
     db: { sql: db ?? ({} as MockDb), find: vi.fn() },
     client: null,
     chain: { id: 1, name: "ethereum" },
-  } as unknown as Context;
+  } as Context;
 }
 
 /**
@@ -31,7 +31,7 @@ export function testEvent(
     log: { logIndex: 0, address: `0x${"00".repeat(20)}` as `0x${string}` },
     args: {},
     ...overrides,
-  } as unknown as Extract<Event, { transaction: { hash: `0x${string}` } }>;
+  } as Extract<Event, { transaction: { hash: `0x${string}` } }>;
 }
 
 const nullChainTimestamps = {
