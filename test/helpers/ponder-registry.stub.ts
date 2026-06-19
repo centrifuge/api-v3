@@ -18,4 +18,5 @@ export type Context = {
   };
   client: unknown;
   chain: { name: string; id: number };
+  contracts: Record<string, unknown>;
 };

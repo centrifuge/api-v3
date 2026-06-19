@@ -56,7 +56,8 @@ function payloadStatusEnumCast(label: string): string {
  */
 function payloadStatusWhenClausesSql(expr: Record<PayloadFactKey, string>): string {
   const when = PAYLOAD_STATUS_FACT_BRANCHES.map(
-    ([factKey, , status]) => `WHEN ${expr[factKey]} IS NOT NULL THEN ${payloadStatusEnumCast(status)}`
+    ([factKey, , status]) =>
+      `WHEN ${expr[factKey]} IS NOT NULL THEN ${payloadStatusEnumCast(status)}`
   ).join("\n      ");
   return `\n      ${when}\n      ELSE ${payloadStatusEnumCast("Underpaid")}\n  `;
 }
