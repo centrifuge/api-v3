@@ -77,24 +77,6 @@ export function payloadSimpleStatusSetSql(): SQL {
 }
 
 /**
- * SQL CASE for crosschain_payload.status from aggregate UPDATE row (alias `p`).
- * @returns Raw SQL fragment (static identifiers only)
- */
-function payloadAggregateStatusCaseSql(): string {
-  const status = quotePgEnumType(PAYLOAD_STATUS_ENUM);
-  return `
-    CASE
-      WHEN p.completed_at IS NOT NULL THEN 'Completed'::${status}
-      WHEN p.partially_failed_at IS NOT NULL THEN 'PartiallyFailed'::${status}
-      WHEN p.delivered_at IS NOT NULL THEN 'Delivered'::${status}
-      WHEN p.sent_at IS NOT NULL THEN 'InTransit'::${status}
-      WHEN p.underpaid_at IS NOT NULL THEN 'Underpaid'::${status}
-      ELSE 'Underpaid'::${status}
-    END
-  `;
-}
-
-/**
  * Quoted payload status column (TS key `status` → DB `crosschain_payload_status`).
  * @returns Double-quoted PostgreSQL identifier
  */
@@ -133,8 +115,8 @@ export function refreshPayloadStatusSql(
   assertHexBytes32(payloadId, "payloadId");
   assertSafePayloadIndex(payloadIndex);
 
-  const statusCase = payloadAggregateStatusCaseSql();
   const payloadStatusCol = quotedPayloadStatusColumn();
+  const payloadStatusEnum = quotePgEnumType(PAYLOAD_STATUS_ENUM);
   const receivedAtTs = bindPgTimestamp(anchor.receivedAt);
   const receivedAtBlock = bindPgInteger(anchor.receivedAtBlock);
   const receivedAtChainId = bindPgInteger(anchor.receivedAtChainId);
@@ -195,7 +177,24 @@ export function refreshPayloadStatusSql(
           THEN ${receivedAtTxHash}
         END
       ),
-      ${sql.raw(`${payloadStatusCol} = ${statusCase.trim()}`)}
+      ${sql.raw(`${payloadStatusCol} = `)}
+      CASE
+        WHEN COALESCE(
+          p.completed_at,
+          CASE
+            WHEN agg.adapter_ok AND agg.total > 0 AND agg.executed = agg.total
+            THEN ${receivedAtTs}
+          END
+        ) IS NOT NULL THEN ${sql.raw(`'Completed'::${payloadStatusEnum}`)}
+        WHEN COALESCE(
+          p.partially_failed_at,
+          CASE WHEN ${deliveredAtExpr} IS NOT NULL AND agg.failed > 0 THEN ${receivedAtTs} END
+        ) IS NOT NULL THEN ${sql.raw(`'PartiallyFailed'::${payloadStatusEnum}`)}
+        WHEN ${deliveredAtExpr} IS NOT NULL THEN ${sql.raw(`'Delivered'::${payloadStatusEnum}`)}
+        WHEN p.sent_at IS NOT NULL THEN ${sql.raw(`'InTransit'::${payloadStatusEnum}`)}
+        WHEN p.underpaid_at IS NOT NULL THEN ${sql.raw(`'Underpaid'::${payloadStatusEnum}`)}
+        ELSE ${sql.raw(`'Underpaid'::${payloadStatusEnum}`)}
+      END
     FROM (
       SELECT
         COALESCE(msg_counts.total, 0) AS total,

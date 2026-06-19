@@ -180,4 +180,14 @@ describe("refreshPayloadStatusSql hardening", () => {
     expect(sqlText).toContain("adapter_participation_side");
     expect(sqlText).not.toMatch(/WHERE side =/);
   });
+
+  it("derives status from merged completion facts (not pre-update completed_at only)", () => {
+    const stmt = refreshPayloadStatusSql(VALID_ANCHOR, VALID_ID, 0);
+    const sqlText = collectSqlStrings(stmt);
+    expect(sqlText).toContain("agg.adapter_ok");
+    expect(sqlText).toMatch(
+      /WHEN COALESCE\(\s*p\.completed_at[\s\S]*agg\.adapter_ok[\s\S]*'Completed'/
+    );
+    expect(sqlText).not.toMatch(/WHEN p\.completed_at IS NOT NULL THEN 'Completed'/);
+  });
 });
