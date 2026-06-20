@@ -13,6 +13,9 @@ indexer:
   enabled: true
   image:
     tag: sha-96e35db
+  env:
+    - name: NODE_OPTIONS
+      value: "--max-old-space-size=1740"
 query:
   enabled: true
   image:
