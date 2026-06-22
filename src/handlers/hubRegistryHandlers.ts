@@ -1,6 +1,6 @@
 import { multiMapper } from "../helpers/multiMapper";
-
 import { logEvent, serviceError } from "../helpers/logger";
+import { resolveDecimalsForInit } from "../helpers/decimalsResolver";
 import {
   AccountService,
   AssetRegistrationService,
@@ -19,7 +19,13 @@ multiMapper("hubRegistry:NewPool", async ({ event, context }) => {
   const { poolId, currency, manager } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
-  const decimals = await AssetService.getDecimals(context, currency);
+  const decimals = await resolveDecimalsForInit(context, event, {
+    assetId: currency,
+    hubRegistryAddress: event.log.address,
+  });
+  if (typeof decimals !== "number") {
+    return serviceError(`Pool decimals not resolved for currency ${currency}`);
+  }
 
   const _pool = (await PoolService.upsert(
     context,
@@ -60,11 +66,10 @@ multiMapper("hubRegistry:UpdateCurrency", async ({ event, context }) => {
   logEvent(event, context, "hubRegistry:UpdateCurrency");
   const { poolId, currency } = event.args;
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
-  const pool = (await PoolService.getOrInit(
-    context,
-    { id: poolId, centrifugeId },
-    event
-  )) as PoolService;
+  const pool = (await PoolService.get(context, { id: poolId, centrifugeId })) as PoolService | null;
+  if (!pool) {
+    return serviceError(`Pool not found. Cannot update currency poolId=${poolId}`);
+  }
   pool.setCurrency(currency);
   await pool.save(event);
 });
@@ -82,6 +87,7 @@ multiMapper("hubRegistry:NewAsset", async ({ event, context }) => {
     {
       assetId,
       centrifugeId,
+      decimals: Number(decimals),
     },
     event
   )) as AssetRegistrationService;
@@ -100,6 +106,8 @@ multiMapper("hubRegistry:NewAsset", async ({ event, context }) => {
       event
     )) as AssetService;
   }
+
+  await AssetService.backfillPoolDecimals(context, assetId, Number(decimals), event);
 });
 
 multiMapper("hubRegistry:UpdateManager", async ({ event, context }) => {
@@ -136,15 +144,8 @@ multiMapper("hubRegistry:SetMetadata", async ({ event, context }) => {
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const pool = (await PoolService.getOrInit(
-    context,
-    {
-      id: poolId,
-      centrifugeId,
-    },
-    event
-  )) as PoolService;
-  if (!pool) return serviceError(`Pool not found. Cannot set metadata`);
+  const pool = (await PoolService.get(context, { id: poolId, centrifugeId })) as PoolService | null;
+  if (!pool) return serviceError(`Pool not found. Cannot set metadata poolId=${poolId}`);
 
   let metadata = Buffer.from(rawMetadata.slice(2), "hex").toString("utf-8");
   const isIpfs = ipfsHashRegex.test(metadata);

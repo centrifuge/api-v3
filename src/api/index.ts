@@ -3,19 +3,29 @@ import { client, graphql } from "ponder";
 import { db } from "ponder:api";
 import schema from "ponder:schema";
 import { createGlacisApp } from "./glacis";
+import { apiDbMiddleware } from "./middleware";
 import { createStatsApp } from "./stats";
 import { createTokensApp } from "./tokens";
-import type { ApiContext } from "./types";
+import type { ApiEnv } from "./types";
 
-const app = new Hono();
-const context: ApiContext = { db };
+const app = new Hono<ApiEnv>();
 
 app.use("/", graphql({ db, schema }));
 app.use("/sql/*", client({ db, schema }));
-app.use("/graphql", graphql({ db, schema }));
+//app.use("/graphql", graphql({ db, schema }));
 
-app.route("/tokens", createTokensApp(context));
-app.route("/", createGlacisApp(context));
-app.route("/stats", createStatsApp(context));
+app.use("/stats", apiDbMiddleware);
+app.use("/stats/*", apiDbMiddleware);
+app.route("/stats", createStatsApp());
+
+app.use("/tokens", apiDbMiddleware);
+app.use("/tokens/*", apiDbMiddleware);
+app.route("/tokens", createTokensApp());
+
+app.use("/transactions", apiDbMiddleware);
+app.use("/transactions/*", apiDbMiddleware);
+app.use("/routes", apiDbMiddleware);
+app.use("/quote", apiDbMiddleware);
+app.route("/", createGlacisApp());
 
 export default app;

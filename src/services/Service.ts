@@ -18,6 +18,7 @@ import {
   getTableColumns,
 } from "drizzle-orm";
 import { getTableConfig, type PgTableWithColumns } from "drizzle-orm/pg-core";
+import { assignUpdateSetSql, type PgUpdateSetSource } from "../helpers/drizzleUpsert";
 import { expandInlineObject, serviceLog, serviceError } from "../helpers/logger";
 import { toCamelCase } from "drizzle-orm/casing";
 import { ReadonlyDrizzle } from "ponder";
@@ -202,13 +203,17 @@ export abstract class Service<T extends OnchainTable> {
     const pkTarget = pkNames.map((key) => table[key]);
     const createdNulls = timestamper("created", undefined);
     const columns = getTableColumns(table);
-    const conflictSet: Record<string, unknown> = { ...createdNulls };
+    const conflictSet: PgUpdateSetSource<TableTypeOf<This>> = { ...createdNulls };
     for (const [key, col] of Object.entries(columns)) {
       if (pkSet.has(key)) continue;
       if (Object.prototype.hasOwnProperty.call(createdNulls, key)) continue;
       const pgName = (col as { name: string }).name;
       const quoted = `"${pgName.replace(/"/g, '""')}"`;
-      conflictSet[key] = sql.raw(`excluded.${quoted}`);
+      assignUpdateSetSql(
+        conflictSet,
+        key as keyof PgUpdateSetSource<TableTypeOf<This>> & string,
+        sql.raw(`excluded.${quoted}`)
+      );
     }
 
     const returned = await context.db.sql
@@ -216,7 +221,7 @@ export abstract class Service<T extends OnchainTable> {
       .values(rows)
       .onConflictDoUpdate({
         target: pkTarget,
-        set: conflictSet as TableTypeOf<This>["$inferInsert"],
+        set: conflictSet,
       })
       .returning();
 

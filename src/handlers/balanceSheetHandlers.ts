@@ -10,6 +10,7 @@ import {
 } from "../services";
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
+import { isLiveIndexingBlock } from "../helpers/liveIndexingWindow";
 
 multiMapper("balanceSheet:NoteDeposit", async ({ event, context }) => {
   logEvent(event, context, "balanceSheet:NoteDeposit");
@@ -151,5 +152,9 @@ multiMapper("balanceSheet:UpdateManager", async ({ event, context }) => {
     true
   )) as PoolManagerService;
 
-  await poolManager.setCrosschainInProgress().setIsBalancesheetManager(canManage).save(event);
+  poolManager.setIsBalancesheetManager(canManage);
+  if (isLiveIndexingBlock(event.block.timestamp)) {
+    poolManager.setCrosschainInProgress();
+  }
+  await poolManager.save(event);
 });

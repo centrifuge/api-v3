@@ -8,6 +8,7 @@ import {
 } from "../services";
 import { logEvent, serviceError } from "../helpers/logger";
 import { OnRampAssetService } from "../services";
+import { isLiveIndexingBlock } from "../helpers/liveIndexingWindow";
 
 multiMapper("onOfframpManagerFactory:DeployOnOfframpManager", async ({ event, context }) => {
   logEvent(event, context, "onOffRampManagerFactory:DeployOnOffRampManager");
@@ -60,7 +61,11 @@ multiMapper("onOfframpManager:UpdateRelayer", async ({ event, context }) => {
     undefined,
     true
   )) as OffRampRelayerService;
-  await offRampRelayer.setCrosschainInProgress().setEnabled(isEnabled).save(event);
+  offRampRelayer.setEnabled(isEnabled);
+  if (isLiveIndexingBlock(event.block.timestamp)) {
+    offRampRelayer.setCrosschainInProgress();
+  }
+  await offRampRelayer.save(event);
 });
 
 multiMapper("onOfframpManager:UpdateOnramp", async ({ event, context }) => {
@@ -93,7 +98,11 @@ multiMapper("onOfframpManager:UpdateOnramp", async ({ event, context }) => {
     undefined,
     true
   )) as OnRampAssetService;
-  await onRampAsset.setCrosschainInProgress().setEnabled(isEnabled).save(event);
+  onRampAsset.setEnabled(isEnabled);
+  if (isLiveIndexingBlock(event.block.timestamp)) {
+    onRampAsset.setCrosschainInProgress();
+  }
+  await onRampAsset.save(event);
 });
 
 multiMapper("onOfframpManager:UpdateOfframp", async ({ event, context }) => {
@@ -135,5 +144,9 @@ multiMapper("onOfframpManager:UpdateOfframp", async ({ event, context }) => {
     undefined,
     true
   )) as OffRampAddressService;
-  await offRampAddress.setCrosschainInProgress().setEnabled(isEnabled).save(event);
+  offRampAddress.setEnabled(isEnabled);
+  if (isLiveIndexingBlock(event.block.timestamp)) {
+    offRampAddress.setCrosschainInProgress();
+  }
+  await offRampAddress.save(event);
 });
