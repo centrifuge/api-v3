@@ -27,6 +27,7 @@
     "sync": "node scripts/cache.mjs",
     "compare-schema": "graphql-inspector diff https://api.centrifuge.io generated/schema.graphql --rule safeUnreachable --rule ignoreDescriptionChanges | grep 'Field.*removed'",
     "verify:issuance": "node scripts/verify-issuance-snapshots.mjs",
+    "verify:issuance:all": "node scripts/verify-issuance-snapshots.mjs --all-instances --mismatches-only",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:parity:crosschain": "vitest run test/parity/crosschain-",

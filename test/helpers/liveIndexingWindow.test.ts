@@ -3,12 +3,10 @@ import {
   isLiveIndexingBlock,
   LIVE_INDEXING_WINDOW_S,
 } from "../../src/helpers/liveIndexingWindow";
-import { TRANSFER_TX_BUFFER_MAX_AGE_S } from "../../src/helpers/transferTxBuffer";
 
 describe("liveIndexingWindow", () => {
-  it("uses a dedicated 30m window for crosschain in-progress (not transfer buffer)", () => {
+  it("uses a 30m live window for crosschain in-progress", () => {
     expect(LIVE_INDEXING_WINDOW_S).toBe(30 * 60);
-    expect(LIVE_INDEXING_WINDOW_S).not.toBe(TRANSFER_TX_BUFFER_MAX_AGE_S);
   });
 
   it("treats blocks within the live window as live", () => {

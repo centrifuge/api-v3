@@ -3,10 +3,8 @@ import { isProtocolAddress } from "./protocolAddresses";
 
 /**
  * Returns `true` iff `address` should be tracked as a per-user position holder
- * on `chainId`. Excludes the null address and every protocol-owned address
- * (named contracts from the static registry, factory-deployed PoolEscrows /
- * Vaults, and any ward-graph participant registered via
- * {@link ./protocolAddresses.ts | `registerProtocolAddress`}).
+ * on `chainId`. Excludes the null address and protocol-owned addresses
+ * (Centrifuge contracts, ward-graph participants, and seeded DeFi contracts).
  *
  * Pure in-memory lookup: no RPC, no DB. Safe to call from hot handlers and
  * intended for reuse by any per-user performance calculation that needs the

@@ -1,4 +1,4 @@
-/** Wall-clock seconds for crosschain in-progress UX only (separate from transfer tx buffer). */
+/** Wall-clock seconds for crosschain in-progress UX near chain tip. */
 export const LIVE_INDEXING_WINDOW_S = 30 * 60;
 
 /**
