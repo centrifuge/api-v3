@@ -90,11 +90,7 @@ export class TokenInstanceService extends Service<typeof TokenInstance> {
   /**
    * True when a transfer leg may mutate DB state (mint/burn or a tracked user side).
    */
-  static transferNeedsWork(
-    chainId: number,
-    from: `0x${string}`,
-    to: `0x${string}`
-  ): boolean {
+  static transferNeedsWork(chainId: number, from: `0x${string}`, to: `0x${string}`): boolean {
     if (BigInt(from) === 0n || BigInt(to) === 0n) return true;
     return isUserAccount(chainId, from) || isUserAccount(chainId, to);
   }
