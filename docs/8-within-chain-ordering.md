@@ -38,7 +38,7 @@ Replace error paths with upsert-then-update for epoch aggregate rows.
 
 ### 3. `tokenInstance:Transfer`
 
-Same-tx **net-delta** buffering applies only to transfers **older than 8 hours** (wall clock); recent chain-tip transfers are applied per leg immediately. Historical batches flush on tx/block boundaries inside handler callbacks. **Full reindex required** after deploy.
+Same-tx **net-delta** buffering applies only to transfers **older than 8 hours** (wall clock); recent chain-tip transfers are applied per leg immediately. Historical batches flush on tx/block boundaries inside transfer handlers, **immediately when a burn leg is appended**, and on every `${chain}:block` tick through the current block (so tail transfers with no later `Transfer` still apply). **Full reindex required** after deploy.
 
 ### 4. `balanceSheet` + same-block escrow
 

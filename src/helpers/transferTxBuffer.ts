@@ -143,9 +143,46 @@ async function flushBlocksBefore(
   chainId: number,
   blockNumber: number
 ): Promise<void> {
-  const keys = [...batches.entries()]
-    .filter(([, batch]) => batch.chainId === chainId && batch.blockNumber < blockNumber)
+  const keys = batchKeysThroughBlock(chainId, blockNumber, false);
+  for (const key of keys) {
+    await flushBatchByKey(context, key);
+  }
+}
+
+/**
+ * Returns in-memory batch keys for `chainId` through `blockNumber`.
+ * @param inclusive - When true, includes batches at `blockNumber`; when false, only strictly before.
+ */
+export function batchKeysThroughBlock(
+  chainId: number,
+  blockNumber: number,
+  inclusive: boolean
+): string[] {
+  return [...batches.entries()]
+    .filter(([, batch]) => {
+      if (batch.chainId !== chainId) return false;
+      return inclusive ? batch.blockNumber <= blockNumber : batch.blockNumber < blockNumber;
+    })
     .map(([key]) => key);
+}
+
+/**
+ * True when a buffered leg completes supply mutation for its tx batch (burn).
+ * Mint legs may be followed by more transfers in the same transaction, so only burns flush eagerly.
+ */
+export function shouldFlushBufferedBatchAfterLeg(leg: TransferLeg): boolean {
+  return BigInt(leg.to) === 0n;
+}
+
+/**
+ * Flushes buffered transfer batches for this chain through `blockNumber` (inclusive).
+ * Call from `${chain}:block` handlers so tail transactions still apply when no later Transfer arrives.
+ */
+export async function flushPendingTransferBatchesThroughBlock(
+  context: Context,
+  blockNumber: number
+): Promise<void> {
+  const keys = batchKeysThroughBlock(context.chain.id, blockNumber, true);
   for (const key of keys) {
     await flushBatchByKey(context, key);
   }
@@ -273,6 +310,10 @@ export async function appendTransferLeg(context: Context, event: TransferEvent):
       anchorEvent: event,
       lastLegAppendedAt: Date.now(),
     });
+  }
+
+  if (shouldFlushBufferedBatchAfterLeg(leg)) {
+    await flushBatchByKey(context, key);
   }
 
   openTxByChain.set(chainId, txHash);

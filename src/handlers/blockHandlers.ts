@@ -16,6 +16,7 @@ import {
   TokenSnapshot,
 } from "ponder:schema";
 import { snapshotter } from "../helpers/snapshotter";
+import { flushPendingTransferBatchesThroughBlock } from "../helpers/transferTxBuffer";
 import { blocks } from "../chains";
 
 const timekeeper = Timekeeper.start();
@@ -24,6 +25,9 @@ const timekeeper = Timekeeper.start();
 async function processBlock(args: { event: Event; context: Context }) {
   const chainName = args.context.chain.name;
   const { event, context } = args;
+
+  await flushPendingTransferBatchesThroughBlock(context, Number(event.block.number));
+
   const newPeriod = await timekeeper.processBlock(context, event);
   if (!newPeriod) return;
   logEvent(event, context, `${chainName}:NewPeriod`);
