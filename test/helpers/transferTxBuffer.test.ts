@@ -4,6 +4,7 @@ import {
   batchNeedsWork,
   computeNetDeltas,
   maxLogIndex,
+  shouldFlushBufferedBatchAfterLeg,
   usesTransferTxBuffer,
   TRANSFER_TX_BUFFER_MAX_AGE_S,
   type TransferLeg,
@@ -75,6 +76,17 @@ describe("usesTransferTxBuffer", () => {
 
   it("false when block is within the last 8h", () => {
     expect(usesTransferTxBuffer(nowSec - 3600, nowSec)).toBe(false);
+  });
+});
+
+describe("shouldFlushBufferedBatchAfterLeg", () => {
+  it("true for burn legs", () => {
+    expect(shouldFlushBufferedBatchAfterLeg(leg(USER, ZERO, 1n))).toBe(true);
+  });
+
+  it("false for mint and ordinary transfers", () => {
+    expect(shouldFlushBufferedBatchAfterLeg(leg(ZERO, USER, 1n))).toBe(false);
+    expect(shouldFlushBufferedBatchAfterLeg(leg(USER, A, 1n))).toBe(false);
   });
 });
 
