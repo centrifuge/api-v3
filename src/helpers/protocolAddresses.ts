@@ -1,5 +1,6 @@
 import type { Address } from "viem";
 import { networkNames } from "../chains";
+import { IGNORED_TRANSFER_ADDRESSES_BY_CHAIN } from "../config/ignoredTransferAddresses";
 import { getContractAddressesForChain, REGISTRY_VERSION_ORDER } from "../contracts";
 
 /**
@@ -8,8 +9,9 @@ import { getContractAddressesForChain, REGISTRY_VERSION_ORDER } from "../contrac
  * Used by {@link ./userAccount.ts | `isUserAccount`} (and any future per-user
  * performance calculation) to filter out addresses we don't want to track as
  * investor positions: every named protocol contract from the static registry,
- * plus factory-deployed instances (PoolEscrows, Vaults) and any other
- * Auth-mixin contract registered through the ward graph.
+ * factory-deployed instances (PoolEscrows, Vaults), Auth-mixin contracts
+ * registered through the ward graph, and known external DeFi contracts from
+ * {@link ../config/ignoredTransferAddresses.ts | `IGNORED_TRANSFER_ADDRESSES_BY_CHAIN`}.
  *
  * The Set is seeded at module import from the bundled `generated/` registry
  * and extended at index time by deployment / rely-deny handlers. Lookups are
@@ -43,7 +45,19 @@ function seedFromRegistry(): void {
   }
 }
 
+/** Seeds per-chain Sets with configured external DeFi addresses (DEX routers, etc.). */
+function seedIgnoredTransferAddresses(): void {
+  for (const [chainIdStr, addresses] of Object.entries(IGNORED_TRANSFER_ADDRESSES_BY_CHAIN)) {
+    const chainId = Number(chainIdStr);
+    const set = ensureSet(chainId);
+    for (const addr of addresses) {
+      set.add(addr.toLowerCase());
+    }
+  }
+}
+
 seedFromRegistry();
+seedIgnoredTransferAddresses();
 
 /**
  * Marks an address as protocol-owned for the given chain. Idempotent.
