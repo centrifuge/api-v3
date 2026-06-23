@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.0.1](https://github.com/centrifuge/api-v3/compare/v4.0.0...v4.0.1) (2026-06-23)
+
+
+### Bug Fixes
+
+* plume-issuance ([#434](https://github.com/centrifuge/api-v3/issues/434)) ([b729338](https://github.com/centrifuge/api-v3/commit/b729338f2a5facb3941a8ac1c520021593f070e1))
+* remove transfer batching ([#436](https://github.com/centrifuge/api-v3/issues/436)) ([4da8ac3](https://github.com/centrifuge/api-v3/commit/4da8ac38fc88c99b5d7fc80520f1f00bb221954a))
+
 ## [4.0.0](https://github.com/centrifuge/api-v3/compare/v3.8.1...v4.0.0) (2026-06-20)
 
 
