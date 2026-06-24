@@ -45,3 +45,7 @@ postgres:
   enabled: true
   cluster:
     instances: 1
+    walStorage:
+      enabled: true
+      size: 16Gi
+      storageClass: ceph-perf3
