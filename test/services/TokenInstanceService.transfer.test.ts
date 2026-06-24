@@ -24,6 +24,14 @@ describe("TokenInstanceService.transferNeedsWork", () => {
     expect(TokenInstanceService.transferNeedsWork(1, u1, u2)).toBe(false);
   });
 
+  it("false for Kyber executor to Aerodrome pool on Base", () => {
+    const kyberExecutor = "0x63242a4ea82847b20e506b63b0e2e2eff0cc6cb0" as `0x${string}`;
+    const aerodromePool = "0xf840346fafedc1c0466216f3a899a599e6d03e75" as `0x${string}`;
+    expect(TokenInstanceService.transferNeedsWork(CHAIN_ID, kyberExecutor, aerodromePool)).toBe(
+      false
+    );
+  });
+
   it("true when user sends to ignored DeFi contract", () => {
     const router = IGNORED_TRANSFER_ADDRESSES_BY_CHAIN[1]![1]!;
     expect(TokenInstanceService.transferNeedsWork(1, USER, router)).toBe(true);
