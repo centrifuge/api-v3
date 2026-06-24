@@ -39,6 +39,7 @@ export const BlockchainRelations = relations(Blockchain, ({ many }) => ({
   investorTransactions: many(InvestorTransaction, {
     relationName: "investorTransactions",
   }),
+  tokenIssuances: many(TokenIssuance, { relationName: "tokenIssuances" }),
   holdings: many(Holding, { relationName: "holdings" }),
   holdingEscrows: many(HoldingEscrow, { relationName: "holdingEscrows" }),
   escrows: many(Escrow, { relationName: "escrows" }),
@@ -102,6 +103,7 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
   merkleProofManagers: many(MerkleProofManager, {
     relationName: "merkleProofManagers",
   }),
+  tokenIssuances: many(TokenIssuance, { relationName: "tokenIssuances" }),
   poolAdapters: many(PoolAdapter),
 }));
 
@@ -167,6 +169,7 @@ export const TokenRelations = relations(Token, ({ one, many }) => ({
   investorTransactions: many(InvestorTransaction, {
     relationName: "investorTransactions",
   }),
+  tokenIssuances: many(TokenIssuance, { relationName: "tokenIssuances" }),
   onOffRampManagers: many(OnOffRampManager, {
     relationName: "onOffRampManagers",
   }),
@@ -327,6 +330,7 @@ export const TokenIssuance = onchainTable(
     id: primaryKey({
       columns: [t.tokenId, t.centrifugeId, t.type, t.createdAtTxHash, t.logIndex],
     }),
+    manualIssuanceIdx: index().on(t.centrifugeId, t.poolId, t.isManual, t.createdAtBlock),
   })
 );
 
