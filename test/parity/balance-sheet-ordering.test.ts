@@ -30,7 +30,9 @@ describe("balance sheet token issuance multichain ordering policy", () => {
 
   it("derives isManual from registry addresses on the processing chain only", () => {
     expect(handlers).toMatch(/isFlowMinter\(chainId, sender\)/);
-    expect(handlers).toMatch(/getContractAddressesForChain\(chainId/);
+    expect(handlers).toMatch(/getContractNameForAddress\(chainId, sender\)/);
+    expect(handlers).toMatch(/FLOW_MINTERS/);
+    expect(handlers).not.toMatch(/getContractAddressesForChain/);
     expect(handlers).not.toMatch(/recordIssue[\s\S]*?CrosschainMessage/);
     expect(handlers).not.toMatch(/recordRevoke[\s\S]*?CrosschainMessage/);
   });

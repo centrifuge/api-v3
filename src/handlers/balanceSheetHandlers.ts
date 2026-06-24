@@ -12,7 +12,8 @@ import {
 } from "../services";
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
-import { REGISTRY_VERSION_ORDER, getContractAddressesForChain } from "../contracts";
+import { getContractNameForAddress } from "../contracts";
+
 import { isLiveIndexingBlock } from "../helpers/liveIndexingWindow";
 
 multiMapper("balanceSheet:NoteDeposit", async ({ event, context }) => {
@@ -235,20 +236,13 @@ export async function recordRevoke({
   );
 }
 
+const FLOW_MINTERS = new Set(["asyncRequestManager", "syncManager"]);
 /**
  * A `BalanceSheet.issue()` / `revoke()` is "flow-driven" when its caller is the
  * async or sync request manager (i.e. it backs a deposit claim or sync deposit).
- * Anything else is a manual/operator issuance. We scan every registry version on
- * the chain because the manager address can differ across deployment versions.
+ * Anything else is a manual/operator issuance.
  */
 function isFlowMinter(chainId: number, sender: `0x${string}`): boolean {
-  const target = sender.toLowerCase();
-  for (let versionIndex = 0; versionIndex < REGISTRY_VERSION_ORDER.length; versionIndex++) {
-    const addresses = getContractAddressesForChain(chainId, versionIndex);
-    if (!addresses) continue;
-    for (const name of ["asyncRequestManager", "syncManager"] as const) {
-      if (addresses[name]?.toLowerCase() === target) return true;
-    }
-  }
-  return false;
+  const name = getContractNameForAddress(chainId, sender);
+  return name !== null && FLOW_MINTERS.has(name);
 }
