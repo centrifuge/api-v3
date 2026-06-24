@@ -8,7 +8,7 @@ import {
   insertBasinReconciliationWarning,
   linkSpokeRedeemIfPending,
 } from "../helpers/basinReconciliation";
-import { logEvent } from "../helpers/logger";
+import { logEvent, serviceError } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
 import { BasinRedeemRequestService, BasinSwapService } from "../services";
 
@@ -89,6 +89,11 @@ if (isGroveBasinIndexingConfigured) {
       creditTokenAmount,
       false
     );
+    if (collateralTokenAmountQuoted === undefined) {
+      return serviceError(
+        `GroveBasin swap quote eth_call failed. Cannot index RedeemInitiated at block ${event.block.number}`
+      );
+    }
 
     const requestId = computeRedeemRequestId({
       blockNumber: event.block.number,

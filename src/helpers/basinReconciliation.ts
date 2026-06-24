@@ -156,3 +156,19 @@ export function computePriorityFeeDeltaBps(
   const delta = instantNavValue - closingNavValue;
   return Number((delta * 10_000n) / instantNavValue);
 }
+
+/**
+ * Idempotent reconciler entry point — delegates to existing link helpers.
+ * @param context - Ponder context
+ * @param cfg - Basin config
+ * @param _requestId - Optional request filter (reserved)
+ * @param event - Optional event for link helpers
+ */
+export async function reconcileBasinRedeemLinks(
+  context: Context,
+  cfg: BasinConfig,
+  _requestId?: `0x${string}`,
+  event?: TxEvent
+): Promise<void> {
+  if (event) await linkSpokeRedeemIfPending(context, event, cfg);
+}

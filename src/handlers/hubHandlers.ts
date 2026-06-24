@@ -31,6 +31,7 @@ import {
 } from "../helpers/updateContractDecoders";
 import { VaultCrosschainInProgressTypes } from "ponder:schema";
 import { getContractNameForAddress } from "../contracts";
+import { isLiveIndexingBlock } from "../helpers/liveIndexingWindow";
 
 multiMapper("hub:NotifyPool", async ({ event, context }) => {
   logEvent(event, context, "hub:NotifyPool");
@@ -48,18 +49,24 @@ multiMapper("hub:NotifyPool", async ({ event, context }) => {
 
 multiMapper("hub:NotifyAssetPrice", async ({ event, context }) => {
   logEvent(event, context, "hub:NotifyAssetPrice");
+  if (!isLiveIndexingBlock(event.block.timestamp)) return;
+
   const { centrifugeId, poolId, scId: tokenId, assetId } = event.args;
   const destCentrifugeId = centrifugeId.toString();
 
   const asset = (await AssetService.get(context, { id: assetId })) as AssetService | null;
-  if (!asset)
-    return serviceError(`Asset not found for assetId ${assetId}. Cannot track NotifyAssetPrice`);
+  if (!asset) {
+    return serviceLog(
+      `Asset not found for assetId ${assetId}; skipping NotifyAssetPrice in-progress`
+    );
+  }
 
   const assetAddress = asset.read().address as `0x${string}`;
-  if (!assetAddress)
-    return serviceError(
-      `Asset has no address for assetId ${assetId}. Cannot track NotifyAssetPrice`
+  if (!assetAddress) {
+    return serviceLog(
+      `Asset has no address for assetId ${assetId}; skipping NotifyAssetPrice in-progress`
     );
+  }
 
   // NotifyAssetPrice fires on the hub chain but references an escrow on the destination chain, so
   // the live PoolEscrowFactory cannot be read here — resolve from the indexed escrows instead.
@@ -97,6 +104,8 @@ multiMapper("hub:NotifyAssetPrice", async ({ event, context }) => {
 
 multiMapper("hub:NotifySharePrice", async ({ event, context }) => {
   logEvent(event, context, "hub:NotifySharePrice");
+  if (!isLiveIndexingBlock(event.block.timestamp)) return;
+
   const { centrifugeId, scId: tokenId } = event.args;
   const destCentrifugeId = centrifugeId.toString();
 
@@ -163,6 +172,8 @@ multiMapper("hub:UpdateRestriction", async ({ event, context }) => {
 
 multiMapper("hub:UpdateBalanceSheetManager", async ({ event, context }) => {
   logEvent(event, context, "hub:UpdateBalanceSheetManager");
+  if (!isLiveIndexingBlock(event.block.timestamp)) return;
+
   const { poolId, manager: _manager, canManage, centrifugeId: spokeCentrifugeId } = event.args;
   const manager = _manager.toLowerCase().substring(0, 42) as `0x${string}`;
 
@@ -193,6 +204,8 @@ multiMapper("hub:UpdateVault", async ({ event, context }) => {
   if (kind == 0)
     return serviceLog(`Skipping vault update: only Link/Unlink tracked (kind=${kind})`);
 
+  if (!isLiveIndexingBlock(event.block.timestamp)) return;
+
   const destCentrifugeId = centrifugeIdFromAssetId(assetId);
   if (!destCentrifugeId)
     return serviceError(`Invalid assetId. Cannot retrieve destCentrifugeId for vault update`);
@@ -202,20 +215,13 @@ multiMapper("hub:UpdateVault", async ({ event, context }) => {
   const vaultUpdateKind = VaultCrosschainInProgressTypes[kind];
   if (!vaultUpdateKind) return serviceError(`Invalid vault update kind. Cannot update vault`);
 
-  const vault = (await VaultService.getOrInit(
+  await VaultService.upsertHubSignal(
     context,
-    {
-      id: vaultAddress,
-      centrifugeId: destCentrifugeId,
-      poolId,
-      tokenId,
-      assetId,
-    },
     event,
-    undefined,
-    true
-  )) as VaultService;
-  await vault.setCrosschainInProgress(vaultUpdateKind).save(event);
+    { id: vaultAddress, centrifugeId: destCentrifugeId },
+    vaultUpdateKind,
+    { poolId, tokenId, assetId }
+  );
 });
 
 multiMapper("hub:UpdateContract", async ({ event, context }) => {
@@ -295,6 +301,8 @@ async function handleMerklePolicyUpdate(
     serviceError(`MerkleProofManager not found for address ${targetAddr}. Cannot update policy`);
     return true;
   }
+  if (!isLiveIndexingBlock(event.block.timestamp)) return true;
+
   const policy = (await PolicyService.getOrInit(
     context,
     {
@@ -329,13 +337,15 @@ async function handleSyncManagerTrustedCall(
   if (!decoded) return true;
 
   if (decoded.kind === "Valuation") {
+    if (!isLiveIndexingBlock(event.block.timestamp)) return true;
+
     const tokenInstance = (await TokenInstanceService.get(context, {
       centrifugeId,
       tokenId,
     })) as TokenInstanceService | null;
     if (!tokenInstance) {
-      serviceError(
-        `TokenInstance not found for sync valuation update (centrifugeId=${centrifugeId}, tokenId=${tokenId})`
+      serviceLog(
+        `TokenInstance not found for sync valuation update (centrifugeId=${centrifugeId}, tokenId=${tokenId}); skipping in-progress`
       );
       return true;
     }
@@ -347,7 +357,9 @@ async function handleSyncManagerTrustedCall(
     const { assetId, maxReserve } = decoded;
     const asset = await AssetService.get(context, { id: assetId });
     if (!asset) {
-      serviceError(`Asset not found for assetId ${assetId}. Cannot update vault maxReserve`);
+      serviceLog(
+        `Asset not found for assetId ${assetId}; skipping hub maxReserve in-progress update`
+      );
       return true;
     }
     const vault = (await VaultService.get(context, {
@@ -357,10 +369,14 @@ async function handleSyncManagerTrustedCall(
       assetId,
     })) as VaultService | null;
     if (!vault) {
-      serviceError(`Vault not found. Cannot update maxReserve`);
+      serviceLog(`Vault not found; skipping hub maxReserve in-progress update`);
       return true;
     }
-    await vault.setMaxReserve(maxReserve).setCrosschainInProgress().save(event);
+    vault.setMaxReserve(maxReserve);
+    if (isLiveIndexingBlock(event.block.timestamp)) {
+      vault.setCrosschainInProgress();
+    }
+    await vault.save(event);
     return true;
   }
 
@@ -393,15 +409,17 @@ async function handleOnOfframpUpdate(
   serviceLog(`Decoded OnOfframp UpdateContract payload: ${expandInlineObject(decoded)}`);
 
   if (decoded.kind === "Onramp") {
+    if (!isLiveIndexingBlock(event.block.timestamp)) return true;
+
     const { assetId, isEnabled } = decoded;
     const asset = await AssetService.get(context, { id: assetId });
     if (!asset) {
-      serviceError(`Asset not found for assetId ${assetId}. Cannot update onramp`);
+      serviceLog(`Asset not found for assetId ${assetId}; skipping onramp in-progress update`);
       return true;
     }
     const assetAddress = asset.read().address as `0x${string}`;
     if (!assetAddress) {
-      serviceError(`Asset has no address for assetId ${assetId}`);
+      serviceLog(`Asset has no address for assetId ${assetId}; skipping onramp in-progress update`);
       return true;
     }
     const onRampAsset = (await OnRampAssetService.getOrInit(
@@ -416,6 +434,8 @@ async function handleOnOfframpUpdate(
   }
 
   if (decoded.kind === "Relayer") {
+    if (!isLiveIndexingBlock(event.block.timestamp)) return true;
+
     const { relayerAddress, isEnabled } = decoded;
     const offrampRelayer = (await OffRampRelayerService.getOrInit(
       context,
@@ -434,15 +454,19 @@ async function handleOnOfframpUpdate(
   }
 
   if (decoded.kind === "Offramp") {
+    if (!isLiveIndexingBlock(event.block.timestamp)) return true;
+
     const { assetId, receiverAddress, isEnabled } = decoded;
     const asset = await AssetService.get(context, { id: assetId });
     if (!asset) {
-      serviceError(`Asset not found for assetId ${assetId}. Cannot update offramp`);
+      serviceLog(`Asset not found for assetId ${assetId}; skipping offramp in-progress update`);
       return true;
     }
     const rawAssetAddress = asset.read().address as `0x${string}`;
     if (!rawAssetAddress) {
-      serviceError(`Asset has no address for assetId ${assetId}`);
+      serviceLog(
+        `Asset has no address for assetId ${assetId}; skipping offramp in-progress update`
+      );
       return true;
     }
     const offrampAddress = (await OffRampAddressService.getOrInit(

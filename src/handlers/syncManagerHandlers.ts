@@ -1,6 +1,7 @@
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceLog } from "../helpers/logger";
 import { AssetService, BlockchainService, TokenInstanceService, VaultService } from "../services";
+import { isLiveIndexingBlock } from "../helpers/liveIndexingWindow";
 
 multiMapper("syncManager:SetMaxReserve", async ({ event, context }) => {
   logEvent(event, context, "syncManager:SetMaxReserve");
@@ -26,7 +27,11 @@ multiMapper("syncManager:SetMaxReserve", async ({ event, context }) => {
   if (!vault)
     return serviceLog(`Vault not found. Cannot retrieve vault. Maybe it's not deployed yet?`);
 
-  await vault.setMaxReserve(maxReserve).setCrosschainInProgress().save(event);
+  vault.setMaxReserve(maxReserve);
+  if (isLiveIndexingBlock(event.block.timestamp)) {
+    vault.setCrosschainInProgress();
+  }
+  await vault.save(event);
 });
 
 multiMapper("syncManager:SetValuation", async ({ event, context }) => {
@@ -44,5 +49,7 @@ multiMapper("syncManager:SetValuation", async ({ event, context }) => {
     );
   }
 
-  await tokenInstance.setCrosschainInProgress().save(event);
+  if (isLiveIndexingBlock(event.block.timestamp)) {
+    await tokenInstance.setCrosschainInProgress().save(event);
+  }
 });

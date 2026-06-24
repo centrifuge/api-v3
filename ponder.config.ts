@@ -180,7 +180,7 @@ export const contracts = {
 logIndexingPlan(contracts, blocks);
 
 const config = createConfig({
-  ordering: "omnichain",
+  ordering: "multichain",
   chains,
   contracts,
   blocks,

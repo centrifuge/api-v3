@@ -13,6 +13,7 @@ import {
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
 import { REGISTRY_VERSION_ORDER, getContractAddressesForChain } from "../contracts";
+import { isLiveIndexingBlock } from "../helpers/liveIndexingWindow";
 
 /**
  * A `BalanceSheet.issue()` / `revoke()` is "flow-driven" when its caller is the
@@ -172,7 +173,11 @@ multiMapper("balanceSheet:UpdateManager", async ({ event, context }) => {
     true
   )) as PoolManagerService;
 
-  await poolManager.setCrosschainInProgress().setIsBalancesheetManager(canManage).save(event);
+  poolManager.setIsBalancesheetManager(canManage);
+  if (isLiveIndexingBlock(event.block.timestamp)) {
+    poolManager.setCrosschainInProgress();
+  }
+  await poolManager.save(event);
 });
 
 // Registered V3_1-only (not via multiMapper): the V3 Issue/Revoke ABI lacks the

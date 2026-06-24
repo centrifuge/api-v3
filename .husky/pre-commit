@@ -1,3 +1,5 @@
+ENVIRONMENT="mainnet" 
+SELECTED_REGISTRY_VERSIONS="" 
 pnpm update-registry;
 pnpm lint;
 pnpm typecheck;

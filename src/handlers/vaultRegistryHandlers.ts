@@ -41,6 +41,9 @@ export async function deployVault({
           functionName: "manager",
           args: [],
         });
+  if (manager === undefined) {
+    return serviceError(`Vault manager eth_call failed. Cannot deploy vault ${vaultId}`);
+  }
 
   const asset = await AssetService.getByTokenForVault(context, {
     centrifugeId,
@@ -93,15 +96,12 @@ export async function linkVault({
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const vault = (await VaultService.get(context, {
-    id: vaultId,
-    centrifugeId,
-  })) as VaultService;
-  if (!vault) {
-    serviceError(`Vault not found. Cannot link vault`);
-    return;
-  }
-  await vault.setStatus("Linked").setCrosschainInProgress().save(event);
+  await VaultService.upsertSpokeAck(
+    context,
+    event,
+    { id: vaultId, centrifugeId },
+    { status: "Linked" }
+  );
 }
 
 multiMapper("vaultRegistry:UnlinkVault", unlinkVault);
@@ -117,10 +117,10 @@ export async function unlinkVault({
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const vault = (await VaultService.get(context, {
-    id: vaultId,
-    centrifugeId,
-  })) as VaultService;
-  if (!vault) return serviceError(`Vault not found. Cannot unlink vault`);
-  await vault.setStatus("Unlinked").setCrosschainInProgress().save(event);
+  await VaultService.upsertSpokeAck(
+    context,
+    event,
+    { id: vaultId, centrifugeId },
+    { status: "Unlinked" }
+  );
 }

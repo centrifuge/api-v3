@@ -14,18 +14,19 @@ global:
     PONDER_RPC_URL_42161: "http://cfg-api-erpc:4000/main/evm/42161"
     PONDER_RPC_URL_1672: "http://cfg-api-erpc:4000/main/evm/1672"
     REGISTRY_v3_1_chains_42161_deployment_startBlock: "425757109"
+    REGISTRY_v3_1_chains_98866_deployment_startBlock: "48512998"
   apiSecretName: cfg-api-v3-rpc-keys
 indexer:
   enabled: true
   image:
-    tag: sha-7438f98
+    tag: sha-4da8ac3
   env:
     - name: NODE_OPTIONS
       value: "--max-old-space-size=1740"
 query:
   enabled: true
   image:
-    tag: sha-7438f98
+    tag: sha-4da8ac3
   replicaCount: 2
   ingress:
     enabled: true
@@ -44,3 +45,7 @@ postgres:
   enabled: true
   cluster:
     instances: 1
+    walStorage:
+      enabled: true
+      size: 16Gi
+      storageClass: ceph-perf3

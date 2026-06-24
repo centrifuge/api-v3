@@ -4,7 +4,7 @@ import schema from "ponder:schema";
 import { formatBigIntToDecimal } from "../helpers/formatter";
 import * as Services from "../services";
 import { jsonDefaultHeaders } from "./shared";
-import type { ApiContext } from "./types";
+import { apiContext, type ApiContext, type ApiEnv } from "./types";
 
 /** Narrow surface for `/stats` entity counts — avoids TS2590 on `Object.values` + polymorphic statics. */
 type ServiceWithEntityCount = {
@@ -30,10 +30,11 @@ async function allEntityCounts(
 }
 
 /** Aggregated indexer stats mounted at `/stats`. */
-export function createStatsApp(ctx: ApiContext) {
-  const app = new Hono();
+export function createStatsApp() {
+  const app = new Hono<ApiEnv>();
 
   app.get("/", async (c) => {
+    const ctx = apiContext(c);
     const tvl = await Services.TokenService.getNormalisedTvl(ctx);
     const aggregatedSupply = await Services.TokenService.getNormalisedAggregatedSupply(ctx);
     const services = Object.values(Services).filter((service) => "count" in service);

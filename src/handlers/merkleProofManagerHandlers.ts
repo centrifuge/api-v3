@@ -4,6 +4,7 @@ import { formatBytes32ToAddress } from "../helpers/formatter";
 import { logEvent, serviceError } from "../helpers/logger";
 import { BlockchainService, MerkleProofManagerService, PolicyService } from "../services";
 import { Abis, REGISTRY_VERSION_ORDER } from "../contracts";
+import { isLiveIndexingBlock } from "../helpers/liveIndexingWindow";
 
 multiMapper("merkleProofManagerFactory:DeployMerkleProofManager", async ({ event, context }) => {
   logEvent(event, context, "merkleProofManagerFactory:DeployMerkleProofManager");
@@ -37,6 +38,11 @@ multiMapper("merkleProofManager:UpdatePolicy", async ({ event, context }) => {
     abi: Abis[indexerVersion as keyof typeof Abis].MerkleProofManager,
     functionName: "poolId",
   });
+  if (poolId === undefined) {
+    return serviceError(
+      `MerkleProofManager poolId eth_call failed at ${event.log.address}. Cannot update policy`
+    );
+  }
 
   const policy = (await PolicyService.getOrInit(
     context,
@@ -49,5 +55,9 @@ multiMapper("merkleProofManager:UpdatePolicy", async ({ event, context }) => {
     undefined,
     true
   )) as PolicyService;
-  await policy.setRoot(newRoot).setCrosschainInProgress().save(event);
+  policy.setRoot(newRoot);
+  if (isLiveIndexingBlock(event.block.timestamp)) {
+    policy.setCrosschainInProgress();
+  }
+  await policy.save(event);
 });

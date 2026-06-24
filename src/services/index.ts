@@ -8,8 +8,21 @@ export * from "./BasinSwapService";
 export * from "./AssetRegistrationService";
 export * from "./AssetService";
 export * from "./BlockchainService";
-export * from "./CrosschainMessageService";
-export * from "./CrosschainPayloadService";
+export {
+  CrosschainMessageService,
+  decodeMessage,
+  getCrosschainMessageLength,
+  getCrosschainMessageType,
+  getMessageHash,
+  getMessageId,
+} from "./CrosschainMessageService";
+export * from "./CrosschainMessageQueueService";
+export {
+  CrosschainPayloadService,
+  extractMessagesFromPayload,
+  getPayloadId,
+} from "./CrosschainPayloadService";
+export * from "./CrosschainPayloadQueueService";
 export * from "./DeploymentService";
 export * from "./EpochInvestOrderService";
 export * from "./EpochOutstandingInvestService";
