@@ -1,3 +1,4 @@
+import type { Context, Event } from "ponder:registry";
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceError } from "../helpers/logger";
 import {
@@ -7,9 +8,12 @@ import {
   EscrowService,
   HoldingEscrowService,
   PoolManagerService,
+  TokenIssuanceService,
 } from "../services";
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
+import { getContractNameForAddress } from "../contracts";
+
 import { isLiveIndexingBlock } from "../helpers/liveIndexingWindow";
 
 multiMapper("balanceSheet:NoteDeposit", async ({ event, context }) => {
@@ -158,3 +162,87 @@ multiMapper("balanceSheet:UpdateManager", async ({ event, context }) => {
   }
   await poolManager.save(event);
 });
+
+multiMapper("balanceSheet:Issue", recordIssue);
+/**
+ * Records `BalanceSheet.Issue` into `token_issuance`. v3 ABI lacks `sender` (needed for
+ * `isManual`), so v3 logs are skipped — same pattern as other version-shaped handlers.
+ */
+export async function recordIssue({
+  event,
+  context,
+}: {
+  event: Event<"balanceSheetV3:Issue" | "balanceSheetV3_1:Issue">;
+  context: Context;
+}) {
+  logEvent(event, context, "balanceSheet:Issue");
+  if (!("sender" in event.args)) return;
+
+  const { poolId, scId: tokenId, sender, to, pricePoolPerShare, shares } = event.args;
+
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const chainId = context.chain.id;
+
+  await TokenIssuanceService.recordIssue(
+    context,
+    {
+      centrifugeId,
+      poolId,
+      tokenId,
+      sender,
+      account: to,
+      shares,
+      pricePoolPerShare,
+      isManual: !isFlowMinter(chainId, sender),
+      logIndex: event.log.logIndex,
+    },
+    event
+  );
+}
+
+multiMapper("balanceSheet:Revoke", recordRevoke);
+/**
+ * Records `BalanceSheet.Revoke` into `token_issuance`. Skips v3 logs (no `sender` in ABI).
+ */
+export async function recordRevoke({
+  event,
+  context,
+}: {
+  event: Event<"balanceSheetV3:Revoke" | "balanceSheetV3_1:Revoke">;
+  context: Context;
+}) {
+  logEvent(event, context, "balanceSheet:Revoke");
+  if (!("sender" in event.args)) return;
+
+  const { poolId, scId: tokenId, sender, from, pricePoolPerShare, shares } = event.args;
+
+  const centrifugeId = await BlockchainService.getCentrifugeId(context);
+  const chainId = context.chain.id;
+
+  await TokenIssuanceService.recordRevoke(
+    context,
+    {
+      centrifugeId,
+      poolId,
+      tokenId,
+      sender,
+      account: from,
+      shares,
+      pricePoolPerShare,
+      isManual: !isFlowMinter(chainId, sender),
+      logIndex: event.log.logIndex,
+    },
+    event
+  );
+}
+
+const FLOW_MINTERS = new Set(["asyncRequestManager", "syncManager"]);
+/**
+ * A `BalanceSheet.issue()` / `revoke()` is "flow-driven" when its caller is the
+ * async or sync request manager (i.e. it backs a deposit claim or sync deposit).
+ * Anything else is a manual/operator issuance.
+ */
+function isFlowMinter(chainId: number, sender: `0x${string}`): boolean {
+  const name = getContractNameForAddress(chainId, sender);
+  return name !== null && FLOW_MINTERS.has(name);
+}

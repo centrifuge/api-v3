@@ -39,6 +39,7 @@ export const BlockchainRelations = relations(Blockchain, ({ many }) => ({
   investorTransactions: many(InvestorTransaction, {
     relationName: "investorTransactions",
   }),
+  tokenIssuances: many(TokenIssuance, { relationName: "tokenIssuances" }),
   holdings: many(Holding, { relationName: "holdings" }),
   holdingEscrows: many(HoldingEscrow, { relationName: "holdingEscrows" }),
   escrows: many(Escrow, { relationName: "escrows" }),
@@ -102,6 +103,7 @@ export const PoolRelations = relations(Pool, ({ one, many }) => ({
   merkleProofManagers: many(MerkleProofManager, {
     relationName: "merkleProofManagers",
   }),
+  tokenIssuances: many(TokenIssuance, { relationName: "tokenIssuances" }),
   poolAdapters: many(PoolAdapter),
 }));
 
@@ -167,6 +169,7 @@ export const TokenRelations = relations(Token, ({ one, many }) => ({
   investorTransactions: many(InvestorTransaction, {
     relationName: "investorTransactions",
   }),
+  tokenIssuances: many(TokenIssuance, { relationName: "tokenIssuances" }),
   onOffRampManagers: many(OnOffRampManager, {
     relationName: "onOffRampManagers",
   }),
@@ -295,6 +298,54 @@ export const InvestorTransactionRelations = relations(InvestorTransaction, ({ on
   currencyAsset: one(Asset, {
     fields: [InvestorTransaction.currencyAssetId],
     references: [Asset.id],
+  }),
+}));
+
+// Direct mints/burns via BalanceSheet.issue()/revoke() (V3_1+). `tokenId` is the
+// share class id (`scId`), consistent with the `Token` entity. Captures every
+// mint/burn — including async- and sync-deposit-driven ones — with the NAV price
+// (only present on the Issue/Revoke events, not on the ERC-20 Transfer). The
+// `isManual` flag isolates issuances NOT driven by the deposit flow (i.e. the
+// caller is neither the async nor the sync request manager).
+export const TokenIssuanceType = onchainEnum("token_issuance_type", ["ISSUE", "REVOKE"] as const);
+
+const TokenIssuanceColumns = (t: PgColumnsBuilders) => ({
+  centrifugeId: t.text().notNull(),
+  poolId: t.bigint().notNull(),
+  tokenId: t.hex().notNull(), // share class id (scId)
+  type: TokenIssuanceType("token_issuance_type").notNull(),
+  sender: t.hex().notNull(), // msgSender() of the issue()/revoke() call — the classifier
+  account: t.hex().notNull(), // `to` for ISSUE, `from` for REVOKE
+  shares: t.bigint().notNull(),
+  pricePoolPerShare: t.bigint().notNull(), // D18 NAV struck at mint/burn
+  isManual: t.boolean().notNull(), // caller is neither the async nor the sync request manager
+  logIndex: t.integer().notNull(),
+  ...defaultColumns(t, false),
+});
+export const TokenIssuance = onchainTable(
+  "token_issuance",
+  TokenIssuanceColumns,
+  (t) => ({
+    // logIndex in the PK guards against multiple issue()/revoke() in one tx
+    id: primaryKey({
+      columns: [t.tokenId, t.centrifugeId, t.type, t.createdAtTxHash, t.logIndex],
+    }),
+    manualIssuanceIdx: index().on(t.centrifugeId, t.poolId, t.isManual, t.createdAtBlock),
+  })
+);
+
+export const TokenIssuanceRelations = relations(TokenIssuance, ({ one }) => ({
+  blockchain: one(Blockchain, {
+    fields: [TokenIssuance.centrifugeId],
+    references: [Blockchain.centrifugeId],
+  }),
+  pool: one(Pool, {
+    fields: [TokenIssuance.poolId],
+    references: [Pool.id],
+  }),
+  token: one(Token, {
+    fields: [TokenIssuance.tokenId],
+    references: [Token.id],
   }),
 }));
 
