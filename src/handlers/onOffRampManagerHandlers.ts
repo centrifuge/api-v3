@@ -9,6 +9,7 @@ import {
 import { logEvent, serviceError } from "../helpers/logger";
 import { OnRampAssetService } from "../services";
 import { isLiveIndexingBlock } from "../helpers/liveIndexingWindow";
+import { formatBytes32ToAddress } from "../helpers/formatter";
 
 multiMapper("onOfframpManagerFactory:DeployOnOfframpManager", async ({ event, context }) => {
   logEvent(event, context, "onOffRampManagerFactory:DeployOnOffRampManager");
@@ -48,7 +49,7 @@ multiMapper("onOfframpManager:UpdateRelayer", async ({ event, context }) => {
   }
   const { poolId, tokenId } = onOffRampManager.read();
 
-  const relayerAddress = relayer.substring(0, 42).toLowerCase() as `0x${string}`;
+  const relayerAddress = formatBytes32ToAddress(relayer);
   const offRampRelayer = (await OffRampRelayerService.getOrInit(
     context,
     {
@@ -125,7 +126,7 @@ multiMapper("onOfframpManager:UpdateOfframp", async ({ event, context }) => {
   const receiverAccount = (await AccountService.getOrInit(
     context,
     {
-      address: receiver,
+      address: formatBytes32ToAddress(receiver),
     },
     event
   )) as AccountService;

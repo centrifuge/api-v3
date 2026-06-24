@@ -183,7 +183,7 @@ export function decodeOnOfframpManagerTrustedCall(
       return null;
     }
     const row = safeDecode(() =>
-      decodeAbiParameters([{ type: "uint8" }, { type: "address" }, { type: "bool" }], payload)
+      decodeAbiParameters([{ type: "uint8" }, { type: "bytes32" }, { type: "bool" }], payload)
     );
     if (!row) return null;
     return {
@@ -197,7 +197,7 @@ export function decodeOnOfframpManagerTrustedCall(
     if (b.length !== word(4)) return null;
     const row = safeDecode(() =>
       decodeAbiParameters(
-        [{ type: "uint8" }, { type: "uint128" }, { type: "address" }, { type: "bool" }],
+        [{ type: "uint8" }, { type: "uint128" }, { type: "bytes32" }, { type: "bool" }],
         payload
       )
     );
@@ -214,7 +214,7 @@ export function decodeOnOfframpManagerTrustedCall(
     if (b.length !== word(4)) return null;
     const row = safeDecode(() =>
       decodeAbiParameters(
-        [{ type: "uint8" }, { type: "uint128" }, { type: "uint128" }, { type: "address" }],
+        [{ type: "uint8" }, { type: "uint128" }, { type: "uint128" }, { type: "bytes32" }],
         payload
       )
     );

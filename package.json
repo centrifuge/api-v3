@@ -28,6 +28,8 @@
     "compare-schema": "graphql-inspector diff https://api.centrifuge.io generated/schema.graphql --rule safeUnreachable --rule ignoreDescriptionChanges | grep 'Field.*removed'",
     "verify:issuance": "node scripts/verify-issuance-snapshots.mjs",
     "verify:issuance:all": "node scripts/verify-issuance-snapshots.mjs --all-instances --mismatches-only",
+    "verify:onofframp": "node scripts/verify-onofframp-children.mjs --all-managers --mismatches-only",
+    "verify:onofframp:hyb-avax": "node scripts/verify-onofframp-children.mjs --chain avalanche --pool-id 281474976710671 --receiver 0xa5aaf18275cb27245e6d0f6bf2bbcbb0f9bf2498 --mismatches-only",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:parity:crosschain": "vitest run test/parity/crosschain-",
