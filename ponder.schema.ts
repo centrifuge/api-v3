@@ -1914,6 +1914,36 @@ export const BasinRedeemRequestRelations = relations(BasinRedeemRequest, ({ one,
   }),
 }));
 
+const TransactionColumns = (t: PgColumnsBuilders) => ({
+  chainId: t.integer().notNull(),
+  txHash: t.hex().notNull(),
+  centrifugeId: t.text(),
+  blockNumber: t.integer().notNull(),
+  timestamp: t.timestamp().notNull(),
+  fromAddress: t.hex().notNull(),
+  toAddress: t.hex(),
+  gasUsed: t.bigint().notNull(),
+  // Actual price from the receipt; differs from CrosschainPayload.gasPrice, which is a
+  // pre-receipt estimate derived from block base fee + tx fee caps.
+  effectiveGasPrice: t.bigint().notNull(),
+  gasCost: t.bigint().notNull(),
+  events: t.text().array().notNull(),
+  contracts: t.text().array().notNull(),
+  // Best-effort attribution from event args; events without a literal poolId/scId arg
+  // are captured but not attributed. Stored as strings (decimal / 0x) — native
+  // bigint[]/hex[] codecs are unproven with ponder's PgArray handling.
+  poolIds: t.text().array().notNull(),
+  tokenIds: t.text().array().notNull(),
+  createdAt: t.timestamp().notNull(),
+  updatedAt: t.timestamp().notNull(),
+});
+
+export const Transaction = onchainTable("transaction", TransactionColumns, (t) => ({
+  id: primaryKey({ columns: [t.chainId, t.txHash] }),
+  centrifugeIdIdx: index().on(t.centrifugeId),
+  timestampIdx: index().on(t.timestamp),
+}));
+
 /**
  * Creates a snapshot schema by selecting specific columns from a base table schema
  * @param columns - The base table column definition function

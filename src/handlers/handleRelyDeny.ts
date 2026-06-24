@@ -3,7 +3,7 @@ import type { Context, Event } from "ponder:registry";
 import { contracts } from "../../ponder.config";
 import { logEvent, serviceLog } from "../helpers/logger";
 import { registerProtocolAddress } from "../helpers/protocolAddresses";
-import { SmartContractService, SmartContractWardService } from "../services";
+import { SmartContractService, SmartContractWardService, TransactionService } from "../services";
 
 type ContractEvents = Parameters<typeof ponder.on>[0];
 type AuthEventName = "Rely" | "Deny";
@@ -76,14 +76,17 @@ function registerRelyDenyHandlers() {
       if (!hasAuthEvent(contractConfig.abi, eventName)) continue;
 
       const versionedEvent = `${contractKey}:${eventName}` as ContractEvents;
-      ponder.on(versionedEvent, ({ event, context }) =>
-        handleRelyDeny({
+      // Label matches the multiMapper convention: unversioned contract key + event name.
+      const unversionedLabel = `${contractKey.replace(/V3(_1)?$/, "")}:${eventName}`;
+      ponder.on(versionedEvent, async ({ event, context }) => {
+        await TransactionService.record(context, event, unversionedLabel);
+        return handleRelyDeny({
           event,
           context,
           eventName,
           isActive: eventName === "Rely",
-        })
-      );
+        });
+      });
       registeredEvents.push(versionedEvent);
     }
   }

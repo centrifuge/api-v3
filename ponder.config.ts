@@ -3,6 +3,7 @@ import { chains, blocks } from "./src/chains";
 import { decorateDeploymentContracts } from "./src/contracts";
 import { logIndexingPlan } from "./src/helpers/logger";
 import { ERC20Abi } from "./abis/ERC20";
+import { AuthAbi } from "./abis/Auth";
 import { V3_1_MIGRATION_BLOCKS } from "./src/config";
 import { GrooveBasinAbi } from "./abis/GrooveBasin";
 import { getGroveBasinPonderChain } from "./src/config/basin";
@@ -145,7 +146,10 @@ export const contractsV3_1 = decorateDeploymentContracts(
       },
     },
     tokenInstanceV3_1: {
-      abi: [ERC20Abi, "ShareToken"],
+      // AuthAbi replaces the registry "ShareToken" name: the published v3.1 registry no longer
+      // ships that ABI, which made this entry resolve to `never` at the type level and silently
+      // skip Rely/Deny on share tokens at runtime. Only Rely/Deny were consumed from it.
+      abi: [ERC20Abi, AuthAbi],
       factory: {
         abi: "Spoke",
         eventName: "AddShareClass",
@@ -171,9 +175,15 @@ const groveBasinChain = getGroveBasinPonderChain() as Record<
 
 export const contracts = {
   ...protocolContracts,
+  // Receipts flag is runtime-only here too (cast strips it from the type) — see the note in
+  // decorateDeploymentContracts; typing it through breaks Ponder's bare `Event` union.
   groveBasin: {
     abi: GrooveBasinAbi,
+    includeTransactionReceipts: true,
     chain: groveBasinChain,
+  } as {
+    abi: typeof GrooveBasinAbi;
+    chain: typeof groveBasinChain;
   },
 } as const;
 

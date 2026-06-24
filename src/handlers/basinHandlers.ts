@@ -10,7 +10,7 @@ import {
 } from "../helpers/basinReconciliation";
 import { logEvent, serviceError } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
-import { BasinRedeemRequestService, BasinSwapService } from "../services";
+import { BasinRedeemRequestService, BasinSwapService, TransactionService } from "../services";
 
 /**
  * Maps GroveBasin `Swap` asset pair to `basin_swap_direction` enum value.
@@ -39,6 +39,7 @@ function swapDirection(
 
 if (isGroveBasinIndexingConfigured) {
   ponder.on("groveBasin:Swap", async ({ event, context }) => {
+    await TransactionService.record(context, event, "groveBasin:Swap");
     const cfg = loadBasinConfig(context);
     if (!cfg) return;
 
@@ -72,6 +73,7 @@ if (isGroveBasinIndexingConfigured) {
   });
 
   ponder.on("groveBasin:RedeemInitiated", async ({ event, context }) => {
+    await TransactionService.record(context, event, "groveBasin:RedeemInitiated");
     const cfg = loadBasinConfig(context);
     if (!cfg) return;
 
@@ -162,6 +164,7 @@ if (isGroveBasinIndexingConfigured) {
   });
 
   ponder.on("groveBasin:RedeemCompleted", async ({ event, context }) => {
+    await TransactionService.record(context, event, "groveBasin:RedeemCompleted");
     const cfg = loadBasinConfig(context);
     if (!cfg) return;
 

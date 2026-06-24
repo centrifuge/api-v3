@@ -334,6 +334,14 @@ export function decorateDeploymentContracts<
       `${toContractCase(abiName)}${registryVersion.toUpperCase()}`,
       {
         abi,
+        // Fetch receipts so handlers can record per-tx gas usage (TransactionService).
+        // Backfill cost: one eth_getTransactionReceipt per matched tx, cached in ponder_sync.
+        // If a chain's backfill is too slow, Ponder supports per-chain overrides of this flag.
+        // Deliberately runtime-only: the return-type casts below erase it, because typing it
+        // through poisons Ponder's bare `Event` union (its receipt lookup collapses on union
+        // source names) and breaks every `Event`-typed signature in the service layer.
+        // TransactionService.record reads the receipt via a localized cast instead.
+        includeTransactionReceipts: true,
         chain: getContractChain(registryVersion, abiName, endblocks),
       },
     ];
@@ -431,6 +439,7 @@ export function decorateDeploymentContracts<
         mappingName,
         {
           abi: resolvedAbi,
+          includeTransactionReceipts: true,
           chain: getContractChain(registryVersion, m.factory.abi, endblocks, {
             // Type assertion: event name is validated above to exist in factory ABI
             // Cast through unknown to satisfy type system while maintaining runtime safety
@@ -440,7 +449,9 @@ export function decorateDeploymentContracts<
         },
       ];
     }
-  ) as Entries<AdditionalMappingsContracts<V, AM, keyof AM & string>>;
+    // Through unknown: runtime entries carry includeTransactionReceipts, which the target type
+    // deliberately omits (runtime-only flag, see note above).
+  ) as unknown as Entries<AdditionalMappingsContracts<V, AM, keyof AM & string>>;
 
   const result = Object.fromEntries([
     ...selectedContracts,
