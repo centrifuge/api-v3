@@ -48,7 +48,7 @@ export * from "./PoolManagerService";
 export * from "./PoolService";
 export * from "./PoolSpokeBlockchainService";
 export * from "./RedeemOrderService";
-export * from "./ShareIssuanceService";
+export * from "./TokenIssuanceService";
 export * from "./SmartContractService";
 export * from "./SmartContractWardService";
 export * from "./TokenInstancePositionService";

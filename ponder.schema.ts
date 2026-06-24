@@ -298,18 +298,19 @@ export const InvestorTransactionRelations = relations(InvestorTransaction, ({ on
   }),
 }));
 
-// Direct share mints/burns via BalanceSheet.issue()/revoke() (V3_1+). Captures
-// every mint/burn — including async- and sync-deposit-driven ones — with the NAV
-// price (only present on the Issue/Revoke events, not on the ERC-20 Transfer). The
+// Direct mints/burns via BalanceSheet.issue()/revoke() (V3_1+). `tokenId` is the
+// share class id (`scId`), consistent with the `Token` entity. Captures every
+// mint/burn — including async- and sync-deposit-driven ones — with the NAV price
+// (only present on the Issue/Revoke events, not on the ERC-20 Transfer). The
 // `isManual` flag isolates issuances NOT driven by the deposit flow (i.e. the
 // caller is neither the async nor the sync request manager).
-export const ShareIssuanceType = onchainEnum("share_issuance_type", ["ISSUE", "REVOKE"] as const);
+export const TokenIssuanceType = onchainEnum("token_issuance_type", ["ISSUE", "REVOKE"] as const);
 
-const ShareIssuanceColumns = (t: PgColumnsBuilders) => ({
+const TokenIssuanceColumns = (t: PgColumnsBuilders) => ({
   centrifugeId: t.text().notNull(),
   poolId: t.bigint().notNull(),
-  tokenId: t.hex().notNull(),
-  type: ShareIssuanceType("share_issuance_type").notNull(),
+  tokenId: t.hex().notNull(), // share class id (scId)
+  type: TokenIssuanceType("token_issuance_type").notNull(),
   sender: t.hex().notNull(), // msgSender() of the issue()/revoke() call — the classifier
   account: t.hex().notNull(), // `to` for ISSUE, `from` for REVOKE
   shares: t.bigint().notNull(),
@@ -318,9 +319,9 @@ const ShareIssuanceColumns = (t: PgColumnsBuilders) => ({
   logIndex: t.integer().notNull(),
   ...defaultColumns(t, false),
 });
-export const ShareIssuance = onchainTable(
-  "share_issuance",
-  ShareIssuanceColumns,
+export const TokenIssuance = onchainTable(
+  "token_issuance",
+  TokenIssuanceColumns,
   (t) => ({
     // logIndex in the PK guards against multiple issue()/revoke() in one tx
     id: primaryKey({
@@ -329,17 +330,17 @@ export const ShareIssuance = onchainTable(
   })
 );
 
-export const ShareIssuanceRelations = relations(ShareIssuance, ({ one }) => ({
+export const TokenIssuanceRelations = relations(TokenIssuance, ({ one }) => ({
   blockchain: one(Blockchain, {
-    fields: [ShareIssuance.centrifugeId],
+    fields: [TokenIssuance.centrifugeId],
     references: [Blockchain.centrifugeId],
   }),
   pool: one(Pool, {
-    fields: [ShareIssuance.poolId],
+    fields: [TokenIssuance.poolId],
     references: [Pool.id],
   }),
   token: one(Token, {
-    fields: [ShareIssuance.tokenId],
+    fields: [TokenIssuance.tokenId],
     references: [Token.id],
   }),
 }));

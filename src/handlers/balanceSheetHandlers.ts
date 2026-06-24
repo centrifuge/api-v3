@@ -1,4 +1,4 @@
-import { ponder } from "ponder:registry";
+import type { Context, Event } from "ponder:registry";
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceError } from "../helpers/logger";
 import {
@@ -8,30 +8,12 @@ import {
   EscrowService,
   HoldingEscrowService,
   PoolManagerService,
-  ShareIssuanceService,
+  TokenIssuanceService,
 } from "../services";
 import { snapshotter } from "../helpers/snapshotter";
 import { HoldingEscrowSnapshot } from "ponder:schema";
 import { REGISTRY_VERSION_ORDER, getContractAddressesForChain } from "../contracts";
 import { isLiveIndexingBlock } from "../helpers/liveIndexingWindow";
-
-/**
- * A `BalanceSheet.issue()` / `revoke()` is "flow-driven" when its caller is the
- * async or sync request manager (i.e. it backs a deposit claim or sync deposit).
- * Anything else is a manual/operator issuance. We scan every registry version on
- * the chain because the manager address can differ across deployment versions.
- */
-function isFlowMinter(chainId: number, sender: `0x${string}`): boolean {
-  const target = sender.toLowerCase();
-  for (let versionIndex = 0; versionIndex < REGISTRY_VERSION_ORDER.length; versionIndex++) {
-    const addresses = getContractAddressesForChain(chainId, versionIndex);
-    if (!addresses) continue;
-    for (const name of ["asyncRequestManager", "syncManager"] as const) {
-      if (addresses[name]?.toLowerCase() === target) return true;
-    }
-  }
-  return false;
-}
 
 multiMapper("balanceSheet:NoteDeposit", async ({ event, context }) => {
   logEvent(event, context, "balanceSheet:NoteDeposit");
@@ -180,16 +162,27 @@ multiMapper("balanceSheet:UpdateManager", async ({ event, context }) => {
   await poolManager.save(event);
 });
 
-// Registered V3_1-only (not via multiMapper): the V3 Issue/Revoke ABI lacks the
-// `sender` field that drives the manual-vs-flow classification.
-ponder.on("balanceSheetV3_1:Issue", async ({ event, context }) => {
+multiMapper("balanceSheet:Issue", recordIssue);
+/**
+ * Records `BalanceSheet.Issue` into `token_issuance`. v3 ABI lacks `sender` (needed for
+ * `isManual`), so v3 logs are skipped — same pattern as other version-shaped handlers.
+ */
+export async function recordIssue({
+  event,
+  context,
+}: {
+  event: Event<"balanceSheetV3:Issue" | "balanceSheetV3_1:Issue">;
+  context: Context;
+}) {
   logEvent(event, context, "balanceSheet:Issue");
+  if (!("sender" in event.args)) return;
+
   const { poolId, scId: tokenId, sender, to, pricePoolPerShare, shares } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
   const chainId = context.chain.id;
 
-  await ShareIssuanceService.recordIssue(
+  await TokenIssuanceService.recordIssue(
     context,
     {
       centrifugeId,
@@ -204,16 +197,28 @@ ponder.on("balanceSheetV3_1:Issue", async ({ event, context }) => {
     },
     event
   );
-});
+}
 
-ponder.on("balanceSheetV3_1:Revoke", async ({ event, context }) => {
+multiMapper("balanceSheet:Revoke", recordRevoke);
+/**
+ * Records `BalanceSheet.Revoke` into `token_issuance`. Skips v3 logs (no `sender` in ABI).
+ */
+export async function recordRevoke({
+  event,
+  context,
+}: {
+  event: Event<"balanceSheetV3:Revoke" | "balanceSheetV3_1:Revoke">;
+  context: Context;
+}) {
   logEvent(event, context, "balanceSheet:Revoke");
+  if (!("sender" in event.args)) return;
+
   const { poolId, scId: tokenId, sender, from, pricePoolPerShare, shares } = event.args;
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
   const chainId = context.chain.id;
 
-  await ShareIssuanceService.recordRevoke(
+  await TokenIssuanceService.recordRevoke(
     context,
     {
       centrifugeId,
@@ -228,4 +233,22 @@ ponder.on("balanceSheetV3_1:Revoke", async ({ event, context }) => {
     },
     event
   );
-});
+}
+
+/**
+ * A `BalanceSheet.issue()` / `revoke()` is "flow-driven" when its caller is the
+ * async or sync request manager (i.e. it backs a deposit claim or sync deposit).
+ * Anything else is a manual/operator issuance. We scan every registry version on
+ * the chain because the manager address can differ across deployment versions.
+ */
+function isFlowMinter(chainId: number, sender: `0x${string}`): boolean {
+  const target = sender.toLowerCase();
+  for (let versionIndex = 0; versionIndex < REGISTRY_VERSION_ORDER.length; versionIndex++) {
+    const addresses = getContractAddressesForChain(chainId, versionIndex);
+    if (!addresses) continue;
+    for (const name of ["asyncRequestManager", "syncManager"] as const) {
+      if (addresses[name]?.toLowerCase() === target) return true;
+    }
+  }
+  return false;
+}
