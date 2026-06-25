@@ -48,8 +48,91 @@ jobs:
         run: pnpm update-registry
 
       - name: Run indexer smokes against staging
+        id: smoke
+        continue-on-error: true
         env:
           GRAPHQL_URL: ${{ matrix.graphql_url }}
+          SMOKE_REGION: ${{ matrix.region }}
           ERPC_BASE_URL: ${{ secrets.ERPC_BASE_URL }}
           ERPC_API_KEY: ${{ secrets.ERPC_API_KEY }}
-        run: pnpm smoke --mismatches-only
+        run: pnpm smoke --mismatches-only --report-file smoke-report-${{ matrix.region }}.json
+
+      - name: Upload smoke report
+        if: always()
+        uses: actions/upload-artifact@65c905b4a6fc54cb25bc7e9bfd62f01aa19ef2a9
+        with:
+          name: smoke-report-${{ matrix.region }}
+          path: smoke-report-${{ matrix.region }}.json
+          if-no-files-found: warn
+
+      - name: Fail if smokes failed
+        if: steps.smoke.outcome != 'success'
+        run: exit 1
+
+  smoke-comment:
+    name: Comment smoke results on PR
+    needs: smoke-release
+    if: >-
+      always()
+      && needs.smoke-release.result != 'skipped'
+      && github.event_name == 'pull_request'
+      && startsWith(github.event.pull_request.head.ref, 'release-please--')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Download smoke reports
+        uses: actions/download-artifact@d3f86a0b0b9d0e85d2b194c1bb8c66102d647751
+        with:
+          pattern: smoke-report-*
+          merge-multiple: true
+          path: smoke-reports
+
+      - name: Build PR comment body
+        id: comment
+        env:
+          GITHUB_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(smoke-reports/smoke-report-*.json)
+          if [ ${#files[@]} -eq 0 ]; then
+            printf '%s\n' '<!-- cfg-api-v3-smoke-report -->' '## Smoke test results' '' \
+              'No smoke report artifacts were uploaded. Check the workflow logs for EU/US matrix jobs.' \
+              '' "[Workflow run](${GITHUB_WORKFLOW_URL})" > comment-body.md
+          else
+            node test/smoke/ci/format-pr-comment.mjs "${files[@]}" > comment-body.md
+          fi
+
+      - name: Post or update PR comment
+        uses: actions/github-script@ed597411d8f92447f8f4cb002d929b450b819b25
+        with:
+          script: |
+            const fs = require("fs");
+            const marker = "<!-- cfg-api-v3-smoke-report -->";
+            const body = fs.readFileSync("comment-body.md", "utf8");
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

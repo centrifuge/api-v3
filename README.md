@@ -127,7 +127,7 @@ pnpm smoke issuance --symbol ACRDX --chain plume
 
 Optional `ERPC_BASE_URL` (e.g. `https://erpc.cfg.embrio.tech/main`) and `ERPC_API_KEY` in `.env.local` for RPC (`{base}/evm/<chainId>?secret=…`); otherwise smokes use Chainlist public endpoints (`test/smoke/lib/public-rpc.mjs`). Use `--graphql` to point at a local or staging indexer.
 
-**CI:** [`.github/workflows/smoke.yml`](.github/workflows/smoke.yml) runs `pnpm update-registry` (mainnet `generated/` is not committed), sets `ERPC_BASE_URL` / `ERPC_API_KEY` from GitHub secrets, then runs smokes. Release-please PRs run the full suite against both mainnet staging regions (`main-s` EU and `main-us-s` US). Add **Smoke tests / Release PR staging (eu)** and **(us)** as required checks before merging a release.
+**CI:** [`.github/workflows/smoke.yml`](.github/workflows/smoke.yml) runs `pnpm update-registry` (mainnet `generated/` is not committed), sets `ERPC_BASE_URL` / `ERPC_API_KEY` from GitHub secrets, then runs smokes against EU and US staging. Results are posted as a single PR comment on release-please PRs (updated in place on each run). Add **Smoke tests / Release PR staging (eu)** and **(us)** as required checks before merging a release.
 
 ## Deployment environments
 
