@@ -59,7 +59,7 @@ jobs:
 
       - name: Upload smoke report
         if: always()
-        uses: actions/upload-artifact@65c905b4a6fc54cb25bc7e9bfd62f01aa19ef2a9
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: smoke-report-${{ matrix.region }}
           path: smoke-report-${{ matrix.region }}.json
@@ -85,7 +85,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Download smoke reports
-        uses: actions/download-artifact@d3f86a0b0b9d0e85d2b194c1bb8c66102d647751
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           pattern: smoke-report-*
           merge-multiple: true
@@ -109,7 +109,7 @@ jobs:
           fi
 
       - name: Post or update PR comment
-        uses: actions/github-script@ed597411d8f92447f8f4cb002d929b450b819b25
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
             const fs = require("fs");
