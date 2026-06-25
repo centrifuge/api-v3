@@ -4,12 +4,12 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["test/**/*.test.ts"],
+    include: ["test/unit/**/*.test.ts"],
   },
   resolve: {
     alias: {
-      "ponder:schema": path.resolve(__dirname, "test/helpers/ponder-schema.ts"),
-      "ponder:registry": path.resolve(__dirname, "test/helpers/ponder-registry.stub.ts"),
+      "ponder:schema": path.resolve(__dirname, "test/unit/support/ponder-schema.ts"),
+      "ponder:registry": path.resolve(__dirname, "test/unit/support/ponder-registry.stub.ts"),
     },
   },
 });

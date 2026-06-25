@@ -127,7 +127,7 @@ Handlers **never** set `crosschainPayload.status` in TypeScript (except rare exp
 - Duplicate status rules in TypeScript (`if (sentAt) return "InTransit"`) — drifts from SQL.
 - Reference only `p.completed_at` (etc.) in aggregate UPDATE `status` SET while assigning `completed_at` in the same statement — use `COALESCE(p.col, <new CASE>)` (Completed/Delivered desync bug).
 
-**Tests:** `test/parity/crosschain-payload-status.test.ts`, `test/parity/crosschain-sql-safety.test.ts`.
+**Tests:** `test/unit/parity/crosschain-payload-status.test.ts`, `test/unit/parity/crosschain-sql-safety.test.ts`.
 
 **ON CONFLICT SET** (sender merge):
 
@@ -490,7 +490,7 @@ Define and commit before A3:
 5. **Permuted order vectors** — execute-before-prepare, handle-before-send, etc.
 6. **v3 proof quorum** — regression only.
 
-Store as: `tests/fixtures/crosschain-messaging/` + GraphQL snapshot ids at block `B`.
+Store as: `test/unit/fixtures/crosschain-messaging/` + GraphQL snapshot ids at block `B`.
 
 ---
 

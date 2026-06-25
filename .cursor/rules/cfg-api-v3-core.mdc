@@ -14,7 +14,7 @@ Before substantive work, read **[CLAUDE.md](CLAUDE.md)** at the repo root. It is
 - **Services** own persistence: extend abstract **`Service<typeof Table>`** from [`src/services/Service.ts`](src/services/Service.ts) with **`static readonly entityTable`** / **`entityName`**; use **`serviceLog`** / **`serviceError`** from [`src/helpers/logger.ts`](src/helpers/logger.ts) on meaningful methods.
 - **Multi-version contracts:** register contract events with **`multiMapper`** from [`src/helpers/multiMapper.ts`](src/helpers/multiMapper.ts) when the same logical event exists across `HubV3`, `HubV3_1`, etc.
 - **Batch when possible:** **`insertMany`** / **`saveMany`** on services to reduce DB round-trips.
-- **Raw SQL binds:** Ponder's `context.db.sql` sends JS values as text params. In `COALESCE` / `col = $n`, use **`bindPg*`** from [`src/helpers/sqlSafety.ts`](src/helpers/sqlSafety.ts) (`bindPgTimestamp`, `bindPgInteger`, `bindPgBigint`, `bindPgHex`, `bindPgHexBytes32`) — never `${date}`, `${n}`, or `${hex}` directly. Enforced by **`test/parity/raw-sql-bindings.test.ts`**.
+- **Raw SQL binds:** Ponder's `context.db.sql` sends JS values as text params. In `COALESCE` / `col = $n`, use **`bindPg*`** from [`src/helpers/sqlSafety.ts`](src/helpers/sqlSafety.ts) (`bindPgTimestamp`, `bindPgInteger`, `bindPgBigint`, `bindPgHex`, `bindPgHexBytes32`) — never `${date}`, `${n}`, or `${hex}` directly. Enforced by **`test/unit/parity/raw-sql-bindings.test.ts`**.
 
 **Before finishing a task:** run **`pnpm typecheck`** and **`pnpm lint`** from the repo root when you changed TypeScript. After **`ponder.schema.ts`** or Ponder config changes, run **`pnpm codegen`**.
 
