@@ -7,7 +7,7 @@ import { sql, type SQL } from "drizzle-orm";
  * or `col = $n`, PostgreSQL rejects mixed types (timestamp/text, integer/text, text/bytea).
  *
  * Always use `bindPg*` helpers here — never `${date}`, `${n}`, or `${hex}` directly in raw SQL.
- * Enforcement: `test/parity/raw-sql-bindings.test.ts`.
+ * Enforcement: `test/unit/parity/raw-sql-bindings.test.ts`.
  */
 
 /** Exported bind helper names (keep in sync with tests). */

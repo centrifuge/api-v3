@@ -165,7 +165,7 @@ export type PayloadStatusReceiveAnchor = {
  * Security: chain/event values are bound via Drizzle `sql` parameters (`${...}`).
  * `sql.raw` is limited to static CASE fragments; table names use Drizzle table refs.
  * Dynamic values MUST use `bindPg*` from [`sqlSafety.ts`](../helpers/sqlSafety.ts) — see
- * `test/parity/raw-sql-bindings.test.ts`.
+ * `test/unit/parity/raw-sql-bindings.test.ts`.
  * @param anchor - Receive event anchor for newly set derived timestamps
  * @param payloadId - Payload id
  * @param payloadIndex - Payload index

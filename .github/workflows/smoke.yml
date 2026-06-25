@@ -1,0 +1,55 @@
+name: Smoke tests
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  smoke-release:
+    name: Release PR staging (${{ matrix.region }})
+    if: startsWith(github.event.pull_request.head.ref, 'release-please--')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - region: eu
+            graphql_url: https://api-v3-main-s.cfg.embrio.tech/
+          - region: us
+            graphql_url: https://api-v3-main-s.cfg-us.embrio.tech/
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061
+        with:
+          version: 10.15.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Fetch registry
+        env:
+          ENVIRONMENT: mainnet
+        run: pnpm update-registry
+
+      - name: Run indexer smokes against staging
+        env:
+          GRAPHQL_URL: ${{ matrix.graphql_url }}
+          ERPC_BASE_URL: ${{ secrets.ERPC_BASE_URL }}
+          ERPC_API_KEY: ${{ secrets.ERPC_API_KEY }}
+        run: pnpm smoke --mismatches-only

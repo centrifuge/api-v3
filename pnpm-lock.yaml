@@ -94,6 +94,9 @@ importers:
       '@typescript/native-preview':
         specifier: 7.0.0-dev.20251124.1
         version: 7.0.0-dev.20251124.1
+      commander:
+        specifier: 12.1.0
+        version: 12.1.0
       eslint:
         specifier: ^8.57.1
         version: 8.57.1

@@ -115,6 +115,20 @@ While the process is running, Ponder serves a GraphQL API; the URL is printed in
 
 The public production GraphQL endpoint used for schema checks in this repo is [https://api.centrifuge.io](https://api.centrifuge.io).
 
+## Smoke tests
+
+Operational integrity checks compare the GraphQL indexer to on-chain view functions via `eth_call` (no log replay). Specs and design principles live in [`test/smoke/specs/README.md`](test/smoke/specs/README.md).
+
+```bash
+pnpm smoke list
+pnpm smoke --only issuance,onramp --mismatches-only
+pnpm smoke issuance --symbol ACRDX --chain plume
+```
+
+Optional `ERPC_BASE_URL` (e.g. `https://erpc.cfg.embrio.tech/main`) and `ERPC_API_KEY` in `.env.local` for RPC (`{base}/evm/<chainId>?secret=…`); otherwise smokes use Chainlist public endpoints (`test/smoke/lib/public-rpc.mjs`). Use `--graphql` to point at a local or staging indexer.
+
+**CI:** [`.github/workflows/smoke.yml`](.github/workflows/smoke.yml) runs `pnpm update-registry` (mainnet `generated/` is not committed), sets `ERPC_BASE_URL` / `ERPC_API_KEY` from GitHub secrets, then runs smokes. Release-please PRs run the full suite against both mainnet staging regions (`main-s` EU and `main-us-s` US). Add **Smoke tests / Release PR staging (eu)** and **(us)** as required checks before merging a release.
+
 ## Deployment environments
 
 Helm values in [`environments/`](environments/) describe how the app is deployed (indexer + query, ingress hosts, env vars). Summary:
