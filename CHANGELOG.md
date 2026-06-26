@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.1.0](https://github.com/centrifuge/api-v3/compare/v4.0.1...v4.1.0) (2026-06-26)
+
+
+### Features
+
+* **balance-sheet:** track manual share issuances ([#424](https://github.com/centrifuge/api-v3/issues/424)) ([2efdc84](https://github.com/centrifuge/api-v3/commit/2efdc8492e151beed826175e767ccadfb6af8718))
+
+
+### Bug Fixes
+
+* onofframp address decoding ([0c71bed](https://github.com/centrifuge/api-v3/commit/0c71bed553a2ea69b7e3b792d3a458f37abb4ca0))
+
 ## [4.0.1](https://github.com/centrifuge/api-v3/compare/v4.0.0...v4.0.1) (2026-06-23)
 
 
