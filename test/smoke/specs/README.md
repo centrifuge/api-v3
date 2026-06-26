@@ -12,7 +12,7 @@ Few **high-signal** integrity checks: each smoke uses simple, authoritative on-c
 6. **Cross-chain lag** — skip rows with `crosschainInProgress` by default; live **prices** excluded; **historical prices at snapshot block** included in `snapshots` smoke.
 7. **Historical layer** — snapshot `blockNumber` pins `eth_call`; verifies the indexer recorded the right value **at the right block** (see [snapshots.md](./snapshots.md)).
 
-Shared CLI/runtime: [_shared.md](./_shared.md).
+Shared CLI/runtime: [_shared.md](./_shared.md). **Hub–spoke / multichain rules:** [hub-spoke.md](./hub-spoke.md).
 
 ## Core suite (implement these)
 

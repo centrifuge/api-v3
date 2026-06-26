@@ -32,6 +32,7 @@
     "test:unit": "vitest run test/unit",
     "test:parity:crosschain": "vitest run test/unit/parity/crosschain-",
     "test:parity:decimals": "vitest run test/unit/parity/resolve-asset-decimals.test.ts",
+    "sync:invalidate-factories": "node scripts/sync-invalidate-factories.mjs",
     "sync:export": "mkdir -p .ponder && docker compose exec -T db sh -lc 'pg_dump --dbname=postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/$POSTGRES_DB --schema=ponder_sync --no-owner --no-privileges --clean --if-exists' | gzip > .ponder/$(date +%Y%m%d)_ponder_sync.sql.gz",
     "sync:push": "LATEST=$(ls -t .ponder/*_ponder_sync.sql.gz 2>/dev/null | head -n 1); TAG=$(basename \"$LATEST\" | sed 's/_ponder_sync.sql.gz$//'); cp \"$LATEST\" ponder_sync.sql.gz; REPO=$(node -p \"(() => { const repo=require('./package.json').repository; const url=typeof repo==='string'?repo:repo?.url; return new URL(url).pathname.replace(/^\\\\//,'').replace(/\\\\.git$/,''); })()\"); USER=$(gh api user -q .login); gh auth token | oras login ghcr.io -u \"$USER\" --password-stdin; oras push ghcr.io/$REPO/ponder-sync:$TAG ponder_sync.sql.gz:application/gzip; oras tag ghcr.io/$REPO/ponder-sync:$TAG latest; rm -f ponder_sync.sql.gz"
   },

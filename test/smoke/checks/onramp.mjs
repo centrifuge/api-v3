@@ -2,6 +2,7 @@ import { parseAbi } from "viem";
 import { forEachBatch, mapPool } from "../lib/helpers.mjs";
 import { normAddr } from "../lib/diff.mjs";
 import { resolveCentrifugeChain } from "../lib/context.mjs";
+import { entityIdOnNetwork, hasContractCode } from "../lib/hubSpoke.mjs";
 
 const ONRAMP_ABI = parseAbi(["function onramp(address asset) view returns (bool)"]);
 
@@ -62,6 +63,12 @@ export async function runSmoke(ctx) {
       return;
     }
     const client = chain.client;
+    const chainLabel = chain.chainName;
+
+    if (!(await hasContractCode(client, manager.address, ctx.atBlock))) {
+      skipped += 1;
+      return;
+    }
     const chainAssets = (
       await ctx.paginate(ASSETS_QUERY, "assets", { where: { centrifugeId: manager.centrifugeId } })
     )
@@ -105,7 +112,11 @@ export async function runSmoke(ctx) {
       if (!indexedEnabled.has(asset)) {
         mismatches.push(
           ctx.mismatch({
-            entityId: `${manager.address}:${asset}`,
+            entityId: entityIdOnNetwork(
+              manager.centrifugeId,
+              chainLabel,
+              `${manager.address}:${asset}`
+            ),
             field: "onRampAsset.isEnabled",
             indexed: row ? String(row.isEnabled) : "missing",
             onchain: "true",

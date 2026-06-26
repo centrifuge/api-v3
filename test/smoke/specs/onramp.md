@@ -9,7 +9,9 @@
 
 ## Purpose
 
-**Gold-standard smoke:** for each `OnOffRampManager`, probe every ERC-20 asset on that chain and verify bidirectional parity with `onramp(asset)`. Catches missing rows and wrong flags — not just “indexed rows look consistent.”
+**Gold-standard smoke:** for each **`OnOffRampManager` row** `(address, centrifugeId)`, probe every ERC-20 asset **registered on that spoke** and verify parity with `onramp(asset)` on **that chain's RPC**. Catches missing rows and wrong flags — not just “indexed rows look consistent.”
+
+Same CREATE3 manager address on Ethereum vs Avalanche is **two independent checks** ([hub-spoke.md](./hub-spoke.md)).
 
 ## Fields under test
 
@@ -61,7 +63,7 @@ Filter assets: `centrifugeId` = manager chain, `assetTokenId: "0"` (ERC-20 only)
 ## RPC calls
 
 ```solidity
-// IOnOffRamp at manager.address
+// IOnOffRamp at manager.address on the spoke chain for manager.centrifugeId
 function onramp(address asset) external view returns (bool);
 ```
 
@@ -70,7 +72,7 @@ Batch via `--rpc-batch` parallel `readContract` per asset address.
 ## Comparison
 
 - Boolean exact match (tolerance 0).
-- Compare per `(manager, assetAddress)` after normalizing addresses to lowercase.
+- Compare per `(centrifugeId, manager.address, assetAddress)` — `entityId` format: `{centrifugeId}@{chain}:{manager}:{asset}`.
 
 ## Sampling
 
@@ -94,14 +96,16 @@ Narrow scope only via explicit filters: `--chain`, `--centrifuge-id`, `--pool-id
 
 ## Skip conditions
 
-- `OnRampAsset.crosschainInProgress` set.
+- Manager has no bytecode on the spoke chain (CREATE3 address not deployed there).
+- `OnRampAsset.crosschainInProgress` set (when `--skip-crosschain`, default).
 - Missing RPC for manager chain.
 - Asset is ERC-6909 (`assetTokenId != 0`) — excluded from probe set.
 
 ## Known limitations
 
-- Probes **every** manager and **every** ERC-20 asset on the relevant chain(s) — expensive on asset-heavy chains; use `--chain` / `--pool-id` / `--manager` to narrow, not `--sample`.
+- Probes **every** manager row and **every** ERC-20 asset on that row's spoke — expensive on asset-heavy chains; use `--chain` / `--pool-id` / `--manager` to narrow, not `--sample`.
 - Does not verify off-ramp or relayer config (see archived `offramp` spec).
+- Missing `OnRampAsset` with on-chain `UpdateOnramp` present may be [Ponder factory-child sync](../../../AGENTS.md#ponder-factory-discovery-cache-bug-pinned-ponder0166), not handler logic.
 
 ## Examples
 

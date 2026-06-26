@@ -63,7 +63,8 @@ Address exact match (lowercase).
 ## Known limitations
 
 - Does not verify escrow **balances** (see `holding-escrow`).
-- v3-era escrows vs v3_1 `BalanceSheet.escrow` CREATE2 slots produce false mismatches for unmigrated pools; see [docs/10-entity-provenance.md](../../docs/10-entity-provenance.md) for the planned `createdBy*` filter/skip.
+- On v3_1 spokes, `BalanceSheet.escrow()` returns the current `PoolEscrowFactory` CREATE2 slot. **Migrated pools must match** — a mismatch is a real signal: missing v3_1 `poolEscrowFactory:DeployPoolEscrow` in the index, wrong `getLatest` row, or incomplete migration on-chain. Do not skip.
+- Future: filter to `createdByRegistryVersion = 'v3_1'` when provenance ships ([docs/10-entity-provenance.md](../../docs/10-entity-provenance.md)).
 
 ## Examples
 

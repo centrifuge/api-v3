@@ -103,7 +103,7 @@ pnpm start
 
 Optional artifact tag: pass `--tag <tag>`, `-t <tag>`, or a single positional argument; `latest` or a numeric tag (see script validation).
 
-Related maintainer scripts: `pnpm sync:export` (dump `ponder_sync` schema from the local Docker Postgres) and `pnpm sync:push` (publish a snapshot to GHCR).
+Related maintainer scripts: `pnpm sync:export` (dump `ponder_sync` schema from the local Docker Postgres), `pnpm sync:push` (publish a snapshot to GHCR), and `pnpm sync:invalidate-factories` (clear factory discovery cache while keeping RPC block/log cache — see [`scripts/sync-invalidate-factories.mjs`](scripts/sync-invalidate-factories.mjs) and [AGENTS.md](AGENTS.md)).
 
 ## Database schema
 

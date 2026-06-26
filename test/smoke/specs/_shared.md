@@ -42,7 +42,7 @@ pnpm smoke list
 
 ## Chain resolution
 
-Query `blockchains { items { id centrifugeId name } }` once. **Never assume Ethereum** — each network has its own hub stack (CREATE3-same addresses, separate state).
+Query `blockchains { items { id centrifugeId name } }` once. **Never assume Ethereum** — each network has its own hub/spoke stack (CREATE3-same addresses, **separate state per chain**). See [hub-spoke.md](./hub-spoke.md).
 
 Use `resolveEntityChain(ctx, row)` from `test/smoke/lib/context.mjs`:
 
@@ -54,6 +54,8 @@ Use `resolveEntityChain(ctx, row)` from `test/smoke/lib/context.mjs`:
 
 Then `deployment(chainId)` for contract addresses; RPC via `ERPC_BASE_URL` / `ERPC_API_KEY` or Chainlist fallbacks (not `PONDER_RPC_URL_*`).
 
+**`entityId` convention:** prefix with `{centrifugeId}@{chainName}:` when the same CREATE3 address can exist on multiple networks (managers, vaults). Helpers: `test/smoke/lib/hubSpoke.mjs`.
+
 **Per-smoke routing:**
 
 | Smoke | Chain source |
@@ -62,7 +64,7 @@ Then `deployment(chainId)` for contract addresses; RPC via `ERPC_BASE_URL` / `ER
 | `asset` (registration) | `AssetRegistration.centrifugeId` |
 | `asset` (spoke id map) | `Asset.centrifugeId` |
 | `issuance`, `token-instance`, `escrow`, `vault` | row `centrifugeId` + `blockchain` |
-| `onramp` | `OnOffRampManager.centrifugeId` |
+| `onramp` | `OnOffRampManager.centrifugeId` — **one pass per `(address, centrifugeId)` row** |
 | `pool-spoke-presence` | `PoolSpokeBlockchain.centrifugeId` / `blockchain` |
 | `snapshots` (token/pool) | `triggerChainId` or linked `pool.centrifugeId` |
 | `deployment` | each `deployment.chainId` |
