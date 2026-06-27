@@ -29,7 +29,7 @@ const INSTANCE_SNAPSHOTS_QUERY = `
       orderDirection: "desc"
     ) {
       items {
-        tokenId centrifugeId blockNumber trigger triggerChainId totalIssuance tokenPrice
+        tokenId centrifugeId blockNumber timestamp trigger triggerChainId totalIssuance tokenPrice
       }
       pageInfo { endCursor hasNextPage }
     }
@@ -40,7 +40,7 @@ const TOKEN_SNAPSHOTS_QUERY = `
   query TokenSnapshotsRecent($limit: Int!, $after: String) {
     tokenSnapshots(limit: $limit, after: $after, orderBy: "blockNumber", orderDirection: "desc") {
       items {
-        id blockNumber trigger triggerChainId totalIssuance tokenPrice tokenPriceComputedAt
+        id blockNumber timestamp trigger triggerChainId totalIssuance tokenPrice tokenPriceComputedAt
       }
       pageInfo { endCursor hasNextPage }
     }
@@ -51,7 +51,7 @@ const POOL_SNAPSHOTS_QUERY = `
   query PoolSnapshotsRecent($limit: Int!, $after: String) {
     poolSnapshots(limit: $limit, after: $after, orderBy: "blockNumber", orderDirection: "desc") {
       items {
-        id blockNumber trigger triggerChainId currency
+        id blockNumber timestamp trigger triggerChainId currency
       }
       pageInfo { endCursor hasNextPage }
     }
@@ -93,6 +93,57 @@ const POOL_LOOKUP = `
  */
 function scIdFromTokenId(tokenId) {
   return `0x${BigInt(tokenId).toString(16).padStart(32, "0")}`;
+}
+
+/**
+ * @param {string | number | null | undefined} timestamp
+ * @returns {string | null}
+ */
+function formatSnapshotTime(timestamp) {
+  if (timestamp == null || timestamp === "") return null;
+  const d = new Date(timestamp);
+  if (Number.isNaN(d.getTime())) return String(timestamp);
+  return d.toISOString();
+}
+
+/**
+ * Human-readable snapshot context for mismatch lines (block time + trigger).
+ *
+ * @param {{ timestamp?: string | number | null; trigger?: string | null }} snap
+ * @returns {string | undefined}
+ */
+function snapshotNote(snap) {
+  /** @type {string[]} */
+  const parts = [];
+  const at = formatSnapshotTime(snap.timestamp);
+  if (at) parts.push(`at=${at}`);
+  if (snap.trigger) parts.push(`trigger=${snap.trigger}`);
+  return parts.length > 0 ? parts.join(" ") : undefined;
+}
+
+/**
+ * @param {import('../lib/context.mjs').SmokeContext} ctx
+ * @param {import('../lib/report.mjs').Mismatch[]} mismatches
+ * @param {{
+ *   kind: string;
+ *   key: string;
+ *   snap: { blockNumber: string | number | bigint; timestamp?: string | number | null; trigger?: string | null };
+ *   chainLabel: string;
+ *   field: string;
+ *   indexed: string;
+ *   onchain: string;
+ * }} args
+ */
+function pushSnapshotMismatch(ctx, mismatches, { kind, key, snap, chainLabel, field, indexed, onchain }) {
+  mismatches.push(
+    ctx.mismatch({
+      entityId: `${kind}:${key}@${snap.blockNumber}@${chainLabel}`,
+      field,
+      indexed,
+      onchain,
+      note: snapshotNote(snap),
+    })
+  );
 }
 
 /**
@@ -175,14 +226,15 @@ export async function runSmoke(ctx) {
         });
         const diff = diffBigInt(BigInt(snap.totalIssuance ?? "0"), onchain, ctx.tolerance);
         if (!diff.match) {
-          mismatches.push(
-            ctx.mismatch({
-              entityId: `tokenInstanceSnapshot:${snap.tokenId}@${blockNumber}@${chainLabel}`,
-              field: "totalIssuance",
-              indexed: String(snap.totalIssuance),
-              onchain: onchain.toString(),
-            })
-          );
+          pushSnapshotMismatch(ctx, mismatches, {
+            kind: "tokenInstanceSnapshot",
+            key: snap.tokenId,
+            snap,
+            chainLabel,
+            field: "totalIssuance",
+            indexed: String(snap.totalIssuance),
+            onchain: onchain.toString(),
+          });
         }
       } catch {
         skipped += 1;
@@ -199,14 +251,15 @@ export async function runSmoke(ctx) {
             blockNumber,
           });
           if (BigInt(snap.tokenPrice) !== BigInt(onPrice)) {
-            mismatches.push(
-              ctx.mismatch({
-                entityId: `tokenInstanceSnapshot:${snap.tokenId}@${blockNumber}@${chainLabel}`,
-                field: "tokenPrice",
-                indexed: String(snap.tokenPrice),
-                onchain: String(onPrice),
-              })
-            );
+            pushSnapshotMismatch(ctx, mismatches, {
+              kind: "tokenInstanceSnapshot",
+              key: snap.tokenId,
+              snap,
+              chainLabel,
+              field: "tokenPrice",
+              indexed: String(snap.tokenPrice),
+              onchain: String(onPrice),
+            });
           }
         } catch {
           skipped += 1;
@@ -258,27 +311,29 @@ export async function runSmoke(ctx) {
           skipped += priceResult.revert ? 0 : 1;
           if (priceResult.revert) {
             checked += 1;
-            mismatches.push(
-              ctx.mismatch({
-                entityId: `tokenSnapshot:${snap.id}@${blockNumber}@${chainLabel}`,
-                field: "tokenPrice",
-                indexed: String(snap.tokenPrice),
-                onchain: ONCHAIN_NOT_FOUND,
-              })
-            );
+            pushSnapshotMismatch(ctx, mismatches, {
+              kind: "tokenSnapshot",
+              key: snap.id,
+              snap,
+              chainLabel,
+              field: "tokenPrice",
+              indexed: String(snap.tokenPrice),
+              onchain: ONCHAIN_NOT_FOUND,
+            });
           }
         } else {
           checked += 1;
           const [onPrice] = priceResult.value;
           if (BigInt(snap.tokenPrice) !== BigInt(onPrice)) {
-            mismatches.push(
-              ctx.mismatch({
-                entityId: `tokenSnapshot:${snap.id}@${blockNumber}@${chainLabel}`,
-                field: "tokenPrice",
-                indexed: String(snap.tokenPrice),
-                onchain: String(onPrice),
-              })
-            );
+            pushSnapshotMismatch(ctx, mismatches, {
+              kind: "tokenSnapshot",
+              key: snap.id,
+              snap,
+              chainLabel,
+              field: "tokenPrice",
+              indexed: String(snap.tokenPrice),
+              onchain: String(onPrice),
+            });
           }
         }
       }
@@ -297,27 +352,29 @@ export async function runSmoke(ctx) {
           skipped += issuanceResult.revert ? 0 : 1;
           if (issuanceResult.revert) {
             checked += 1;
-            mismatches.push(
-              ctx.mismatch({
-                entityId: `tokenSnapshot:${snap.id}@${blockNumber}@${chainLabel}`,
-                field: "totalIssuance",
-                indexed: String(snap.totalIssuance),
-                onchain: ONCHAIN_NOT_FOUND,
-              })
-            );
+            pushSnapshotMismatch(ctx, mismatches, {
+              kind: "tokenSnapshot",
+              key: snap.id,
+              snap,
+              chainLabel,
+              field: "totalIssuance",
+              indexed: String(snap.totalIssuance),
+              onchain: ONCHAIN_NOT_FOUND,
+            });
           }
         } else {
           checked += 1;
           const diff = diffBigInt(BigInt(snap.totalIssuance), issuanceResult.value, ctx.tolerance);
           if (!diff.match) {
-            mismatches.push(
-              ctx.mismatch({
-                entityId: `tokenSnapshot:${snap.id}@${blockNumber}@${chainLabel}`,
-                field: "totalIssuance",
-                indexed: String(snap.totalIssuance),
-                onchain: issuanceResult.value.toString(),
-              })
-            );
+            pushSnapshotMismatch(ctx, mismatches, {
+              kind: "tokenSnapshot",
+              key: snap.id,
+              snap,
+              chainLabel,
+              field: "totalIssuance",
+              indexed: String(snap.totalIssuance),
+              onchain: issuanceResult.value.toString(),
+            });
           }
         }
       }
@@ -362,14 +419,15 @@ export async function runSmoke(ctx) {
       if (!currencyResult.ok) {
         if (currencyResult.revert && snap.currency != null) {
           checked += 1;
-          mismatches.push(
-            ctx.mismatch({
-              entityId: `poolSnapshot:${snap.id}@${blockNumber}@${chainLabel}`,
-              field: "currency",
-              indexed: String(snap.currency),
-              onchain: ONCHAIN_NOT_FOUND,
-            })
-          );
+          pushSnapshotMismatch(ctx, mismatches, {
+            kind: "poolSnapshot",
+            key: String(snap.id),
+            snap,
+            chainLabel,
+            field: "currency",
+            indexed: String(snap.currency),
+            onchain: ONCHAIN_NOT_FOUND,
+          });
         } else {
           skipped += 1;
         }
@@ -378,14 +436,15 @@ export async function runSmoke(ctx) {
 
       checked += 1;
       if (snap.currency != null && BigInt(snap.currency) !== BigInt(currencyResult.value)) {
-        mismatches.push(
-          ctx.mismatch({
-            entityId: `poolSnapshot:${snap.id}@${blockNumber}@${chainLabel}`,
-            field: "currency",
-            indexed: String(snap.currency),
-            onchain: String(currencyResult.value),
-          })
-        );
+        pushSnapshotMismatch(ctx, mismatches, {
+          kind: "poolSnapshot",
+          key: String(snap.id),
+          snap,
+          chainLabel,
+          field: "currency",
+          indexed: String(snap.currency),
+          onchain: String(currencyResult.value),
+        });
       }
     }
   }
