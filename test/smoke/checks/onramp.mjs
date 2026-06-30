@@ -99,6 +99,7 @@ export async function runSmoke(ctx) {
         abi: ONRAMP_ABI,
         functionName: "onramp",
         args: [asset],
+        ...(ctx.atBlock != null ? { blockNumber: ctx.atBlock } : {}),
       });
       if (ok) enabledOnchain.push(asset);
     });

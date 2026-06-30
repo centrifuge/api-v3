@@ -8,17 +8,40 @@ import { publicRpcUrlsForChain } from "./public-rpc.mjs";
  */
 
 /**
- * Resolve RPC for smokes: eRPC when configured, else Chainlist public fallbacks.
+ * Append unique RPC URLs (case-insensitive dedupe).
+ *
+ * @param {string[]} urls
+ * @param {Set<string>} seen
+ * @param {string[]} next
+ */
+function appendUniqueUrls(urls, seen, next) {
+  for (const raw of next) {
+    const url = raw.trim();
+    const key = url.toLowerCase();
+    if (!url || seen.has(key)) continue;
+    seen.add(key);
+    urls.push(url);
+  }
+}
+
+/**
+ * Resolve RPC for smokes: eRPC first when configured, then Chainlist public fallbacks.
+ * viem `fallback` tries each URL in order so a broken eRPC endpoint (e.g. "Unknown block")
+ * does not abort the whole smoke run.
  * Smokes do not read `PONDER_RPC_URL_*` (indexer-only).
  *
  * @param {number} chainId
  * @returns {RpcConfig | null}
  */
 export function rpcConfigForChain(chainId) {
-  const erpc = erpcRpcConfigForChain(chainId);
-  if (erpc) return erpc;
+  /** @type {string[]} */
+  const urls = [];
+  const seen = new Set();
 
-  const urls = publicRpcUrlsForChain(chainId);
+  const erpc = erpcRpcConfigForChain(chainId);
+  if (erpc) appendUniqueUrls(urls, seen, erpc.urls);
+  appendUniqueUrls(urls, seen, publicRpcUrlsForChain(chainId));
+
   if (urls.length === 0) return null;
   return { urls };
 }
@@ -49,10 +72,10 @@ export function rpcClientForChain(chainId) {
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
     rpcUrls: { default: { http: urls } },
   });
+  const transports = urls.map((url) => http(url, { retryCount: 1 }));
   return createPublicClient({
     chain,
-    transport:
-      urls.length === 1 ? http(urls[0]) : fallback(urls.map((url) => http(url))),
+    transport: urls.length === 1 ? transports[0] : fallback(transports),
   });
 }
 

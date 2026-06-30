@@ -36,7 +36,7 @@ pnpm smoke list
 - `ERPC_API_KEY` — appended as `?secret=` query param ([eRPC auth](https://docs.erpc.cloud/config/auth))
 - `ERPC_ARCHITECTURE` — optional path segment, default `evm`
 - `GRAPHQL_URL` — default GraphQL when `--graphql` omitted
-- When eRPC is unset, smokes fall back to Chainlist-listed public RPCs (`test/smoke/lib/public-rpc.mjs`, verified via `node test/smoke/dev/verify-chainlist-rpcs.mjs`)
+- When eRPC is set, smokes try eRPC first, then Chainlist-listed public RPCs as fallbacks (`test/smoke/lib/rpc.mjs` + `public-rpc.mjs`). When eRPC is unset, only public RPCs are used (verified via `node test/smoke/dev/verify-chainlist-rpcs.mjs`)
 - Smokes **do not** use `PONDER_RPC_URL_*` (indexer configuration only)
 - `generated/` registry files are not in git; run `pnpm update-registry` before smokes that read them (CI does this in [`.github/workflows/smoke.yml`](../../../.github/workflows/smoke.yml))
 
