@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { ReadonlyDrizzle } from "ponder";
 import schema from "ponder:schema";
-import { RAY, rpow } from "../helpers/bigintMath";
+import { BASIN_STATIC_BY_CHAIN_ID } from "../config/basin";
+import { RAY, rpow, scaleDecimals } from "../helpers/bigintMath";
 import { formatBigIntToDecimal } from "../helpers/formatter";
 import * as Services from "../services";
 import { jsonDefaultHeaders } from "./shared";
@@ -93,7 +94,40 @@ export function createStatsApp() {
       };
     });
 
-    return c.json({ basinDebts: debts }, 200, jsonDefaultHeaders);
+    // Swap fee state per basin: current rates plus cumulative fees collected (charged on the
+    // assetOut side, so one counter per basin leg in that leg's token units).
+    const feeRows = await Services.BasinFeeService.query(ctx, {});
+    const basinSwapFees = feeRows.map((row) => {
+      const data = row.read();
+      const staticCfg =
+        BASIN_STATIC_BY_CHAIN_ID[data.chainId as keyof typeof BASIN_STATIC_BY_CHAIN_ID];
+      // Both stablecoin legs normalized to 18 decimals; credit-token fees stay in token units
+      // (they are share-denominated, not USD).
+      const feesCollectedStable = staticCfg
+        ? scaleDecimals(data.feesCollectedCollateral, staticCfg.collateralTokenDecimals) +
+          scaleDecimals(data.feesCollectedSwap, staticCfg.swapTokenDecimals)
+        : null;
+
+      return {
+        chainId: data.chainId,
+        basinAddress: data.basinAddress,
+        tokenId: data.tokenId,
+        poolId: data.poolId.toString(),
+        purchaseFeeBps: data.purchaseFeeBps.toString(),
+        redemptionFeeBps: data.redemptionFeeBps.toString(),
+        minFeeBps: data.minFeeBps.toString(),
+        maxFeeBps: data.maxFeeBps.toString(),
+        feesCollectedCredit: data.feesCollectedCredit.toString(),
+        feesCollectedCollateral: data.feesCollectedCollateral.toString(),
+        feesCollectedSwap: data.feesCollectedSwap.toString(),
+        feesCollectedStable: feesCollectedStable?.toString() ?? null,
+        feesCollectedStableDecimal:
+          feesCollectedStable !== null ? formatBigIntToDecimal(feesCollectedStable) : null,
+        lastUpdatedAt: data.lastUpdatedAt.toISOString(),
+      };
+    });
+
+    return c.json({ basinDebts: debts, basinSwapFees }, 200, jsonDefaultHeaders);
   });
 
   return app;

@@ -10,7 +10,13 @@ import {
 } from "../helpers/basinReconciliation";
 import { logEvent, serviceError } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
-import { BasinDebtService, BasinRedeemRequestService, BasinSwapService } from "../services";
+import {
+  BasinDebtService,
+  BasinFeeService,
+  BasinRedeemRequestService,
+  BasinSwapService,
+  type BasinFeeToken,
+} from "../services";
 
 /**
  * Maps GroveBasin `Swap` asset pair to `basin_swap_direction` enum value.
@@ -37,6 +43,20 @@ function swapDirection(
   return "OTHER";
 }
 
+/**
+ * The basin leg a swap fee is denominated in: fees are charged on the `assetOut` side.
+ *
+ * @param direction - Swap direction (must not be `OTHER`)
+ * @returns Fee token leg
+ */
+function feeTokenForDirection(
+  direction: "CREDIT_TO_COLLATERAL" | "CREDIT_TO_SWAP" | "COLLATERAL_TO_CREDIT" | "SWAP_TO_CREDIT"
+): BasinFeeToken {
+  if (direction === "CREDIT_TO_COLLATERAL") return "COLLATERAL";
+  if (direction === "CREDIT_TO_SWAP") return "SWAP";
+  return "CREDIT";
+}
+
 if (isGroveBasinIndexingConfigured) {
   ponder.on("groveBasin:Swap", async ({ event, context }) => {
     const cfg = loadBasinConfig(context);
@@ -46,6 +66,40 @@ if (isGroveBasinIndexingConfigured) {
     const { assetIn, assetOut, sender, receiver, amountIn, amountOut } = event.args;
     const basinAddress = formatBytes32ToAddress(event.log.address);
     const direction = swapDirection(assetIn, assetOut, cfg);
+
+    // Swap fee: the event's amountOut is net of the fee charged on the assetOut side, so the
+    // fee is the gross oracle quote minus amountOut. The fee rate applied is the purchase fee
+    // when the credit token is bought, the redemption fee otherwise.
+    let fee: bigint | null = null;
+    let feeBps: bigint | null = null;
+    const feeState = await BasinFeeService.load(context, event, cfg);
+    if (direction !== "OTHER") {
+      feeBps =
+        direction === "COLLATERAL_TO_CREDIT" || direction === "SWAP_TO_CREDIT"
+          ? feeState.read().purchaseFeeBps
+          : feeState.read().redemptionFeeBps;
+      const grossOut = await getSwapQuote(
+        context,
+        event,
+        cfg,
+        formatBytes32ToAddress(assetIn),
+        formatBytes32ToAddress(assetOut),
+        amountIn,
+        false
+      );
+      if (grossOut === undefined) {
+        serviceError(
+          `GroveBasin swap quote eth_call failed. Cannot compute swap fee at block ${event.block.number}`
+        );
+      } else if (grossOut < amountOut) {
+        serviceError(
+          `GroveBasin gross quote ${grossOut} below net amountOut ${amountOut} at block ` +
+            `${event.block.number}; storing null fee`
+        );
+      } else {
+        fee = grossOut - amountOut;
+      }
+    }
 
     await BasinSwapService.insert(
       context,
@@ -61,6 +115,8 @@ if (isGroveBasinIndexingConfigured) {
         assetOut: formatBytes32ToAddress(assetOut),
         amountIn,
         amountOut,
+        fee,
+        feeBps,
         sender: formatBytes32ToAddress(sender),
         receiver: formatBytes32ToAddress(receiver),
         blockNumber: Number(event.block.number),
@@ -68,6 +124,10 @@ if (isGroveBasinIndexingConfigured) {
       },
       event
     );
+
+    if (direction !== "OTHER" && fee !== null && fee > 0n) {
+      await feeState.addCollectedFee(event, feeTokenForDirection(direction), fee);
+    }
 
     // Debt effects (all 18-decimal normalized): sell-side swaps are CFGL drawdowns for the
     // net stablecoin paid out; buy-side swaps are repayments for the stablecoin received.
@@ -77,18 +137,14 @@ if (isGroveBasinIndexingConfigured) {
 
     if (direction === "CREDIT_TO_COLLATERAL" || direction === "CREDIT_TO_SWAP") {
       const decimals =
-        direction === "CREDIT_TO_COLLATERAL"
-          ? cfg.collateralTokenDecimals
-          : cfg.swapTokenDecimals;
+        direction === "CREDIT_TO_COLLATERAL" ? cfg.collateralTokenDecimals : cfg.swapTokenDecimals;
       await debt.accrueAndApply(context, event, {
         type: "SWAP_PAYOUT",
         principalDelta: scaleDecimals(amountOut, decimals),
       });
     } else if (direction === "COLLATERAL_TO_CREDIT" || direction === "SWAP_TO_CREDIT") {
       const decimals =
-        direction === "COLLATERAL_TO_CREDIT"
-          ? cfg.collateralTokenDecimals
-          : cfg.swapTokenDecimals;
+        direction === "COLLATERAL_TO_CREDIT" ? cfg.collateralTokenDecimals : cfg.swapTokenDecimals;
       const principalDelta = -scaleDecimals(amountIn, decimals);
       const claimed = await debt.claimTransferRepayment(context, event, {
         principalDelta,
@@ -262,5 +318,46 @@ if (isGroveBasinIndexingConfigured) {
       type: "TRANSFER_REPAYMENT",
       principalDelta: -scaleDecimals(value, cfg.swapTokenDecimals),
     });
+  });
+
+  ponder.on("groveBasin:PurchaseFeeSet", async ({ event, context }) => {
+    const cfg = loadBasinConfig(context);
+    if (!cfg) return;
+
+    logEvent(event, context, "groveBasin:PurchaseFeeSet");
+    const { oldPurchaseFee, newPurchaseFee } = event.args;
+
+    const feeState = await BasinFeeService.load(context, event, cfg);
+    await feeState.applyRateChange(context, event, {
+      feeType: "PURCHASE",
+      oldFeeBps: oldPurchaseFee,
+      newFeeBps: newPurchaseFee,
+    });
+  });
+
+  ponder.on("groveBasin:RedemptionFeeSet", async ({ event, context }) => {
+    const cfg = loadBasinConfig(context);
+    if (!cfg) return;
+
+    logEvent(event, context, "groveBasin:RedemptionFeeSet");
+    const { oldRedemptionFee, newRedemptionFee } = event.args;
+
+    const feeState = await BasinFeeService.load(context, event, cfg);
+    await feeState.applyRateChange(context, event, {
+      feeType: "REDEMPTION",
+      oldFeeBps: oldRedemptionFee,
+      newFeeBps: newRedemptionFee,
+    });
+  });
+
+  ponder.on("groveBasin:FeeBoundsSet", async ({ event, context }) => {
+    const cfg = loadBasinConfig(context);
+    if (!cfg) return;
+
+    logEvent(event, context, "groveBasin:FeeBoundsSet");
+    const { newMinFee, newMaxFee } = event.args;
+
+    const feeState = await BasinFeeService.load(context, event, cfg);
+    await feeState.applyFeeBounds(event, { minFeeBps: newMinFee, maxFeeBps: newMaxFee });
   });
 }

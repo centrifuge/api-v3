@@ -4,6 +4,8 @@ export * from "./AdapterParticipationService";
 export * from "./AdapterWiringService";
 export * from "./BasinDebtChangeService";
 export * from "./BasinDebtService";
+export * from "./BasinFeeChangeService";
+export * from "./BasinFeeService";
 export * from "./BasinRedeemRequestService";
 export * from "./BasinReconciliationWarningService";
 export * from "./BasinSwapService";

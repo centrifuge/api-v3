@@ -1803,6 +1803,8 @@ export const BasinDebtChangeType = onchainEnum("basin_debt_change_type", [
   "RATE_UPDATE",
 ] as const);
 
+export const BasinFeeType = onchainEnum("basin_fee_type", ["PURCHASE", "REDEMPTION"] as const);
+
 const BasinSwapColumns = (t: PgColumnsBuilders) => ({
   chainId: t.integer().notNull(),
   txHash: t.hex().notNull(),
@@ -1815,6 +1817,13 @@ const BasinSwapColumns = (t: PgColumnsBuilders) => ({
   assetOut: t.hex().notNull(),
   amountIn: t.bigint().notNull(),
   amountOut: t.bigint().notNull(),
+  // Swap fee charged on the `assetOut` side (assetOut token units); `amountOut` is net of it.
+  // Derived as gross oracle quote minus `amountOut`; null when the quote eth_call failed or the
+  // asset pair is not a recognized basin leg.
+  fee: t.bigint(),
+  // Fee rate (bps, 1e4 denominator) in force at execution: purchase fee when `assetOut` is the
+  // credit token, redemption fee otherwise. Null when the pair is not a recognized basin leg.
+  feeBps: t.bigint(),
   sender: t.hex().notNull(),
   receiver: t.hex().notNull(),
   blockNumber: t.integer().notNull(),
@@ -1970,6 +1979,63 @@ export const BasinDebtChangeRelations = relations(BasinDebtChange, ({ one }) => 
 
 export const BasinDebtRelations = relations(BasinDebt, ({ many }) => ({
   changes: many(BasinDebtChange),
+}));
+
+const BasinFeeColumns = (t: PgColumnsBuilders) => ({
+  chainId: t.integer().notNull(),
+  basinAddress: t.hex().notNull(),
+  tokenId: t.hex().notNull(),
+  poolId: t.bigint().notNull(),
+  // Current swap fee rates in basis points (1e4 denominator), maintained from
+  // PurchaseFeeSet / RedemptionFeeSet and seeded from the contract views on first touch.
+  purchaseFeeBps: t.bigint().notNull(),
+  redemptionFeeBps: t.bigint().notNull(),
+  // Admin bounds both rates must stay within (FeeBoundsSet).
+  minFeeBps: t.bigint().notNull(),
+  maxFeeBps: t.bigint().notNull(),
+  // Cumulative swap fees collected, denominated in the fee token (fees are charged on the
+  // assetOut side, so one counter per basin leg). Aggregates of `basin_swap.fee`, maintained
+  // per swap so the "fees collected" KPI is a single-row read.
+  feesCollectedCredit: t.bigint().notNull(),
+  feesCollectedCollateral: t.bigint().notNull(),
+  feesCollectedSwap: t.bigint().notNull(),
+  lastUpdatedAt: t.timestamp().notNull(),
+  lastUpdatedAtBlock: t.integer().notNull(),
+  ...defaultColumns(t),
+});
+
+export const BasinFee = onchainTable("basin_fee", BasinFeeColumns, (t) => ({
+  id: primaryKey({ columns: [t.chainId, t.basinAddress, t.tokenId] }),
+}));
+
+const BasinFeeChangeColumns = (t: PgColumnsBuilders) => ({
+  chainId: t.integer().notNull(),
+  txHash: t.hex().notNull(),
+  logIndex: t.integer().notNull(),
+  basinAddress: t.hex().notNull(),
+  tokenId: t.hex().notNull(),
+  feeType: BasinFeeType("basin_fee_type").notNull(),
+  oldFeeBps: t.bigint().notNull(),
+  newFeeBps: t.bigint().notNull(),
+  blockNumber: t.integer().notNull(),
+  timestamp: t.timestamp().notNull(),
+  ...defaultColumns(t, false),
+});
+
+export const BasinFeeChange = onchainTable("basin_fee_change", BasinFeeChangeColumns, (t) => ({
+  id: primaryKey({ columns: [t.chainId, t.txHash, t.logIndex] }),
+  basinTimestampIdx: index().on(t.basinAddress, t.tokenId, t.timestamp),
+}));
+
+export const BasinFeeChangeRelations = relations(BasinFeeChange, ({ one }) => ({
+  basinFee: one(BasinFee, {
+    fields: [BasinFeeChange.chainId, BasinFeeChange.basinAddress, BasinFeeChange.tokenId],
+    references: [BasinFee.chainId, BasinFee.basinAddress, BasinFee.tokenId],
+  }),
+}));
+
+export const BasinFeeRelations = relations(BasinFee, ({ many }) => ({
+  changes: many(BasinFeeChange),
 }));
 
 const TransactionColumns = (t: PgColumnsBuilders) => ({
