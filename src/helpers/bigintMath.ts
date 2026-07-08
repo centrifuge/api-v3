@@ -44,8 +44,8 @@ export function scaleDecimals(amount: bigint, fromDecimals: number, toDecimals =
 
 /**
  * Fixed-point exponentiation by squaring: `(base / unit) ^ exp`, scaled by `unit`.
- * Same semantics as MakerDAO/Sky `rpow` (used for DSR/SSR compounding), with plain
- * floor rounding per multiplication step.
+ * Same semantics as MakerDAO/Sky `rpow` (used for DSR/SSR compounding), including its
+ * round-half-up per multiplication step, so accrual matches the on-chain convention.
  *
  * @param base - Fixed-point base (e.g. per-second rate in Ray)
  * @param exp - Integer exponent (e.g. elapsed seconds), must be >= 0
@@ -54,13 +54,14 @@ export function scaleDecimals(amount: bigint, fromDecimals: number, toDecimals =
  */
 export function rpow(base: bigint, exp: bigint, unit: bigint = RAY): bigint {
   if (exp < 0n) throw new Error(`rpow: negative exponent ${exp}`);
+  const half = unit / 2n;
   let result = unit;
   let b = base;
   let e = exp;
   while (e > 0n) {
-    if (e & 1n) result = (result * b) / unit;
+    if (e & 1n) result = (result * b + half) / unit;
     e >>= 1n;
-    if (e > 0n) b = (b * b) / unit;
+    if (e > 0n) b = (b * b + half) / unit;
   }
   return result;
 }

@@ -1,4 +1,4 @@
-import { RAY } from "../helpers/bigintMath";
+import { RAY, rpow, SECONDS_PER_YEAR } from "../helpers/bigintMath";
 import { BASIN_MAINNET_STATIC, getSelectedBasinStatic } from "./basin";
 
 /**
@@ -18,6 +18,19 @@ export const DEBT_SPREAD_BPS = 30;
  * Effective per-second rate = `ssr * SPREAD_PER_SECOND_RAY / RAY` (per-second factors multiply).
  */
 export const SPREAD_PER_SECOND_RAY = 1_000_000_000_094_986_966_639_419_900n;
+
+// The per-second factor cannot be derived from the bps at runtime (rpow has no n-th root),
+// so guard the two hand-maintained constants against drifting apart: annualizing the
+// per-second factor must land on DEBT_SPREAD_BPS (rounding error << 1 bp = 1e23 Ray).
+const annualizedSpreadRay = rpow(SPREAD_PER_SECOND_RAY, SECONDS_PER_YEAR);
+const expectedSpreadRay = RAY + (RAY * BigInt(DEBT_SPREAD_BPS)) / 10_000n;
+const spreadDeviation = annualizedSpreadRay - expectedSpreadRay;
+if (spreadDeviation > 10n ** 12n || spreadDeviation < -(10n ** 12n)) {
+  throw new Error(
+    `sky config: SPREAD_PER_SECOND_RAY annualizes to ${annualizedSpreadRay}, ` +
+      `expected ${expectedSpreadRay} (${DEBT_SPREAD_BPS} bps)`
+  );
+}
 
 /**
  * SSR fallback for chains without sUSDS (Sepolia): 1.0 in Ray, i.e. 0% SSR, so the

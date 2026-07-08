@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { ReadonlyDrizzle } from "ponder";
 import schema from "ponder:schema";
 import { BASIN_STATIC_BY_CHAIN_ID } from "../config/basin";
-import { RAY, rpow, scaleDecimals } from "../helpers/bigintMath";
+import { scaleDecimals } from "../helpers/bigintMath";
 import { formatBigIntToDecimal } from "../helpers/formatter";
 import * as Services from "../services";
 import { jsonDefaultHeaders } from "./shared";
@@ -65,13 +65,7 @@ export function createStatsApp() {
 
     const debts = rows.map((row) => {
       const data = row.read();
-      const lastSeconds = BigInt(Math.floor(data.lastUpdatedAt.getTime() / 1000));
-      const elapsed = nowSeconds > lastSeconds ? nowSeconds - lastSeconds : 0n;
-      // Same accrual rule as BasinDebtService: interest only compounds on positive debt.
-      const currentDebt =
-        elapsed > 0n && data.debt > 0n
-          ? (data.debt * rpow(data.ratePerSecondRay, elapsed)) / RAY
-          : data.debt;
+      const currentDebt = Services.BasinDebtService.projectDebt(data, nowSeconds);
 
       return {
         chainId: data.chainId,

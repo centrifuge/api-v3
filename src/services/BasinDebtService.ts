@@ -42,6 +42,26 @@ export class BasinDebtService extends Service<typeof BasinDebt> {
   }
 
   /**
+   * Projects a debt balance forward to `nowSeconds` under the single accrual rule:
+   * interest compounds per second while the debt is positive; a negative balance
+   * (over-repayment) stays constant. Used by both event-time accrual and the live
+   * `/stats/basin-debt` projection.
+   *
+   * @param data - Debt state (balance, effective rate, last accrual time)
+   * @param nowSeconds - Unix timestamp to project to
+   * @returns Projected debt (18 decimals)
+   */
+  static projectDebt(
+    data: { debt: bigint; ratePerSecondRay: bigint; lastUpdatedAt: Date },
+    nowSeconds: bigint
+  ): bigint {
+    const lastSeconds = BigInt(Math.floor(data.lastUpdatedAt.getTime() / 1000));
+    const elapsed = nowSeconds > lastSeconds ? nowSeconds - lastSeconds : 0n;
+    if (elapsed === 0n || data.debt <= 0n) return data.debt;
+    return (data.debt * rpow(data.ratePerSecondRay, elapsed)) / RAY;
+  }
+
+  /**
    * Loads the debt row for the configured basin, initializing it on first touch with the
    * SSR read from sUSDS at the event block (or the testnet fallback rate when the chain
    * has no sUSDS).
@@ -117,15 +137,7 @@ export class BasinDebtService extends Service<typeof BasinDebt> {
     params: { type: DebtChangeType; principalDelta: bigint; newSsrPerSecondRay?: bigint }
   ): Promise<BasinDebtChangeService | null> {
     const nowSeconds = event.block.timestamp;
-    const lastSeconds = BigInt(Math.floor(this.data.lastUpdatedAt.getTime() / 1000));
-    const elapsed = nowSeconds > lastSeconds ? nowSeconds - lastSeconds : 0n;
-
-    let interestAccrued = 0n;
-    if (elapsed > 0n && this.data.debt > 0n) {
-      const growth = rpow(this.data.ratePerSecondRay, elapsed);
-      const compounded = (this.data.debt * growth) / RAY;
-      interestAccrued = compounded - this.data.debt;
-    }
+    const interestAccrued = BasinDebtService.projectDebt(this.data, nowSeconds) - this.data.debt;
 
     this.data.debt = this.data.debt + interestAccrued + params.principalDelta;
     if (params.newSsrPerSecondRay !== undefined) {

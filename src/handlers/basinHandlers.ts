@@ -69,24 +69,31 @@ if (isGroveBasinIndexingConfigured) {
 
     // Swap fee: the event's amountOut is net of the fee charged on the assetOut side, so the
     // fee is the gross oracle quote minus amountOut. The fee rate applied is the purchase fee
-    // when the credit token is bought, the redemption fee otherwise.
+    // when the credit token is bought, the redemption fee otherwise. OTHER swaps have no fee
+    // or debt effect, so the state loads (several eth_calls on first touch) are skipped.
     let fee: bigint | null = null;
     let feeBps: bigint | null = null;
-    const feeState = await BasinFeeService.load(context, event, cfg);
+    let feeState: BasinFeeService | null = null;
+    let debt: BasinDebtService | null = null;
     if (direction !== "OTHER") {
+      let grossOut: bigint | undefined;
+      [feeState, debt, grossOut] = await Promise.all([
+        BasinFeeService.load(context, event, cfg),
+        BasinDebtService.load(context, event, cfg),
+        getSwapQuote(
+          context,
+          event,
+          cfg,
+          formatBytes32ToAddress(assetIn),
+          formatBytes32ToAddress(assetOut),
+          amountIn,
+          false
+        ),
+      ]);
       feeBps =
         direction === "COLLATERAL_TO_CREDIT" || direction === "SWAP_TO_CREDIT"
           ? feeState.read().purchaseFeeBps
           : feeState.read().redemptionFeeBps;
-      const grossOut = await getSwapQuote(
-        context,
-        event,
-        cfg,
-        formatBytes32ToAddress(assetIn),
-        formatBytes32ToAddress(assetOut),
-        amountIn,
-        false
-      );
       if (grossOut === undefined) {
         serviceError(
           `GroveBasin swap quote eth_call failed. Cannot compute swap fee at block ${event.block.number}`
@@ -125,7 +132,7 @@ if (isGroveBasinIndexingConfigured) {
       event
     );
 
-    if (direction !== "OTHER" && fee !== null && fee > 0n) {
+    if (direction !== "OTHER" && feeState && fee !== null && fee > 0n) {
       await feeState.addCollectedFee(event, feeTokenForDirection(direction), fee);
     }
 
@@ -133,7 +140,7 @@ if (isGroveBasinIndexingConfigured) {
     // net stablecoin paid out; buy-side swaps are repayments for the stablecoin received.
     // The buy-side inflow was already recorded by the raw Transfer log earlier in this tx
     // (lower logIndex), so claim that ledger entry instead of double-applying.
-    const debt = await BasinDebtService.load(context, event, cfg);
+    if (!debt) return;
 
     if (direction === "CREDIT_TO_COLLATERAL" || direction === "CREDIT_TO_SWAP") {
       const decimals =
