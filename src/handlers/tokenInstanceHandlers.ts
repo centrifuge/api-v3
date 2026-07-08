@@ -12,9 +12,7 @@ multiMapper("tokenInstance:Transfer", async ({ event, context }) => {
   // for how much a new redemption can be requested for. No debt effect.
   const basinCfg = loadBasinConfig(context);
   if (!basinCfg) return;
-  if (
-    formatBytes32ToAddress(event.log.address) !== formatBytes32ToAddress(basinCfg.creditToken)
-  ) {
+  if (formatBytes32ToAddress(event.log.address) !== formatBytes32ToAddress(basinCfg.creditToken)) {
     return;
   }
 
