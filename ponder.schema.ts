@@ -1790,11 +1790,17 @@ export const BasinRedeemRequestState = onchainEnum("basin_redeem_request_state",
 ] as const);
 
 export const BasinReconciliationWarningType = onchainEnum("basin_reconciliation_warning_type", [
-  "batchSumMismatch",
-  "initiateNoSwaps",
   "completeOrphan",
   "redeemOrderLinkAmbiguous",
   "spokeRedeemLinkAmbiguous",
+] as const);
+
+export const BasinDebtChangeType = onchainEnum("basin_debt_change_type", [
+  "SWAP_PAYOUT",
+  "SWAP_REPAYMENT",
+  "REDEMPTION",
+  "TRANSFER_REPAYMENT",
+  "RATE_UPDATE",
 ] as const);
 
 const BasinSwapColumns = (t: PgColumnsBuilders) => ({
@@ -1811,8 +1817,6 @@ const BasinSwapColumns = (t: PgColumnsBuilders) => ({
   amountOut: t.bigint().notNull(),
   sender: t.hex().notNull(),
   receiver: t.hex().notNull(),
-  basinRedeemRequestId: t.hex(),
-  priorityFeeDeltaBps: t.integer(),
   blockNumber: t.integer().notNull(),
   timestamp: t.timestamp().notNull(),
   ...defaultColumns(t, false),
@@ -1820,7 +1824,7 @@ const BasinSwapColumns = (t: PgColumnsBuilders) => ({
 
 export const BasinSwap = onchainTable("basin_swap", BasinSwapColumns, (t) => ({
   id: primaryKey({ columns: [t.chainId, t.txHash, t.logIndex] }),
-  basinRedeemRequestIdx: index().on(t.basinAddress, t.basinRedeemRequestId),
+  basinTimestampIdx: index().on(t.basinAddress, t.timestamp),
 }));
 
 const BasinRedeemRequestColumns = (t: PgColumnsBuilders) => ({
@@ -1872,15 +1876,7 @@ export const BasinReconciliationWarning = onchainTable(
   })
 );
 
-export const BasinSwapRelations = relations(BasinSwap, ({ one }) => ({
-  basinRedeemRequest: one(BasinRedeemRequest, {
-    fields: [BasinSwap.basinAddress, BasinSwap.basinRedeemRequestId],
-    references: [BasinRedeemRequest.basinAddress, BasinRedeemRequest.requestId],
-  }),
-}));
-
-export const BasinRedeemRequestRelations = relations(BasinRedeemRequest, ({ one, many }) => ({
-  basinSwaps: many(BasinSwap),
+export const BasinRedeemRequestRelations = relations(BasinRedeemRequest, ({ one }) => ({
   vaultRedeemOrder: one(VaultRedeemOrder, {
     fields: [
       BasinRedeemRequest.tokenId,
@@ -1912,6 +1908,98 @@ export const BasinRedeemRequestRelations = relations(BasinRedeemRequest, ({ one,
     ],
     references: [RedeemOrder.tokenId, RedeemOrder.assetId, RedeemOrder.account, RedeemOrder.index],
   }),
+}));
+
+const BasinDebtColumns = (t: PgColumnsBuilders) => ({
+  chainId: t.integer().notNull(),
+  basinAddress: t.hex().notNull(),
+  tokenId: t.hex().notNull(),
+  poolId: t.bigint().notNull(),
+  // Outstanding CFGL debt toward Grove, normalized to 18 decimals (USD). Signed:
+  // over-repayment drives it negative; interest only accrues while positive.
+  debt: t.bigint().notNull(),
+  // Raw sUSDS `ssr` per-second compounding factor (Ray, 1e27).
+  ssrPerSecondRay: t.bigint().notNull(),
+  // Effective per-second factor: ssr x 30 bps spread factor (Ray).
+  ratePerSecondRay: t.bigint().notNull(),
+  spreadBps: t.integer().notNull(),
+  // Basin's live credit token (JTRSY) balance; the max a new redemption can be requested for.
+  creditTokenBalance: t.bigint().notNull(),
+  // Credit tokens in flight through initiated-but-uncompleted redemptions.
+  pendingCreditTokenAmount: t.bigint().notNull(),
+  // Debt accrual anchor: interest compounds from here at `ratePerSecondRay` on read.
+  lastUpdatedAt: t.timestamp().notNull(),
+  lastUpdatedAtBlock: t.integer().notNull(),
+  ...defaultColumns(t),
+});
+
+export const BasinDebt = onchainTable("basin_debt", BasinDebtColumns, (t) => ({
+  id: primaryKey({ columns: [t.chainId, t.basinAddress, t.tokenId] }),
+}));
+
+const BasinDebtChangeColumns = (t: PgColumnsBuilders) => ({
+  chainId: t.integer().notNull(),
+  txHash: t.hex().notNull(),
+  logIndex: t.integer().notNull(),
+  basinAddress: t.hex().notNull(),
+  tokenId: t.hex().notNull(),
+  type: BasinDebtChangeType("basin_debt_change_type").notNull(),
+  // Interest applied in this update for the elapsed time since the previous change (18 decimals).
+  interestAccrued: t.bigint().notNull(),
+  // Signed principal effect: positive for payouts (drawdowns), negative for repayments (18 decimals).
+  principalDelta: t.bigint().notNull(),
+  debtAfter: t.bigint().notNull(),
+  // Effective per-second rate in force after this change (Ray).
+  ratePerSecondRay: t.bigint().notNull(),
+  blockNumber: t.integer().notNull(),
+  timestamp: t.timestamp().notNull(),
+  ...defaultColumns(t, false),
+});
+
+export const BasinDebtChange = onchainTable("basin_debt_change", BasinDebtChangeColumns, (t) => ({
+  id: primaryKey({ columns: [t.chainId, t.txHash, t.logIndex] }),
+  basinTimestampIdx: index().on(t.basinAddress, t.tokenId, t.timestamp),
+}));
+
+export const BasinDebtChangeRelations = relations(BasinDebtChange, ({ one }) => ({
+  basinDebt: one(BasinDebt, {
+    fields: [BasinDebtChange.chainId, BasinDebtChange.basinAddress, BasinDebtChange.tokenId],
+    references: [BasinDebt.chainId, BasinDebt.basinAddress, BasinDebt.tokenId],
+  }),
+}));
+
+export const BasinDebtRelations = relations(BasinDebt, ({ many }) => ({
+  changes: many(BasinDebtChange),
+}));
+
+const TransactionColumns = (t: PgColumnsBuilders) => ({
+  chainId: t.integer().notNull(),
+  txHash: t.hex().notNull(),
+  centrifugeId: t.text(),
+  blockNumber: t.integer().notNull(),
+  timestamp: t.timestamp().notNull(),
+  fromAddress: t.hex().notNull(),
+  toAddress: t.hex(),
+  gasUsed: t.bigint().notNull(),
+  // Actual price from the receipt; differs from CrosschainPayload.gasPrice, which is a
+  // pre-receipt estimate derived from block base fee + tx fee caps.
+  effectiveGasPrice: t.bigint().notNull(),
+  gasCost: t.bigint().notNull(),
+  events: t.text().array().notNull(),
+  contracts: t.text().array().notNull(),
+  // Best-effort attribution from event args; events without a literal poolId/scId arg
+  // are captured but not attributed. Stored as strings (decimal / 0x) — native
+  // bigint[]/hex[] codecs are unproven with ponder's PgArray handling.
+  poolIds: t.text().array().notNull(),
+  tokenIds: t.text().array().notNull(),
+  createdAt: t.timestamp().notNull(),
+  updatedAt: t.timestamp().notNull(),
+});
+
+export const Transaction = onchainTable("transaction", TransactionColumns, (t) => ({
+  id: primaryKey({ columns: [t.chainId, t.txHash] }),
+  centrifugeIdIdx: index().on(t.centrifugeId),
+  timestampIdx: index().on(t.timestamp),
 }));
 
 /**

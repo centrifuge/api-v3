@@ -2,6 +2,8 @@ export * from "./AccountService";
 export * from "./AdapterService";
 export * from "./AdapterParticipationService";
 export * from "./AdapterWiringService";
+export * from "./BasinDebtChangeService";
+export * from "./BasinDebtService";
 export * from "./BasinRedeemRequestService";
 export * from "./BasinReconciliationWarningService";
 export * from "./BasinSwapService";

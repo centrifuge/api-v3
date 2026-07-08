@@ -24,3 +24,43 @@ if (WAD * RAY_TAIL !== RAY) {
 
 /** Absolute max safe for `numeric(78)` yield columns. */
 export const PG_NUMERIC_78_MAX_ABS = 10n ** 78n - 1n;
+
+/** Seconds per (non-leap) year; matches Sky's per-second rate annualization. */
+export const SECONDS_PER_YEAR = 31_536_000n;
+
+/**
+ * Rescales a token amount between decimal precisions (floor on downscale).
+ *
+ * @param amount - Amount in `fromDecimals` precision
+ * @param fromDecimals - Source token decimals
+ * @param toDecimals - Target decimals (defaults to 18)
+ * @returns Amount in `toDecimals` precision
+ */
+export function scaleDecimals(amount: bigint, fromDecimals: number, toDecimals = 18): bigint {
+  if (fromDecimals === toDecimals) return amount;
+  if (fromDecimals < toDecimals) return amount * 10n ** BigInt(toDecimals - fromDecimals);
+  return amount / 10n ** BigInt(fromDecimals - toDecimals);
+}
+
+/**
+ * Fixed-point exponentiation by squaring: `(base / unit) ^ exp`, scaled by `unit`.
+ * Same semantics as MakerDAO/Sky `rpow` (used for DSR/SSR compounding), with plain
+ * floor rounding per multiplication step.
+ *
+ * @param base - Fixed-point base (e.g. per-second rate in Ray)
+ * @param exp - Integer exponent (e.g. elapsed seconds), must be >= 0
+ * @param unit - Fixed-point scale of `base` (defaults to {@link RAY})
+ * @returns `base ^ exp` in `unit` fixed-point
+ */
+export function rpow(base: bigint, exp: bigint, unit: bigint = RAY): bigint {
+  if (exp < 0n) throw new Error(`rpow: negative exponent ${exp}`);
+  let result = unit;
+  let b = base;
+  let e = exp;
+  while (e > 0n) {
+    if (e & 1n) result = (result * b) / unit;
+    e >>= 1n;
+    if (e > 0n) b = (b * b) / unit;
+  }
+  return result;
+}

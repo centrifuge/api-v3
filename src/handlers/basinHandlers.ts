@@ -1,16 +1,16 @@
 import { ponder } from "ponder:registry";
 import type { BasinConfig } from "../config/basin";
 import { isGroveBasinIndexingConfigured, loadBasinConfig } from "../config/basin";
+import { scaleDecimals } from "../helpers/bigintMath";
 import { formatBytes32ToAddress } from "../helpers/formatter";
 import { computeRedeemRequestId, getSwapQuote } from "../helpers/basinQuote";
 import {
-  computePriorityFeeDeltaBps,
   insertBasinReconciliationWarning,
   linkSpokeRedeemIfPending,
 } from "../helpers/basinReconciliation";
 import { logEvent, serviceError } from "../helpers/logger";
 import { timestamper } from "../helpers/timestamper";
-import { BasinRedeemRequestService, BasinSwapService } from "../services";
+import { BasinDebtService, BasinRedeemRequestService, BasinSwapService } from "../services";
 
 /**
  * Maps GroveBasin `Swap` asset pair to `basin_swap_direction` enum value.
@@ -45,6 +45,7 @@ if (isGroveBasinIndexingConfigured) {
     logEvent(event, context, "groveBasin:Swap");
     const { assetIn, assetOut, sender, receiver, amountIn, amountOut } = event.args;
     const basinAddress = formatBytes32ToAddress(event.log.address);
+    const direction = swapDirection(assetIn, assetOut, cfg);
 
     await BasinSwapService.insert(
       context,
@@ -55,20 +56,51 @@ if (isGroveBasinIndexingConfigured) {
         basinAddress,
         poolId: cfg.poolId,
         tokenId: cfg.tokenId,
-        direction: swapDirection(assetIn, assetOut, cfg),
+        direction,
         assetIn: formatBytes32ToAddress(assetIn),
         assetOut: formatBytes32ToAddress(assetOut),
         amountIn,
         amountOut,
         sender: formatBytes32ToAddress(sender),
         receiver: formatBytes32ToAddress(receiver),
-        basinRedeemRequestId: null,
-        priorityFeeDeltaBps: null,
         blockNumber: Number(event.block.number),
         timestamp: new Date(Number(event.block.timestamp) * 1000),
       },
       event
     );
+
+    // Debt effects (all 18-decimal normalized): sell-side swaps are CFGL drawdowns for the
+    // net stablecoin paid out; buy-side swaps are repayments for the stablecoin received.
+    // The buy-side inflow was already recorded by the raw Transfer log earlier in this tx
+    // (lower logIndex), so claim that ledger entry instead of double-applying.
+    const debt = await BasinDebtService.load(context, event, cfg);
+
+    if (direction === "CREDIT_TO_COLLATERAL" || direction === "CREDIT_TO_SWAP") {
+      const decimals =
+        direction === "CREDIT_TO_COLLATERAL"
+          ? cfg.collateralTokenDecimals
+          : cfg.swapTokenDecimals;
+      await debt.accrueAndApply(context, event, {
+        type: "SWAP_PAYOUT",
+        principalDelta: scaleDecimals(amountOut, decimals),
+      });
+    } else if (direction === "COLLATERAL_TO_CREDIT" || direction === "SWAP_TO_CREDIT") {
+      const decimals =
+        direction === "COLLATERAL_TO_CREDIT"
+          ? cfg.collateralTokenDecimals
+          : cfg.swapTokenDecimals;
+      const principalDelta = -scaleDecimals(amountIn, decimals);
+      const claimed = await debt.claimTransferRepayment(context, event, {
+        principalDelta,
+        claimAs: "SWAP_REPAYMENT",
+      });
+      if (!claimed) {
+        await debt.accrueAndApply(context, event, {
+          type: "SWAP_REPAYMENT",
+          principalDelta,
+        });
+      }
+    }
   });
 
   ponder.on("groveBasin:RedeemInitiated", async ({ event, context }) => {
@@ -124,39 +156,11 @@ if (isGroveBasinIndexingConfigured) {
       event
     );
 
-    const swaps = (await BasinSwapService.query(context, {
-      basinAddress,
-      direction: "CREDIT_TO_COLLATERAL",
-      basinRedeemRequestId: null,
-      blockNumber_lte: Number(event.block.number),
-    })) as BasinSwapService[];
-
-    const sumIn = swaps.reduce((acc, s) => acc + s.read().amountIn, 0n);
-
-    if (swaps.length === 0) {
-      await insertBasinReconciliationWarning(context, event, {
-        type: "initiateNoSwaps",
-        message: "RedeemInitiated with no unbatched CREDIT_TO_COLLATERAL swaps",
-        basinAddress,
-        basinRedeemRequestId: requestId,
-      });
-    } else if (sumIn !== creditTokenAmount) {
-      await insertBasinReconciliationWarning(context, event, {
-        type: "batchSumMismatch",
-        message: `SUM(swap.amountIn)=${sumIn} !== creditTokenAmount=${creditTokenAmount}`,
-        basinAddress,
-        basinRedeemRequestId: requestId,
-      });
-    }
-
-    for (const swap of swaps) {
-      swap.linkToRedeemRequest(requestId);
-    }
-    if (swaps.length === 1) {
-      await swaps[0]!.save(event);
-    } else if (swaps.length > 1) {
-      await BasinSwapService.saveMany(context, swaps, event);
-    }
+    // No debt effect: the drawdown happened at swap time and repayment happens when the
+    // redemption completes. Only the in-flight credit token amount changes here.
+    const debt = await BasinDebtService.load(context, event, cfg);
+    debt.adjustPendingCreditTokenAmount(creditTokenAmount);
+    await debt.save(event);
 
     await linkSpokeRedeemIfPending(context, event, cfg);
   });
@@ -176,37 +180,87 @@ if (isGroveBasinIndexingConfigured) {
       redeemer: redeemerNorm,
     })) as BasinRedeemRequestService[];
 
-    if (open.length !== 1) {
+    const batch = open.length === 1 ? open[0] : undefined;
+    if (!batch) {
       await insertBasinReconciliationWarning(context, event, {
         type: "completeOrphan",
         message: `Expected 1 INITIATED basin_redeem_request, found ${open.length}`,
         basinAddress,
       });
+    } else {
+      batch.complete(collateralTokenReturned, event);
+      await batch.save(event);
+    }
+
+    // Repayment: the vault's USDC arrived via the redeemer's Transfer earlier in this tx,
+    // recorded as TRANSFER_REPAYMENT by the raw Transfer log; claim it as REDEMPTION.
+    const debt = await BasinDebtService.load(context, event, cfg);
+    if (batch) debt.adjustPendingCreditTokenAmount(-batch.read().creditTokenAmount);
+
+    const principalDelta = -scaleDecimals(collateralTokenReturned, cfg.collateralTokenDecimals);
+    const claimed = await debt.claimTransferRepayment(context, event, {
+      principalDelta,
+      claimAs: "REDEMPTION",
+    });
+    if (!claimed) {
+      await debt.accrueAndApply(context, event, { type: "REDEMPTION", principalDelta });
+    } else {
+      await debt.save(event);
+    }
+  });
+
+  ponder.on("basinUsdc:Transfer", async ({ event, context }) => {
+    const cfg = loadBasinConfig(context);
+    if (!cfg) return;
+
+    const { from, to, value } = event.args;
+    if (value === 0n) return;
+    if (formatBytes32ToAddress(to) !== formatBytes32ToAddress(cfg.basinAddress)) return;
+
+    // Internal flows are not repayments: the pocket funding a swap payout, and Grove (the
+    // liquidity provider) adding its own liquidity. The token redeemer's settlement transfer
+    // IS recorded here and re-labeled to REDEMPTION by the RedeemCompleted handler.
+    const fromNorm = formatBytes32ToAddress(from);
+    if (
+      fromNorm === formatBytes32ToAddress(cfg.pocket) ||
+      fromNorm === formatBytes32ToAddress(cfg.liquidityProvider)
+    ) {
       return;
     }
 
-    const batch = open[0]!;
-    const { requestId, creditTokenAmount } = batch.read();
+    logEvent(event, context, "basinUsdc:Transfer");
 
-    batch.complete(collateralTokenReturned, event);
-    await batch.save(event);
+    const debt = await BasinDebtService.load(context, event, cfg);
+    await debt.accrueAndApply(context, event, {
+      type: "TRANSFER_REPAYMENT",
+      principalDelta: -scaleDecimals(value, cfg.collateralTokenDecimals),
+    });
+  });
 
-    const swaps = (await BasinSwapService.query(context, {
-      basinAddress,
-      basinRedeemRequestId: requestId,
-    })) as BasinSwapService[];
+  ponder.on("basinUsds:Transfer", async ({ event, context }) => {
+    const cfg = loadBasinConfig(context);
+    if (!cfg) return;
 
-    for (const swap of swaps) {
-      const { amountIn, amountOut } = swap.read();
-      swap.setPriorityFeeDeltaBps(
-        computePriorityFeeDeltaBps(amountIn, amountOut, creditTokenAmount, collateralTokenReturned)
-      );
+    const { from, to, value } = event.args;
+    if (value === 0n) return;
+    if (formatBytes32ToAddress(to) !== formatBytes32ToAddress(cfg.pocket)) return;
+
+    // USDS reaching the pocket from third parties reduces the debt; Grove's LP deposits and
+    // the basin's own custody moves do not.
+    const fromNorm = formatBytes32ToAddress(from);
+    if (
+      fromNorm === formatBytes32ToAddress(cfg.liquidityProvider) ||
+      fromNorm === formatBytes32ToAddress(cfg.basinAddress)
+    ) {
+      return;
     }
 
-    if (swaps.length === 1) {
-      await swaps[0]!.save(event);
-    } else if (swaps.length > 1) {
-      await BasinSwapService.saveMany(context, swaps, event);
-    }
+    logEvent(event, context, "basinUsds:Transfer");
+
+    const debt = await BasinDebtService.load(context, event, cfg);
+    await debt.accrueAndApply(context, event, {
+      type: "TRANSFER_REPAYMENT",
+      principalDelta: -scaleDecimals(value, cfg.swapTokenDecimals),
+    });
   });
 }

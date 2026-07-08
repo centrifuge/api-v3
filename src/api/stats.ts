@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { ReadonlyDrizzle } from "ponder";
 import schema from "ponder:schema";
+import { RAY, rpow } from "../helpers/bigintMath";
 import { formatBigIntToDecimal } from "../helpers/formatter";
 import * as Services from "../services";
 import { jsonDefaultHeaders } from "./shared";
@@ -54,6 +55,45 @@ export function createStatsApp() {
       200,
       jsonDefaultHeaders
     );
+  });
+
+  app.get("/basin-debt", async (c) => {
+    const ctx = apiContext(c);
+    const rows = await Services.BasinDebtService.query(ctx, {});
+    const nowSeconds = BigInt(Math.floor(Date.now() / 1000));
+
+    const debts = rows.map((row) => {
+      const data = row.read();
+      const lastSeconds = BigInt(Math.floor(data.lastUpdatedAt.getTime() / 1000));
+      const elapsed = nowSeconds > lastSeconds ? nowSeconds - lastSeconds : 0n;
+      // Same accrual rule as BasinDebtService: interest only compounds on positive debt.
+      const currentDebt =
+        elapsed > 0n && data.debt > 0n
+          ? (data.debt * rpow(data.ratePerSecondRay, elapsed)) / RAY
+          : data.debt;
+
+      return {
+        chainId: data.chainId,
+        basinAddress: data.basinAddress,
+        tokenId: data.tokenId,
+        poolId: data.poolId.toString(),
+        debt: data.debt.toString(),
+        currentDebt: currentDebt.toString(),
+        currentDebtDecimal:
+          currentDebt >= 0n
+            ? formatBigIntToDecimal(currentDebt)
+            : `-${formatBigIntToDecimal(-currentDebt)}`,
+        ssrPerSecondRay: data.ssrPerSecondRay.toString(),
+        ratePerSecondRay: data.ratePerSecondRay.toString(),
+        spreadBps: data.spreadBps,
+        creditTokenBalance: data.creditTokenBalance.toString(),
+        pendingCreditTokenAmount: data.pendingCreditTokenAmount.toString(),
+        lastUpdatedAt: data.lastUpdatedAt.toISOString(),
+        accruedToTimestamp: Number(nowSeconds),
+      };
+    });
+
+    return c.json({ basinDebts: debts }, 200, jsonDefaultHeaders);
   });
 
   return app;

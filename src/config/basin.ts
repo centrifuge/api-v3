@@ -24,8 +24,13 @@ export const BASIN_MAINNET_STATIC = {
   collateralTokenRateProvider: "0x7928a185b8137d1cd2a0996a810a04db2837419d",
   swapTokenRateProvider: "0x7928a185b8137d1cd2a0996a810a04db2837419d",
   assetId: 242333941209166991950178742833476896417n,
-  /** Update when contracts team publishes TokenRedeemer. */
   tokenRedeemer: "0x7c5ce1a1d50a6cb3da97c9e202b3e7cd8e5b5b6c",
+  /** UsdsUsdcPocket (basin `pocket()`); internal USDC/USDS flows from it are not repayments. */
+  pocket: "0x2cd296095788a2741e72056d66b3ae1faee23ea2",
+  /** Grove's immutable basin `liquidityProvider()`; its transfers are funding, not repayments. */
+  liquidityProvider: "0x0dcd9298e163dfd3c0b5b00f0d9093c36e40a153",
+  collateralTokenDecimals: 6,
+  swapTokenDecimals: 18,
 } as const;
 
 /**
@@ -47,6 +52,12 @@ export const BASIN_TESTNET_STATIC = {
   swapTokenRateProvider: "0xf1a4e30cfb772125195f1f70d6c917afce9fe822",
   assetId: 5192296858534827628530496329220097n,
   tokenRedeemer: "0x077c99285d5cb503fcfef6facc7e7b5648fd27586",
+  /** Sepolia pocket (basin `pocket()`). */
+  pocket: "0xc36192312551ea75e850a0492993c69d23018347",
+  /** Sepolia basin `liquidityProvider()`. */
+  liquidityProvider: "0xc1a929cbc122ddb8794287d05bf890e41f23c8cb",
+  collateralTokenDecimals: 6,
+  swapTokenDecimals: 18,
 } as const;
 
 /** Basin static config keyed by EVM chain id (Ethereum mainnet + Sepolia). */
@@ -106,3 +117,20 @@ export function getGroveBasinPonderChain(): Partial<
 
 /** Whether GroveBasin log indexing is configured for this deployment. */
 export const isGroveBasinIndexingConfigured = Object.keys(getGroveBasinPonderChain()).length > 0;
+
+/**
+ * The basin static config selected for this deployment (same precedence as
+ * {@link getGroveBasinPonderChain}: mainnet wins over Sepolia), or `null` when neither
+ * chain is loaded from the registry.
+ *
+ * @returns Selected static config or `null`
+ */
+export function getSelectedBasinStatic(): BasinStaticConfig | null {
+  if (RegistryChains.some((c) => Number(c.network.chainId) === BASIN_MAINNET_STATIC.chainId)) {
+    return BASIN_MAINNET_STATIC;
+  }
+  if (RegistryChains.some((c) => Number(c.network.chainId) === BASIN_TESTNET_STATIC.chainId)) {
+    return BASIN_TESTNET_STATIC;
+  }
+  return null;
+}
