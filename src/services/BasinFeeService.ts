@@ -1,8 +1,9 @@
 import type { Context, Event } from "ponder:registry";
-import { BasinFee, BasinFeeChange } from "ponder:schema";
+import { BasinFee, BasinFeeChange, BasinSwap } from "ponder:schema";
 import { GrooveBasinAbi } from "../../abis/GrooveBasin";
 import type { BasinConfig } from "../config/basin";
-import { serviceLog } from "../helpers/logger";
+import { getSwapQuote } from "../helpers/basinQuote";
+import { serviceError, serviceLog } from "../helpers/logger";
 import { readContractSafe } from "../helpers/readContractSafe";
 import { BasinFeeChangeService } from "./BasinFeeChangeService";
 import { Service } from "./Service";
@@ -13,6 +14,9 @@ type FeeType = (typeof BasinFeeChange.$inferSelect)["feeType"];
 
 /** Which basin leg a swap fee was collected in (fees are charged on the `assetOut` side). */
 export type BasinFeeToken = "CREDIT" | "COLLATERAL" | "SWAP";
+
+/** Swap direction that carries a fee (every emitted `Swap` involves the credit token). */
+export type FeeableSwapDirection = Exclude<(typeof BasinSwap.$inferSelect)["direction"], "OTHER">;
 
 /**
  * Service for `basin_fee`: the current GroveBasin swap fee state per basin — purchase and
@@ -26,6 +30,66 @@ export type BasinFeeToken = "CREDIT" | "COLLATERAL" | "SWAP";
 export class BasinFeeService extends Service<typeof BasinFee> {
   static readonly entityTable = BasinFee;
   static readonly entityName = "BasinFee";
+
+  /**
+   * The basin leg a swap fee is denominated in: fees are charged on the `assetOut` side.
+   *
+   * @param direction - Swap direction (never `OTHER`)
+   * @returns Fee token leg
+   */
+  static feeTokenForDirection(direction: FeeableSwapDirection): BasinFeeToken {
+    if (direction === "CREDIT_TO_COLLATERAL") return "COLLATERAL";
+    if (direction === "CREDIT_TO_SWAP") return "SWAP";
+    return "CREDIT";
+  }
+
+  /**
+   * Derives the fee charged on a swap: the event's `amountOut` is net of the fee charged
+   * on the `assetOut` side, so the fee is the gross oracle quote minus `amountOut`. The
+   * rate applied is the purchase fee when the credit token is bought, the redemption fee
+   * otherwise. Returns a `null` fee when the quote fails or is below the net amount (the
+   * swap row is still indexed; the fee is just unknown).
+   *
+   * @param context - Ponder context
+   * @param event - `Swap` log
+   * @param cfg - Loaded basin config
+   * @param params - Swap direction, normalized asset pair, and event amounts
+   * @returns Fee in `assetOut` token units (or `null`) and the applied rate (bps)
+   */
+  async computeSwapFee(
+    context: Context,
+    event: TxEvent,
+    cfg: BasinConfig,
+    params: {
+      direction: FeeableSwapDirection;
+      assetIn: `0x${string}`;
+      assetOut: `0x${string}`;
+      amountIn: bigint;
+      amountOut: bigint;
+    }
+  ): Promise<{ fee: bigint | null; feeBps: bigint }> {
+    const { direction, assetIn, assetOut, amountIn, amountOut } = params;
+    const feeBps =
+      direction === "COLLATERAL_TO_CREDIT" || direction === "SWAP_TO_CREDIT"
+        ? this.data.purchaseFeeBps
+        : this.data.redemptionFeeBps;
+
+    const grossOut = await getSwapQuote(context, event, cfg, assetIn, assetOut, amountIn, false);
+    if (grossOut === undefined) {
+      serviceError(
+        `GroveBasin swap quote eth_call failed. Cannot compute swap fee at block ${event.block.number}`
+      );
+      return { fee: null, feeBps };
+    }
+    if (grossOut < amountOut) {
+      serviceError(
+        `GroveBasin gross quote ${grossOut} below net amountOut ${amountOut} at block ` +
+          `${event.block.number}; storing null fee`
+      );
+      return { fee: null, feeBps };
+    }
+    return { fee: grossOut - amountOut, feeBps };
+  }
 
   /**
    * Loads the fee state row for the configured basin, initializing it on first touch with

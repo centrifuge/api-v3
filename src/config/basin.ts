@@ -88,31 +88,22 @@ export function loadBasinConfig(context: Context): BasinConfig | null {
 }
 
 /**
- * Ponder `groveBasin` chain map: `ethereum` network name for mainnet (`1`) or Sepolia (`11155111`).
- * Uses {@link RegistryChains} (post-`SELECTED_NETWORKS` filter). Mainnet wins if both are present.
+ * Ponder `groveBasin` chain map: `ethereum` network name for the deployment selected by
+ * {@link getSelectedBasinStatic} (mainnet wins over Sepolia).
  *
- * @returns `ethereum` entry when that chain is loaded from the registry, else `{}`
+ * @returns `ethereum` entry when a basin chain is loaded from the registry, else `{}`
  */
 export function getGroveBasinPonderChain(): Partial<
   Record<"ethereum", { address: `0x${string}`; startBlock: number }>
 > {
-  if (RegistryChains.some((c) => Number(c.network.chainId) === BASIN_MAINNET_STATIC.chainId)) {
-    return {
-      ethereum: {
-        address: BASIN_MAINNET_STATIC.basinAddress,
-        startBlock: BASIN_MAINNET_STATIC.startBlock,
-      },
-    };
-  }
-  if (RegistryChains.some((c) => Number(c.network.chainId) === BASIN_TESTNET_STATIC.chainId)) {
-    return {
-      ethereum: {
-        address: BASIN_TESTNET_STATIC.basinAddress,
-        startBlock: BASIN_TESTNET_STATIC.startBlock,
-      },
-    };
-  }
-  return {};
+  const selected = getSelectedBasinStatic();
+  if (!selected) return {};
+  return {
+    ethereum: {
+      address: selected.basinAddress,
+      startBlock: selected.startBlock,
+    },
+  };
 }
 
 /** Whether GroveBasin log indexing is configured for this deployment. */

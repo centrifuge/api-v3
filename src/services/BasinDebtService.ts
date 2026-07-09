@@ -9,12 +9,18 @@ import {
   getSusdsAddress,
 } from "../config/sky";
 import { RAY, rpow } from "../helpers/bigintMath";
+import { formatBytes32ToAddress } from "../helpers/formatter";
 import { serviceLog } from "../helpers/logger";
 import { readContractSafe } from "../helpers/readContractSafe";
 import { BasinDebtChangeService } from "./BasinDebtChangeService";
 import { Service } from "./Service";
 
 type TxEvent = Extract<Event, { transaction: { hash: `0x${string}` }; log: { logIndex: number } }>;
+
+/** ERC20 Transfer log shape (credit token balance tracking). */
+type TokenTransferEvent = TxEvent & {
+  args: { from: `0x${string}`; to: `0x${string}`; value: bigint };
+};
 
 type DebtChangeType = (typeof BasinDebtChange.$inferSelect)["type"];
 
@@ -195,12 +201,16 @@ export class BasinDebtService extends Service<typeof BasinDebt> {
     event: TxEvent,
     params: { principalDelta: bigint; claimAs: DebtChangeType }
   ): Promise<boolean> {
+    // Only Transfer logs preceding this basin event qualify; take the nearest one so a tx
+    // with several equal-value transfers claims deterministically.
     const candidates = (await BasinDebtChangeService.query(context, {
       chainId: this.data.chainId,
       txHash: event.transaction.hash,
       basinAddress: this.data.basinAddress,
       type: "TRANSFER_REPAYMENT",
       principalDelta: params.principalDelta,
+      logIndex_lt: event.log.logIndex,
+      _sort: [{ field: "logIndex", direction: "desc" }],
     })) as BasinDebtChangeService[];
 
     const claimed = candidates[0];
@@ -208,6 +218,30 @@ export class BasinDebtService extends Service<typeof BasinDebt> {
     claimed.relabel(params.claimAs);
     await claimed.save(null);
     return true;
+  }
+
+  /**
+   * Applies a credit token (JTRSY) Transfer touching the basin to its live balance: inbound
+   * transfers increase it, outbound decrease it. No debt effect — the balance is the cap for
+   * how much a new redemption can be requested for. Transfers not involving the basin no-op.
+   *
+   * @param context - Ponder context
+   * @param event - Credit token `Transfer` log
+   * @param cfg - Loaded basin config
+   */
+  static async applyCreditTokenTransfer(
+    context: Context,
+    event: TokenTransferEvent,
+    cfg: BasinConfig
+  ): Promise<void> {
+    const basinAddress = formatBytes32ToAddress(cfg.basinAddress);
+    const from = formatBytes32ToAddress(event.args.from);
+    const to = formatBytes32ToAddress(event.args.to);
+    if (from === to || (from !== basinAddress && to !== basinAddress)) return;
+
+    const debt = await BasinDebtService.load(context, event, cfg);
+    debt.adjustCreditTokenBalance(to === basinAddress ? event.args.value : -event.args.value);
+    await debt.save(event);
   }
 
   /**

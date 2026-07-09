@@ -15,7 +15,6 @@ import {
   BasinFeeService,
   BasinRedeemRequestService,
   BasinSwapService,
-  type BasinFeeToken,
 } from "../services";
 
 /**
@@ -47,20 +46,6 @@ function swapDirection(
   return "OTHER";
 }
 
-/**
- * The basin leg a swap fee is denominated in: fees are charged on the `assetOut` side.
- *
- * @param direction - Swap direction (must not be `OTHER`)
- * @returns Fee token leg
- */
-function feeTokenForDirection(
-  direction: "CREDIT_TO_COLLATERAL" | "CREDIT_TO_SWAP" | "COLLATERAL_TO_CREDIT" | "SWAP_TO_CREDIT"
-): BasinFeeToken {
-  if (direction === "CREDIT_TO_COLLATERAL") return "COLLATERAL";
-  if (direction === "CREDIT_TO_SWAP") return "SWAP";
-  return "CREDIT";
-}
-
 if (isGroveBasinIndexingConfigured) {
   ponder.on("groveBasin:Swap", async ({ event, context }) => {
     const cfg = loadBasinConfig(context);
@@ -71,45 +56,24 @@ if (isGroveBasinIndexingConfigured) {
     const basinAddress = formatBytes32ToAddress(event.log.address);
     const direction = swapDirection(assetIn, assetOut, cfg);
 
-    // Swap fee: the event's amountOut is net of the fee charged on the assetOut side, so the
-    // fee is the gross oracle quote minus amountOut. The fee rate applied is the purchase fee
-    // when the credit token is bought, the redemption fee otherwise. OTHER swaps have no fee
-    // or debt effect, so the state loads (several eth_calls on first touch) are skipped.
+    // Fee and debt state are only needed for credit-leg swaps; OTHER swaps skip the loads
+    // (several eth_calls on first touch). The fee derivation itself lives in BasinFeeService.
     let fee: bigint | null = null;
     let feeBps: bigint | null = null;
     let feeState: BasinFeeService | null = null;
     let debt: BasinDebtService | null = null;
     if (direction !== "OTHER") {
-      let grossOut: bigint | undefined;
-      [feeState, debt, grossOut] = await Promise.all([
+      [feeState, debt] = await Promise.all([
         BasinFeeService.load(context, event, cfg),
         BasinDebtService.load(context, event, cfg),
-        getSwapQuote(
-          context,
-          event,
-          cfg,
-          formatBytes32ToAddress(assetIn),
-          formatBytes32ToAddress(assetOut),
-          amountIn,
-          false
-        ),
       ]);
-      feeBps =
-        direction === "COLLATERAL_TO_CREDIT" || direction === "SWAP_TO_CREDIT"
-          ? feeState.read().purchaseFeeBps
-          : feeState.read().redemptionFeeBps;
-      if (grossOut === undefined) {
-        serviceError(
-          `GroveBasin swap quote eth_call failed. Cannot compute swap fee at block ${event.block.number}`
-        );
-      } else if (grossOut < amountOut) {
-        serviceError(
-          `GroveBasin gross quote ${grossOut} below net amountOut ${amountOut} at block ` +
-            `${event.block.number}; storing null fee`
-        );
-      } else {
-        fee = grossOut - amountOut;
-      }
+      ({ fee, feeBps } = await feeState.computeSwapFee(context, event, cfg, {
+        direction,
+        assetIn: formatBytes32ToAddress(assetIn),
+        assetOut: formatBytes32ToAddress(assetOut),
+        amountIn,
+        amountOut,
+      }));
     }
 
     await BasinSwapService.insert(
@@ -137,7 +101,7 @@ if (isGroveBasinIndexingConfigured) {
     );
 
     if (direction !== "OTHER" && feeState && fee !== null && fee > 0n) {
-      await feeState.addCollectedFee(event, feeTokenForDirection(direction), fee);
+      await feeState.addCollectedFee(event, BasinFeeService.feeTokenForDirection(direction), fee);
     }
 
     // Debt effects (all 18-decimal normalized): sell-side swaps are CFGL drawdowns for the
