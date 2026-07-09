@@ -2,6 +2,7 @@ import type { Context, Event } from "ponder:registry";
 import { BasinFee, BasinFeeChange, BasinSwap } from "ponder:schema";
 import { GrooveBasinAbi } from "../../abis/GrooveBasin";
 import type { BasinConfig } from "../config/basin";
+import { basinEntityInit, basinEntityKey } from "../helpers/basinEntity";
 import { getSwapQuote } from "../helpers/basinQuote";
 import { serviceError, serviceLog } from "../helpers/logger";
 import { readContractSafe } from "../helpers/readContractSafe";
@@ -102,13 +103,10 @@ export class BasinFeeService extends Service<typeof BasinFee> {
    * @returns Fee state service instance
    */
   static async load(context: Context, event: TxEvent, cfg: BasinConfig): Promise<BasinFeeService> {
-    const key = {
-      chainId: cfg.chainId,
-      basinAddress: cfg.basinAddress,
-      tokenId: cfg.tokenId,
-    } as const;
-
-    const existing = (await BasinFeeService.get(context, key)) as BasinFeeService | null;
+    const existing = (await BasinFeeService.get(
+      context,
+      basinEntityKey(cfg)
+    )) as BasinFeeService | null;
     if (existing) return existing;
 
     const read = (functionName: "purchaseFee" | "redemptionFee" | "minFee" | "maxFee") =>
@@ -141,8 +139,7 @@ export class BasinFeeService extends Service<typeof BasinFee> {
     const created = (await BasinFeeService.insert(
       context,
       {
-        ...key,
-        poolId: cfg.poolId,
+        ...basinEntityInit(cfg, event),
         purchaseFeeBps,
         redemptionFeeBps,
         minFeeBps,
@@ -150,8 +147,6 @@ export class BasinFeeService extends Service<typeof BasinFee> {
         feesCollectedCredit: 0n,
         feesCollectedCollateral: 0n,
         feesCollectedSwap: 0n,
-        lastUpdatedAt: new Date(Number(event.block.timestamp) * 1000),
-        lastUpdatedAtBlock: Number(event.block.number),
       },
       event
     )) as BasinFeeService | null;

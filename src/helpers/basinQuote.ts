@@ -194,6 +194,44 @@ export async function getSwapQuote(
   );
 }
 
+/** GroveBasin swap leg pairing (`basin_swap_direction` enum values). */
+export type BasinSwapDirection =
+  | "CREDIT_TO_COLLATERAL"
+  | "CREDIT_TO_SWAP"
+  | "COLLATERAL_TO_CREDIT"
+  | "SWAP_TO_CREDIT"
+  | "OTHER";
+
+/**
+ * Maps a GroveBasin `Swap` asset pair to its `basin_swap_direction` enum value.
+ *
+ * `OTHER` is unreachable with the current contracts: `_getSwapQuote` reverts (`InvalidSwap`)
+ * unless one side of the pair is the credit token, so every emitted `Swap` matches one of the
+ * four directions. The value is kept as a defensive fallback only.
+ *
+ * @param assetIn - Token sold
+ * @param assetOut - Token bought
+ * @param cfg - Basin config for token addresses
+ * @returns Swap direction
+ */
+export function swapDirection(
+  assetIn: `0x${string}`,
+  assetOut: `0x${string}`,
+  cfg: BasinConfig
+): BasinSwapDirection {
+  const credit = formatBytes32ToAddress(cfg.creditToken);
+  const collateral = formatBytes32ToAddress(cfg.collateralToken);
+  const swap = formatBytes32ToAddress(cfg.swapToken);
+  const inAddr = formatBytes32ToAddress(assetIn);
+  const outAddr = formatBytes32ToAddress(assetOut);
+
+  if (inAddr === credit && outAddr === collateral) return "CREDIT_TO_COLLATERAL";
+  if (inAddr === credit && outAddr === swap) return "CREDIT_TO_SWAP";
+  if (inAddr === collateral && outAddr === credit) return "COLLATERAL_TO_CREDIT";
+  if (inAddr === swap && outAddr === credit) return "SWAP_TO_CREDIT";
+  return "OTHER";
+}
+
 /**
  * `keccak256(abi.encode(RedeemRequest))` per GroveBasin `_initiateRedeem`.
  *

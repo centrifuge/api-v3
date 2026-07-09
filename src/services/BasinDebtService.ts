@@ -8,6 +8,7 @@ import {
   SPREAD_PER_SECOND_RAY,
   getSusdsAddress,
 } from "../config/sky";
+import { basinEntityInit, basinEntityKey } from "../helpers/basinEntity";
 import { RAY, rpow } from "../helpers/bigintMath";
 import { formatBytes32ToAddress } from "../helpers/formatter";
 import { serviceLog } from "../helpers/logger";
@@ -78,13 +79,10 @@ export class BasinDebtService extends Service<typeof BasinDebt> {
    * @returns Debt service instance
    */
   static async load(context: Context, event: TxEvent, cfg: BasinConfig): Promise<BasinDebtService> {
-    const key = {
-      chainId: cfg.chainId,
-      basinAddress: cfg.basinAddress,
-      tokenId: cfg.tokenId,
-    } as const;
-
-    const existing = (await BasinDebtService.get(context, key)) as BasinDebtService | null;
+    const existing = (await BasinDebtService.get(
+      context,
+      basinEntityKey(cfg)
+    )) as BasinDebtService | null;
     if (existing) return existing;
 
     const susdsAddress = getSusdsAddress(cfg.chainId);
@@ -108,16 +106,13 @@ export class BasinDebtService extends Service<typeof BasinDebt> {
     const created = (await BasinDebtService.insert(
       context,
       {
-        ...key,
-        poolId: cfg.poolId,
+        ...basinEntityInit(cfg, event),
         debt: 0n,
         ssrPerSecondRay,
         ratePerSecondRay: BasinDebtService.effectiveRatePerSecondRay(ssrPerSecondRay),
         spreadBps: DEBT_SPREAD_BPS,
         creditTokenBalance: 0n,
         pendingCreditTokenAmount: 0n,
-        lastUpdatedAt: new Date(Number(event.block.timestamp) * 1000),
-        lastUpdatedAtBlock: Number(event.block.number),
       },
       event
     )) as BasinDebtService | null;

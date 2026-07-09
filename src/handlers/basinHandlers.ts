@@ -1,9 +1,8 @@
 import { ponder } from "ponder:registry";
-import type { BasinConfig } from "../config/basin";
 import { isGroveBasinIndexingConfigured, loadBasinConfig } from "../config/basin";
 import { scaleDecimals } from "../helpers/bigintMath";
 import { formatBytes32ToAddress } from "../helpers/formatter";
-import { computeRedeemRequestId, getSwapQuote } from "../helpers/basinQuote";
+import { computeRedeemRequestId, getSwapQuote, swapDirection } from "../helpers/basinQuote";
 import {
   insertBasinReconciliationWarning,
   linkSpokeRedeemIfPending,
@@ -16,35 +15,6 @@ import {
   BasinRedeemRequestService,
   BasinSwapService,
 } from "../services";
-
-/**
- * Maps GroveBasin `Swap` asset pair to `basin_swap_direction` enum value.
- *
- * `OTHER` is unreachable with the current contracts: `_getSwapQuote` reverts (`InvalidSwap`)
- * unless one side of the pair is the credit token, so every emitted `Swap` matches one of the
- * four directions. The value is kept as a defensive fallback only.
- *
- * @param assetIn - Token sold
- * @param assetOut - Token bought
- * @param cfg - Basin config for token addresses
- */
-function swapDirection(
-  assetIn: `0x${string}`,
-  assetOut: `0x${string}`,
-  cfg: BasinConfig
-): "CREDIT_TO_COLLATERAL" | "CREDIT_TO_SWAP" | "COLLATERAL_TO_CREDIT" | "SWAP_TO_CREDIT" | "OTHER" {
-  const credit = formatBytes32ToAddress(cfg.creditToken);
-  const collateral = formatBytes32ToAddress(cfg.collateralToken);
-  const swap = formatBytes32ToAddress(cfg.swapToken);
-  const inAddr = formatBytes32ToAddress(assetIn);
-  const outAddr = formatBytes32ToAddress(assetOut);
-
-  if (inAddr === credit && outAddr === collateral) return "CREDIT_TO_COLLATERAL";
-  if (inAddr === credit && outAddr === swap) return "CREDIT_TO_SWAP";
-  if (inAddr === collateral && outAddr === credit) return "COLLATERAL_TO_CREDIT";
-  if (inAddr === swap && outAddr === credit) return "SWAP_TO_CREDIT";
-  return "OTHER";
-}
 
 if (isGroveBasinIndexingConfigured) {
   ponder.on("groveBasin:Swap", async ({ event, context }) => {

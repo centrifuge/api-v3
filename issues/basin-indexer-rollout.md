@@ -1,5 +1,15 @@
 # Basin indexer — operational rollout spec
 
+> **⚠️ Partially superseded by the CFGL debt model (PR #444).** The swap↔redeem
+> batch-linking described below no longer matches the implementation:
+> `basin_swap.basinRedeemRequestId`, `priorityFeeDeltaBps`, and the `batchSumMismatch` /
+> `initiateNoSwaps` warnings were removed. Swaps and redemptions are decoupled; CFGL's debt
+> to Grove is tracked in `basin_debt` / `basin_debt_change` (per-second SSR + 30 bps
+> accrual, raw ERC20 transfers as repayment source of truth) and swap fees in `basin_fee`.
+> The basin address below is also outdated — see `src/config/basin.ts` for the live
+> deployment. Still accurate: the request lifecycle (INITIATED → COMPLETED), spoke/hub
+> order linking, and the remaining reconciliation warnings.
+
 **Goal:** Ops can reconcile each **instant JTRSY → USDC** swap with the **fund redeem** (`tokenRedeemer` → spoke `vault:RedeemRequest` → hub `redeemOrder`), through settlement.
 
 **Principles**
