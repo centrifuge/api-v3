@@ -21,6 +21,10 @@ import {
 /**
  * Maps GroveBasin `Swap` asset pair to `basin_swap_direction` enum value.
  *
+ * `OTHER` is unreachable with the current contracts: `_getSwapQuote` reverts (`InvalidSwap`)
+ * unless one side of the pair is the credit token, so every emitted `Swap` matches one of the
+ * four directions. The value is kept as a defensive fallback only.
+ *
  * @param assetIn - Token sold
  * @param assetOut - Token bought
  * @param cfg - Basin config for token addresses
@@ -150,6 +154,10 @@ if (isGroveBasinIndexingConfigured) {
         principalDelta: scaleDecimals(amountOut, decimals),
       });
     } else if (direction === "COLLATERAL_TO_CREDIT" || direction === "SWAP_TO_CREDIT") {
+      // The buy-side inflow is a single `_pullAsset` transferFrom of exactly amountIn that the
+      // contract executes before emitting Swap, so the TRANSFER_REPAYMENT ledger entry must
+      // exist. The raw transfer is the source of truth for the debt effect; a missing claim is
+      // an anomaly to surface, never a reason to apply a second reduction.
       const decimals =
         direction === "COLLATERAL_TO_CREDIT" ? cfg.collateralTokenDecimals : cfg.swapTokenDecimals;
       const principalDelta = -scaleDecimals(amountIn, decimals);
@@ -158,9 +166,14 @@ if (isGroveBasinIndexingConfigured) {
         claimAs: "SWAP_REPAYMENT",
       });
       if (!claimed) {
-        await debt.accrueAndApply(context, event, {
-          type: "SWAP_REPAYMENT",
-          principalDelta,
+        serviceError(
+          `GroveBasin buy-side swap found no TRANSFER_REPAYMENT to claim ` +
+            `(tx ${event.transaction.hash}, principalDelta ${principalDelta})`
+        );
+        await insertBasinReconciliationWarning(context, event, {
+          type: "repaymentClaimMissing",
+          message: `Buy-side swap found no same-tx TRANSFER_REPAYMENT for ${principalDelta}`,
+          basinAddress,
         });
       }
     }
@@ -243,22 +256,34 @@ if (isGroveBasinIndexingConfigured) {
       redeemer: redeemerNorm,
     })) as BasinRedeemRequestService[];
 
-    const batch = open.length === 1 ? open[0] : undefined;
-    if (!batch) {
+    // The redeemer contract allows a single in-flight redemption and completions are always
+    // full, so this event closes every open request for the redeemer: the newest one is the
+    // request completed on-chain; any older row means its completion event was missed and it
+    // is closed as stale (null collateral) so it cannot poison future matching.
+    if (open.length !== 1) {
       await insertBasinReconciliationWarning(context, event, {
         type: "completeOrphan",
         message: `Expected 1 INITIATED basin_redeem_request, found ${open.length}`,
         basinAddress,
       });
-    } else {
-      batch.complete(collateralTokenReturned, event);
-      await batch.save(event);
     }
 
-    // Repayment: the vault's USDC arrived via the redeemer's Transfer earlier in this tx,
-    // recorded as TRANSFER_REPAYMENT by the raw Transfer log; claim it as REDEMPTION.
+    const newestFirst = [...open].sort(
+      (a, b) => b.read().initiatedAtBlock - a.read().initiatedAtBlock
+    );
+    let pendingCleared = 0n;
+    for (const [index, request] of newestFirst.entries()) {
+      pendingCleared += request.read().creditTokenAmount;
+      request.complete(index === 0 ? collateralTokenReturned : null, event);
+      await request.save(event);
+    }
+
+    // Repayment: the redeemer transfers exactly `collateralTokenReturned` USDC to the basin
+    // in this tx before the event is emitted, recorded as TRANSFER_REPAYMENT by the raw
+    // Transfer log; claim it as REDEMPTION. The raw transfer is the source of truth for the
+    // debt effect; a missing claim is an anomaly to surface, never a second reduction.
     const debt = await BasinDebtService.load(context, event, cfg);
-    if (batch) debt.adjustPendingCreditTokenAmount(-batch.read().creditTokenAmount);
+    if (pendingCleared > 0n) debt.adjustPendingCreditTokenAmount(-pendingCleared);
 
     const principalDelta = -scaleDecimals(collateralTokenReturned, cfg.collateralTokenDecimals);
     const claimed = await debt.claimTransferRepayment(context, event, {
@@ -266,10 +291,17 @@ if (isGroveBasinIndexingConfigured) {
       claimAs: "REDEMPTION",
     });
     if (!claimed) {
-      await debt.accrueAndApply(context, event, { type: "REDEMPTION", principalDelta });
-    } else {
-      await debt.save(event);
+      serviceError(
+        `GroveBasin RedeemCompleted found no TRANSFER_REPAYMENT to claim ` +
+          `(tx ${event.transaction.hash}, principalDelta ${principalDelta})`
+      );
+      await insertBasinReconciliationWarning(context, event, {
+        type: "repaymentClaimMissing",
+        message: `RedeemCompleted found no same-tx TRANSFER_REPAYMENT for ${principalDelta}`,
+        basinAddress,
+      });
     }
+    await debt.save(event);
   });
 
   ponder.on("basinUsdc:Transfer", async ({ event, context }) => {

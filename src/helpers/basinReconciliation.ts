@@ -17,7 +17,11 @@ export async function insertBasinReconciliationWarning(
   context: Context,
   event: TxEvent,
   params: {
-    type: "completeOrphan" | "redeemOrderLinkAmbiguous" | "spokeRedeemLinkAmbiguous";
+    type:
+      | "completeOrphan"
+      | "redeemOrderLinkAmbiguous"
+      | "spokeRedeemLinkAmbiguous"
+      | "repaymentClaimMissing";
     message: string;
     basinAddress?: `0x${string}`;
     basinRedeemRequestId?: `0x${string}`;

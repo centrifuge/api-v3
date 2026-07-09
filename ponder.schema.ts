@@ -322,17 +322,13 @@ const TokenIssuanceColumns = (t: PgColumnsBuilders) => ({
   logIndex: t.integer().notNull(),
   ...defaultColumns(t, false),
 });
-export const TokenIssuance = onchainTable(
-  "token_issuance",
-  TokenIssuanceColumns,
-  (t) => ({
-    // logIndex in the PK guards against multiple issue()/revoke() in one tx
-    id: primaryKey({
-      columns: [t.tokenId, t.centrifugeId, t.type, t.createdAtTxHash, t.logIndex],
-    }),
-    manualIssuanceIdx: index().on(t.centrifugeId, t.poolId, t.isManual, t.createdAtBlock),
-  })
-);
+export const TokenIssuance = onchainTable("token_issuance", TokenIssuanceColumns, (t) => ({
+  // logIndex in the PK guards against multiple issue()/revoke() in one tx
+  id: primaryKey({
+    columns: [t.tokenId, t.centrifugeId, t.type, t.createdAtTxHash, t.logIndex],
+  }),
+  manualIssuanceIdx: index().on(t.centrifugeId, t.poolId, t.isManual, t.createdAtBlock),
+}));
 
 export const TokenIssuanceRelations = relations(TokenIssuance, ({ one }) => ({
   blockchain: one(Blockchain, {
@@ -1793,6 +1789,7 @@ export const BasinReconciliationWarningType = onchainEnum("basin_reconciliation_
   "completeOrphan",
   "redeemOrderLinkAmbiguous",
   "spokeRedeemLinkAmbiguous",
+  "repaymentClaimMissing",
 ] as const);
 
 export const BasinDebtChangeType = onchainEnum("basin_debt_change_type", [

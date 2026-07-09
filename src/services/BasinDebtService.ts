@@ -177,9 +177,13 @@ export class BasinDebtService extends Service<typeof BasinDebt> {
 
   /**
    * Claims a same-transaction `TRANSFER_REPAYMENT` ledger entry produced by the raw
-   * stablecoin Transfer log (which precedes the basin event in log order) and re-labels
-   * it, avoiding a double-counted repayment. Returns whether a matching entry was found;
-   * when `false` the caller must apply the repayment itself via {@link accrueAndApply}.
+   * stablecoin Transfer log and re-labels it, avoiding a double-counted repayment.
+   *
+   * The GroveBasin contracts guarantee the match: buy-side swaps `transferFrom` exactly
+   * `amountIn` and the token redeemer transfers exactly `collateralTokenReturned`, in both
+   * cases before the basin event is emitted (lower logIndex). The raw transfer is therefore
+   * the source of truth for the debt effect; when no entry matches the caller must NOT
+   * apply the repayment again but surface a `repaymentClaimMissing` warning.
    *
    * @param context - Ponder context
    * @param event - Basin event in the same transaction
