@@ -51,7 +51,7 @@ export const BASIN_TESTNET_STATIC = {
   collateralTokenRateProvider: "0xf1a4e30cfb772125195f1f70d6c917afce9fe822",
   swapTokenRateProvider: "0xf1a4e30cfb772125195f1f70d6c917afce9fe822",
   assetId: 5192296858534827628530496329220097n,
-  tokenRedeemer: "0x077c99285d5cb503fcfef6facc7e7b5648fd27586",
+  tokenRedeemer: "0x077c99285d5cb503fcfe6facc7e7b5648fd27586",
   /** Sepolia pocket (basin `pocket()`). */
   pocket: "0xc36192312551ea75e850a0492993c69d23018347",
   /** Sepolia basin `liquidityProvider()`. */
