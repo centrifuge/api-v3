@@ -18,11 +18,10 @@ export async function insertBasinReconciliationWarning(
   event: TxEvent,
   params: {
     type:
-      | "batchSumMismatch"
-      | "initiateNoSwaps"
       | "completeOrphan"
       | "redeemOrderLinkAmbiguous"
-      | "spokeRedeemLinkAmbiguous";
+      | "spokeRedeemLinkAmbiguous"
+      | "repaymentClaimMissing";
     message: string;
     basinAddress?: `0x${string}`;
     basinRedeemRequestId?: `0x${string}`;
@@ -132,29 +131,6 @@ export async function linkBasinRedeemOrderToEpoch(
     message: `Expected 1 open basin_redeem_request for ApproveRedeems, found ${open.length}`,
     basinAddress,
   });
-}
-
-/**
- * Priority-fee delta in basis points between instant swap NAV and batch closing NAV (issue leg 3).
- *
- * @param swapAmountIn - JTRSY in for the linked swap
- * @param swapAmountOut - USDC out at swap time
- * @param batchCreditTokenAmount - Batch `creditTokenAmount` on `RedeemInitiated`
- * @param collateralTokenReturned - USDC returned on `RedeemCompleted`
- * @returns Bps delta, or `null` when division is undefined
- */
-export function computePriorityFeeDeltaBps(
-  swapAmountIn: bigint,
-  swapAmountOut: bigint,
-  batchCreditTokenAmount: bigint,
-  collateralTokenReturned: bigint
-): number | null {
-  const instantNavValue = swapAmountOut;
-  if (instantNavValue === 0n || batchCreditTokenAmount === 0n) return null;
-
-  const closingNavValue = (swapAmountIn * collateralTokenReturned) / batchCreditTokenAmount;
-  const delta = instantNavValue - closingNavValue;
-  return Number((delta * 10_000n) / instantNavValue);
 }
 
 /**

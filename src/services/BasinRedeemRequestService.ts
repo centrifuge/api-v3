@@ -96,10 +96,11 @@ export class BasinRedeemRequestService extends Service<typeof BasinRedeemRequest
   /**
    * Marks the batch completed and stores collateral returned from the fund.
    *
-   * @param collateralTokenReturned - USDC from `RedeemCompleted`
+   * @param collateralTokenReturned - USDC from `RedeemCompleted`, or `null` for a stale
+   *   request closed by reconciliation (its completion event was never indexed)
    * @param event - `RedeemCompleted` event
    */
-  complete(collateralTokenReturned: bigint, event: TxEvent): void {
+  complete(collateralTokenReturned: bigint | null, event: TxEvent): void {
     serviceLog(
       `BasinRedeemRequest complete requestId=${this.data.requestId} collateral=${collateralTokenReturned}`
     );
