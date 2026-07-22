@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.2.0](https://github.com/centrifuge/api-v3/compare/v4.1.0...v4.2.0) (2026-07-16)
+
+
+### Features
+
+* **basin:** CFGL debt tracking with per-second SSR+30bps accrual ([#444](https://github.com/centrifuge/api-v3/issues/444)) ([09202fd](https://github.com/centrifuge/api-v3/commit/09202fdec2b37a4560619df4aee0d5fc636c9ff8))
+
 ## [4.1.0](https://github.com/centrifuge/api-v3/compare/v4.0.1...v4.1.0) (2026-06-26)
 
 
