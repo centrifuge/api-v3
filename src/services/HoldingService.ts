@@ -44,8 +44,8 @@ export class HoldingService extends Service<typeof Holding> {
    */
   public increase(amount: bigint, increaseValue: bigint) {
     const { assetQuantity, totalValue } = this.data;
-    this.data.assetQuantity = assetQuantity ?? 0n + amount;
-    this.data.totalValue = totalValue ?? 0n + increaseValue;
+    this.data.assetQuantity = (assetQuantity ?? 0n) + amount;
+    this.data.totalValue = (totalValue ?? 0n) + increaseValue;
     return this;
   }
 
@@ -60,8 +60,8 @@ export class HoldingService extends Service<typeof Holding> {
    */
   public decrease(amount: bigint, decreaseValue: bigint) {
     const { assetQuantity, totalValue } = this.data;
-    this.data.assetQuantity = assetQuantity ?? 0n - amount;
-    this.data.totalValue = totalValue ?? 0n - decreaseValue;
+    this.data.assetQuantity = (assetQuantity ?? 0n) - amount;
+    this.data.totalValue = (totalValue ?? 0n) - decreaseValue;
     return this;
   }
 
@@ -75,7 +75,7 @@ export class HoldingService extends Service<typeof Holding> {
    */
   public update(isPositive: boolean, diffValue: bigint) {
     const { totalValue } = this.data;
-    this.data.totalValue = totalValue ?? 0n + (isPositive ? diffValue : -diffValue);
+    this.data.totalValue = (totalValue ?? 0n) + (isPositive ? diffValue : -diffValue);
     return this;
   }
 
