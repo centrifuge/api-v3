@@ -1,5 +1,6 @@
 import { Escrow } from "ponder:schema";
-import { Service } from "./Service";
+import type { Context } from "ponder:registry";
+import { Service, type ReadOnlyContext } from "./Service";
 
 /**
  * Service class for managing Escrow entities in the database.
@@ -30,4 +31,27 @@ import { Service } from "./Service";
 export class EscrowService extends Service<typeof Escrow> {
   static readonly entityTable = Escrow;
   static readonly entityName = "Escrow";
+
+  /**
+   * Returns the most recently deployed escrow for a pool on a chain, or `null` if none is indexed.
+   *
+   * A pool can own several escrow rows over its lifetime (the escrow can be redeployed/migrated),
+   * and they all share `(poolId, centrifugeId)`. Escrows for a given pool+chain are deployed on the
+   * same chain, so ordering by `createdAtBlock` descending deterministically yields the current one.
+   * This replaces an unordered `get`, which returned an arbitrary (effectively oldest) row.
+   *
+   * @param context - Database context
+   * @param query - The pool and chain to look up
+   * @returns The newest escrow for the pool/chain, or `null` when none has been indexed
+   */
+  static async getLatest(
+    context: Context | ReadOnlyContext,
+    query: { poolId: bigint; centrifugeId: string }
+  ): Promise<EscrowService | null> {
+    const [escrow] = await EscrowService.query(context, {
+      ...query,
+      _sort: [{ field: "createdAtBlock", direction: "desc" }],
+    });
+    return escrow ?? null;
+  }
 }

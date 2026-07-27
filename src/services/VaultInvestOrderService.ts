@@ -63,9 +63,10 @@ export class VaultInvestOrderService extends Service<typeof VaultInvestOrder> {
    * @returns The service instance for method chaining
    */
   public saveOrClear(event: Event) {
-    if (this.data.requestedAssetsAmount === 0n && this.data.claimableAssetsAmount === 0n) {
-      return this.delete();
-    }
+    const clearing =
+      this.data.requestedAssetsAmount === 0n && this.data.claimableAssetsAmount === 0n;
+    serviceLog(`VaultInvestOrder saveOrClear clearing=${clearing}`);
+    if (clearing) return this.delete();
     return this.save(event);
   }
 }

@@ -1,16 +1,15 @@
-import { CrosschainMessage } from "ponder:schema";
 import { multiMapper } from "../helpers/multiMapper";
-import { logEvent, serviceError } from "../helpers/logger";
+import { logEvent, serviceError, serviceLog } from "../helpers/logger";
 import { BlockchainService, PoolAdapterService } from "../services";
-import type { DataWithoutDefaults } from "../services/Service";
-import { timestamper } from "../helpers/timestamper";
-
+import { timestamperWithChain } from "../helpers/timestamper";
 import {
   getCrosschainMessageType,
   CrosschainMessageService,
   getMessageId,
   getMessageHash,
   decodeMessage,
+  CROSSCHAIN_MESSAGE_TYPE_STUB,
+  CROSSCHAIN_RAW_DATA_STUB,
 } from "../services/CrosschainMessageService";
 import {
   CrosschainPayloadService,
@@ -18,17 +17,18 @@ import {
   extractMessagesFromPayload,
 } from "../services/CrosschainPayloadService";
 import { getVersionForContract } from "../contracts";
+import {
+  messageReceiveEntryFromEvent,
+  reconcileMessageReceives,
+  runWithSendReconciliation,
+} from "../helpers/crosschainReconciliation";
+import { isLiveIndexingBlock } from "../helpers/liveIndexingWindow";
 
 /**
- * Gateway outbound batching matches `Gateway.send` in cfg-protocol (`src/core/messaging/Gateway.sol`):
- * `emit PrepareMessage` runs unconditionally at the start of `send` (before batching / `_send`), and
- * `UnderpaidBatch` is only emitted from `_addUnpaidBatch` inside `_send` after that. So there is **no**
- * valid on-chain ordering where `UnderpaidBatch` precedes `PrepareMessage` for the same outbound send.
- *
- * PrepareMessage handler skips inserting a duplicate row when this `messageId` already has an
- * `AwaitingBatchDelivery` row without payload (e.g. duplicate `send` with the same bytes, or indexer
- * replay). UnderpaidBatch links those rows or inserts `Unsent` when no matching awaiting row exists
- * (e.g. handler failure on Prepare). Replayed UnderpaidBatch for an existing payload still links stragglers.
+ * Gateway outbound paths in cfg-protocol:
+ * - `gateway.send()` always `emit PrepareMessage` before `_send` / `UnderpaidBatch` (v3.1+ and v3 `send()`).
+ * - **v3 only:** `gateway.addUnpaidMessage()` emits `UnderpaidBatch` with no `PrepareMessage`
+ *   (`MessageDispatcher.sendExecuteTransferShares`). Same-chain log order is deterministic per path.
  */
 
 multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
@@ -47,16 +47,13 @@ multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
   const messageHash = getMessageHash(message);
   const messageId = getMessageId(fromCentrifugeId, toCentrifugeId.toString(), messageHash);
 
-  const crosschainMessagesForId = (await CrosschainMessageService.query(context, {
+  const awaitingDuplicate = (await CrosschainMessageService.query(context, {
     id: messageId,
+    status: "AwaitingBatchDelivery",
+    payloadId: null,
     _sort: [{ field: "index", direction: "asc" }],
   })) as CrosschainMessageService[];
-
-  if (
-    crosschainMessagesForId.some(
-      (m) => m.read().status === "AwaitingBatchDelivery" && m.read().payloadId == null
-    )
-  ) {
+  if (awaitingDuplicate.length > 0) {
     logEvent(
       event,
       context,
@@ -65,49 +62,48 @@ multiMapper("gateway:PrepareMessage", async ({ event, context }) => {
     return;
   }
 
-  const messageCount = crosschainMessagesForId.length;
-
   const rawData = `0x${Buffer.from(messageBuffer.toString("hex"))}` as `0x${string}`;
   const data = decodeMessage(messageType, messagePayload, version);
   const tokenId = data && "scId" in data ? (data.scId! as `0x${string}`) : null;
 
-  const _crosschainMessage = (await CrosschainMessageService.insert(
-    context,
-    {
-      id: messageId,
-      index: messageCount,
-      poolId: poolId || null,
-      tokenId,
-      fromCentrifugeId,
-      toCentrifugeId: toCentrifugeId.toString(),
-      messageType: messageType,
-      rawData,
-      hash: messageHash,
-      data: data,
-      status: "AwaitingBatchDelivery",
-    },
-    event
-  )) as CrosschainMessageService | null;
+  await runWithSendReconciliation(context, event, { messageIds: [messageId] }, async () => {
+    const messageIndex = await CrosschainMessageService.nextMessageIndex(context, messageId);
 
-  // TODO: move this event info to a proper in Hub.SetAdapters event.
-  const setPoolAdapters = PoolAdapterService.parseSetPoolAdaptersMessageData(data);
-  if (setPoolAdapters) {
-    await PoolAdapterService.setCrosschainInProgressFromMessage(
+    await CrosschainMessageService.upsertFacts(
       context,
+      event,
+      { id: messageId, index: messageIndex },
       {
-        localCentrifugeId: toCentrifugeId.toString(),
-        remoteCentrifugeId: fromCentrifugeId,
-        poolId: setPoolAdapters.poolId,
-        adapterAddresses: setPoolAdapters.adapterAddresses,
-        enabledTransition: true,
-      },
-      event
+        poolId: poolId || null,
+        tokenId,
+        fromCentrifugeId,
+        toCentrifugeId: toCentrifugeId.toString(),
+        messageType,
+        rawData,
+        hash: messageHash,
+        data,
+        ...timestamperWithChain("prepared", event, context.chain.id),
+      }
     );
-  }
+
+    const setPoolAdapters = PoolAdapterService.parseSetPoolAdaptersMessageData(data);
+    if (setPoolAdapters && isLiveIndexingBlock(event.block.timestamp)) {
+      await PoolAdapterService.setCrosschainInProgressFromMessage(
+        context,
+        {
+          localCentrifugeId: toCentrifugeId.toString(),
+          remoteCentrifugeId: fromCentrifugeId,
+          poolId: setPoolAdapters.poolId,
+          adapterAddresses: setPoolAdapters.adapterAddresses,
+          enabledTransition: true,
+        },
+        event
+      );
+    }
+  });
 });
 
 multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
-  // Primary path: link PrepareMessage rows; batch-only path: insert Unsent + payload. Idempotent when payload exists.
   logEvent(event, context, "gateway:UnderpaidBatch");
   const { centrifugeId: toCentrifugeId, batch } = event.args;
 
@@ -115,153 +111,167 @@ multiMapper("gateway:UnderpaidBatch", async ({ event, context }) => {
   if (!version) return serviceError("Failed to get registry version");
 
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
-
   const payloadId = getPayloadId(fromCentrifugeId, toCentrifugeId.toString(), batch);
 
-  const alreadyInitialized = (await CrosschainPayloadService.getUnderpaidFromQueue(
-    context,
-    payloadId
-  )) as CrosschainPayloadService | null;
-  if (alreadyInitialized) {
-    const { index: existingPayloadIndex } = alreadyInitialized.read();
-    const pendingLinkMessages = extractMessagesFromPayload(batch, version);
-    const linkOrderedIds = pendingLinkMessages.map((message) =>
-      getMessageId(fromCentrifugeId, toCentrifugeId.toString(), getMessageHash(message))
-    );
-    const crosschainMessagesByMessageId =
-      await CrosschainMessageService.loadCrosschainMessagesByMessageIds(context, linkOrderedIds);
-    const linkInstances: CrosschainMessageService[] = [];
-    for (const messageId of linkOrderedIds) {
-      const pendingMessage = CrosschainMessageService.getFirstUnlinkedAwaiting(
-        crosschainMessagesByMessageId.get(messageId)
-      );
-      if (pendingMessage) {
-        pendingMessage.setPayloadId(payloadId, existingPayloadIndex);
-        linkInstances.push(pendingMessage);
-      }
-    }
-    if (linkInstances.length > 0) {
-      await CrosschainMessageService.saveMany(context, linkInstances, event);
-    }
-    logEvent(
-      event,
-      context,
-      `UnderpaidBatch already initialized for payloadId ${payloadId}; linked any AwaitingBatchDelivery rows`
-    );
-    return;
-  }
-
-  const payloadIndex = await CrosschainPayloadService.count(context, {
-    id: payloadId,
-  });
-
-  const poolIdSet = new Set<bigint>();
-  const tokenIdSet = new Set<`0x${string}`>();
   const messages = extractMessagesFromPayload(batch, version);
   const orderedMessageIds = messages.map((message) =>
     getMessageId(fromCentrifugeId, toCentrifugeId.toString(), getMessageHash(message))
   );
-  const crosschainMessagesByMessageId =
-    await CrosschainMessageService.loadCrosschainMessagesByMessageIds(context, orderedMessageIds);
-  const pendingInsertsById = new Map<`0x${string}`, number>();
 
-  const linkInstances: CrosschainMessageService[] = [];
-  const insertRows: DataWithoutDefaults<typeof CrosschainMessage>[] = [];
-
-  for (let i = 0; i < messages.length; i++) {
-    const message = messages[i]!;
-    const messageBuffer = Buffer.from(message.substring(2), "hex");
-    const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0), version);
-    const messagePayload = messageBuffer.subarray(1);
-
-    const messageHash = getMessageHash(message);
-    const messageId = orderedMessageIds[i]!;
-
-    const rowsForId = crosschainMessagesByMessageId.get(messageId) ?? [];
-    const pendingMessage = CrosschainMessageService.getFirstUnlinkedAwaiting(rowsForId);
-    if (pendingMessage) {
-      logEvent(
-        event,
-        context,
-        `Message ${messageId} already initialized in awaiting batch delivery queue`
-      );
-      pendingMessage.setPayloadId(payloadId, payloadIndex);
-      linkInstances.push(pendingMessage);
-      continue;
-    }
-
-    const messageIndex = rowsForId.length + (pendingInsertsById.get(messageId) ?? 0);
-
-    const rawData = `0x${Buffer.from(messageBuffer.toString("hex"))}` as `0x${string}`;
-
-    const data = decodeMessage(messageType, messagePayload, version);
-    if (!data) {
-      serviceError(`Failed to decode message. Cannot process message data`);
-      return;
-    }
-
-    const poolId = "poolId" in data ? BigInt(data.poolId) : null;
-    if (poolId) poolIdSet.add(poolId);
-
-    const tokenId = "scId" in data ? (data.scId as `0x${string}`) : null;
-    if (tokenId) tokenIdSet.add(tokenId);
-
-    insertRows.push({
-      id: messageId,
-      index: messageIndex,
-      poolId,
-      tokenId,
-      fromCentrifugeId,
-      toCentrifugeId: toCentrifugeId.toString(),
-      messageType: messageType,
-      rawData,
-      data: data,
-      hash: messageHash,
-      status: "Unsent",
-      payloadId,
-      payloadIndex,
-    });
-
-    pendingInsertsById.set(messageId, (pendingInsertsById.get(messageId) ?? 0) + 1);
-  }
-
-  if (linkInstances.length > 0) {
-    await CrosschainMessageService.saveMany(context, linkInstances, event);
-  }
-  if (insertRows.length > 0) {
-    const inserted = await CrosschainMessageService.insertMany(context, insertRows, event);
-    if (inserted.length !== insertRows.length) {
-      serviceError(
-        `UnderpaidBatch: insertMany expected ${insertRows.length} crosschain messages, got ${inserted.length}`
-      );
-      return;
-    }
-  }
-
-  const poolIds = Array.from(poolIdSet);
-  if (poolIds.length > 1) {
-    serviceError(`Multiple poolIds found. Cannot determine single poolId for payload`);
-    return;
-  }
-  const poolId = Array.from(poolIdSet).pop() ?? null;
-  const tokenId = Array.from(tokenIdSet).pop() ?? null;
-
-  const crosschainPayload = (await CrosschainPayloadService.insert(
+  await runWithSendReconciliation(
     context,
-    {
-      id: payloadId,
-      index: payloadIndex,
-      poolId,
-      tokenId,
-      rawData: batch,
-      toCentrifugeId: toCentrifugeId.toString(),
-      fromCentrifugeId: fromCentrifugeId,
-      status: "Underpaid",
-      ...timestamper("prepared", event),
-    },
-    event
-  )) as CrosschainPayloadService | null;
-  if (!crosschainPayload) serviceError("Failed to initialize crosschain payload ");
+    event,
+    { messageIds: orderedMessageIds, payloadIds: [payloadId] },
+    async () => {
+      const key = await CrosschainPayloadService.resolvePayloadKey(
+        context,
+        payloadId,
+        "UnderpaidBatch",
+        { deferAllowed: false, messageIds: orderedMessageIds }
+      );
+      if (key.action === "defer") {
+        serviceLog(`UnderpaidBatch: defer late underpaid for ${payloadId} (payload already sent)`);
+        return;
+      }
+      const payloadIndex = key.index;
+
+      const poolIdSet = new Set<bigint>();
+      const tokenIdSet = new Set<`0x${string}`>();
+      const crosschainMessagesByMessageId =
+        await CrosschainMessageService.loadCrosschainMessagesByMessageIds(
+          context,
+          orderedMessageIds
+        );
+
+      for (let i = 0; i < messages.length; i++) {
+        const message = messages[i]!;
+        const messageBuffer = Buffer.from(message.substring(2), "hex");
+        const messageType = getCrosschainMessageType(messageBuffer.readUInt8(0), version);
+        const messagePayload = messageBuffer.subarray(1);
+
+        const messageHash = getMessageHash(message);
+        const messageId = orderedMessageIds[i]!;
+
+        const rawData = `0x${Buffer.from(messageBuffer.toString("hex"))}` as `0x${string}`;
+        const data = decodeMessage(messageType, messagePayload, version);
+        const decodedPoolId = data && "poolId" in data ? BigInt(data.poolId) : null;
+        const decodedTokenId = data && "scId" in data ? (data.scId as `0x${string}`) : null;
+
+        const rowsForId = crosschainMessagesByMessageId.get(messageId) ?? [];
+        const pendingMessage = CrosschainMessageService.getFirstUnlinkedAwaiting(rowsForId);
+        if (pendingMessage) {
+          const prior = pendingMessage.read();
+          if (prior.poolId != null) poolIdSet.add(prior.poolId);
+          if (prior.tokenId != null) tokenIdSet.add(prior.tokenId);
+          if (decodedPoolId) poolIdSet.add(decodedPoolId);
+          if (decodedTokenId) tokenIdSet.add(decodedTokenId);
+
+          const linkFacts: Parameters<typeof CrosschainMessageService.upsertFacts>[3] = {
+            payloadId,
+            payloadIndex,
+          };
+          if (data && (prior.poolId == null || prior.tokenId == null)) {
+            if (prior.poolId == null && decodedPoolId != null) linkFacts.poolId = decodedPoolId;
+            if (prior.tokenId == null && decodedTokenId != null) linkFacts.tokenId = decodedTokenId;
+            if (prior.data == null) linkFacts.data = data;
+            if (prior.rawData === CROSSCHAIN_RAW_DATA_STUB) linkFacts.rawData = rawData;
+            if (prior.messageType === CROSSCHAIN_MESSAGE_TYPE_STUB)
+              linkFacts.messageType = messageType;
+            if (!prior.hash) linkFacts.hash = messageHash;
+          }
+
+          await CrosschainMessageService.upsertFacts(
+            context,
+            event,
+            { id: messageId, index: prior.index },
+            linkFacts
+          );
+          continue;
+        }
+
+        if (!data) {
+          serviceLog(`UnderpaidBatch: skip undecodable message ${messageId}`);
+          continue;
+        }
+
+        if (decodedPoolId) poolIdSet.add(decodedPoolId);
+        if (decodedTokenId) tokenIdSet.add(decodedTokenId);
+
+        const messageIndex = i;
+        await CrosschainMessageService.upsertFacts(
+          context,
+          event,
+          { id: messageId, index: messageIndex },
+          {
+            poolId: decodedPoolId,
+            tokenId: decodedTokenId,
+            fromCentrifugeId,
+            toCentrifugeId: toCentrifugeId.toString(),
+            messageType,
+            rawData,
+            data,
+            hash: messageHash,
+            payloadId,
+            payloadIndex,
+          }
+        );
+      }
+
+      const linkedMessages = (await CrosschainMessageService.query(context, {
+        payloadId,
+        payloadIndex,
+      })) as CrosschainMessageService[];
+      const linkedMessageIds = new Set(linkedMessages.map((row) => row.read().id));
+      const unlinkedBatchIds = orderedMessageIds.filter((id) => !linkedMessageIds.has(id));
+      if (unlinkedBatchIds.length > 0) {
+        serviceError(
+          `UnderpaidBatch: ${unlinkedBatchIds.length} batch message(s) not linked to payload ${payloadId} index ${payloadIndex}`
+        );
+      }
+
+      const [aggregatedPoolId, aggregatedTokenId] =
+        CrosschainMessageService.aggregatePoolAndTokenFromRows(linkedMessages);
+      const poolIds = Array.from(poolIdSet);
+      if (poolIds.length > 1) {
+        serviceError(`Multiple poolIds found. Cannot determine single poolId for payload`);
+        return;
+      }
+      const poolId = poolIds.pop() ?? aggregatedPoolId;
+      const tokenId = Array.from(tokenIdSet).pop() ?? aggregatedTokenId;
+
+      if (key.action === "mutate") {
+        await CrosschainPayloadService.upsertFacts(
+          context,
+          event,
+          { id: payloadId, index: payloadIndex },
+          {
+            poolId,
+            tokenId,
+            rawData: batch,
+            toCentrifugeId: toCentrifugeId.toString(),
+            fromCentrifugeId,
+            ...timestamperWithChain("underpaid", event, context.chain.id),
+          }
+        );
+        return;
+      }
+
+      await CrosschainPayloadService.upsertFacts(
+        context,
+        event,
+        { id: payloadId, index: payloadIndex },
+        {
+          poolId,
+          tokenId,
+          rawData: batch,
+          toCentrifugeId: toCentrifugeId.toString(),
+          fromCentrifugeId,
+          status: "Underpaid",
+          ...timestamperWithChain("underpaid", event, context.chain.id),
+        }
+      );
+    }
+  );
 });
 
 multiMapper("gateway:RepayBatch", async ({ event, context }) => {
@@ -270,35 +280,46 @@ multiMapper("gateway:RepayBatch", async ({ event, context }) => {
   const fromCentrifugeId = await BlockchainService.getCentrifugeId(context);
   const payloadId = getPayloadId(fromCentrifugeId, toCentrifugeId.toString(), batch);
 
-  const crosschainPayload = (await CrosschainPayloadService.getUnderpaidFromQueue(
-    context,
-    payloadId
-  )) as CrosschainPayloadService | null;
-  if (!crosschainPayload) {
-    serviceError(
-      `CrosschainPayload not found in Underpaid queue. Cannot mark messages as awaiting batch delivery`
-    );
-    return;
-  }
-  const { index: payloadIndex } = crosschainPayload.read();
-  const crosschainMessages = (await CrosschainMessageService.query(context, {
-    payloadId: payloadId,
-    payloadIndex: payloadIndex,
-    status: "Unsent",
-  })) as CrosschainMessageService[];
-  for (const crosschainMessage of crosschainMessages) {
-    crosschainMessage.awaitingBatchDelivery();
-  }
-  if (crosschainMessages.length > 0) {
-    await CrosschainMessageService.saveMany(context, crosschainMessages, event);
-  }
+  const version = getVersionForContract("gateway", context.chain.id, event.log.address);
+  if (!version) return serviceError("Failed to get registry version");
 
-  crosschainPayload.InTransit();
-  await crosschainPayload.save(event);
+  const batchMessages = extractMessagesFromPayload(batch, version);
+  const batchMessageIds = batchMessages.map((message) =>
+    getMessageId(fromCentrifugeId, toCentrifugeId.toString(), getMessageHash(message))
+  );
+
+  await runWithSendReconciliation(
+    context,
+    event,
+    { messageIds: batchMessageIds, payloadIds: [payloadId] },
+    async () => {
+      const key = await CrosschainPayloadService.resolvePayloadKey(
+        context,
+        payloadId,
+        "RepayBatch",
+        { deferAllowed: false, messageIds: batchMessageIds }
+      );
+      if (key.action !== "mutate") {
+        serviceError(`RepayBatch: no open payload row for ${payloadId}`);
+        return;
+      }
+      const payloadIndex = key.index;
+
+      await CrosschainPayloadService.upsertFacts(
+        context,
+        event,
+        { id: payloadId, index: payloadIndex },
+        {
+          rawData: batch,
+          fromCentrifugeId,
+          toCentrifugeId: toCentrifugeId.toString(),
+        }
+      );
+    }
+  );
 });
 
 multiMapper("gateway:ExecuteMessage", async ({ event, context }) => {
-  // RECEIVING CHAIN
   logEvent(event, context, "gateway:ExecuteMessage");
   const { centrifugeId: fromCentrifugeId } = event.args;
   const message = "message" in event.args ? event.args.message : undefined;
@@ -308,49 +329,24 @@ multiMapper("gateway:ExecuteMessage", async ({ event, context }) => {
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
   const messageId = getMessageId(fromCentrifugeId.toString(), toCentrifugeId, messageHash);
 
-  const crosschainMessage =
-    await CrosschainMessageService.getFromAwaitingBatchDeliveryOrFailedQueue(context, messageId);
-  if (!crosschainMessage) {
-    serviceError(
-      `CrosschainMessage not found in AwaitingBatchDelivery or Failed queue. Cannot mark message as executed`
-    );
-    return;
-  }
-
-  crosschainMessage.executed(event);
-  const { payloadId, payloadIndex: execPayloadIndex } = crosschainMessage.read();
-  await crosschainMessage.save(event);
-
-  if (!payloadId || execPayloadIndex == null) {
-    serviceError("Payload ID and index are required");
-    return;
-  }
-
-  const crosschainPayload = (await CrosschainPayloadService.get(context, {
-    id: payloadId,
-    index: execPayloadIndex,
-    status_in: ["Delivered", "PartiallyFailed"],
-  })) as CrosschainPayloadService | null;
-  if (!crosschainPayload) {
-    serviceError(
-      `CrosschainPayload not found in Delivered or PartiallyFailed queue. Cannot mark payload as completed`
-    );
-    return;
-  }
-
-  const isPayloadFullyExecuted = await CrosschainMessageService.checkPayloadFullyExecuted(
+  await reconcileMessageReceives(
     context,
-    payloadId,
-    execPayloadIndex
+    event,
+    [messageId],
+    [
+      messageReceiveEntryFromEvent(event, context.chain.id, {
+        status: "execute",
+        messageId,
+        hash: messageHash,
+        fromCentrifugeId: fromCentrifugeId.toString(),
+        toCentrifugeId,
+        rawData: (message ?? "0x") as `0x${string}`,
+      }),
+    ]
   );
-  if (!isPayloadFullyExecuted) return;
-
-  crosschainPayload.completed(event);
-  await crosschainPayload.save(event);
 });
 
 multiMapper("gateway:FailMessage", async ({ event, context }) => {
-  // RECEIVING CHAIN
   logEvent(event, context, "gateway:FailMessage");
   const { centrifugeId: fromCentrifugeId, error } = event.args;
   const message = "message" in event.args ? event.args.message : undefined;
@@ -358,53 +354,22 @@ multiMapper("gateway:FailMessage", async ({ event, context }) => {
     "messageHash" in event.args ? event.args.messageHash : getMessageHash(message!);
 
   const toCentrifugeId = await BlockchainService.getCentrifugeId(context);
-
   const messageId = getMessageId(fromCentrifugeId.toString(), toCentrifugeId, messageHash);
 
-  const crosschainMessage =
-    await CrosschainMessageService.getFromAwaitingBatchDeliveryOrFailedQueue(context, messageId);
-  if (!crosschainMessage) {
-    serviceError(
-      `CrosschainMessage not found in AwaitingBatchDelivery or Failed queue. Cannot mark message as failed`
-    );
-    return;
-  }
-
-  const { status, payloadId, payloadIndex: failPayloadIndex, data } = crosschainMessage.read();
-  if (status === "Failed") return;
-
-  crosschainMessage.setStatus("Failed");
-  crosschainMessage.setFailReason(error);
-  await crosschainMessage.save(event);
-
-  const setPoolAdapters = PoolAdapterService.parseSetPoolAdaptersMessageData(data);
-  if (setPoolAdapters) {
-    await PoolAdapterService.clearCrosschainInProgress(
-      context,
-      {
-        localCentrifugeId: toCentrifugeId,
-        remoteCentrifugeId: fromCentrifugeId.toString(),
-        poolId: setPoolAdapters.poolId,
-      },
-      event
-    );
-  }
-
-  if (!payloadId || failPayloadIndex == null)
-    return serviceError("Payload ID and index are required");
-
-  const crosschainPayload = (await CrosschainPayloadService.get(context, {
-    id: payloadId,
-    index: failPayloadIndex,
-    status: "Delivered",
-  })) as CrosschainPayloadService | null;
-  if (!crosschainPayload) {
-    serviceError(
-      `CrosschainPayload not found in Delivered queue. Cannot mark payload as PartiallyFailed`
-    );
-    return;
-  }
-
-  crosschainPayload.setStatus("PartiallyFailed");
-  await crosschainPayload.save(event);
+  await reconcileMessageReceives(
+    context,
+    event,
+    [messageId],
+    [
+      messageReceiveEntryFromEvent(event, context.chain.id, {
+        status: "fail",
+        messageId,
+        hash: messageHash,
+        fromCentrifugeId: fromCentrifugeId.toString(),
+        toCentrifugeId,
+        failReason: error,
+        rawData: (message ?? "0x") as `0x${string}`,
+      }),
+    ]
+  );
 });

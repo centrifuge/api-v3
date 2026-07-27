@@ -2,6 +2,7 @@ import { ponder } from "ponder:registry";
 import type { Context, Event } from "ponder:registry";
 import { contracts } from "../../ponder.config";
 import { logEvent, serviceLog } from "../helpers/logger";
+import { registerProtocolAddress } from "../helpers/protocolAddresses";
 import { SmartContractService, SmartContractWardService } from "../services";
 
 type ContractEvents = Parameters<typeof ponder.on>[0];
@@ -13,7 +14,7 @@ const AUTH_EVENT_NAMES: AuthEventName[] = ["Rely", "Deny"];
  * Returns true when the concrete contract ABI exposes the requested Auth event.
  */
 function hasAuthEvent(
-  abi: (typeof contracts)[keyof typeof contracts]["abi"],
+  abi: readonly { type?: string; name?: string }[],
   eventName: AuthEventName
 ): boolean {
   return abi.some((item) => item.type === "event" && item.name === eventName);
@@ -46,6 +47,8 @@ async function handleRelyDeny({
 
   await SmartContractService.ensure(context, { chainId, address: emittingContract }, event);
   await SmartContractService.ensure(context, { chainId, address: ward }, event);
+  registerProtocolAddress(chainId, emittingContract);
+  registerProtocolAddress(chainId, ward);
   await SmartContractWardService.setActive(
     context,
     {
@@ -67,6 +70,7 @@ function registerRelyDenyHandlers() {
 
   for (const [contractKey, contractConfig] of Object.entries(contracts)) {
     if (!contractKey.endsWith("V3_1")) continue;
+    if (contractKey === "groveBasin") continue;
 
     for (const eventName of AUTH_EVENT_NAMES) {
       if (!hasAuthEvent(contractConfig.abi, eventName)) continue;

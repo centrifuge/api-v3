@@ -24,6 +24,7 @@ const timekeeper = Timekeeper.start();
 async function processBlock(args: { event: Event; context: Context }) {
   const chainName = args.context.chain.name;
   const { event, context } = args;
+
   const newPeriod = await timekeeper.processBlock(context, event);
   if (!newPeriod) return;
   logEvent(event, context, `${chainName}:NewPeriod`);

@@ -154,6 +154,9 @@ export class PoolAdapterService extends Service<typeof PoolAdapter> {
 
   /** Clears pending remote state for a chain/pool/remote set. */
   static async clearCrosschainInProgress(context: Context, input: PoolAdapterKey, event: Event) {
+    serviceLog(
+      `Clearing PoolAdapter crosschainInProgress for ${input.localCentrifugeId}->${input.remoteCentrifugeId} pool ${input.poolId}`
+    );
     const existing = await this.getSetRows(context, input);
     const instances = existing.filter(
       (poolAdapter) => poolAdapter.read().crosschainInProgress != null
@@ -164,6 +167,7 @@ export class PoolAdapterService extends Service<typeof PoolAdapter> {
 
   /** Parses decoded `SetPoolAdapters` message data into a pool id and remote adapter addresses. */
   static parseSetPoolAdaptersMessageData(data: unknown): SetPoolAdaptersMessageData | null {
+    serviceLog("PoolAdapter parseSetPoolAdaptersMessageData");
     if (!data || typeof data !== "object") return null;
 
     const poolIdValue = "poolId" in data ? data.poolId : undefined;

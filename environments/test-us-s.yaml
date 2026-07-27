@@ -2,7 +2,9 @@ global:
   env:
     ENVIRONMENT: "testnet"
     SELECTED_NETWORKS: "11155111,84532,421614"
-    REGISTRY_URL: "https://gist.githubusercontent.com/filo87/065a797e757920e75d29eaf5d00d71d5/raw/a30410edb9f5290e3fc91ca9105329f30c7ff9bf/testnet.json"
+    SELECTED_REGISTRY_VERSIONS: "v3_1"
+    REGISTRY_v3_1_chains_421614_deployment_startBlock: "237622347"
+    REGISTRY_URL: "https://registry.testnet.centrifuge.io"
     PONDER_RPC_URL_11155111: "http://cfg-api-erpc-us:4000/main/evm/11155111"
     PONDER_RPC_URL_84532: "http://cfg-api-erpc-us:4000/main/evm/84532"
     PONDER_RPC_URL_421614: "http://cfg-api-erpc-us:4000/main/evm/421614"
@@ -11,11 +13,14 @@ global:
 indexer:
   enabled: false
   image:
-    tag: sha-6c0d07d
+    tag: sha-09202fd
+  env:
+    - name: NODE_OPTIONS
+      value: "--max-old-space-size=1740"
 query:
   enabled: true
   image:
-    tag: sha-6c0d07d
+    tag: sha-09202fd
   replicaCount: 1
   ingress:
     enabled: true

@@ -5,6 +5,8 @@ ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 WORKDIR /app
 RUN chown node:node /app
+COPY --chown=node:node package.json pnpm-lock.yaml ./
+RUN corepack install
 COPY --chown=node:node . /app
 COPY <<'EOF' /usr/bin/docker-entrypoint
 #!/bin/sh

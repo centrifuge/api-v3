@@ -5,6 +5,7 @@ export type InvestorPositionCheckpointComputationInput = {
   balanceBefore: bigint;
   balanceAfter: bigint;
   tokenPrice: bigint;
+  tokenDecimals: number;
   tokenPriceAtLastChange: bigint | null;
   cumulativeEarningsBefore: bigint;
   costBasisBefore: bigint;
@@ -21,15 +22,23 @@ export type InvestorPositionCheckpointComputation = {
 };
 
 /**
- * Price appreciation on the held balance between position changes.
+ * Computes an 18-decimal currency value from token-denominated amount and WAD price.
+ */
+export function computeTokenValue(amount: bigint, tokenPrice: bigint, tokenDecimals: number) {
+  return (amount * tokenPrice) / 10n ** BigInt(tokenDecimals);
+}
+
+/**
+ * Price appreciation on the held balance between position changes, normalized to 18 decimals.
  */
 export function computePeriodEarnings(
   balanceBefore: bigint,
   currentTokenPrice: bigint,
-  previousTokenPrice: bigint | null
+  previousTokenPrice: bigint | null,
+  tokenDecimals: number
 ) {
   if (balanceBefore === 0n || previousTokenPrice === null || previousTokenPrice <= 0n) return null;
-  return balanceBefore * (currentTokenPrice - previousTokenPrice);
+  return computeTokenValue(balanceBefore, currentTokenPrice - previousTokenPrice, tokenDecimals);
 }
 
 /**
@@ -55,6 +64,7 @@ export function computeInvestorPositionCheckpoint(
     amount,
     balanceBefore,
     tokenPrice,
+    tokenDecimals,
     tokenPriceAtLastChange,
     cumulativeEarningsBefore,
     costBasisBefore,
@@ -62,11 +72,16 @@ export function computeInvestorPositionCheckpoint(
     isIncrease,
   } = input;
 
-  const periodEarnings = computePeriodEarnings(balanceBefore, tokenPrice, tokenPriceAtLastChange);
+  const periodEarnings = computePeriodEarnings(
+    balanceBefore,
+    tokenPrice,
+    tokenPriceAtLastChange,
+    tokenDecimals
+  );
   const cumulativeEarningsAfter = cumulativeEarningsBefore + (periodEarnings ?? 0n);
 
   if (isIncrease) {
-    const costBasisAfter = costBasisBefore + amount * tokenPrice;
+    const costBasisAfter = costBasisBefore + computeTokenValue(amount, tokenPrice, tokenDecimals);
     return {
       periodEarnings,
       cumulativeEarningsAfter,
@@ -77,7 +92,7 @@ export function computeInvestorPositionCheckpoint(
   }
 
   const removedCostBasis = computeRemovedCostBasis(amount, costBasisBefore, balanceBefore);
-  const realizedPnl = amount * tokenPrice - removedCostBasis;
+  const realizedPnl = computeTokenValue(amount, tokenPrice, tokenDecimals) - removedCostBasis;
   const costBasisAfter = bigintMax(costBasisBefore - removedCostBasis, 0n);
 
   return {

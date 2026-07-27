@@ -1,6 +1,7 @@
 import type { Event, Context } from "ponder:registry";
 import { multiMapper } from "../helpers/multiMapper";
 import { logEvent, serviceError } from "../helpers/logger";
+import { registerProtocolAddress } from "../helpers/protocolAddresses";
 import { VaultKinds } from "ponder:schema";
 import { BlockchainService, AssetService, VaultService } from "../services";
 import { getContractNameForAddress } from "../contracts";
@@ -16,15 +17,7 @@ export async function deployVault({
 }) {
   logEvent(event, context, "spoke:DeployVault");
 
-  const {
-    poolId,
-    scId: tokenId,
-    asset: assetAddress,
-    //tokenId: assetTokenId,
-    factory,
-    vault: vaultId,
-    kind,
-  } = event.args;
+  const { poolId, scId: tokenId, asset: assetAddress, factory, vault: vaultId, kind } = event.args;
 
   const contractName = getContractNameForAddress(context.chain.id, event.log.address);
   if (!contractName) return serviceError(`Contract name not found. Cannot deploy vault`);
@@ -48,10 +41,13 @@ export async function deployVault({
           functionName: "manager",
           args: [],
         });
+  if (manager === undefined) {
+    return serviceError(`Vault manager eth_call failed. Cannot deploy vault ${vaultId}`);
+  }
 
-  const asset = await AssetService.get(context, {
-    address: assetAddress,
+  const asset = await AssetService.getByTokenForVault(context, {
     centrifugeId,
+    address: assetAddress,
   });
   if (!asset) return serviceError(`Asset not found. Cannot retrieve assetId for vault deployment`);
 
@@ -77,6 +73,8 @@ export async function deployVault({
     },
     event
   )) as VaultService;
+
+  registerProtocolAddress(context.chain.id, vaultId);
 }
 
 multiMapper("vaultRegistry:LinkVault", linkVault);
@@ -98,15 +96,12 @@ export async function linkVault({
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const vault = (await VaultService.get(context, {
-    id: vaultId,
-    centrifugeId,
-  })) as VaultService;
-  if (!vault) {
-    serviceError(`Vault not found. Cannot link vault`);
-    return;
-  }
-  await vault.setStatus("Linked").setCrosschainInProgress().save(event);
+  await VaultService.upsertSpokeAck(
+    context,
+    event,
+    { id: vaultId, centrifugeId },
+    { status: "Linked" }
+  );
 }
 
 multiMapper("vaultRegistry:UnlinkVault", unlinkVault);
@@ -122,10 +117,10 @@ export async function unlinkVault({
 
   const centrifugeId = await BlockchainService.getCentrifugeId(context);
 
-  const vault = (await VaultService.get(context, {
-    id: vaultId,
-    centrifugeId,
-  })) as VaultService;
-  if (!vault) return serviceError(`Vault not found. Cannot unlink vault`);
-  await vault.setStatus("Unlinked").setCrosschainInProgress().save(event);
+  await VaultService.upsertSpokeAck(
+    context,
+    event,
+    { id: vaultId, centrifugeId },
+    { status: "Unlinked" }
+  );
 }

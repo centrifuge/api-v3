@@ -1,5 +1,6 @@
 import { type ChainConfig } from "ponder";
 import registries from "../generated";
+import { createPonderRpcTransport } from "./helpers/ponderRpcTransport";
 
 // ============================================================================
 // Registry Types
@@ -155,7 +156,7 @@ export const endpoints = {
 
 const getLogsBlockRange = {
   "*": 10000,
-  "143": 1000,
+  //"143": 1000,
 };
 
 // Package loadedChains into a ChainConfig object for ponder to consume
@@ -164,9 +165,10 @@ const chains = Object.fromEntries(
     const chainId = chain.network.chainId;
     const envRpc = process.env[`PONDER_RPC_URL_${chainId}`];
     const networkName = networkNames[chainId.toString() as keyof typeof networkNames];
-    const rpc = envRpc
+    const rpcUrls = envRpc
       ? envRpc.split(",").map((r) => r.trim())
       : endpoints[chainId as keyof typeof endpoints];
+    const rpc = createPonderRpcTransport(rpcUrls);
     const ethGetLogsBlockRange =
       getLogsBlockRange[chainId.toString() as keyof typeof getLogsBlockRange] ??
       getLogsBlockRange["*"];
@@ -178,6 +180,16 @@ const chains = Object.fromEntries(
 ) as ChainsConfig<RegistryVersions>;
 
 export { chains };
+
+/**
+ * Whether a chain id is included in the Ponder `chains` config (honours `SELECTED_NETWORKS`).
+ *
+ * @param chainId - EVM chain id (e.g. `1` for Ethereum mainnet)
+ * @returns `true` when that chain is indexed
+ */
+export function isChainEnabled(chainId: number): boolean {
+  return Object.values(chains).some((chain) => chain.id === chainId);
+}
 
 type BlocksConfig = {
   [N in NetworkNames<RegistryVersions> as `${N}`]: {
@@ -202,6 +214,7 @@ export const skipBlocks = {
   "143": 9000,
   "999": 18000,
   "998": 18000,
+  "1672": 14400,
 };
 
 const blocks = Object.fromEntries(

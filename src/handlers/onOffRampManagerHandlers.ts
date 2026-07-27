@@ -8,6 +8,8 @@ import {
 } from "../services";
 import { logEvent, serviceError } from "../helpers/logger";
 import { OnRampAssetService } from "../services";
+import { isLiveIndexingBlock } from "../helpers/liveIndexingWindow";
+import { formatBytes32ToAddress } from "../helpers/formatter";
 
 multiMapper("onOfframpManagerFactory:DeployOnOfframpManager", async ({ event, context }) => {
   logEvent(event, context, "onOffRampManagerFactory:DeployOnOffRampManager");
@@ -47,7 +49,7 @@ multiMapper("onOfframpManager:UpdateRelayer", async ({ event, context }) => {
   }
   const { poolId, tokenId } = onOffRampManager.read();
 
-  const relayerAddress = relayer.substring(0, 42).toLowerCase() as `0x${string}`;
+  const relayerAddress = formatBytes32ToAddress(relayer);
   const offRampRelayer = (await OffRampRelayerService.getOrInit(
     context,
     {
@@ -60,7 +62,11 @@ multiMapper("onOfframpManager:UpdateRelayer", async ({ event, context }) => {
     undefined,
     true
   )) as OffRampRelayerService;
-  await offRampRelayer.setCrosschainInProgress().setEnabled(isEnabled).save(event);
+  offRampRelayer.setEnabled(isEnabled);
+  if (isLiveIndexingBlock(event.block.timestamp)) {
+    offRampRelayer.setCrosschainInProgress();
+  }
+  await offRampRelayer.save(event);
 });
 
 multiMapper("onOfframpManager:UpdateOnramp", async ({ event, context }) => {
@@ -93,7 +99,11 @@ multiMapper("onOfframpManager:UpdateOnramp", async ({ event, context }) => {
     undefined,
     true
   )) as OnRampAssetService;
-  await onRampAsset.setCrosschainInProgress().setEnabled(isEnabled).save(event);
+  onRampAsset.setEnabled(isEnabled);
+  if (isLiveIndexingBlock(event.block.timestamp)) {
+    onRampAsset.setCrosschainInProgress();
+  }
+  await onRampAsset.save(event);
 });
 
 multiMapper("onOfframpManager:UpdateOfframp", async ({ event, context }) => {
@@ -116,7 +126,7 @@ multiMapper("onOfframpManager:UpdateOfframp", async ({ event, context }) => {
   const receiverAccount = (await AccountService.getOrInit(
     context,
     {
-      address: receiver,
+      address: formatBytes32ToAddress(receiver),
     },
     event
   )) as AccountService;
@@ -135,5 +145,9 @@ multiMapper("onOfframpManager:UpdateOfframp", async ({ event, context }) => {
     undefined,
     true
   )) as OffRampAddressService;
-  await offRampAddress.setCrosschainInProgress().setEnabled(isEnabled).save(event);
+  offRampAddress.setEnabled(isEnabled);
+  if (isLiveIndexingBlock(event.block.timestamp)) {
+    offRampAddress.setCrosschainInProgress();
+  }
+  await offRampAddress.save(event);
 });

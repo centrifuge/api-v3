@@ -68,8 +68,12 @@ pnpm dev
 ### Configuration notes
 
 - **REGISTRY_URL** / **IPFS_GATEWAY**: optional overrides for where the registry JSON is fetched from (see [`scripts/fetch-registry.mjs`](scripts/fetch-registry.mjs)).
+- **REGISTRY_&lt;version&gt;_…** / **REGISTRY_ALL_…**: optional local patches applied when running `pnpm update-registry` (per-version slug, or the same path on every registry version for `REGISTRY_ALL_`; version-specific keys override `REGISTRY_ALL_` on the same path).
+- **SELECTED_REGISTRY_VERSIONS**: optional comma-separated registry slugs to emit (e.g. `v3_1,v3_2`). When unset, every version in the resolved chain is generated. Order follows the chain (oldest → newest), not the env var order.
 - **IPFS_HASH** (optional): if set, the registry is loaded from `{IPFS_GATEWAY}/{IPFS_HASH}` instead of the default `REGISTRY_URL` for the network.
 - **ENVIRONMENT**: `mainnet` or `testnet`—chooses the default registry host (`https://registry.centrifuge.io/` vs `https://registry.testnet.centrifuge.io/`). Defaults to `mainnet` if unset.
+- **PONDER_RPC_URL_&lt;chainId&gt;**: optional comma-separated RPC URLs per chain (see [`src/chains.ts`](src/chains.ts)); default provider endpoints are appended as fallbacks.
+- **PONDER_RPC_TIMEOUT_MS**: JSON-RPC timeout for Ponder sync (default `60000`). Uses a custom viem transport in [`src/helpers/ponderRpcTransport.ts`](src/helpers/ponderRpcTransport.ts) because Ponder’s built-in HTTP client defaults to 10s.
 
 ### Updating registry data
 
@@ -99,7 +103,7 @@ pnpm start
 
 Optional artifact tag: pass `--tag <tag>`, `-t <tag>`, or a single positional argument; `latest` or a numeric tag (see script validation).
 
-Related maintainer scripts: `pnpm sync:export` (dump `ponder_sync` schema from the local Docker Postgres) and `pnpm sync:push` (publish a snapshot to GHCR).
+Related maintainer scripts: `pnpm sync:export` (dump `ponder_sync` schema from the local Docker Postgres), `pnpm sync:push` (publish a snapshot to GHCR), and `pnpm sync:invalidate-factories` (clear factory discovery cache while keeping RPC block/log cache — see [`scripts/sync-invalidate-factories.mjs`](scripts/sync-invalidate-factories.mjs) and [AGENTS.md](AGENTS.md)).
 
 ## Database schema
 
@@ -110,6 +114,20 @@ The indexer maintains structured tables for pools, tokens, vaults, epochs, inves
 While the process is running, Ponder serves a GraphQL API; the URL is printed in the logs (dev default port **8000**).
 
 The public production GraphQL endpoint used for schema checks in this repo is [https://api.centrifuge.io](https://api.centrifuge.io).
+
+## Smoke tests
+
+Operational integrity checks compare the GraphQL indexer to on-chain view functions via `eth_call` (no log replay). Specs and design principles live in [`test/smoke/specs/README.md`](test/smoke/specs/README.md).
+
+```bash
+pnpm smoke list
+pnpm smoke --only issuance,onramp --mismatches-only
+pnpm smoke issuance --symbol ACRDX --chain plume
+```
+
+Optional `ERPC_BASE_URL` (e.g. `https://erpc.cfg.embrio.tech/main`) and `ERPC_API_KEY` in `.env.local` for RPC (`{base}/evm/<chainId>?secret=…`); smokes try eRPC first, then Chainlist public endpoints as fallbacks (`test/smoke/lib/rpc.mjs`). Use `--graphql` to point at a local or staging indexer.
+
+**CI:** [`.github/workflows/smoke.yml`](.github/workflows/smoke.yml) runs `pnpm update-registry` (mainnet `generated/` is not committed), sets `ERPC_BASE_URL` / `ERPC_API_KEY` from GitHub secrets, then runs smokes against EU and US staging. Results are posted as a single PR comment on release-please PRs (updated in place on each run). Add **Smoke tests / Release PR staging (eu)** and **(us)** as required checks before merging a release.
 
 ## Deployment environments
 

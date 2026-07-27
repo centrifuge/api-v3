@@ -36,9 +36,9 @@ export class PendingRedeemOrderService extends Service<typeof PendingRedeemOrder
   }
 
   public saveOrClear(event: Event) {
-    if (this.data.pendingSharesAmount === 0n && this.data.queuedSharesAmount === 0n) {
-      return this.delete();
-    }
+    const clearing = this.data.pendingSharesAmount === 0n && this.data.queuedSharesAmount === 0n;
+    serviceLog(`PendingRedeemOrder saveOrClear clearing=${clearing}`);
+    if (clearing) return this.delete();
     return this.save(event);
   }
 }

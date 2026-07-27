@@ -2,6 +2,7 @@ import { Blockchain } from "ponder:schema";
 import { Service } from "./Service";
 import { Context } from "ponder:registry";
 import { networkNames, RegistryChains } from "../chains";
+import { expandInlineObject, serviceLog } from "../helpers/logger";
 
 type Network = (typeof RegistryChains)[number]["network"];
 type InMemoryChainId = {
@@ -35,10 +36,13 @@ export class BlockchainService extends Service<typeof Blockchain> {
    * @throws {Error} When chain ID is not a number or blockchain is not found
    */
   static async getCentrifugeId(context: Context) {
-    const chainId = context.chain.id;
+    const chainId = context.chain?.id;
+    serviceLog("Blockchain getCentrifugeId", expandInlineObject({ chainId }));
     if (typeof chainId !== "number") throw new Error("Chain ID is not a number");
     if (!(chainId in inMemoryChainId)) throw new Error("Chain ID not found in inMemoryChainId");
-    return String(inMemoryChainId[chainId as keyof InMemoryChainId]);
+    const centrifugeId = String(inMemoryChainId[chainId as keyof InMemoryChainId]);
+    serviceLog("Blockchain getCentrifugeId result", centrifugeId);
+    return centrifugeId;
   }
 
   /**
@@ -46,6 +50,7 @@ export class BlockchainService extends Service<typeof Blockchain> {
    * Use when the event is on the hub but the vault is deployed on the spoke.
    */
   static getChainIdFromCentrifugeId(centrifugeId: string): number | null {
+    serviceLog("Blockchain getChainIdFromCentrifugeId", expandInlineObject({ centrifugeId }));
     const chainId = centrifugeIdToChainId[centrifugeId];
     return chainId != null ? chainId : null;
   }
@@ -57,6 +62,7 @@ export class BlockchainService extends Service<typeof Blockchain> {
    * @returns Centrifuge network id as string, or null if unknown
    */
   static getCentrifugeIdFromChainId(chainId: number): string | null {
+    serviceLog("Blockchain getCentrifugeIdFromChainId", expandInlineObject({ chainId }));
     if (!(chainId in inMemoryChainId)) return null;
     return String(inMemoryChainId[chainId as keyof InMemoryChainId]);
   }
@@ -67,6 +73,7 @@ export class BlockchainService extends Service<typeof Blockchain> {
    * @param chainId - EVM chain id
    */
   static networkNameFromChainId(chainId: number): string {
+    serviceLog("Blockchain networkNameFromChainId", expandInlineObject({ chainId }));
     const netKey = networkNames[String(chainId) as keyof typeof networkNames];
     return netKey ? `${netKey.charAt(0).toUpperCase()}${netKey.slice(1)}` : `Chain ${chainId}`;
   }
@@ -87,6 +94,10 @@ export class BlockchainService extends Service<typeof Blockchain> {
    * ```
    */
   public setLastPeriodStart(lastPeriodStart: Date) {
+    serviceLog(
+      `Blockchain setLastPeriodStart chainId=${this.data.chainId}`,
+      lastPeriodStart.toISOString()
+    );
     this.data.lastPeriodStart = lastPeriodStart;
     return this;
   }

@@ -9,6 +9,7 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "allowSyntheticDefaultImports": true,
+    "allowJs": true,
 
     // Language and environment
     "moduleResolution": "bundler",
@@ -22,6 +23,6 @@
     "incremental": true,
 
   },
-  "include": ["./**/*.ts", "./**/*.mts"],
+  "include": ["./**/*.ts", "./**/*.mts", "./**/*.d.ts"],
   "exclude": ["node_modules", ".eslintrc.cjs", "scripts/**/*.ts"]
 }
