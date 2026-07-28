@@ -676,8 +676,9 @@ export function createGlacisApp() {
       ] satisfies Route[];
     });
 
+    const bridgeRoutes = routes.filter((r) => TOKEN_BRIDGE_ADDRESS[Number(r.fromChainId)] != null);
     const filteredRoutes =
-      isEnabled === undefined ? routes : routes.filter((r) => r.isEnabled === isEnabled);
+      isEnabled === undefined ? bridgeRoutes : bridgeRoutes.filter((r) => r.isEnabled === isEnabled);
 
     const paginatedRoutes = filteredRoutes.slice(offset, offset + limit);
     const baseUrl = `${requestUrl.origin}${requestUrl.pathname}`;
