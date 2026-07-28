@@ -22,10 +22,8 @@ app.use("/tokens", apiDbMiddleware);
 app.use("/tokens/*", apiDbMiddleware);
 app.route("/tokens", createTokensApp());
 
-app.use("/transactions", apiDbMiddleware);
-app.use("/transactions/*", apiDbMiddleware);
-app.use("/routes", apiDbMiddleware);
-app.use("/quote", apiDbMiddleware);
-app.route("/", createGlacisApp());
+app.use("/bridge", apiDbMiddleware);
+app.use("/bridge/*", apiDbMiddleware);
+app.route("/bridge", createGlacisApp());
 
 export default app;

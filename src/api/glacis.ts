@@ -227,6 +227,8 @@ const quoteParams = z.object({
   ),
   fromAddress: zQueryAddressOptional,
   toAddress: zQueryAddressOptional,
+  // Transfers are 1:1, so slippage is ignored
+  slippage: z.preprocess(queryParamToString, z.string().optional()),
 });
 
 type QuoteInput = {
@@ -582,7 +584,7 @@ export function createGlacisApp() {
     return handleStatus(c, ctx, c.req.query("txHash") ?? "");
   });
 
-  app.get("/transactions/:txHash", async (c) => {
+  app.get("/transaction/:txHash", async (c) => {
     const ctx = apiContext(c);
     return handleStatus(c, ctx, c.req.param("txHash"));
   });
@@ -725,7 +727,7 @@ export function createGlacisApp() {
     });
   });
 
-  app.post("/quote", sValidator("query", quoteParams), async (c) => {
+  app.get("/quote", sValidator("query", quoteParams), async (c) => {
     const ctx = apiContext(c);
     const q = c.req.valid("query");
     return handleQuote(c, ctx, {
