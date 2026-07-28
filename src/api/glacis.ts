@@ -573,7 +573,7 @@ export function createGlacisApp() {
     const requestUrl = new URL(c.req.url);
     const pagingIncludesIsEnabled = requestUrl.searchParams.has("isEnabled");
     const ESTIMATED_DURATION = 210; // in seconds
-    const ESTIMATED_GAS = 1000000;
+    // const ESTIMATED_GAS = 1000000;
 
     const tokenInstanceRows = await Services.TokenInstanceService.listAllJoinedWithToken(ctx);
 
@@ -642,37 +642,37 @@ export function createGlacisApp() {
           standard: "CentrifugeV31",
           isEnabled: true,
         },
-        ...(nonHubTokenInstanceRowsByTokenId.get(row.token.id)?.flatMap((otherRow) => {
-          if (otherRow.token_instance.centrifugeId === row.token_instance.centrifugeId) {
-            return [];
-          }
-          const otherSpokeBlockchain = routeChainFromCentrifugeId(
-            otherRow.token_instance.centrifugeId
-          );
-          if (!otherSpokeBlockchain?.chainId || !otherSpokeBlockchain?.name) {
-            return [];
-          }
-
-          return [
-            {
-              tokenId: row.token.id,
-              tokenName: row.token.name || row.token.id,
-              fromAddress: row.token_instance.address,
-              toAddress: otherRow.token_instance.address,
-              fromChainId: spokeBlockchain.chainId!.toString() as `${number}`,
-              fromChainName: spokeBlockchain.name!,
-              toChainId: otherSpokeBlockchain.chainId.toString() as `${number}`,
-              toChainName: otherSpokeBlockchain.name,
-              minTransferSize: "0",
-              maxTransferSize: "340282366920938463463374607431768211455", // uint128 max
-              decimals: row.token.decimals,
-              estimatedDuration: ESTIMATED_DURATION * 2,
-              estimatedGas: ESTIMATED_GAS * 2,
-              standard: "CentrifugeV31",
-              isEnabled: true,
-            },
-          ] satisfies Route[];
-        }) || []),
+        // Spoke-to-spoke (2-hop) routes commented out — hub↔spoke only for now.
+        // ...(nonHubTokenInstanceRowsByTokenId.get(row.token.id)?.flatMap((otherRow) => {
+        //   if (otherRow.token_instance.centrifugeId === row.token_instance.centrifugeId) {
+        //     return [];
+        //   }
+        //   const otherSpokeBlockchain = routeChainFromCentrifugeId(
+        //     otherRow.token_instance.centrifugeId
+        //   );
+        //   if (!otherSpokeBlockchain?.chainId || !otherSpokeBlockchain?.name) {
+        //     return [];
+        //   }
+        //   return [
+        //     {
+        //       tokenId: row.token.id,
+        //       tokenName: row.token.name || row.token.id,
+        //       fromAddress: row.token_instance.address,
+        //       toAddress: otherRow.token_instance.address,
+        //       fromChainId: spokeBlockchain.chainId!.toString() as `${number}`,
+        //       fromChainName: spokeBlockchain.name!,
+        //       toChainId: otherSpokeBlockchain.chainId.toString() as `${number}`,
+        //       toChainName: otherSpokeBlockchain.name,
+        //       minTransferSize: "0",
+        //       maxTransferSize: "340282366920938463463374607431768211455",
+        //       decimals: row.token.decimals,
+        //       estimatedDuration: ESTIMATED_DURATION * 2,
+        //       estimatedGas: ESTIMATED_GAS * 2,
+        //       standard: "CentrifugeV31",
+        //       isEnabled: true,
+        //     },
+        //   ] satisfies Route[];
+        // }) || []),
       ] satisfies Route[];
     });
 
