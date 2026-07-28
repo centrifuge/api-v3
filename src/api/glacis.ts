@@ -1,6 +1,5 @@
 import { sValidator } from "@hono/standard-validator";
 import { type Context, Hono } from "hono";
-import { encodeFunctionData } from "viem";
 import * as z from "zod";
 import { getContractAddressForChain, REGISTRY_VERSION_ORDER } from "../contracts";
 import { emptyMessage, MessageType } from "../helpers/messaging";
@@ -90,21 +89,6 @@ const TOKEN_BRIDGE_ADDRESS: Record<number, `0x${string}`> = {
   8453: "0x82a6c7753380f98c093b27c53f86ef6b09c40f49",
 };
 
-const TOKEN_BRIDGE_SEND_ABI = [
-  {
-    type: "function",
-    name: "send",
-    stateMutability: "payable",
-    inputs: [
-      { name: "token", type: "address" },
-      { name: "amount", type: "uint256" },
-      { name: "receiver", type: "bytes32" },
-      { name: "destinationChainId", type: "uint256" },
-      { name: "refundAddress", type: "address" },
-    ],
-    outputs: [{ type: "bytes" }],
-  },
-] as const;
 
 /** Per-chain block explorer tx URL builder; null when the chain isn't mapped. */
 const EXPLORER_TX_BASE: Record<number, string> = {
@@ -365,32 +349,36 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
     decimals: toData.decimals,
   };
 
-  // Executable source-chain call, when the TokenBridge is deployed on the origin and we
-  // know the receiver. Fee is paid in native (value); refund defaults to the receiver.
+  // Uncompiled contract interaction parameters for the TokenBridge `send` call.
+  // Fee is paid in native (value); refund defaults to the receiver.
   const bridgeAddress = TOKEN_BRIDGE_ADDRESS[fromChainId] ?? null;
   const receiver = toAddress ?? fromAddress ?? null;
-  let transactionRequest: {
-    to: `0x${string}`;
-    data: `0x${string}`;
+  let parameters: {
+    contractAddress: `0x${string}`;
+    functionName: string;
     value: string;
     chainId: number;
+    args: {
+      token: string;
+      amount: string;
+      receiver: `0x${string}`;
+      destinationChainId: string;
+      refundAddress: string;
+    };
   } | null = null;
   if (bridgeAddress && receiver) {
-    transactionRequest = {
-      to: bridgeAddress,
-      data: encodeFunctionData({
-        abi: TOKEN_BRIDGE_SEND_ABI,
-        functionName: "send",
-        args: [
-          fromToken as `0x${string}`,
-          fromAmount,
-          addressToBytes32(receiver),
-          BigInt(toChainId),
-          (fromAddress ?? receiver) as `0x${string}`,
-        ],
-      }),
+    parameters = {
+      contractAddress: bridgeAddress,
+      functionName: "send",
       value: totalFee.toString(),
       chainId: fromChainId,
+      args: {
+        token: fromToken,
+        amount: fromAmount.toString(),
+        receiver: addressToBytes32(receiver),
+        destinationChainId: String(toChainId),
+        refundAddress: fromAddress ?? receiver,
+      },
     };
   }
 
@@ -426,7 +414,7 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
         ],
         gasEstimate: estimatedGas,
       },
-      transactionRequest,
+      parameters,
     },
   });
 }
@@ -454,7 +442,7 @@ async function handleStatus(c: Context, ctx: ApiContext, txHash: string): Promis
         transactionId: txHashNorm,
         tool: TOOL,
         status: "NOT_FOUND",
-        substatus: "NOT_FOUND",
+        substatus: null,
         substatusMessage: null,
         sending: { txHash: txHashNorm, txLink: null, chainId: null, amount: null, token: null },
         receiving: null,
@@ -555,8 +543,8 @@ async function handleStatus(c: Context, ctx: ApiContext, txHash: string): Promis
             txHash: receivingTxHash,
             txLink: explorerTxLink(toChainId, receivingTxHash),
             chainId: toChainId,
-            amount,
-            token: tokenObj ? { ...tokenObj, chainId: toChainId ?? tokenObj.chainId } : null,
+            tokenAddress: tokenObj?.address ?? null,
+            tokenAmount: amount,
             timestamp: toUnix(payload.completedAt ?? payload.deliveredAt),
           }
         : null,
