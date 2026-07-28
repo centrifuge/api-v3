@@ -424,17 +424,7 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
             included: false,
           },
         ],
-        gasCosts: [
-          {
-            type: "SEND",
-            price: null,
-            estimate: estimatedGas.toString(),
-            limit: estimatedGas.toString(),
-            amount: null,
-            amountUSD: null,
-            token: nativeToken(fromChainId),
-          },
-        ],
+        gasEstimate: estimatedGas,
       },
       transactionRequest,
     },
