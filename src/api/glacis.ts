@@ -177,7 +177,7 @@ const zQueryUint128 = z.preprocess(
     .pipe(z.bigint().min(1n).max(340282366920938463463374607431768211455n))
 );
 
-const zQueryTokenAddress = z.preprocess(
+const zQueryAddress = z.preprocess(
   queryParamToString,
   z.string().regex(/^0x[a-fA-F0-9]{40}$/)
 );
@@ -200,7 +200,7 @@ const quoteParams = z.object({
   fromChain: zQueryChainId,
   toChain: zQueryChainId,
   fromAmount: zQueryUint128,
-  fromToken: zQueryTokenAddress,
+  fromToken: zQueryAddress,
   toToken: z.preprocess(
     queryParamToString,
     z
@@ -208,7 +208,7 @@ const quoteParams = z.object({
       .regex(/^0x[a-fA-F0-9]{40}$/)
       .optional()
   ),
-  fromAddress: zQueryAddressOptional,
+  fromAddress: zQueryAddress,
   toAddress: zQueryAddressOptional,
   // Transfers are 1:1, so slippage is ignored
   slippage: z.preprocess(queryParamToString, z.string().optional()),
