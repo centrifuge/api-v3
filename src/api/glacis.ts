@@ -52,7 +52,6 @@ type LifiToken = {
   decimals: number;
 };
 
-
 /**
  * TokenBridge `send` entrypoint per chain. Not tracked in the protocol registry, so
  * addresses are pinned here. Absent chains simply omit the executable `transactionRequest`.
