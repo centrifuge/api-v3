@@ -89,7 +89,6 @@ const TOKEN_BRIDGE_ADDRESS: Record<number, `0x${string}`> = {
   8453: "0x82a6c7753380f98c093b27c53f86ef6b09c40f49",
 };
 
-
 /** Per-chain block explorer tx URL builder; null when the chain isn't mapped. */
 const EXPLORER_TX_BASE: Record<number, string> = {
   1: "https://etherscan.io/tx/",
@@ -678,7 +677,9 @@ export function createGlacisApp() {
 
     const bridgeRoutes = routes.filter((r) => TOKEN_BRIDGE_ADDRESS[Number(r.fromChainId)] != null);
     const filteredRoutes =
-      isEnabled === undefined ? bridgeRoutes : bridgeRoutes.filter((r) => r.isEnabled === isEnabled);
+      isEnabled === undefined
+        ? bridgeRoutes
+        : bridgeRoutes.filter((r) => r.isEnabled === isEnabled);
 
     const paginatedRoutes = filteredRoutes.slice(offset, offset + limit);
     const baseUrl = `${requestUrl.origin}${requestUrl.pathname}`;
