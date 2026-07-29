@@ -517,7 +517,8 @@ export function createGlacisApp() {
   app.get("/routes", async (c) => {
     const ctx = apiContext(c);
     const ESTIMATED_DURATION = 210; // in seconds
-    const ESTIMATED_GAS = 1000000;
+    const GAS_INITIATE_TRANSFER_SHARES = 369413;
+    const GAS_EXECUTE_TRANSFER_SHARES = 254235;
 
     const tokenInstanceRows = await Services.TokenInstanceService.listAllJoinedWithToken(ctx);
 
@@ -565,7 +566,7 @@ export function createGlacisApp() {
           maxTransferSize: "340282366920938463463374607431768211455", // uint128 max
           decimals: row.token.decimals,
           estimatedDuration: ESTIMATED_DURATION,
-          estimatedGas: ESTIMATED_GAS,
+          estimatedGas: GAS_EXECUTE_TRANSFER_SHARES,
           standard: "CentrifugeV31",
         },
         {
@@ -581,7 +582,7 @@ export function createGlacisApp() {
           maxTransferSize: "340282366920938463463374607431768211455", // uint128 max
           decimals: row.token.decimals,
           estimatedDuration: ESTIMATED_DURATION,
-          estimatedGas: ESTIMATED_GAS,
+          estimatedGas: GAS_INITIATE_TRANSFER_SHARES,
           standard: "CentrifugeV31",
         },
         // Spoke-to-spoke (2-hop) routes commented out — hub↔spoke only for now.
