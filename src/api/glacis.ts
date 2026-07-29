@@ -44,22 +44,6 @@ const TOOL = "centrifuge";
 const STANDARD = "CentrifugeV31";
 const NATIVE_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
 
-/**
- * Native currency metadata per chain, best-effort. Defaults to 18 decimals and a
- * null symbol/name for chains not listed here — LI.FI treats fee/gas amounts as the
- * source of truth and only uses this for display.
- */
-const NATIVE_CURRENCY: Record<number, { symbol: string; name: string }> = {
-  1: { symbol: "ETH", name: "Ether" },
-  10: { symbol: "ETH", name: "Ether" },
-  8453: { symbol: "ETH", name: "Ether" },
-  42161: { symbol: "ETH", name: "Ether" },
-  56: { symbol: "BNB", name: "BNB" },
-  43114: { symbol: "AVAX", name: "Avalanche" },
-  98866: { symbol: "PLUME", name: "Plume" },
-  999: { symbol: "HYPE", name: "Hyperliquid" },
-};
-
 type LifiToken = {
   address: string;
   chainId: number;
@@ -68,17 +52,6 @@ type LifiToken = {
   decimals: number;
 };
 
-/** LI.FI token object for a chain's native gas currency (fees are paid in native). */
-function nativeToken(chainId: number): LifiToken {
-  const meta = NATIVE_CURRENCY[chainId];
-  return {
-    address: NATIVE_TOKEN_ADDRESS,
-    chainId,
-    symbol: meta?.symbol ?? null,
-    name: meta?.name ?? null,
-    decimals: 18,
-  };
-}
 
 /**
  * TokenBridge `send` entrypoint per chain. Not tracked in the protocol registry, so
@@ -189,8 +162,8 @@ const quoteParams = z.object({
       .regex(/^0x[a-fA-F0-9]{40}$/)
       .optional()
   ),
-  fromAddress: zQueryAddress,
-  toAddress: zQueryAddressOptional,
+  fromAddress: zQueryAddressOptional,
+  toAddress: zQueryAddress,
   // Transfers are 1:1, so slippage is ignored
   slippage: z.preprocess(queryParamToString, z.string().optional()),
 });
@@ -201,7 +174,7 @@ type QuoteInput = {
   fromToken: string;
   fromAmount: bigint;
   fromAddress?: string;
-  toAddress?: string;
+  toAddress: string;
 };
 
 /** Shared Airlift-style fee quote (POST /quote only per Glacis off-chain interface). */
@@ -385,10 +358,9 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
         {
           name: "Bridge fee",
           description: "Cross-chain message delivery fee, paid in the source chain native token",
-          percentage: "0",
-          token: nativeToken(fromChainId),
+          chainId: fromChainId,
+          tokenAddress: NATIVE_TOKEN_ADDRESS,
           amount: totalFee.toString(),
-          amountUSD: null,
           included: false,
         },
       ],
