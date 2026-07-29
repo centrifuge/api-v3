@@ -116,21 +116,6 @@ function bytes32ToAddress(word: string): `0x${string}` {
   return `0x${word.replace(/^0x/, "").slice(-40)}` as `0x${string}`;
 }
 
-const routesParams = z.object({
-  limit: z.coerce.number().int().min(0).max(1000).optional().default(100),
-  offset: z.coerce
-    .number()
-    .int()
-    .min(0)
-    .max(Number.MAX_SAFE_INTEGER - 1000)
-    .optional()
-    .default(0),
-  isEnabled: z
-    .union([z.literal("true"), z.literal("false")])
-    .optional()
-    .transform((val) => (val === undefined ? undefined : val === "true")),
-});
-
 type Route = {
   tokenId: string;
   tokenName: string;
@@ -146,7 +131,6 @@ type Route = {
   estimatedDuration: number;
   estimatedGas: number;
   standard: string;
-  isEnabled: boolean;
 };
 
 /** Hono query values are strings (or string[] if repeated); normalize for Zod. */
@@ -177,10 +161,7 @@ const zQueryUint128 = z.preprocess(
     .pipe(z.bigint().min(1n).max(340282366920938463463374607431768211455n))
 );
 
-const zQueryAddress = z.preprocess(
-  queryParamToString,
-  z.string().regex(/^0x[a-fA-F0-9]{40}$/)
-);
+const zQueryAddress = z.preprocess(queryParamToString, z.string().regex(/^0x[a-fA-F0-9]{40}$/));
 
 const zQueryAddressOptional = z.preprocess(
   queryParamToString,
@@ -246,10 +227,10 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
   const toInstance = tokenInstances.find((ti) => ti.read().centrifugeId === String(toCentId));
 
   if (!fromInstance) {
-    return c.json({ error: "Token does not exist on the origin chain" }, 400);
+    return c.json({ error: "Token does not exist on the origin chain" }, 404);
   }
   if (!toInstance) {
-    return c.json({ error: "Token does not exist on the destination chain" }, 400);
+    return c.json({ error: "Token does not exist on the destination chain" }, 404);
   }
 
   const fromData = fromInstance.read();
@@ -266,7 +247,7 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
   const hubChainId = Services.BlockchainService.getChainIdFromCentrifugeId(String(hubCentId));
 
   if (hubChainId == null) {
-    return c.json({ error: "Hub chain not found for this token" }, 400);
+    return c.json({ error: "Hub chain not found for this token" }, 500);
   }
 
   let estimatedDuration = ESTIMATED_DURATION;
@@ -352,6 +333,7 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
   // Fee is paid in native (value); refund defaults to the receiver.
   const bridgeAddress = TOKEN_BRIDGE_ADDRESS[fromChainId] ?? null;
   const receiver = toAddress ?? fromAddress ?? null;
+
   let parameters: {
     contractAddress: `0x${string}`;
     functionName: string;
@@ -384,37 +366,35 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
   const amount = fromAmount.toString(); // 1:1 transfer — toAmount equals fromAmount
 
   return c.json({
-    data: {
-      tool: TOOL,
-      standard: STANDARD,
-      fromChainId,
-      toChainId,
-      fromToken: fromTokenObj,
-      toToken: toTokenObj,
+    tool: TOOL,
+    standard: STANDARD,
+    fromChainId,
+    toChainId,
+    fromToken: fromTokenObj,
+    toToken: toTokenObj,
+    fromAmount: amount,
+    toAmount: amount,
+    estimate: {
       fromAmount: amount,
       toAmount: amount,
-      estimate: {
-        fromAmount: amount,
-        toAmount: amount,
-        // No slippage on a deterministic 1:1 transfer, so the minimum equals the amount.
-        toAmountMin: amount,
-        approvalAddress: bridgeAddress,
-        executionDuration: estimatedDuration,
-        feeCosts: [
-          {
-            name: "Bridge fee",
-            description: "Cross-chain message delivery fee, paid in the source chain native token",
-            percentage: "0",
-            token: nativeToken(fromChainId),
-            amount: totalFee.toString(),
-            amountUSD: null,
-            included: false,
-          },
-        ],
-        gasEstimate: estimatedGas,
-      },
-      parameters,
+      // No slippage on a deterministic 1:1 transfer, so the minimum equals the amount.
+      toAmountMin: amount,
+      approvalAddress: bridgeAddress,
+      executionDuration: estimatedDuration,
+      feeCosts: [
+        {
+          name: "Bridge fee",
+          description: "Cross-chain message delivery fee, paid in the source chain native token",
+          percentage: "0",
+          token: nativeToken(fromChainId),
+          amount: totalFee.toString(),
+          amountUSD: null,
+          included: false,
+        },
+      ],
+      gasEstimate: estimatedGas,
     },
+    parameters,
   });
 }
 
@@ -437,15 +417,13 @@ async function handleStatus(c: Context, ctx: ApiContext, txHash: string): Promis
   const payloadSvc = await Services.CrosschainPayloadService.getByCreatedAtTxHash(ctx, txHashNorm);
   if (!payloadSvc) {
     return c.json({
-      data: {
-        transactionId: txHashNorm,
-        tool: TOOL,
-        status: "NOT_FOUND",
-        substatus: null,
-        substatusMessage: null,
-        sending: { txHash: txHashNorm, txLink: null, chainId: null, amount: null, token: null },
-        receiving: null,
-      },
+      transactionId: txHashNorm,
+      tool: TOOL,
+      status: "NOT_FOUND",
+      substatus: null,
+      substatusMessage: null,
+      sending: { txHash: txHashNorm, txLink: null, chainId: null, amount: null, token: null },
+      receiving: null,
     });
   }
 
@@ -521,33 +499,31 @@ async function handleStatus(c: Context, ctx: ApiContext, txHash: string): Promis
   const receivingDone = Boolean(receivingTxHash);
 
   return c.json({
-    data: {
-      transactionId: payload.id,
-      tool: TOOL,
-      status,
-      substatus,
-      substatusMessage: null,
-      toAddress,
-      sending: {
-        txHash: payload.createdAtTxHash,
-        txLink: explorerTxLink(fromChainId, payload.createdAtTxHash),
-        chainId: fromChainId,
-        amount,
-        token: tokenObj ? { ...tokenObj, chainId: fromChainId ?? tokenObj.chainId } : null,
-        gasPrice: payload.gasPrice != null ? payload.gasPrice.toString() : null,
-        timestamp: toUnix(payload.createdAt),
-      },
-      receiving: receivingDone
-        ? {
-            txHash: receivingTxHash,
-            txLink: explorerTxLink(toChainId, receivingTxHash),
-            chainId: toChainId,
-            tokenAddress: tokenObj?.address ?? null,
-            tokenAmount: amount,
-            timestamp: toUnix(payload.completedAt ?? payload.deliveredAt),
-          }
-        : null,
+    transactionId: payload.id,
+    tool: TOOL,
+    status,
+    substatus,
+    substatusMessage: null,
+    toAddress,
+    sending: {
+      txHash: payload.createdAtTxHash,
+      txLink: explorerTxLink(fromChainId, payload.createdAtTxHash),
+      chainId: fromChainId,
+      amount,
+      token: tokenObj ? { ...tokenObj, chainId: fromChainId ?? tokenObj.chainId } : null,
+      gasPrice: payload.gasPrice != null ? payload.gasPrice.toString() : null,
+      timestamp: toUnix(payload.createdAt),
     },
+    receiving: receivingDone
+      ? {
+          txHash: receivingTxHash,
+          txLink: explorerTxLink(toChainId, receivingTxHash),
+          chainId: toChainId,
+          tokenAddress: tokenObj?.address ?? null,
+          tokenAmount: amount,
+          timestamp: toUnix(payload.completedAt ?? payload.deliveredAt),
+        }
+      : null,
   });
 }
 
@@ -566,13 +542,10 @@ export function createGlacisApp() {
     return handleStatus(c, ctx, c.req.param("txHash"));
   });
 
-  app.get("/routes", sValidator("query", routesParams), async (c) => {
+  app.get("/routes", async (c) => {
     const ctx = apiContext(c);
-    const { limit, offset, isEnabled } = c.req.valid("query");
-    const requestUrl = new URL(c.req.url);
-    const pagingIncludesIsEnabled = requestUrl.searchParams.has("isEnabled");
     const ESTIMATED_DURATION = 210; // in seconds
-    // const ESTIMATED_GAS = 1000000;
+    const ESTIMATED_GAS = 1000000;
 
     const tokenInstanceRows = await Services.TokenInstanceService.listAllJoinedWithToken(ctx);
 
@@ -620,9 +593,8 @@ export function createGlacisApp() {
           maxTransferSize: "340282366920938463463374607431768211455", // uint128 max
           decimals: row.token.decimals,
           estimatedDuration: ESTIMATED_DURATION,
-          estimatedGas: 1000000,
+          estimatedGas: ESTIMATED_GAS,
           standard: "CentrifugeV31",
-          isEnabled: true,
         },
         {
           tokenId: row.token.id,
@@ -637,9 +609,8 @@ export function createGlacisApp() {
           maxTransferSize: "340282366920938463463374607431768211455", // uint128 max
           decimals: row.token.decimals,
           estimatedDuration: ESTIMATED_DURATION,
-          estimatedGas: 1000000,
+          estimatedGas: ESTIMATED_GAS,
           standard: "CentrifugeV31",
-          isEnabled: true,
         },
         // Spoke-to-spoke (2-hop) routes commented out — hub↔spoke only for now.
         // ...(nonHubTokenInstanceRowsByTokenId.get(row.token.id)?.flatMap((otherRow) => {
@@ -668,7 +639,6 @@ export function createGlacisApp() {
         //       estimatedDuration: ESTIMATED_DURATION * 2,
         //       estimatedGas: ESTIMATED_GAS * 2,
         //       standard: "CentrifugeV31",
-        //       isEnabled: true,
         //     },
         //   ] satisfies Route[];
         // }) || []),
@@ -676,34 +646,9 @@ export function createGlacisApp() {
     });
 
     const bridgeRoutes = routes.filter((r) => TOKEN_BRIDGE_ADDRESS[Number(r.fromChainId)] != null);
-    const filteredRoutes =
-      isEnabled === undefined
-        ? bridgeRoutes
-        : bridgeRoutes.filter((r) => r.isEnabled === isEnabled);
-
-    const paginatedRoutes = filteredRoutes.slice(offset, offset + limit);
-    const baseUrl = `${requestUrl.origin}${requestUrl.pathname}`;
-
-    const routesPagingQuery = (off: number): string => {
-      const p = new URLSearchParams();
-      p.set("limit", String(limit));
-      p.set("offset", String(off));
-      if (pagingIncludesIsEnabled && isEnabled !== undefined) {
-        p.set("isEnabled", isEnabled ? "true" : "false");
-      }
-      return p.toString();
-    };
 
     return c.json({
-      paging: {
-        self: `${baseUrl}?${routesPagingQuery(offset)}`,
-        prev: offset - limit >= 0 ? `${baseUrl}?${routesPagingQuery(offset - limit)}` : null,
-        next:
-          offset + limit < filteredRoutes.length
-            ? `${baseUrl}?${routesPagingQuery(offset + limit)}`
-            : null,
-      },
-      data: paginatedRoutes,
+      routes: bridgeRoutes,
     });
   });
 
