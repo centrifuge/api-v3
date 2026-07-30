@@ -23,14 +23,15 @@ export async function fetchFromIpfs(ipfsHash: string): Promise<any> {
   // Remove ipfs:// prefix if present
   const hash = ipfsHash.replace("ipfs://", "");
 
+  const url = `${IPFS_GATEWAY}${hash}`;
   try {
-    const response = await fetch(`${IPFS_GATEWAY}${hash}`);
+    const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`IPFS fetch failed with status ${response.status}`);
+      throw new Error(`IPFS fetch failed with status ${response.status} for url=${url}`);
     }
     return await response.json();
   } catch (error) {
-    serviceError(`Error fetching from IPFS: ${error}`);
+    serviceError(`Error fetching from IPFS url=${url}: ${error}`);
     throw error;
   }
 }
