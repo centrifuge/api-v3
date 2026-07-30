@@ -156,7 +156,9 @@ multiMapper("hubRegistry:SetMetadata", async ({ event, context }) => {
       const name = ipfsData?.pool?.name;
       if (name) pool.setName(name);
     } catch (error) {
-      serviceError(`IPFS metadata fetch failed for poolId=${poolId}, persisting raw pointer: ${error}`);
+      serviceError(
+        `IPFS metadata fetch failed for poolId=${poolId}, persisting raw pointer: ${error}`
+      );
     }
   }
   pool.setMetadata(metadata);
