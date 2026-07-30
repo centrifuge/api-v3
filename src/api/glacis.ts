@@ -43,6 +43,9 @@ const TX_HASH_PATTERN = /^0x[a-fA-F0-9]{64}$/;
 const TOOL = "centrifuge";
 const STANDARD = "CentrifugeV31";
 const NATIVE_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
+/** uint128 max, used as the transfer size ceiling and the fromAmount zod bound. */
+const UINT128_MAX_STR: `${number}` = "340282366920938463463374607431768211455";
+const UINT128_MAX = BigInt(UINT128_MAX_STR);
 
 type LifiToken = {
   address: string;
@@ -85,7 +88,7 @@ function addressToBytes32(address: string): `0x${string}` {
 
 /** Take the low 20 bytes of a 32-byte word as an address. */
 function bytes32ToAddress(word: string): `0x${string}` {
-  return `0x${word.replace(/^0x/, "").slice(-40)}` as `0x${string}`;
+  return `0x${word.replace(/^0x/, "").slice(-40).toLowerCase()}` as `0x${string}`;
 }
 
 type Route = {
@@ -102,7 +105,7 @@ type Route = {
   decimals: number;
   estimatedDuration: number;
   estimatedGas: number;
-  standard: string;
+  standard: typeof STANDARD;
 };
 
 /** Hono query values are strings (or string[] if repeated); normalize for Zod. */
@@ -130,7 +133,7 @@ const zQueryUint128 = z.preprocess(
     .string()
     .regex(/^\d+$/)
     .transform((s) => BigInt(s))
-    .pipe(z.bigint().min(1n).max(340282366920938463463374607431768211455n))
+    .pipe(z.bigint().min(1n).max(UINT128_MAX))
 );
 
 const zQueryAddress = z.preprocess(queryParamToString, z.string().regex(/^0x[a-fA-F0-9]{40}$/));
@@ -171,6 +174,7 @@ type QuoteInput = {
   fromChainId: number;
   toChainId: number;
   fromToken: string;
+  toToken?: string;
   fromAmount: bigint;
   fromAddress?: string;
   toAddress: string;
@@ -178,7 +182,7 @@ type QuoteInput = {
 
 /** Shared Airlift-style fee quote (POST /quote only per Glacis off-chain interface). */
 async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Promise<Response> {
-  const { fromChainId, toChainId, fromAmount, fromToken, fromAddress, toAddress } = input;
+  const { fromChainId, toChainId, fromAmount, fromToken, toToken, fromAddress, toAddress } = input;
   const ESTIMATED_DURATION = 210; // in seconds
 
   const fromCentIdStr = Services.BlockchainService.getCentrifugeIdFromChainId(fromChainId);
@@ -192,11 +196,16 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
     return c.json({ error: "Origin and destination chain cannot be the same" }, 400);
   }
 
-  const tokenInstances = await Services.TokenInstanceService.query(ctx, {
-    address: fromToken as `0x${string}`,
-  });
-  const fromInstance = tokenInstances.find((ti) => ti.read().centrifugeId === String(fromCentId));
-  const toInstance = tokenInstances.find((ti) => ti.read().centrifugeId === String(toCentId));
+  const [fromInstance, toInstance] = await Promise.all([
+    Services.TokenInstanceService.get(ctx, {
+      address: fromToken as `0x${string}`,
+      centrifugeId: String(fromCentId),
+    }),
+    Services.TokenInstanceService.get(ctx, {
+      address: fromToken as `0x${string}`,
+      centrifugeId: String(toCentId),
+    }),
+  ]);
 
   if (!fromInstance) {
     return c.json({ error: "Token does not exist on the origin chain" }, 404);
@@ -212,6 +221,21 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
   }
 
   const tokenId = fromData.tokenId;
+
+  // `toToken` is accepted for LI.FI parity but must resolve to the same share class as
+  // `fromToken` on the destination chain. Transfers are 1:1, so a mismatch is rejected.
+  if (toToken !== undefined && toToken !== fromToken) {
+    const toTokenInstance = await Services.TokenInstanceService.get(ctx, {
+      address: toToken as `0x${string}`,
+      centrifugeId: String(toCentId),
+    });
+    if (!toTokenInstance) {
+      return c.json({ error: "toToken does not exist on the destination chain" }, 404);
+    }
+    if (toTokenInstance.read().tokenId !== tokenId) {
+      return c.json({ error: "toToken is not the same share class as fromToken" }, 400);
+    }
+  }
   const hubCentId = centrifugeId(tokenId);
   const isFromHub = fromCentId === hubCentId;
   const isToHub = toCentId === hubCentId;
@@ -498,7 +522,7 @@ async function handleStatus(c: Context, ctx: ApiContext, txHash: string): Promis
   });
 }
 
-/** LI.FI-style routes: `GET /routes`, `POST /quote`, `GET /status`, `GET /transactions/:txHash`. */
+/** LI.FI-style routes: `GET /routes`, `GET /quote`, `GET /status`, `GET /transaction/:txHash`. */
 export function createGlacisApp() {
   const app = new Hono<ApiEnv>();
 
@@ -519,103 +543,71 @@ export function createGlacisApp() {
     const GAS_INITIATE_TRANSFER_SHARES = 369413;
     const GAS_EXECUTE_TRANSFER_SHARES = 254235;
 
-    const tokenInstanceRows = await Services.TokenInstanceService.listAllJoinedWithToken(ctx);
+    const rows = await Services.TokenInstanceService.listAllJoinedWithToken(ctx);
 
-    const hubTokenInstanceRowsByTokenId = new Map<string, (typeof tokenInstanceRows)[number]>();
-    const nonHubTokenInstanceRowsByTokenId = new Map<string, typeof tokenInstanceRows>();
-    const nonHubTokenInstanceRows = tokenInstanceRows.filter((row) => {
-      const isSpoke =
-        Number(row.token_instance.centrifugeId) !== centrifugeId(row.token_instance.tokenId);
-      if (isSpoke) {
-        const tokenRows = nonHubTokenInstanceRowsByTokenId.get(row.token.id) || [];
-        tokenRows.push(row);
-        nonHubTokenInstanceRowsByTokenId.set(row.token.id, tokenRows);
-        return true;
+    // Partition instances: the hub instance lives on the token's hub chain (its
+    // instance centrifugeId matches the token's recorded hub centrifugeId); all
+    // others are spokes. Routes are hub<->spoke pairs per token. Tokens without a
+    // recorded hub centrifugeId are skipped (no hub chain to route through).
+    const hubByTokenId = new Map<string, (typeof rows)[number]>();
+    const spokeRows: typeof rows = [];
+    for (const row of rows) {
+      const hubCentId = row.token.centrifugeId;
+      if (hubCentId == null) continue;
+      if (row.token_instance.centrifugeId === hubCentId) {
+        hubByTokenId.set(row.token.id, row);
+      } else {
+        spokeRows.push(row);
       }
-      hubTokenInstanceRowsByTokenId.set(row.token.id, row);
-      return false;
-    });
+    }
 
-    const routes = nonHubTokenInstanceRows.flatMap((row) => {
-      const hubBlockchain = routeChainFromCentrifugeId(row.token.centrifugeId!);
-      const spokeBlockchain = routeChainFromCentrifugeId(row.token_instance.centrifugeId);
-      const hubRow = hubTokenInstanceRowsByTokenId.get(row.token.id);
+    const routes: Route[] = [];
+    for (const spokeRow of spokeRows) {
+      const hubRow = hubByTokenId.get(spokeRow.token.id);
+      if (!hubRow) continue;
 
-      if (
-        !hubBlockchain?.chainId ||
-        !hubBlockchain?.name ||
-        !spokeBlockchain?.chainId ||
-        !spokeBlockchain?.name ||
-        !hubRow
-      ) {
-        return [];
-      }
+      const hubChain = routeChainFromCentrifugeId(hubRow.token_instance.centrifugeId);
+      const spokeChain = routeChainFromCentrifugeId(spokeRow.token_instance.centrifugeId);
+      if (!hubChain || !spokeChain) continue;
 
-      return [
-        {
-          tokenId: row.token.id,
-          tokenName: row.token.name || row.token.id,
-          fromAddress: hubRow.token_instance.address,
-          toAddress: row.token_instance.address,
-          fromChainId: hubBlockchain.chainId.toString() as `${number}`,
-          fromChainName: hubBlockchain.name,
-          toChainId: spokeBlockchain.chainId.toString() as `${number}`,
-          toChainName: spokeBlockchain.name,
-          minTransferSize: "0",
-          maxTransferSize: "340282366920938463463374607431768211455", // uint128 max
-          decimals: row.token.decimals,
-          estimatedDuration: ESTIMATED_DURATION,
-          estimatedGas: GAS_EXECUTE_TRANSFER_SHARES,
-          standard: "CentrifugeV31",
-        },
-        {
-          tokenId: row.token.id,
-          tokenName: row.token.name || row.token.id,
-          fromAddress: row.token_instance.address,
-          toAddress: hubRow.token_instance.address,
-          fromChainId: spokeBlockchain.chainId.toString() as `${number}`,
-          fromChainName: spokeBlockchain.name,
-          toChainId: hubBlockchain.chainId.toString() as `${number}`,
-          toChainName: hubBlockchain.name,
-          minTransferSize: "0",
-          maxTransferSize: "340282366920938463463374607431768211455", // uint128 max
-          decimals: row.token.decimals,
-          estimatedDuration: ESTIMATED_DURATION,
-          estimatedGas: GAS_INITIATE_TRANSFER_SHARES,
-          standard: "CentrifugeV31",
-        },
-        // Spoke-to-spoke (2-hop) routes commented out — hub↔spoke only for now.
-        // ...(nonHubTokenInstanceRowsByTokenId.get(row.token.id)?.flatMap((otherRow) => {
-        //   if (otherRow.token_instance.centrifugeId === row.token_instance.centrifugeId) {
-        //     return [];
-        //   }
-        //   const otherSpokeBlockchain = routeChainFromCentrifugeId(
-        //     otherRow.token_instance.centrifugeId
-        //   );
-        //   if (!otherSpokeBlockchain?.chainId || !otherSpokeBlockchain?.name) {
-        //     return [];
-        //   }
-        //   return [
-        //     {
-        //       tokenId: row.token.id,
-        //       tokenName: row.token.name || row.token.id,
-        //       fromAddress: row.token_instance.address,
-        //       toAddress: otherRow.token_instance.address,
-        //       fromChainId: spokeBlockchain.chainId!.toString() as `${number}`,
-        //       fromChainName: spokeBlockchain.name!,
-        //       toChainId: otherSpokeBlockchain.chainId.toString() as `${number}`,
-        //       toChainName: otherSpokeBlockchain.name,
-        //       minTransferSize: "0",
-        //       maxTransferSize: "340282366920938463463374607431768211455",
-        //       decimals: row.token.decimals,
-        //       estimatedDuration: ESTIMATED_DURATION * 2,
-        //       estimatedGas: ESTIMATED_GAS * 2,
-        //       standard: "CentrifugeV31",
-        //     },
-        //   ] satisfies Route[];
-        // }) || []),
-      ] satisfies Route[];
-    });
+      const base: Pick<
+        Route,
+        "tokenId" | "tokenName" | "decimals" | "estimatedDuration" | "standard"
+      > = {
+        tokenId: spokeRow.token.id,
+        tokenName: spokeRow.token.name || spokeRow.token.id,
+        decimals: spokeRow.token.decimals,
+        estimatedDuration: ESTIMATED_DURATION,
+        standard: STANDARD,
+      };
+
+      // hub -> spoke (ExecuteTransferShares)
+      routes.push({
+        ...base,
+        fromAddress: hubRow.token_instance.address,
+        toAddress: spokeRow.token_instance.address,
+        fromChainId: hubChain.chainId.toString() as `${number}`,
+        fromChainName: hubChain.name,
+        toChainId: spokeChain.chainId.toString() as `${number}`,
+        toChainName: spokeChain.name,
+        minTransferSize: "0",
+        maxTransferSize: UINT128_MAX_STR,
+        estimatedGas: GAS_EXECUTE_TRANSFER_SHARES,
+      });
+      // spoke -> hub (InitiateTransferShares)
+      routes.push({
+        ...base,
+        fromAddress: spokeRow.token_instance.address,
+        toAddress: hubRow.token_instance.address,
+        fromChainId: spokeChain.chainId.toString() as `${number}`,
+        fromChainName: spokeChain.name,
+        toChainId: hubChain.chainId.toString() as `${number}`,
+        toChainName: hubChain.name,
+        minTransferSize: "0",
+        maxTransferSize: UINT128_MAX_STR,
+        estimatedGas: GAS_INITIATE_TRANSFER_SHARES,
+      });
+    }
 
     const bridgeRoutes = routes.filter((r) => TOKEN_BRIDGE_ADDRESS[Number(r.fromChainId)] != null);
 
@@ -632,6 +624,7 @@ export function createGlacisApp() {
       toChainId: q.toChain,
       fromAmount: q.fromAmount,
       fromToken: q.fromToken,
+      toToken: q.toToken,
       fromAddress: q.fromAddress,
       toAddress: q.toAddress,
     });
