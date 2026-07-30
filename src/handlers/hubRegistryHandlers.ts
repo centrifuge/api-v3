@@ -151,9 +151,15 @@ multiMapper("hubRegistry:SetMetadata", async ({ event, context }) => {
   const isIpfs = ipfsHashRegex.test(metadata);
   if (isIpfs) {
     metadata = `ipfs://${metadata}`;
-    const ipfsData = await fetchFromIpfs(metadata);
-    const name = ipfsData?.pool?.name;
-    if (name) pool.setName(name);
+    try {
+      const ipfsData = await fetchFromIpfs(metadata);
+      const name = ipfsData?.pool?.name;
+      if (name) pool.setName(name);
+    } catch (error) {
+      serviceError(
+        `IPFS metadata fetch failed for poolId=${poolId}, persisting raw pointer: ${error}`
+      );
+    }
   }
   pool.setMetadata(metadata);
   await pool.save(event);
