@@ -5,6 +5,7 @@
  */
 
 import { decodeAbiParameters, hexToBigInt, hexToNumber, slice } from "viem";
+import { MAX_UINT64_DATE } from "../config";
 import { formatBytes32ToAddress } from "./formatter";
 
 /** Word size in bytes for ABI static encoding (`abi.encode` slots). */
@@ -245,6 +246,25 @@ const UPDATE_RESTRICTION_LEN = {
   FreezeOrUnfreeze: 1 + 32,
 } as const;
 
+/** `MAX_UINT64_DATE` in epoch milliseconds, used as the Postgres-safe clamp ceiling. */
+const MAX_UINT64_DATE_MS = MAX_UINT64_DATE.getTime();
+
+/**
+ * Converts an on-chain `validUntil` Unix-seconds `uint64` to a Postgres-safe `Date`.
+ *
+ * The protocol stores `validUntil` in seconds (compared to `block.timestamp` in
+ * `BaseTransferHook`). Values large enough to overflow Postgres `timestamptz` (e.g. an
+ * off-chain caller passing a millisecond-scale number into the seconds field) are clamped
+ * to {@link MAX_UINT64_DATE} instead of crashing the indexer.
+ * @param secs - On-chain `validUntil` in Unix seconds.
+ * @returns JS `Date`, clamped to {@link MAX_UINT64_DATE} on overflow.
+ */
+function validUntilSecsToDate(secs: bigint): Date {
+  const ms = Number(secs * 1000n);
+  if (!Number.isSafeInteger(ms) || ms > MAX_UINT64_DATE_MS) return MAX_UINT64_DATE;
+  return new Date(ms);
+}
+
 /**
  * Discriminated union for `hub:UpdateRestriction` payloads: `abi.encodePacked` per
  * `UpdateRestrictionMessageLib` (Member / Freeze / Unfreeze).
@@ -271,9 +291,7 @@ export function decodeUpdateRestriction(payload: `0x${string}`): DecodedUpdateRe
     const accountAddress = formatBytes32ToAddress(slice(payload, 1, 33));
     const validUntilSecs = safeDecode(() => hexToBigInt(slice(payload, 33, 41)));
     if (validUntilSecs === null) return null;
-    const ms = Number(validUntilSecs * 1000n);
-    const validUntil = Number.isSafeInteger(ms) ? new Date(ms) : new Date("9999-12-31T23:59:59Z");
-    return { kind: "Member", accountAddress, validUntil };
+    return { kind: "Member", accountAddress, validUntil: validUntilSecsToDate(validUntilSecs) };
   }
 
   if (kindValue === UPDATE_RESTRICTION_TYPE.Freeze) {

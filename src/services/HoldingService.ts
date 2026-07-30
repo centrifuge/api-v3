@@ -50,8 +50,8 @@ export class HoldingService extends Service<typeof Holding> {
       `Holding increase poolId=${this.data.poolId} amount=${amount} value=${increaseValue}`
     );
     const { assetQuantity, totalValue } = this.data;
-    this.data.assetQuantity = assetQuantity ?? 0n + amount;
-    this.data.totalValue = totalValue ?? 0n + increaseValue;
+    this.data.assetQuantity = (assetQuantity ?? 0n) + amount;
+    this.data.totalValue = (totalValue ?? 0n) + increaseValue;
     return this;
   }
 
@@ -69,8 +69,8 @@ export class HoldingService extends Service<typeof Holding> {
       `Holding decrease poolId=${this.data.poolId} amount=${amount} value=${decreaseValue}`
     );
     const { assetQuantity, totalValue } = this.data;
-    this.data.assetQuantity = assetQuantity ?? 0n - amount;
-    this.data.totalValue = totalValue ?? 0n - decreaseValue;
+    this.data.assetQuantity = (assetQuantity ?? 0n) - amount;
+    this.data.totalValue = (totalValue ?? 0n) - decreaseValue;
     return this;
   }
 
@@ -87,7 +87,7 @@ export class HoldingService extends Service<typeof Holding> {
       `Holding update poolId=${this.data.poolId} isPositive=${isPositive} diffValue=${diffValue}`
     );
     const { totalValue } = this.data;
-    this.data.totalValue = totalValue ?? 0n + (isPositive ? diffValue : -diffValue);
+    this.data.totalValue = (totalValue ?? 0n) + (isPositive ? diffValue : -diffValue);
     return this;
   }
 
