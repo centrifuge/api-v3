@@ -2,11 +2,7 @@ import fetch from "node-fetch";
 import { serviceError } from "./logger";
 
 const DEFAULT_IPFS_GATEWAY = "https://ipfs.centrifuge.io/ipfs/";
-const IPFS_GATEWAY = process.env.IPFS_GATEWAY
-  ? process.env.IPFS_GATEWAY.endsWith("/")
-    ? process.env.IPFS_GATEWAY
-    : `${process.env.IPFS_GATEWAY}/`
-  : DEFAULT_IPFS_GATEWAY;
+const IPFS_GATEWAY = (process.env.IPFS_GATEWAY ?? DEFAULT_IPFS_GATEWAY).replace(/\/?$/, "/");
 
 /**
  * Fetches and parses JSON data from IPFS using the configured gateway.
