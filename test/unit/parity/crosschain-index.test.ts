@@ -33,7 +33,7 @@ function isPayloadRowOpen(row: PayloadRowForIndex): boolean {
   return !isPayloadRowClosed(row);
 }
 
-function nextPayloadIndexWhenAllClosed(rows: PayloadRowForIndex[]): number {
+function nextPayloadIndex(rows: PayloadRowForIndex[]): number {
   if (rows.length === 0) return 0;
   return Math.max(...rows.map((r) => r.index)) + 1;
 }
@@ -72,13 +72,13 @@ describe("pickOpenPayloadRowAmong", () => {
   });
 });
 
-describe("nextPayloadIndexWhenAllClosed", () => {
+describe("nextPayloadIndex", () => {
   it("returns 0 for empty", () => {
-    expect(nextPayloadIndexWhenAllClosed([])).toBe(0);
+    expect(nextPayloadIndex([])).toBe(0);
   });
 
   it("returns MAX+1", () => {
-    expect(nextPayloadIndexWhenAllClosed([payload(0), payload(2)])).toBe(3);
+    expect(nextPayloadIndex([payload(0), payload(2)])).toBe(3);
   });
 });
 
@@ -116,11 +116,15 @@ describe("resolvePayloadKeyForEvent", () => {
     expect(key).toEqual({ action: "mutate", index: 0 });
   });
 
-  it("late UnderpaidBatch reuses index 0 via message hint when linked", () => {
+  it("replayed UnderpaidBatch (no unlinked message) reuses the closed hinted row", () => {
+    // Late duplicate of an already-linked batch: no freshly prepared unlinked
+    // message exists, so the messagePayloadIndex hint legitimately reuses the
+    // existing (possibly terminal) row instead of allocating a new index.
     const rows = [payload(0, { completedAt: t })];
     const key = resolvePayloadKeyForEvent("UnderpaidBatch", rows, {
       deferAllowed: false,
       messagePayloadIndex: 0,
+      hasUnlinkedAwaitingMessage: false,
     });
     expect(key).toEqual({ action: "mutate", index: 0 });
   });
