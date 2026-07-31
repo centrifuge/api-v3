@@ -297,7 +297,7 @@ multiMapper("gateway:RepayBatch", async ({ event, context }) => {
         context,
         payloadId,
         "RepayBatch",
-        { deferAllowed: false, messageIds: batchMessageIds }
+        { deferAllowed: false, messageIds: batchMessageIds, currentTxHash: event.transaction.hash }
       );
       if (key.action !== "mutate") {
         serviceError(`RepayBatch: no open payload row for ${payloadId}`);

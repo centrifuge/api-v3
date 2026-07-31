@@ -31,6 +31,15 @@ import {
  *    linked the new message, so the signal is false and the min-based
  *    `payloadIndexFromMessages` hint points at the OLD completed row. The send
  *    must mutate the open unsent row, not the hinted completed row.
+ *
+ * PR #465 review follow-up: when the hinted row is OPEN the hint used to win
+ * unconditionally, misrouting (a) the repay of a second underpaid instance
+ * while the prior instance is InTransit / PartiallyFailed, and (b) a second
+ * adapter's SendPayload (MultiAdapter emits one per adapter) while an
+ * unrelated underpaid row is pending. Disambiguation is deterministic via the
+ * event tx hash: a row with `sentAtTxHash` equal to the current tx hash was
+ * sent by this tx (proof round / same-tx RepayBatch); otherwise a sender event
+ * must prefer the open unsent row over a hint pointing at an already-sent row.
  */
 
 const PAYLOAD_ID = `0x${"ab".repeat(32)}` as const;
@@ -39,6 +48,11 @@ const T0 = new Date("2026-07-30T17:00:00Z");
 /** Monotonic clock for scenario steps. */
 function ts(minutes: number): Date {
   return new Date(T0.getTime() + minutes * 60_000);
+}
+
+/** Deterministic tx hash for scenario steps sharing (or not) a transaction. */
+function tx(n: number): `0x${string}` {
+  return `0x${n.toString(16).padStart(64, "0")}` as `0x${string}`;
 }
 
 type SimMessage = {
@@ -70,11 +84,16 @@ class SendSim {
   readonly rows: SimRow[] = [];
 
   /** Derives resolvePayloadKey inputs from state, like the real service does. */
-  resolve(eventKind: PayloadEventKind, deferAllowed = false): ResolvePayloadKeyResult {
+  resolve(
+    eventKind: PayloadEventKind,
+    deferAllowed = false,
+    currentTxHash: `0x${string}` | null = null
+  ): ResolvePayloadKeyResult {
     return resolvePayloadKeyForEvent(eventKind, this.rows, {
       deferAllowed,
       messagePayloadIndex: payloadIndexFromMessages(this.msgs),
       hasUnlinkedAwaitingMessage: hasUnlinkedAwaitingMessage(this.msgs),
+      currentTxHash,
     });
   }
 
@@ -110,13 +129,13 @@ class SendSim {
   }
 
   /** gateway:RepayBatch - resolve only (facts carry no lifecycle timestamp). */
-  repayBatch(): ResolvePayloadKeyResult {
-    return this.resolve("RepayBatch");
+  repayBatch(txHash: `0x${string}` | null = null): ResolvePayloadKeyResult {
+    return this.resolve("RepayBatch", false, txHash);
   }
 
   /** multiAdapter:SendPayload - resolve, link lowest unlinked message, sentAt. */
-  sendPayload(at: Date): ResolvePayloadKeyResult {
-    const key = this.resolve("SendPayload");
+  sendPayload(at: Date, txHash: `0x${string}` | null = null): ResolvePayloadKeyResult {
+    const key = this.resolve("SendPayload", false, txHash);
     if (key.action === "defer") return key;
     const unlinked = this.msgs
       .filter((m) => m.payloadId == null && m.payloadIndex == null && m.preparedAt != null)
@@ -125,7 +144,7 @@ class SendSim {
       unlinked.payloadId = PAYLOAD_ID;
       unlinked.payloadIndex = key.index;
     }
-    this.upsertRow(key, { sentAt: at });
+    this.upsertRow(key, { sentAt: at, sentAtTxHash: txHash });
     return key;
   }
 
@@ -144,16 +163,35 @@ class SendSim {
     }
   }
 
+  /**
+   * Destination side: lowest awaiting message fails on execute. The linked row
+   * is delivered but partially failed - it stays open (completedAt null)
+   * indefinitely until a retry succeeds.
+   */
+  destFail(at: Date): void {
+    const next = this.msgs
+      .filter((m) => m.status === "AwaitingBatchDelivery")
+      .sort((a, b) => a.index - b.index)[0];
+    if (!next) return;
+    next.status = "Failed";
+    const row = this.rows.find((r) => r.index === next.payloadIndex);
+    if (row) {
+      row.deliveredAt ??= at;
+      row.partiallyFailedAt ??= at;
+    }
+  }
+
   /** Applies a resolved key with COALESCE timestamp semantics. */
   private upsertRow(
     key: Extract<ResolvePayloadKeyResult, { action: "mutate" | "create" }>,
-    facts: Partial<Pick<SimRow, "underpaidAt" | "sentAt">>
+    facts: Partial<Pick<SimRow, "underpaidAt" | "sentAt" | "sentAtTxHash">>
   ): void {
     if (key.action === "create") {
       this.rows.push({
         index: key.index,
         underpaidAt: facts.underpaidAt ?? null,
         sentAt: facts.sentAt ?? null,
+        sentAtTxHash: facts.sentAt ? (facts.sentAtTxHash ?? null) : null,
         deliveredAt: null,
         partiallyFailedAt: null,
         completedAt: null,
@@ -163,7 +201,12 @@ class SendSim {
     const row = this.rows.find((r) => r.index === key.index);
     if (!row) throw new Error(`mutate on missing row index ${key.index}`);
     if (facts.underpaidAt) row.underpaidAt ??= facts.underpaidAt;
-    if (facts.sentAt) row.sentAt ??= facts.sentAt;
+    if (facts.sentAt) {
+      // timestamperWithChain("sent", ...) writes sentAt + sentAtTxHash together;
+      // COALESCE keeps the first writer for both.
+      if (row.sentAt == null) row.sentAtTxHash = facts.sentAtTxHash ?? null;
+      row.sentAt ??= facts.sentAt;
+    }
   }
 }
 
@@ -325,11 +368,120 @@ describe("scenario: multiple adapters emit SendPayload for the same send (proof 
     const sim = new SendSim();
     sim.prepareMessage(ts(0));
     sim.underpaidBatch(ts(0));
-    sim.repayBatch();
-    expect(sim.sendPayload(ts(5))).toEqual({ action: "mutate", index: 0 });
+    sim.repayBatch(tx(1));
+    expect(sim.sendPayload(ts(5), tx(1))).toEqual({ action: "mutate", index: 0 });
     // Second adapter's SendPayload in the same tx: message already linked.
-    expect(sim.sendPayload(ts(5))).toEqual({ action: "mutate", index: 0 });
+    expect(sim.sendPayload(ts(5), tx(1))).toEqual({ action: "mutate", index: 0 });
     expect(sim.rows).toHaveLength(1);
+  });
+
+  it("a second adapter's SendPayload while an unrelated underpaid row is pending mutates the row sent in this tx, not the underpaid one", () => {
+    const sim = new SendSim();
+    // Instance 0: underpaid, waiting for its own repay.
+    sim.prepareMessage(ts(0));
+    expect(sim.underpaidBatch(ts(0))).toEqual({ action: "create", index: 0 });
+
+    // Instance 1: identical paid send via multiAdapter. MultiAdapter.send()
+    // loops over all configured adapters and emits one SendPayload each
+    // (MultiAdapter.sol), all in the same tx.
+    sim.prepareMessage(ts(10));
+    expect(sim.sendPayload(ts(10), tx(1))).toEqual({ action: "create", index: 1 });
+    // Adapter #2: msg 1 is linked by now, so the new-send signal is false and
+    // the min-based hint points at underpaid row 0. Row 1 carries this tx's
+    // hash - the proof round belongs to it.
+    expect(sim.sendPayload(ts(10), tx(1))).toEqual({ action: "mutate", index: 1 });
+
+    // The underpaid row must not be stamped as sent by a foreign proof round.
+    expect(sim.rows[0]!.sentAt).toBeNull();
+    expect(sim.rows).toHaveLength(2);
+  });
+});
+
+describe("scenario: repay of an underpaid instance while the prior instance is still open", () => {
+  /** Row 0 sent and awaiting destination; row 1 underpaid pending repay. */
+  function setupInTransitPlusUnderpaid(sim: SendSim): void {
+    sim.prepareMessage(ts(0));
+    sim.underpaidBatch(ts(0));
+    // On-chain repay tx order: _send (SendPayload) before emit RepayBatch.
+    expect(sim.sendPayload(ts(5), tx(1))).toEqual({ action: "mutate", index: 0 });
+    expect(sim.repayBatch(tx(1))).toEqual({ action: "mutate", index: 0 });
+    // No destination execution: row 0 stays InTransit, msg 0 awaiting.
+
+    sim.prepareMessage(ts(20));
+    expect(sim.underpaidBatch(ts(20))).toEqual({ action: "create", index: 1 });
+  }
+
+  it("the repay tx routes to the underpaid row 1, not the in-transit row 0 the hint points at", () => {
+    const sim = new SendSim();
+    setupInTransitPlusUnderpaid(sim);
+
+    // Repay tx for instance 1: no PrepareMessage, both messages linked, so
+    // the hint resolves to min(0, 1) = 0 while row 0 is still open.
+    expect(sim.sendPayload(ts(30), tx(2))).toEqual({ action: "mutate", index: 1 });
+    expect(sim.repayBatch(tx(2))).toEqual({ action: "mutate", index: 1 });
+
+    expect(sim.rows[1]!.sentAt).toEqual(ts(30));
+    expect(sim.rows[0]!.sentAt).toEqual(ts(5));
+  });
+
+  it("same with RepayBatch and SendPayload in separate txs (v3 relayer ordering)", () => {
+    const sim = new SendSim();
+    setupInTransitPlusUnderpaid(sim);
+
+    // Observed on Avalanche: RepayBatch tx first, SendPayload in a later
+    // relayer tx. A repay always targets an underpaid (unsent) instance.
+    expect(sim.repayBatch(tx(2))).toEqual({ action: "mutate", index: 1 });
+    expect(sim.sendPayload(ts(35), tx(3))).toEqual({ action: "mutate", index: 1 });
+
+    expect(sim.rows[1]!.sentAt).toEqual(ts(35));
+    expect(sim.rows[0]!.sentAt).toEqual(ts(5));
+  });
+
+  it("the repay tx routes to the underpaid row 1 while row 0 is PartiallyFailed (open indefinitely)", () => {
+    const sim = new SendSim();
+    sim.prepareMessage(ts(0));
+    sim.underpaidBatch(ts(0));
+    expect(sim.sendPayload(ts(5), tx(1))).toEqual({ action: "mutate", index: 0 });
+    expect(sim.repayBatch(tx(1))).toEqual({ action: "mutate", index: 0 });
+    // Destination execution fails: row 0 delivered + partially failed, open.
+    sim.destFail(ts(10));
+    expect(sim.rows[0]!.partiallyFailedAt).not.toBeNull();
+    expect(sim.rows[0]!.completedAt).toBeNull();
+
+    sim.prepareMessage(ts(60));
+    expect(sim.underpaidBatch(ts(60))).toEqual({ action: "create", index: 1 });
+
+    expect(sim.sendPayload(ts(70), tx(2))).toEqual({ action: "mutate", index: 1 });
+    expect(sim.repayBatch(tx(2))).toEqual({ action: "mutate", index: 1 });
+
+    expect(sim.rows[1]!.sentAt).toEqual(ts(70));
+    expect(sim.rows[0]!.sentAt).toEqual(ts(5));
+  });
+});
+
+describe("scenario: double-underpaid batch collapses onto one row through both repays and deliveries", () => {
+  it("both repay txs mutate row 0 and the row completes after both message instances execute", () => {
+    const sim = new SendSim();
+    sim.prepareMessage(ts(0));
+    expect(sim.underpaidBatch(ts(0))).toEqual({ action: "create", index: 0 });
+    sim.prepareMessage(ts(1));
+    expect(sim.underpaidBatch(ts(1))).toEqual({ action: "mutate", index: 0 });
+
+    // First repay tx (SendPayload before RepayBatch, on-chain order).
+    expect(sim.sendPayload(ts(5), tx(1))).toEqual({ action: "mutate", index: 0 });
+    expect(sim.repayBatch(tx(1))).toEqual({ action: "mutate", index: 0 });
+
+    // Second repay tx: all messages linked to row 0, no open unsent row -
+    // the intended single-row collapse keeps mutating row 0.
+    expect(sim.sendPayload(ts(6), tx(2))).toEqual({ action: "mutate", index: 0 });
+    expect(sim.repayBatch(tx(2))).toEqual({ action: "mutate", index: 0 });
+    expect(sim.rows).toHaveLength(1);
+
+    // Destination executes both message instances; row 0 completes.
+    sim.destExecuteAndComplete(ts(10));
+    expect(sim.rows[0]!.completedAt).toBeNull();
+    sim.destExecuteAndComplete(ts(11));
+    expect(sim.rows[0]!.completedAt).not.toBeNull();
   });
 });
 
@@ -391,6 +543,7 @@ describe("UnderpaidBatch resend across every payload lifecycle stage", () => {
     ];
   }
 
+  /** Resolves an UnderpaidBatch resend against one prior row, deriving hints from msgs. */
   function resolveResend(row: PayloadRowForIndex, msgs: SimMessage[]): ResolvePayloadKeyResult {
     return resolvePayloadKeyForEvent("UnderpaidBatch", [row], {
       deferAllowed: false,

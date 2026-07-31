@@ -177,11 +177,60 @@ describe("resolvePayloadKeyForEvent", () => {
     expect(key).toEqual({ action: "defer" });
   });
 
-  it("uses message payloadIndex hint when row is open", () => {
+  it("uses message payloadIndex hint when the hinted open row is the only candidate", () => {
+    const rows = [payload(0, { completedAt: t }), payload(1, { sentAt: t })];
+    const key = resolvePayloadKeyForEvent("RepayBatch", rows, {
+      deferAllowed: false,
+      messagePayloadIndex: 1,
+    });
+    expect(key).toEqual({ action: "mutate", index: 1 });
+  });
+
+  it("RepayBatch ignores a hint pointing at a sent row when an open unsent row awaits its repay", () => {
+    // PR #465 review Gap A: a repay always targets an underpaid (unsent)
+    // instance - the min-based hint must not route it onto the older
+    // in-transit row.
     const rows = [payload(0), payload(1, { sentAt: t })];
     const key = resolvePayloadKeyForEvent("RepayBatch", rows, {
       deferAllowed: false,
       messagePayloadIndex: 1,
+    });
+    expect(key).toEqual({ action: "mutate", index: 0 });
+  });
+
+  it("RepayBatch follows the row sent by the current tx even when an unsent row exists", () => {
+    // Same-tx rule: Gateway.repay emits RepayBatch after _send, so the repaid
+    // row already carries this tx's hash and beats the prefer-unsent fallback.
+    const txHash = `0x${"cd".repeat(32)}` as const;
+    const rows = [payload(0), { ...payload(1, { sentAt: t }), sentAtTxHash: txHash }];
+    const key = resolvePayloadKeyForEvent("RepayBatch", rows, {
+      deferAllowed: false,
+      messagePayloadIndex: 1,
+      currentTxHash: txHash,
+    });
+    expect(key).toEqual({ action: "mutate", index: 1 });
+  });
+
+  it("SendPayload ignores a hint pointing at a sent open row when an open unsent row exists", () => {
+    // PR #465 review Gap A (send half): the repay-send of the underpaid
+    // instance must stamp sentAt on the unsent row, not no-op on row 0.
+    const rows = [payload(1), payload(0, { sentAt: t })];
+    const key = resolvePayloadKeyForEvent("SendPayload", rows, {
+      deferAllowed: false,
+      messagePayloadIndex: 0,
+    });
+    expect(key).toEqual({ action: "mutate", index: 1 });
+  });
+
+  it("SendPayload mutates the row it sent in the same tx (adapter proof round)", () => {
+    // PR #465 review Gap B: adapter #2's SendPayload in the same tx must not
+    // stamp sentAt on a pending underpaid row the hint points at.
+    const txHash = `0x${"ef".repeat(32)}` as const;
+    const rows = [payload(0), { ...payload(1, { sentAt: t }), sentAtTxHash: txHash }];
+    const key = resolvePayloadKeyForEvent("SendPayload", rows, {
+      deferAllowed: false,
+      messagePayloadIndex: 0,
+      currentTxHash: txHash,
     });
     expect(key).toEqual({ action: "mutate", index: 1 });
   });

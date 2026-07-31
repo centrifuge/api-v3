@@ -127,6 +127,7 @@ export type PayloadRowForIndex = {
   index: number;
   completedAt?: Date | null;
   sentAt?: Date | null;
+  sentAtTxHash?: `0x${string}` | null;
   underpaidAt?: Date | null;
   deliveredAt?: Date | null;
   partiallyFailedAt?: Date | null;
@@ -252,7 +253,7 @@ export function payloadIndexFromMessages(messages: MessageRowForPayloadIndex[]):
  * Resolves payload `(id, index)` for a sender-side or handle event.
  * @param eventKind - Event being processed
  * @param rows - All committed payload rows for the id
- * @param options - Defer flag, optional message linkage hint, and new-send flag
+ * @param options - Defer flag, optional message linkage hint, new-send flag, and current tx hash
  * @returns Mutate existing index, create new index, or defer (cross-chain)
  */
 export function resolvePayloadKeyForEvent(
@@ -262,10 +263,27 @@ export function resolvePayloadKeyForEvent(
     deferAllowed: boolean;
     messagePayloadIndex?: number | null;
     hasUnlinkedAwaitingMessage?: boolean;
+    /** Tx hash of the event being resolved; matches rows sent in the same tx. */
+    currentTxHash?: `0x${string}` | null;
   }
 ): ResolvePayloadKeyResult {
   const open = pickOpenPayloadRowAmong(rows);
   const newSend = options.hasUnlinkedAwaitingMessage === true;
+  const currentTxHash = options.currentTxHash ?? null;
+
+  // Same-tx rule: a row whose sentAtTxHash equals the current tx hash was sent
+  // by this very transaction - subsequent SendPayload events in the tx are
+  // adapter proof rounds for that send, and RepayBatch fires after `_send` in
+  // the same repay tx. This identity beats the min-based message hint, which
+  // can point at an older open row of another send instance.
+  if (
+    !newSend &&
+    currentTxHash != null &&
+    (eventKind === "SendPayload" || eventKind === "RepayBatch")
+  ) {
+    const sameTx = rows.find((r) => r.sentAtTxHash != null && r.sentAtTxHash === currentTxHash);
+    if (sameTx) return { action: "mutate", index: sameTx.index };
+  }
 
   // A genuine new send carries a freshly prepared, unlinked awaiting message.
   // The `messagePayloadIndex` hint is derived from prior (now terminal) linked
@@ -275,11 +293,20 @@ export function resolvePayloadKeyForEvent(
     const linked = rows.find((r) => r.index === options.messagePayloadIndex);
     if (linked) {
       const senderEvent = eventKind === "UnderpaidBatch" || eventKind === "SendPayload";
+      const sendTargetEvent = senderEvent || eventKind === "RepayBatch";
+      // With multiple rows per payload id the hint resolves to the LOWEST
+      // linked index, which may belong to a prior send that is still open
+      // (InTransit / PartiallyFailed). A send-targeting event must not follow
+      // the hint onto an already-sent row while an open unsent row (another
+      // instance awaiting its repay-send) exists - the per-event logic below
+      // routes it to that unsent row instead.
+      const staleSentHint =
+        sendTargetEvent && isPayloadSent(linked) && pickLowestOpenUnsentRowAmong(rows) != null;
       // A closed hinted row is only reused as a replay fallback when no open
       // row exists. With multiple rows per payload id the hint resolves to the
       // LOWEST linked index, which may be a prior completed send - the event
       // must then route to the open row via the per-event logic below.
-      if (isPayloadRowOpen(linked) || (senderEvent && !open)) {
+      if (!staleSentHint && (isPayloadRowOpen(linked) || (senderEvent && !open))) {
         return { action: "mutate", index: linked.index };
       }
     }
@@ -297,9 +324,17 @@ export function resolvePayloadKeyForEvent(
       if (newSend) return { action: "create", index: nextPayloadIndex(rows) };
       return { action: "defer" };
 
-    case "RepayBatch":
+    case "RepayBatch": {
+      // A repay targets an underpaid instance, which is by definition unsent
+      // (Gateway.repay requires underpaid counter > 0). Prefer the open unsent
+      // row over an older open in-transit row; the plain open fallback covers
+      // the same-tx repay ordering where SendPayload already stamped the row
+      // (then caught by the same-tx rule above) and replayed events.
+      const openUnsent = pickLowestOpenUnsentRowAmong(rows);
+      if (openUnsent) return { action: "mutate", index: openUnsent.index };
       if (open) return { action: "mutate", index: open.index };
       return { action: "defer" };
+    }
 
     case "SendPayload": {
       // Genuine new send (paid path, unlinked message from this tx's
@@ -410,7 +445,7 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
    * @param context - Ponder context
    * @param payloadId - Payload id
    * @param eventKind - Sender/handle event kind
-   * @param options - Defer flag and optional batch message ids for linkage
+   * @param options - Defer flag, optional batch message ids for linkage, and current tx hash
    * @returns Mutate, create, or defer
    */
   static async resolvePayloadKey(
@@ -420,6 +455,7 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
     options: {
       deferAllowed: boolean;
       messageIds?: readonly `0x${string}`[];
+      currentTxHash?: `0x${string}` | null;
     }
   ): Promise<ResolvePayloadKeyResult> {
     const rows = await CrosschainPayloadService.loadAllForPayloadId(context, payloadId);
@@ -444,6 +480,7 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
         eventKind,
         messagePayloadIndex,
         unlinkedAwaiting,
+        currentTxHash: options.currentTxHash ?? null,
         rowCount: rowData.length,
       })
     );
@@ -452,6 +489,7 @@ export class CrosschainPayloadService extends Service<typeof CrosschainPayload> 
       deferAllowed: options.deferAllowed,
       messagePayloadIndex,
       hasUnlinkedAwaitingMessage: unlinkedAwaiting,
+      currentTxHash: options.currentTxHash ?? null,
     });
   }
 

@@ -52,7 +52,7 @@ multiMapper("multiAdapter:SendPayload", async ({ event, context }) => {
         context,
         payloadId,
         "SendPayload",
-        { deferAllowed: false, messageIds }
+        { deferAllowed: false, messageIds, currentTxHash: event.transaction.hash }
       );
       if (key.action === "defer") {
         serviceError(`SendPayload: cannot resolve payload key for ${payloadId}`);
