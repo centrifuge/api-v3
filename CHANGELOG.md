@@ -1,5 +1,19 @@
 # Changelog
 
+## [4.3.0](https://github.com/centrifuge/api-v3/compare/v4.2.0...v4.3.0) (2026-07-31)
+
+
+### Features
+
+* **api:** adapt quote and status endpoints to LI.FI shape ([#455](https://github.com/centrifuge/api-v3/issues/455)) ([2195f0c](https://github.com/centrifuge/api-v3/commit/2195f0c09fbdce7fbe6cc77f06159780e445e5a9))
+* expose env ipfs gateway ([#461](https://github.com/centrifuge/api-v3/issues/461)) ([a546253](https://github.com/centrifuge/api-v3/commit/a546253d35379dbcad5ba0e988fb3c22e74ded6f))
+
+
+### Bug Fixes
+
+* hub:UpdateRestriction Member handler crashes ([#460](https://github.com/centrifuge/api-v3/issues/460)) ([3f1d7d6](https://github.com/centrifuge/api-v3/commit/3f1d7d627000c7fef863977ed9a84518d23be854)), closes [#458](https://github.com/centrifuge/api-v3/issues/458)
+* silent short circuit on HoldingService ([#453](https://github.com/centrifuge/api-v3/issues/453)) ([ee9a160](https://github.com/centrifuge/api-v3/commit/ee9a160d8c98396d219ee4b8759e8cf45b29ae17))
+
 ## [4.2.0](https://github.com/centrifuge/api-v3/compare/v4.1.0...v4.2.0) (2026-07-16)
 
 
