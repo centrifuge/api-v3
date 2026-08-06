@@ -332,8 +332,11 @@ export const chainIcons = {
     "https://centrifuge-files.mypinata.cloud/ipfs/bafkreifpdqjq6jvh4xat54ymcue6p4n24ifc3gzz2446cipumiwbz7ybu4",
   "421614":
     "https://centrifuge-files.mypinata.cloud/ipfs/bafkreiemrnwrwcxbwho3ut6x3k4zv4jerowpwnynovt6sbc7kgqbfknq7a",
-  "143": "https://centrifuge-files.mypinata.cloud/ipfs/QmX86URyeeYYR5DxcnKfYF7ApMeRQPC9JurZBTS9VBUiAH",
-  "999": "https://centrifuge-files.mypinata.cloud/ipfs/QmZnmSzzq3Jspa3HxUdk4JQAWgtAQtinBdDTBdAFn2jijX",
-  "998": "https://centrifuge-files.mypinata.cloud/ipfs/QmZnmSzzq3Jspa3HxUdk4JQAWgtAQtinBdDTBdAFn2jijX",
+  "143":
+    "https://centrifuge-files.mypinata.cloud/ipfs/QmX86URyeeYYR5DxcnKfYF7ApMeRQPC9JurZBTS9VBUiAH",
+  "999":
+    "https://centrifuge-files.mypinata.cloud/ipfs/QmZnmSzzq3Jspa3HxUdk4JQAWgtAQtinBdDTBdAFn2jijX",
+  "998":
+    "https://centrifuge-files.mypinata.cloud/ipfs/QmZnmSzzq3Jspa3HxUdk4JQAWgtAQtinBdDTBdAFn2jijX",
   "10": "https://centrifuge-files.mypinata.cloud/ipfs/QmXR2gUAwJdEhH7MAqEqd6NTGB58XibiKvtE3TUoe6CcMK",
 };
