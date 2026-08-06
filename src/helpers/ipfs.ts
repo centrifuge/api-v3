@@ -1,13 +1,13 @@
 import fetch from "node-fetch";
 import { serviceError } from "./logger";
 
-const DEFAULT_IPFS_GATEWAY = "https://ipfs.centrifuge.io/ipfs/";
+const DEFAULT_IPFS_GATEWAY = "https://centrifuge-files.mypinata.cloud/ipfs/";
 const IPFS_GATEWAY = (process.env.IPFS_GATEWAY ?? DEFAULT_IPFS_GATEWAY).replace(/\/?$/, "/");
 
 /**
  * Fetches and parses JSON data from IPFS using the configured gateway.
  *
- * Gateway is `https://ipfs.centrifuge.io/ipfs/` by default (matches the registry
+ * Gateway is `https://centrifuge-files.mypinata.cloud/ipfs/` by default (matches the registry
  * fetcher) and can be overridden via the `IPFS_GATEWAY` env var. A trailing slash
  * is enforced.
  *

@@ -316,24 +316,24 @@ export const explorerUrls = {
 
 // Icons definitions
 export const chainIcons = {
-  "1": "https://ipfs.centrifuge.io/ipfs/bafkreihk753r3oksmw5pburcz4dxq2xazsarihdkeae2ilt7tc7lj2hggm",
+  "1": "https://centrifuge-files.mypinata.cloud/ipfs/bafkreihk753r3oksmw5pburcz4dxq2xazsarihdkeae2ilt7tc7lj2hggm",
   "8453":
-    "https://ipfs.centrifuge.io/ipfs/bafkreifpdqjq6jvh4xat54ymcue6p4n24ifc3gzz2446cipumiwbz7ybu4",
+    "https://centrifuge-files.mypinata.cloud/ipfs/bafkreifpdqjq6jvh4xat54ymcue6p4n24ifc3gzz2446cipumiwbz7ybu4",
   "42161":
-    "https://ipfs.centrifuge.io/ipfs/bafkreiemrnwrwcxbwho3ut6x3k4zv4jerowpwnynovt6sbc7kgqbfknq7a",
+    "https://centrifuge-files.mypinata.cloud/ipfs/bafkreiemrnwrwcxbwho3ut6x3k4zv4jerowpwnynovt6sbc7kgqbfknq7a",
   "98866":
-    "https://ipfs.centrifuge.io/ipfs/bafkreiecr63jf4mvgylcnxry3wsds6cdmjsnzcybjffmvcpxhes6qwfngy",
+    "https://centrifuge-files.mypinata.cloud/ipfs/bafkreiecr63jf4mvgylcnxry3wsds6cdmjsnzcybjffmvcpxhes6qwfngy",
   "43114":
-    "https://ipfs.centrifuge.io/ipfs/bafkreiaxodsgromeeaihu44fazsxdopkrqvinqzhyfxvx5mrbcmduqdfpq",
-  "56": "https://ipfs.centrifuge.io/ipfs/bafkreidiypdacfywbuokj7r3e7td5bs6ojkh37ycz3uwfcbd34xka2qtai",
+    "https://centrifuge-files.mypinata.cloud/ipfs/bafkreiaxodsgromeeaihu44fazsxdopkrqvinqzhyfxvx5mrbcmduqdfpq",
+  "56": "https://centrifuge-files.mypinata.cloud/ipfs/bafkreidiypdacfywbuokj7r3e7td5bs6ojkh37ycz3uwfcbd34xka2qtai",
   "11155111":
-    "https://ipfs.centrifuge.io/ipfs/bafkreihk753r3oksmw5pburcz4dxq2xazsarihdkeae2ilt7tc7lj2hggm",
+    "https://centrifuge-files.mypinata.cloud/ipfs/bafkreihk753r3oksmw5pburcz4dxq2xazsarihdkeae2ilt7tc7lj2hggm",
   "84532":
-    "https://ipfs.centrifuge.io/ipfs/bafkreifpdqjq6jvh4xat54ymcue6p4n24ifc3gzz2446cipumiwbz7ybu4",
+    "https://centrifuge-files.mypinata.cloud/ipfs/bafkreifpdqjq6jvh4xat54ymcue6p4n24ifc3gzz2446cipumiwbz7ybu4",
   "421614":
-    "https://ipfs.centrifuge.io/ipfs/bafkreiemrnwrwcxbwho3ut6x3k4zv4jerowpwnynovt6sbc7kgqbfknq7a",
-  "143": "https://ipfs.centrifuge.io/ipfs/QmX86URyeeYYR5DxcnKfYF7ApMeRQPC9JurZBTS9VBUiAH",
-  "999": "https://ipfs.centrifuge.io/ipfs/QmZnmSzzq3Jspa3HxUdk4JQAWgtAQtinBdDTBdAFn2jijX",
-  "998": "https://ipfs.centrifuge.io/ipfs/QmZnmSzzq3Jspa3HxUdk4JQAWgtAQtinBdDTBdAFn2jijX",
-  "10": "https://ipfs.centrifuge.io/ipfs/QmXR2gUAwJdEhH7MAqEqd6NTGB58XibiKvtE3TUoe6CcMK",
+    "https://centrifuge-files.mypinata.cloud/ipfs/bafkreiemrnwrwcxbwho3ut6x3k4zv4jerowpwnynovt6sbc7kgqbfknq7a",
+  "143": "https://centrifuge-files.mypinata.cloud/ipfs/QmX86URyeeYYR5DxcnKfYF7ApMeRQPC9JurZBTS9VBUiAH",
+  "999": "https://centrifuge-files.mypinata.cloud/ipfs/QmZnmSzzq3Jspa3HxUdk4JQAWgtAQtinBdDTBdAFn2jijX",
+  "998": "https://centrifuge-files.mypinata.cloud/ipfs/QmZnmSzzq3Jspa3HxUdk4JQAWgtAQtinBdDTBdAFn2jijX",
+  "10": "https://centrifuge-files.mypinata.cloud/ipfs/QmXR2gUAwJdEhH7MAqEqd6NTGB58XibiKvtE3TUoe6CcMK",
 };
