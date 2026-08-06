@@ -7,6 +7,10 @@ const BALANCE_SHEET_ABI = parseAbi([
   "function escrow(uint64 poolId) view returns (address)",
 ]);
 
+const SPOKE_ABI = parseAbi([
+  "function isPoolActive(uint64 poolId) view returns (bool)",
+]);
+
 const ESCROWS_QUERY = `
   query Escrows($limit: Int!, $after: String) {
     escrows(limit: $limit, after: $after, orderBy: "poolId", orderDirection: "asc") {
@@ -61,6 +65,24 @@ export async function runSmoke(ctx) {
     if (!chain?.deployment.balanceSheet) {
       skipped += 1;
       continue;
+    }
+
+    // Skip pools not activated on the current spoke. BalanceSheet.escrow() is a
+    // pure CREATE2 precompute (IPoolEscrowProvider does not check deployment),
+    // so unmigrated pools return a phantom address with no code. Comparing
+    // against it is a false signal. See specs/escrow.md skip conditions.
+    if (chain.deployment.spoke) {
+      const active = await chain.client.readContract({
+        address: chain.deployment.spoke,
+        abi: SPOKE_ABI,
+        functionName: "isPoolActive",
+        args: [poolIdArg(escrow.poolId)],
+        blockNumber: ctx.atBlock,
+      });
+      if (!active) {
+        skipped += 1;
+        continue;
+      }
     }
 
     const chainLabel = escrow.blockchain?.name ?? chain.chainName;
