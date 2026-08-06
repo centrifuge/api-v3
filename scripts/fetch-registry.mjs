@@ -33,7 +33,7 @@ const network = argNetwork ?? envNetwork ?? "mainnet";
 
 const {
   REGISTRY_URL = network === "mainnet" ? "https://registry.centrifuge.io/" : "https://registry.testnet.centrifuge.io/",
-  IPFS_GATEWAY = "https://ipfs.centrifuge.io/ipfs",
+  IPFS_GATEWAY = "https://centrifuge-files.mypinata.cloud/ipfs",
   IPFS_HASH
 } = process.env;
 
