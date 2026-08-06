@@ -309,7 +309,7 @@ export const explorerUrls = {
   "1": "https://etherscan.io",
   "98866": "https://explorer.plume.org",
   "56": "https://bscscan.com",
-  "143": "https://monad.socialscan.io",
+  "143": "https://monadvision.com",
   "999": "https://hyperevmscan.io",
   "10": "https://optimistic.etherscan.io/",
 };
