@@ -315,13 +315,17 @@ export function resolvePayloadKeyForEvent(
   switch (eventKind) {
     case "UnderpaidBatch":
       if (rows.length === 0) return { action: "create", index: 0 };
+      // A genuine new underpaid send (fresh unlinked PrepareMessage in this
+      // tx) is a distinct batch instance: the gateway underpaid counter
+      // increments once per send. An existing open unsent row belongs to an
+      // EARLIER underpaid instance still awaiting its own repay - merging
+      // into it loses the multiplicity (the new instance's underpaid facts
+      // have nowhere to land, since facts are write-once).
+      if (newSend) return { action: "create", index: nextPayloadIndex(rows) };
       {
         const unsent = pickLowestUnsentRowAmong(rows);
         if (unsent) return { action: "mutate", index: unsent.index };
       }
-      // A new send with all prior rows sent allocates a fresh index; defer is
-      // reserved for late duplicates, which carry no unlinked awaiting message.
-      if (newSend) return { action: "create", index: nextPayloadIndex(rows) };
       return { action: "defer" };
 
     case "RepayBatch": {

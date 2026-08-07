@@ -161,6 +161,34 @@ describe("resolvePayloadKeyForEvent", () => {
     expect(key).toEqual({ action: "mutate", index: 0 });
   });
 
+  it("new underpaid send creates a fresh index while an unsent underpaid row exists", () => {
+    // Two concurrent underpaid instances of the same batch (gateway counter = 2):
+    // the second send's UnderpaidBatch carries a fresh unlinked message and must
+    // not merge into the first instance's still-unsent row.
+    const rows = [payload(0)];
+    const key = resolvePayloadKeyForEvent("UnderpaidBatch", rows, {
+      deferAllowed: false,
+      hasUnlinkedAwaitingMessage: true,
+    });
+    expect(key).toEqual({ action: "create", index: 1 });
+  });
+
+  it("new underpaid send creates a fresh index alongside completed, in-transit, and unsent rows", () => {
+    // Pharos incident 2026-08: batch underpaid four times; instances 0-2 were
+    // completed/sent/underpaid when the fourth UnderpaidBatch arrived. It must
+    // allocate index 3 instead of merging into the unsent index-2 row.
+    const rows = [
+      payload(0, { sentAt: t, completedAt: t }),
+      payload(1, { sentAt: t }),
+      payload(2),
+    ];
+    const key = resolvePayloadKeyForEvent("UnderpaidBatch", rows, {
+      deferAllowed: false,
+      hasUnlinkedAwaitingMessage: true,
+    });
+    expect(key).toEqual({ action: "create", index: 3 });
+  });
+
   it("v3 addUnpaidMessage: UnderpaidBatch creates index 0 with no prior rows", () => {
     const key = resolvePayloadKeyForEvent("UnderpaidBatch", [], { deferAllowed: false });
     expect(key).toEqual({ action: "create", index: 0 });
