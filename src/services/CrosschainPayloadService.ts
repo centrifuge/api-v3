@@ -326,6 +326,8 @@ export function resolvePayloadKeyForEvent(
         const unsent = pickLowestUnsentRowAmong(rows);
         if (unsent) return { action: "mutate", index: unsent.index };
       }
+      // Defer is reserved for late duplicates: they carry no unlinked awaiting
+      // message and every row is already sent.
       return { action: "defer" };
 
     case "RepayBatch": {
@@ -363,6 +365,11 @@ export function resolvePayloadKeyForEvent(
       const openSent = rows
         .filter((r) => isPayloadRowOpen(r) && r.sentAt != null)
         .sort((a, b) => a.index - b.index);
+      // One delivery lands per sent instance: prefer the lowest sent row not
+      // yet delivered so a later instance's delivery does not restamp a row
+      // that already received its own.
+      const undelivered = openSent.find((r) => r.deliveredAt == null);
+      if (undelivered) return { action: "mutate", index: undelivered.index };
       if (openSent[0]) return { action: "mutate", index: openSent[0].index };
       if (open) return { action: "mutate", index: open.index };
       return { action: "defer" };
@@ -373,6 +380,76 @@ export function resolvePayloadKeyForEvent(
       return _exhaustive;
     }
   }
+}
+
+/** Routing hints for a destination-side handle receive (HandlePayload / HandleProof). */
+export type HandleTargetHints = {
+  /** Distinct payload indices of this adapter's SEND participations. */
+  participationIndices: readonly number[];
+  /** Distinct payload indices of committed messages linked to the payload id. */
+  linkedMessageIndices: readonly number[];
+  /**
+   * Receive timestamp of the handle event. FIFO resolution skips rows whose
+   * send anchor postdates it: a receive cannot belong to a not-yet-sent
+   * instance, and routing a replayed delivery onto one would strand the entry
+   * in the receive queue behind a causal-order check it can never pass.
+   */
+  receivedAt?: Date | null;
+};
+
+/**
+ * Resolves which payload row a destination-side handle receive belongs to.
+ *
+ * Precedence: (1) the adapter's own SEND participation when it identifies
+ * exactly one instance; (2) message linkage when it identifies exactly one
+ * instance (single-instance case, including idempotent replays onto a
+ * completed row); (3) FIFO over causally-possible open sent rows via
+ * {@link resolvePayloadKeyForEvent} - ambiguous multi-instance linkage must
+ * NOT collapse to the minimum index, which pins every later instance's
+ * delivery onto the first (usually completed) row; (4) with no open row left,
+ * the lowest linked row as an idempotent replay fallback.
+ * @param rows - All committed payload rows for the id
+ * @param hints - Participation / message linkage indices and receive time
+ * @returns Target row index, or null when no row can accept the receive
+ */
+export function resolveHandleTargetIndex(
+  rows: PayloadRowForIndex[],
+  hints: HandleTargetHints
+): number | null {
+  if (rows.length === 0) return null;
+  const has = (index: number) => rows.some((r) => r.index === index);
+
+  if (hints.participationIndices.length === 1 && has(hints.participationIndices[0]!)) {
+    return hints.participationIndices[0]!;
+  }
+
+  if (hints.linkedMessageIndices.length === 1 && has(hints.linkedMessageIndices[0]!)) {
+    return hints.linkedMessageIndices[0]!;
+  }
+
+  const receivedAtMs = hints.receivedAt?.getTime();
+  const causallyPossible =
+    receivedAtMs == null
+      ? rows
+      : rows.filter((r) => {
+          const anchor = getPayloadSendAnchorAt({
+            sentAt: r.sentAt ?? null,
+            underpaidAt: r.underpaidAt ?? null,
+          });
+          return anchor != null && anchor.getTime() <= receivedAtMs;
+        });
+  const key = resolvePayloadKeyForEvent(
+    "HandlePayload",
+    causallyPossible.length > 0 ? causallyPossible : rows,
+    { deferAllowed: true }
+  );
+  if (key.action === "mutate") return key.index;
+
+  if (hints.linkedMessageIndices.length > 0) {
+    const lowest = Math.min(...hints.linkedMessageIndices);
+    if (has(lowest)) return lowest;
+  }
+  return null;
 }
 
 /**

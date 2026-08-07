@@ -3,6 +3,7 @@ import {
   isPayloadSent,
   payloadIndexFromMessages,
   pickOpenPayloadRowAmong,
+  resolveHandleTargetIndex,
   resolvePayloadKeyForEvent,
   type PayloadRowForIndex,
 } from "../../../src/services/CrosschainPayloadService";
@@ -15,6 +16,7 @@ function payload(
     completedAt?: Date | null;
     sentAt?: Date | null;
     underpaidAt?: Date | null;
+    deliveredAt?: Date | null;
   } = {}
 ): PayloadRowForIndex {
   return {
@@ -22,6 +24,7 @@ function payload(
     completedAt: facts.completedAt ?? null,
     sentAt: facts.sentAt ?? null,
     underpaidAt: facts.underpaidAt ?? t,
+    deliveredAt: facts.deliveredAt ?? null,
   };
 }
 
@@ -177,11 +180,7 @@ describe("resolvePayloadKeyForEvent", () => {
     // Pharos incident 2026-08: batch underpaid four times; instances 0-2 were
     // completed/sent/underpaid when the fourth UnderpaidBatch arrived. It must
     // allocate index 3 instead of merging into the unsent index-2 row.
-    const rows = [
-      payload(0, { sentAt: t, completedAt: t }),
-      payload(1, { sentAt: t }),
-      payload(2),
-    ];
+    const rows = [payload(0, { sentAt: t, completedAt: t }), payload(1, { sentAt: t }), payload(2)];
     const key = resolvePayloadKeyForEvent("UnderpaidBatch", rows, {
       deferAllowed: false,
       hasUnlinkedAwaitingMessage: true,
@@ -267,5 +266,116 @@ describe("resolvePayloadKeyForEvent", () => {
     const rows = [payload(0), payload(1, { sentAt: t })];
     const key = resolvePayloadKeyForEvent("HandlePayload", rows, { deferAllowed: true });
     expect(key).toEqual({ action: "mutate", index: 1 });
+  });
+
+  it("HandlePayload prefers the lowest open sent row not yet delivered", () => {
+    // Two instances in transit, the first already delivered (awaiting its
+    // execute): the second delivery belongs to the second instance.
+    const rows = [payload(0, { sentAt: t, deliveredAt: t }), payload(1, { sentAt: t })];
+    const key = resolvePayloadKeyForEvent("HandlePayload", rows, { deferAllowed: true });
+    expect(key).toEqual({ action: "mutate", index: 1 });
+  });
+
+  it("HandlePayload falls back to the delivered open sent row when none is undelivered", () => {
+    // Proof rounds / replays for an already-delivered payload keep targeting it.
+    const rows = [payload(0, { sentAt: t, deliveredAt: t })];
+    const key = resolvePayloadKeyForEvent("HandlePayload", rows, { deferAllowed: true });
+    expect(key).toEqual({ action: "mutate", index: 0 });
+  });
+});
+
+describe("resolveHandleTargetIndex", () => {
+  it("returns null with no rows", () => {
+    expect(
+      resolveHandleTargetIndex([], { participationIndices: [], linkedMessageIndices: [] })
+    ).toBeNull();
+  });
+
+  it("a unique adapter SEND participation identifies the instance", () => {
+    const rows = [payload(0, { sentAt: t, completedAt: t }), payload(1, { sentAt: t })];
+    expect(
+      resolveHandleTargetIndex(rows, { participationIndices: [0], linkedMessageIndices: [0, 1] })
+    ).toBe(0);
+  });
+
+  it("a unique message linkage identifies the instance, even onto a closed row (replay)", () => {
+    const rows = [payload(0, { sentAt: t, completedAt: t })];
+    expect(
+      resolveHandleTargetIndex(rows, { participationIndices: [], linkedMessageIndices: [0] })
+    ).toBe(0);
+  });
+
+  it("ambiguous message linkage routes FIFO instead of collapsing to the minimum index", () => {
+    // Pharos staging symptom: with instance 0 completed, min-based linkage
+    // pinned every later delivery onto row 0, leaving rows 1..n stuck
+    // Delivered / completedAt null.
+    const rows = [
+      payload(0, { sentAt: t, completedAt: t }),
+      payload(1, { sentAt: t }),
+      payload(2, { sentAt: t }),
+    ];
+    expect(
+      resolveHandleTargetIndex(rows, { participationIndices: [], linkedMessageIndices: [0, 1, 2] })
+    ).toBe(1);
+  });
+
+  it("ambiguous adapter participation across instances also routes FIFO", () => {
+    const rows = [payload(0, { sentAt: t, deliveredAt: t }), payload(1, { sentAt: t })];
+    expect(
+      resolveHandleTargetIndex(rows, {
+        participationIndices: [0, 1],
+        linkedMessageIndices: [0, 1],
+      })
+    ).toBe(1);
+  });
+
+  it("with every row closed, falls back to the lowest linked row (idempotent replay)", () => {
+    const rows = [
+      payload(0, { sentAt: t, completedAt: t }),
+      payload(1, { sentAt: t, completedAt: t }),
+    ];
+    expect(
+      resolveHandleTargetIndex(rows, { participationIndices: [], linkedMessageIndices: [0, 1] })
+    ).toBe(0);
+  });
+
+  it("with every row closed and nothing linked, returns null (receive stays queued)", () => {
+    const rows = [payload(0, { sentAt: t, completedAt: t })];
+    expect(
+      resolveHandleTargetIndex(rows, { participationIndices: [], linkedMessageIndices: [] })
+    ).toBeNull();
+  });
+
+  it("a replayed delivery routes to the causally-possible delivered row, not a later unsent-yet instance", () => {
+    // Row 0 delivered (awaiting execute), row 1 sent later. A replay of row
+    // 0's delivery (receivedAt before row 1's send) must land idempotently on
+    // row 0: routing it to row 1 would fail the caller's causal-order check
+    // and strand the entry in the receive queue.
+    const t5 = new Date("2024-01-01T00:05:00Z");
+    const t8 = new Date("2024-01-01T00:08:00Z");
+    const t10 = new Date("2024-01-01T00:10:00Z");
+    const rows = [payload(0, { sentAt: t5, deliveredAt: t8 }), payload(1, { sentAt: t10 })];
+    expect(
+      resolveHandleTargetIndex(rows, {
+        participationIndices: [],
+        linkedMessageIndices: [0, 1],
+        receivedAt: t8,
+      })
+    ).toBe(0);
+  });
+
+  it("a genuine later delivery still routes FIFO to the undelivered instance", () => {
+    const t5 = new Date("2024-01-01T00:05:00Z");
+    const t8 = new Date("2024-01-01T00:08:00Z");
+    const t10 = new Date("2024-01-01T00:10:00Z");
+    const t12 = new Date("2024-01-01T00:12:00Z");
+    const rows = [payload(0, { sentAt: t5, deliveredAt: t8 }), payload(1, { sentAt: t10 })];
+    expect(
+      resolveHandleTargetIndex(rows, {
+        participationIndices: [],
+        linkedMessageIndices: [0, 1],
+        receivedAt: t12,
+      })
+    ).toBe(1);
   });
 });
