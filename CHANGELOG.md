@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.3.1](https://github.com/centrifuge/api-v3/compare/v4.3.0...v4.3.1) (2026-08-06)
+
+
+### Bug Fixes
+
+* create new payload index for identical resends ([#465](https://github.com/centrifuge/api-v3/issues/465)) ([8b28067](https://github.com/centrifuge/api-v3/commit/8b2806775bb59e69567b7b8a7c3e047995f4a0a4))
+* deprecate ipfs.centrifuge.io gateway ([#472](https://github.com/centrifuge/api-v3/issues/472)) ([0b412d4](https://github.com/centrifuge/api-v3/commit/0b412d4355d6476048140dfc037507b08620b568))
+* monad explorer URL 404s ([#470](https://github.com/centrifuge/api-v3/issues/470)) ([#471](https://github.com/centrifuge/api-v3/issues/471)) ([586a99e](https://github.com/centrifuge/api-v3/commit/586a99e3dd9de664fec79a210b62166064d72939))
+* **smoke:** skip escrow check for pools not activated on spoke ([#473](https://github.com/centrifuge/api-v3/issues/473)) ([78fb3e7](https://github.com/centrifuge/api-v3/commit/78fb3e77e524d946a5ab0fc0d6d66f8ed34cabab))
+
 ## [4.3.0](https://github.com/centrifuge/api-v3/compare/v4.2.0...v4.3.0) (2026-07-31)
 
 
