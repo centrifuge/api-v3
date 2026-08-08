@@ -3,8 +3,7 @@ import { CrosschainMessageQueue, CrosschainPayloadQueue } from "ponder:schema";
 import { expandInlineObject, serviceLog } from "./logger";
 import {
   getPayloadSendAnchorAt,
-  payloadIndexFromMessages,
-  resolvePayloadKeyForEvent,
+  resolveHandleTargetIndex,
 } from "../services/CrosschainPayloadService";
 import {
   getMessageSendAnchorAt,
@@ -432,8 +431,6 @@ async function resolvePayloadRowForHandle(
   const rows = await CrosschainPayloadService.loadAllForPayloadId(context, payloadId);
   if (rows.length === 0) return null;
 
-  const rowByIndex = (index: number) => rows.find((r) => r.read().index === index) ?? null;
-
   const sendParticipations = (await AdapterParticipationService.query(context, {
     payloadId,
     adapterId: entry.adapterId.toLowerCase(),
@@ -441,28 +438,24 @@ async function resolvePayloadRowForHandle(
     type: entry.type,
   })) as AdapterParticipationService[];
   const participationIndices = [...new Set(sendParticipations.map((p) => p.read().payloadIndex))];
-  if (participationIndices.length === 1) {
-    const fromParticipation = rowByIndex(participationIndices[0]!);
-    if (fromParticipation) return fromParticipation;
-  }
 
   const linkedMessages = (await CrosschainMessageService.query(context, {
     payloadId,
   })) as CrosschainMessageService[];
-  const messageIndex = payloadIndexFromMessages(linkedMessages.map((m) => m.read()));
-  if (messageIndex != null) {
-    const fromMessages = rowByIndex(messageIndex);
-    if (fromMessages) return fromMessages;
-  }
+  const linkedMessageIndices = [
+    ...new Set(
+      linkedMessages
+        .map((m) => m.read().payloadIndex)
+        .filter((index): index is number => index != null)
+    ),
+  ];
 
-  const key = resolvePayloadKeyForEvent(
-    "HandlePayload",
+  const targetIndex = resolveHandleTargetIndex(
     rows.map((r) => r.read()),
-    { deferAllowed: true }
+    { participationIndices, linkedMessageIndices, receivedAt: entry.receivedAt }
   );
-  if (key.action === "mutate") return rowByIndex(key.index);
-
-  return null;
+  if (targetIndex == null) return null;
+  return rows.find((r) => r.read().index === targetIndex) ?? null;
 }
 
 /**

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   hasUnlinkedAwaitingMessage,
   payloadIndexFromMessages,
+  resolveHandleTargetIndex,
   resolvePayloadKeyForEvent,
   type PayloadEventKind,
   type PayloadRowForIndex,
@@ -99,9 +100,7 @@ class SendSim {
 
   /** gateway:PrepareMessage - duplicate guard, then insert unlinked message. */
   prepareMessage(at: Date): "created" | "skipped" {
-    const dup = this.msgs.some(
-      (m) => m.status === "AwaitingBatchDelivery" && m.payloadId == null
-    );
+    const dup = this.msgs.some((m) => m.status === "AwaitingBatchDelivery" && m.payloadId == null);
     if (dup) return "skipped";
     this.msgs.push({
       index: this.msgs.length,
@@ -146,6 +145,30 @@ class SendSim {
     }
     this.upsertRow(key, { sentAt: at, sentAtTxHash: txHash });
     return key;
+  }
+
+  /**
+   * Destination side: multiAdapter:HandlePayload receive. Routes via
+   * `resolveHandleTargetIndex` like `resolvePayloadRowForHandle` does
+   * (participation indices omitted: with one adapter sending N instances the
+   * participation hint is ambiguous and skipped either way) and stamps
+   * deliveredAt on the resolved row.
+   */
+  destDeliver(at: Date): number | null {
+    const linkedMessageIndices = [
+      ...new Set(
+        this.msgs.map((m) => m.payloadIndex).filter((index): index is number => index != null)
+      ),
+    ];
+    const target = resolveHandleTargetIndex(this.rows, {
+      participationIndices: [],
+      linkedMessageIndices,
+      receivedAt: at,
+    });
+    if (target == null) return null;
+    const row = this.rows.find((r) => r.index === target)!;
+    row.deliveredAt ??= at;
+    return target;
   }
 
   /** Destination side: execute lowest awaiting message, complete finished rows. */
@@ -215,7 +238,12 @@ describe("hasUnlinkedAwaitingMessage", () => {
     expect(
       hasUnlinkedAwaitingMessage([
         { payloadIndex: 0, payloadId: PAYLOAD_ID, status: "Executed", preparedAt: ts(0) },
-        { payloadIndex: null, payloadId: null, status: "AwaitingBatchDelivery", preparedAt: ts(60) },
+        {
+          payloadIndex: null,
+          payloadId: null,
+          status: "AwaitingBatchDelivery",
+          preparedAt: ts(60),
+        },
       ])
     ).toBe(true);
   });
@@ -223,7 +251,12 @@ describe("hasUnlinkedAwaitingMessage", () => {
   it("returns false when every message is already linked to a payload", () => {
     expect(
       hasUnlinkedAwaitingMessage([
-        { payloadIndex: 0, payloadId: PAYLOAD_ID, status: "AwaitingBatchDelivery", preparedAt: ts(0) },
+        {
+          payloadIndex: 0,
+          payloadId: PAYLOAD_ID,
+          status: "AwaitingBatchDelivery",
+          preparedAt: ts(0),
+        },
       ])
     ).toBe(false);
   });
@@ -347,19 +380,20 @@ describe("scenario: identical batch sent again after the first payload completed
 });
 
 describe("scenario: the same batch is underpaid twice before any repay", () => {
-  it("the second UnderpaidBatch reuses the pending unsent row instead of creating a duplicate", () => {
+  it("the second UnderpaidBatch creates its own row - the gateway underpaid counter is per send", () => {
     const sim = new SendSim();
     sim.prepareMessage(ts(0));
     expect(sim.underpaidBatch(ts(0))).toEqual({ action: "create", index: 0 });
 
     // Second identical send, also underpaid, before any repay. msg 0 is
-    // awaiting but linked -> guard passes, msg 1 created unlinked.
+    // awaiting but linked -> guard passes, msg 1 created unlinked. Each
+    // instance owns its underpaid/repay/send tx hashes (facts are
+    // write-once), so it must not merge into instance 0's pending row.
     expect(sim.prepareMessage(ts(10))).toBe("created");
-    expect(sim.underpaidBatch(ts(10))).toEqual({ action: "mutate", index: 0 });
-    // Both messages end up on the single pending row.
+    expect(sim.underpaidBatch(ts(10))).toEqual({ action: "create", index: 1 });
     expect(sim.msgs[0]!.payloadIndex).toBe(0);
-    expect(sim.msgs[1]!.payloadIndex).toBe(0);
-    expect(sim.rows).toHaveLength(1);
+    expect(sim.msgs[1]!.payloadIndex).toBe(1);
+    expect(sim.rows).toHaveLength(2);
   });
 });
 
@@ -459,29 +493,91 @@ describe("scenario: repay of an underpaid instance while the prior instance is s
   });
 });
 
-describe("scenario: double-underpaid batch collapses onto one row through both repays and deliveries", () => {
-  it("both repay txs mutate row 0 and the row completes after both message instances execute", () => {
+describe("scenario: double-underpaid batch keeps one row per instance through both repays and deliveries", () => {
+  it("the repay txs route FIFO to their own rows and one execute completes each row", () => {
     const sim = new SendSim();
     sim.prepareMessage(ts(0));
     expect(sim.underpaidBatch(ts(0))).toEqual({ action: "create", index: 0 });
     sim.prepareMessage(ts(1));
-    expect(sim.underpaidBatch(ts(1))).toEqual({ action: "mutate", index: 0 });
+    expect(sim.underpaidBatch(ts(1))).toEqual({ action: "create", index: 1 });
 
-    // First repay tx (SendPayload before RepayBatch, on-chain order).
+    // First repay tx (SendPayload before RepayBatch, on-chain order): repays
+    // are indistinguishable (identical bytes), FIFO routes to the lowest
+    // open unsent row.
     expect(sim.sendPayload(ts(5), tx(1))).toEqual({ action: "mutate", index: 0 });
     expect(sim.repayBatch(tx(1))).toEqual({ action: "mutate", index: 0 });
 
-    // Second repay tx: all messages linked to row 0, no open unsent row -
-    // the intended single-row collapse keeps mutating row 0.
-    expect(sim.sendPayload(ts(6), tx(2))).toEqual({ action: "mutate", index: 0 });
-    expect(sim.repayBatch(tx(2))).toEqual({ action: "mutate", index: 0 });
-    expect(sim.rows).toHaveLength(1);
+    // Second repay tx: row 0 is sent, so FIFO routes to row 1. Each instance
+    // keeps its own send tx hash instead of the second one vanishing into
+    // row 0's write-once facts.
+    expect(sim.sendPayload(ts(6), tx(2))).toEqual({ action: "mutate", index: 1 });
+    expect(sim.repayBatch(tx(2))).toEqual({ action: "mutate", index: 1 });
+    expect(sim.rows).toHaveLength(2);
+    expect(sim.rows[0]!.sentAtTxHash).toBe(tx(1));
+    expect(sim.rows[1]!.sentAtTxHash).toBe(tx(2));
 
-    // Destination executes both message instances; row 0 completes.
+    // Destination deliveries route FIFO to the undelivered rows in order.
+    expect(sim.destDeliver(ts(9))).toBe(0);
+    expect(sim.destDeliver(ts(9))).toBe(1);
+
+    // One message instance execute completes each row.
     sim.destExecuteAndComplete(ts(10));
-    expect(sim.rows[0]!.completedAt).toBeNull();
-    sim.destExecuteAndComplete(ts(11));
     expect(sim.rows[0]!.completedAt).not.toBeNull();
+    expect(sim.rows[1]!.completedAt).toBeNull();
+    sim.destExecuteAndComplete(ts(11));
+    expect(sim.rows[1]!.completedAt).not.toBeNull();
+  });
+});
+
+describe("scenario: pharos 2026-08 incident - four underpaid instances of one batch", () => {
+  it("every instance keeps its own row, tx hashes, delivery, and completion", () => {
+    const sim = new SendSim();
+
+    // Instance 0: full underpaid cycle to completion.
+    sim.prepareMessage(ts(0));
+    expect(sim.underpaidBatch(ts(0))).toEqual({ action: "create", index: 0 });
+    expect(sim.sendPayload(ts(5), tx(1))).toEqual({ action: "mutate", index: 0 });
+    expect(sim.repayBatch(tx(1))).toEqual({ action: "mutate", index: 0 });
+    expect(sim.destDeliver(ts(8))).toBe(0);
+    sim.destExecuteAndComplete(ts(9));
+    expect(sim.rows[0]!.completedAt).not.toBeNull();
+
+    // Instance 1: repaid and sent, still in transit.
+    sim.prepareMessage(ts(20));
+    expect(sim.underpaidBatch(ts(20))).toEqual({ action: "create", index: 1 });
+    expect(sim.sendPayload(ts(25), tx(2))).toEqual({ action: "mutate", index: 1 });
+    expect(sim.repayBatch(tx(2))).toEqual({ action: "mutate", index: 1 });
+
+    // Instance 2: underpaid, awaiting its repay.
+    sim.prepareMessage(ts(30));
+    expect(sim.underpaidBatch(ts(30))).toEqual({ action: "create", index: 2 });
+
+    // Instance 3 (the invisible pharos send 0x5c3b...): arrives while rows are
+    // completed / in-transit / unsent. Old logic merged it into unsent row 2,
+    // losing its underpaid and repay tx hashes forever.
+    sim.prepareMessage(ts(40));
+    expect(sim.underpaidBatch(ts(40))).toEqual({ action: "create", index: 3 });
+    expect(sim.rows).toHaveLength(4);
+
+    // Repays route FIFO: instance 2 first, then instance 3.
+    expect(sim.sendPayload(ts(45), tx(3))).toEqual({ action: "mutate", index: 2 });
+    expect(sim.repayBatch(tx(3))).toEqual({ action: "mutate", index: 2 });
+    expect(sim.sendPayload(ts(50), tx(4))).toEqual({ action: "mutate", index: 3 });
+    expect(sim.repayBatch(tx(4))).toEqual({ action: "mutate", index: 3 });
+    expect(sim.rows.map((r) => r.sentAtTxHash)).toEqual([tx(1), tx(2), tx(3), tx(4)]);
+
+    // Deliveries route FIFO to undelivered rows - the min-index message hint
+    // must not pin them onto completed row 0 (the stuck Delivered /
+    // completedAt: null bookkeeping observed on staging).
+    expect(sim.destDeliver(ts(55))).toBe(1);
+    expect(sim.destDeliver(ts(56))).toBe(2);
+    expect(sim.destDeliver(ts(57))).toBe(3);
+
+    // Each execute completes exactly one instance row.
+    sim.destExecuteAndComplete(ts(60));
+    sim.destExecuteAndComplete(ts(61));
+    sim.destExecuteAndComplete(ts(62));
+    expect(sim.rows.every((r) => r.completedAt != null)).toBe(true);
   });
 });
 
@@ -539,7 +635,13 @@ describe("UnderpaidBatch resend across every payload lifecycle stage", () => {
   function resendMessages(priorStatus: SimMessage["status"]): SimMessage[] {
     return [
       { index: 0, status: priorStatus, payloadId: PAYLOAD_ID, payloadIndex: 0, preparedAt: ts(0) },
-      { index: 1, status: "AwaitingBatchDelivery", payloadId: null, payloadIndex: null, preparedAt: ts(60) },
+      {
+        index: 1,
+        status: "AwaitingBatchDelivery",
+        payloadId: null,
+        payloadIndex: null,
+        preparedAt: ts(60),
+      },
     ];
   }
 
@@ -553,10 +655,54 @@ describe("UnderpaidBatch resend across every payload lifecycle stage", () => {
   }
 
   const sentStages: [string, PayloadRowForIndex, SimMessage["status"]][] = [
-    ["InTransit", { index: 0, underpaidAt: ts(0), sentAt: ts(5), deliveredAt: null, partiallyFailedAt: null, completedAt: null }, "AwaitingBatchDelivery"],
-    ["Delivered", { index: 0, underpaidAt: ts(0), sentAt: ts(5), deliveredAt: ts(10), partiallyFailedAt: null, completedAt: null }, "AwaitingBatchDelivery"],
-    ["PartiallyFailed", { index: 0, underpaidAt: ts(0), sentAt: ts(5), deliveredAt: ts(10), partiallyFailedAt: ts(10), completedAt: null }, "Failed"],
-    ["Completed", { index: 0, underpaidAt: ts(0), sentAt: ts(5), deliveredAt: ts(10), partiallyFailedAt: null, completedAt: ts(10) }, "Executed"],
+    [
+      "InTransit",
+      {
+        index: 0,
+        underpaidAt: ts(0),
+        sentAt: ts(5),
+        deliveredAt: null,
+        partiallyFailedAt: null,
+        completedAt: null,
+      },
+      "AwaitingBatchDelivery",
+    ],
+    [
+      "Delivered",
+      {
+        index: 0,
+        underpaidAt: ts(0),
+        sentAt: ts(5),
+        deliveredAt: ts(10),
+        partiallyFailedAt: null,
+        completedAt: null,
+      },
+      "AwaitingBatchDelivery",
+    ],
+    [
+      "PartiallyFailed",
+      {
+        index: 0,
+        underpaidAt: ts(0),
+        sentAt: ts(5),
+        deliveredAt: ts(10),
+        partiallyFailedAt: ts(10),
+        completedAt: null,
+      },
+      "Failed",
+    ],
+    [
+      "Completed",
+      {
+        index: 0,
+        underpaidAt: ts(0),
+        sentAt: ts(5),
+        deliveredAt: ts(10),
+        partiallyFailedAt: null,
+        completedAt: ts(10),
+      },
+      "Executed",
+    ],
   ];
 
   for (const [stage, row, priorStatus] of sentStages) {
@@ -568,7 +714,9 @@ describe("UnderpaidBatch resend across every payload lifecycle stage", () => {
     });
   }
 
-  it("prior payload Underpaid (never sent): a resend reuses the pending row", () => {
+  it("prior payload Underpaid (never sent): a resend creates payload index 1", () => {
+    // The pending row belongs to the earlier instance still awaiting its own
+    // repay; the fresh unlinked message marks a new gateway counter increment.
     const row: PayloadRowForIndex = {
       index: 0,
       underpaidAt: ts(0),
@@ -578,8 +726,8 @@ describe("UnderpaidBatch resend across every payload lifecycle stage", () => {
       completedAt: null,
     };
     expect(resolveResend(row, resendMessages("AwaitingBatchDelivery"))).toEqual({
-      action: "mutate",
-      index: 0,
+      action: "create",
+      index: 1,
     });
   });
 });
