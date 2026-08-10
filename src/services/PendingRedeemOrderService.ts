@@ -35,6 +35,11 @@ export class PendingRedeemOrderService extends Service<typeof PendingRedeemOrder
     return this;
   }
 
+  /**
+   * Saves the pending redeem order, or deletes it when both pending and queued shares are zero.
+   * @param event - The source event for the save.
+   * @returns The service instance after the save (or delete) resolves.
+   */
   public saveOrClear(event: Event) {
     const clearing = this.data.pendingSharesAmount === 0n && this.data.queuedSharesAmount === 0n;
     serviceLog(`PendingRedeemOrder saveOrClear clearing=${clearing}`);

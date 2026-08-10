@@ -23,6 +23,12 @@ import { timestamper } from "../helpers/timestamper";
 import { HoldingEscrowSnapshot } from "ponder:schema";
 
 multiMapper("batchRequestManager:UpdateDepositRequest", updateDepositRequest);
+/**
+ * Updates the investor's pending invest order and epoch-outstanding invest amounts from an
+ * `UpdateDepositRequest` event (v3_1 `batchRequestManager` or v3 `shareClassManager` variant).
+ * @param event - The `UpdateDepositRequest` event.
+ * @param context - The Ponder handler context.
+ */
 export async function updateDepositRequest({
   event,
   context,
@@ -88,6 +94,12 @@ export async function updateDepositRequest({
 }
 
 multiMapper("batchRequestManager:UpdateRedeemRequest", updateRedeemRequest);
+/**
+ * Updates the investor's pending redeem order and epoch-outstanding redeem amounts from an
+ * `UpdateRedeemRequest` event (v3_1 `batchRequestManager` or v3 `shareClassManager` variant).
+ * @param event - The `UpdateRedeemRequest` event.
+ * @param context - The Ponder handler context.
+ */
 export async function updateRedeemRequest({
   event,
   context,
@@ -153,6 +165,12 @@ export async function updateRedeemRequest({
 }
 
 multiMapper("batchRequestManager:ApproveDeposits", approveDeposits);
+/**
+ * Approves a batch of pending deposits: upserts the epoch invest order with the approved
+ * percentage, then distributes approved asset amounts across the matching pending invest orders.
+ * @param event - The `ApproveDeposits` event.
+ * @param context - The Ponder handler context.
+ */
 export async function approveDeposits({
   event,
   context,
@@ -246,6 +264,12 @@ export async function approveDeposits({
 }
 
 multiMapper("batchRequestManager:ApproveRedeems", approveRedeems);
+/**
+ * Approves a batch of pending redeems: upserts the epoch redeem order with the approved
+ * percentage, then distributes approved share amounts across the matching pending redeem orders.
+ * @param event - The `ApproveRedeems` event.
+ * @param context - The Ponder handler context.
+ */
 export async function approveRedeems({
   event,
   context,
@@ -347,6 +371,12 @@ export async function approveRedeems({
 }
 
 multiMapper("batchRequestManager:IssueShares", issueShares);
+/**
+ * Records issued shares on the epoch invest order and applies NAV-based issuance to each
+ * approved invest order for the epoch (v3_1 `batchRequestManager` or v3 `shareClassManager`).
+ * @param event - The `IssueShares` event.
+ * @param context - The Ponder handler context.
+ */
 export async function issueShares({
   event,
   context,
@@ -420,6 +450,12 @@ export async function issueShares({
 }
 
 multiMapper("batchRequestManager:RevokeShares", revokeShares);
+/**
+ * Records revoked shares on the epoch redeem order and applies NAV-based revocation to each
+ * approved redeem order for the epoch (v3_1 `batchRequestManager` or v3 `shareClassManager`).
+ * @param event - The `RevokeShares` event.
+ * @param context - The Ponder handler context.
+ */
 export async function revokeShares({
   event,
   context,
@@ -512,6 +548,12 @@ export async function revokeShares({
 }
 
 multiMapper("batchRequestManager:ClaimDeposit", claimDeposit);
+/**
+ * Settles an investor's claim for a deposited epoch: marks the matching invest order as claimed
+ * with the payout share and payment asset amounts.
+ * @param event - The `ClaimDeposit` event.
+ * @param context - The Ponder handler context.
+ */
 export async function claimDeposit({
   event,
   context,
@@ -560,6 +602,12 @@ export async function claimDeposit({
 }
 
 multiMapper("batchRequestManager:ClaimRedeem", claimRedeem);
+/**
+ * Settles an investor's claim for a redeemed epoch: marks the matching redeem order as claimed
+ * with the payout asset and payment share amounts.
+ * @param event - The `ClaimRedeem` event.
+ * @param context - The Ponder handler context.
+ */
 export async function claimRedeem({
   event,
   context,

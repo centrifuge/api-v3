@@ -46,6 +46,12 @@ type HubSpokeFactPgCols = HubSpokePgCols & {
   spokeAckAtChainId: string;
 };
 
+/**
+ * Reads the Drizzle table columns and returns the PostgreSQL column names for the hub/spoke
+ * fact fields, throwing if any required column is missing.
+ * @param table - The entity table to inspect.
+ * @returns The PostgreSQL column names for hub signal and spoke ack fields.
+ */
 function hubSpokePgCols(table: OnchainTable): HubSpokeFactPgCols {
   const columns = getTableColumns(table);
   const pg = (key: string) => {
