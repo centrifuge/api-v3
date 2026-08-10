@@ -315,13 +315,19 @@ export function resolvePayloadKeyForEvent(
   switch (eventKind) {
     case "UnderpaidBatch":
       if (rows.length === 0) return { action: "create", index: 0 };
+      // A genuine new underpaid send (fresh unlinked PrepareMessage in this
+      // tx) is a distinct batch instance: the gateway underpaid counter
+      // increments once per send. An existing open unsent row belongs to an
+      // EARLIER underpaid instance still awaiting its own repay - merging
+      // into it loses the multiplicity (the new instance's underpaid facts
+      // have nowhere to land, since facts are write-once).
+      if (newSend) return { action: "create", index: nextPayloadIndex(rows) };
       {
         const unsent = pickLowestUnsentRowAmong(rows);
         if (unsent) return { action: "mutate", index: unsent.index };
       }
-      // A new send with all prior rows sent allocates a fresh index; defer is
-      // reserved for late duplicates, which carry no unlinked awaiting message.
-      if (newSend) return { action: "create", index: nextPayloadIndex(rows) };
+      // Defer is reserved for late duplicates: they carry no unlinked awaiting
+      // message and every row is already sent.
       return { action: "defer" };
 
     case "RepayBatch": {
@@ -359,8 +365,15 @@ export function resolvePayloadKeyForEvent(
       const openSent = rows
         .filter((r) => isPayloadRowOpen(r) && r.sentAt != null)
         .sort((a, b) => a.index - b.index);
+      // One delivery lands per sent instance: prefer the lowest sent row not
+      // yet delivered so a later instance's delivery does not restamp a row
+      // that already received its own. A handle must target a sent row - a
+      // receive cannot belong to an underpaid (not-yet-sent) instance - so
+      // with no open sent row the event defers and waits in the receive
+      // queue for the send to be indexed.
+      const undelivered = openSent.find((r) => r.deliveredAt == null);
+      if (undelivered) return { action: "mutate", index: undelivered.index };
       if (openSent[0]) return { action: "mutate", index: openSent[0].index };
-      if (open) return { action: "mutate", index: open.index };
       return { action: "defer" };
     }
 
@@ -369,6 +382,88 @@ export function resolvePayloadKeyForEvent(
       return _exhaustive;
     }
   }
+}
+
+/** Routing hints for a destination-side handle receive (HandlePayload / HandleProof). */
+export type HandleTargetHints = {
+  /** Distinct payload indices of this adapter's SEND participations. */
+  participationIndices: readonly number[];
+  /** Distinct payload indices of committed messages linked to the payload id. */
+  linkedMessageIndices: readonly number[];
+  /**
+   * Receive timestamp of the handle event. FIFO resolution skips rows whose
+   * send postdates it: a receive cannot belong to an instance sent after it,
+   * and routing a replayed delivery onto one would strand the entry in the
+   * receive queue behind a causal-order check it can never pass. Only sent
+   * rows are eligible targets, so the anchor is always `sentAt`.
+   */
+  receivedAt?: Date | null;
+};
+
+/**
+ * Resolves which payload row a destination-side handle receive belongs to.
+ *
+ * Only sent rows are eligible targets: a handle receive means the adapter
+ * received a payload that was actually sent on the source chain, so an
+ * unsent (underpaid) row is never returned - the entry stays queued until
+ * the send is indexed.
+ *
+ * Precedence: (1) the adapter's own SEND participation when it identifies
+ * exactly one instance; (2) message linkage when it identifies exactly one
+ * instance (single-instance case, including idempotent replays onto a
+ * completed row); (3) FIFO over causally-possible open sent rows via
+ * {@link resolvePayloadKeyForEvent} - ambiguous multi-instance linkage must
+ * NOT collapse to the minimum index, which pins every later instance's
+ * delivery onto the first (usually completed) row; (4) with no open row left,
+ * the lowest linked row as an idempotent replay fallback.
+ * @param rows - All committed payload rows for the id
+ * @param hints - Participation / message linkage indices and receive time
+ * @returns Target row index, or null when no row can accept the receive
+ */
+export function resolveHandleTargetIndex(
+  rows: PayloadRowForIndex[],
+  hints: HandleTargetHints
+): number | null {
+  if (rows.length === 0) return null;
+
+  // A handle receive can only belong to a sent instance. Routing a handle to
+  // an unsent (underpaid) row would stamp deliveredAt before sentAt is set,
+  // inverting the timeline, so unsent rows are never eligible targets.
+  const sentRows = rows.filter((r) => r.sentAt != null);
+  if (sentRows.length === 0) return null;
+  const has = (index: number) => sentRows.some((r) => r.index === index);
+
+  if (hints.participationIndices.length === 1 && has(hints.participationIndices[0]!)) {
+    return hints.participationIndices[0]!;
+  }
+
+  if (hints.linkedMessageIndices.length === 1 && has(hints.linkedMessageIndices[0]!)) {
+    return hints.linkedMessageIndices[0]!;
+  }
+
+  const receivedAtMs = hints.receivedAt?.getTime();
+  const causallyPossible =
+    receivedAtMs == null
+      ? sentRows
+      : sentRows.filter((r) => {
+          const anchor = getPayloadSendAnchorAt({
+            sentAt: r.sentAt ?? null,
+            underpaidAt: r.underpaidAt ?? null,
+          });
+          return anchor != null && anchor.getTime() <= receivedAtMs;
+        });
+  const key = resolvePayloadKeyForEvent(
+    "HandlePayload",
+    causallyPossible.length > 0 ? causallyPossible : sentRows,
+    { deferAllowed: true }
+  );
+  if (key.action === "mutate") return key.index;
+
+  if (hints.linkedMessageIndices.length > 0) {
+    const lowest = Math.min(...hints.linkedMessageIndices);
+    if (has(lowest)) return lowest;
+  }
+  return null;
 }
 
 /**
