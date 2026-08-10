@@ -282,6 +282,15 @@ describe("resolvePayloadKeyForEvent", () => {
     const key = resolvePayloadKeyForEvent("HandlePayload", rows, { deferAllowed: true });
     expect(key).toEqual({ action: "mutate", index: 0 });
   });
+
+  it("HandlePayload defers when no open sent row exists (unsent rows are not delivery targets)", () => {
+    // An underpaid (unsent) row cannot accept a delivery: the payload was
+    // not sent yet. The event defers and waits in the receive queue for the
+    // send to be indexed instead of stamping deliveredAt on an unsent row.
+    const rows = [payload(0), payload(1)];
+    const key = resolvePayloadKeyForEvent("HandlePayload", rows, { deferAllowed: true });
+    expect(key).toEqual({ action: "defer" });
+  });
 });
 
 describe("resolveHandleTargetIndex", () => {
@@ -377,5 +386,30 @@ describe("resolveHandleTargetIndex", () => {
         receivedAt: t12,
       })
     ).toBe(1);
+  });
+
+  it("with no sent rows and ambiguous linkage, returns null so the receive queues until a send is indexed", () => {
+    // Both rows are underpaid and unsent. A handle cannot belong to a
+    // not-yet-sent instance, so resolveHandleTargetIndex returns null and
+    // tryApplyPayloadReceive leaves the entry in the receive queue until a
+    // sent row exists (instead of stamping deliveredAt on an unsent row).
+    const rows = [payload(0), payload(1)];
+    expect(
+      resolveHandleTargetIndex(rows, {
+        participationIndices: [],
+        linkedMessageIndices: [0, 1],
+        receivedAt: t,
+      })
+    ).toBeNull();
+  });
+
+  it("a unique participation or linkage pointing only at an unsent row returns null", () => {
+    // Single underpaid instance: the unique hints identify index 0, but the
+    // row was never sent, so the handle must queue rather than stamp
+    // deliveredAt on it.
+    const rows = [payload(0)];
+    expect(
+      resolveHandleTargetIndex(rows, { participationIndices: [0], linkedMessageIndices: [0] })
+    ).toBeNull();
   });
 });

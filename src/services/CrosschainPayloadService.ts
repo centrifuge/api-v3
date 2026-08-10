@@ -367,11 +367,13 @@ export function resolvePayloadKeyForEvent(
         .sort((a, b) => a.index - b.index);
       // One delivery lands per sent instance: prefer the lowest sent row not
       // yet delivered so a later instance's delivery does not restamp a row
-      // that already received its own.
+      // that already received its own. A handle must target a sent row - a
+      // receive cannot belong to an underpaid (not-yet-sent) instance - so
+      // with no open sent row the event defers and waits in the receive
+      // queue for the send to be indexed.
       const undelivered = openSent.find((r) => r.deliveredAt == null);
       if (undelivered) return { action: "mutate", index: undelivered.index };
       if (openSent[0]) return { action: "mutate", index: openSent[0].index };
-      if (open) return { action: "mutate", index: open.index };
       return { action: "defer" };
     }
 
@@ -390,15 +392,21 @@ export type HandleTargetHints = {
   linkedMessageIndices: readonly number[];
   /**
    * Receive timestamp of the handle event. FIFO resolution skips rows whose
-   * send anchor postdates it: a receive cannot belong to a not-yet-sent
-   * instance, and routing a replayed delivery onto one would strand the entry
-   * in the receive queue behind a causal-order check it can never pass.
+   * send postdates it: a receive cannot belong to an instance sent after it,
+   * and routing a replayed delivery onto one would strand the entry in the
+   * receive queue behind a causal-order check it can never pass. Only sent
+   * rows are eligible targets, so the anchor is always `sentAt`.
    */
   receivedAt?: Date | null;
 };
 
 /**
  * Resolves which payload row a destination-side handle receive belongs to.
+ *
+ * Only sent rows are eligible targets: a handle receive means the adapter
+ * received a payload that was actually sent on the source chain, so an
+ * unsent (underpaid) row is never returned - the entry stays queued until
+ * the send is indexed.
  *
  * Precedence: (1) the adapter's own SEND participation when it identifies
  * exactly one instance; (2) message linkage when it identifies exactly one
@@ -417,7 +425,13 @@ export function resolveHandleTargetIndex(
   hints: HandleTargetHints
 ): number | null {
   if (rows.length === 0) return null;
-  const has = (index: number) => rows.some((r) => r.index === index);
+
+  // A handle receive can only belong to a sent instance. Routing a handle to
+  // an unsent (underpaid) row would stamp deliveredAt before sentAt is set,
+  // inverting the timeline, so unsent rows are never eligible targets.
+  const sentRows = rows.filter((r) => r.sentAt != null);
+  if (sentRows.length === 0) return null;
+  const has = (index: number) => sentRows.some((r) => r.index === index);
 
   if (hints.participationIndices.length === 1 && has(hints.participationIndices[0]!)) {
     return hints.participationIndices[0]!;
@@ -430,8 +444,8 @@ export function resolveHandleTargetIndex(
   const receivedAtMs = hints.receivedAt?.getTime();
   const causallyPossible =
     receivedAtMs == null
-      ? rows
-      : rows.filter((r) => {
+      ? sentRows
+      : sentRows.filter((r) => {
           const anchor = getPayloadSendAnchorAt({
             sentAt: r.sentAt ?? null,
             underpaidAt: r.underpaidAt ?? null,
@@ -440,7 +454,7 @@ export function resolveHandleTargetIndex(
         });
   const key = resolvePayloadKeyForEvent(
     "HandlePayload",
-    causallyPossible.length > 0 ? causallyPossible : rows,
+    causallyPossible.length > 0 ? causallyPossible : sentRows,
     { deferAllowed: true }
   );
   if (key.action === "mutate") return key.index;

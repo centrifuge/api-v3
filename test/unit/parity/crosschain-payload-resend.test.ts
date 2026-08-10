@@ -150,18 +150,22 @@ class SendSim {
   /**
    * Destination side: multiAdapter:HandlePayload receive. Routes via
    * `resolveHandleTargetIndex` like `resolvePayloadRowForHandle` does
-   * (participation indices omitted: with one adapter sending N instances the
-   * participation hint is ambiguous and skipped either way) and stamps
-   * deliveredAt on the resolved row.
+   * (participation indices default to empty: with one adapter sending N
+   * instances the participation hint is ambiguous and skipped either way)
+   * and stamps deliveredAt on the resolved row.
+   * @param at - Receive timestamp of the handle event
+   * @param participationIndices - Distinct SEND participation payload indices
+   * for the adapter issuing this handle (empty when the adapter sent every
+   * instance, so the hint is ambiguous and skipped)
    */
-  destDeliver(at: Date): number | null {
+  destDeliver(at: Date, participationIndices: number[] = []): number | null {
     const linkedMessageIndices = [
       ...new Set(
         this.msgs.map((m) => m.payloadIndex).filter((index): index is number => index != null)
       ),
     ];
     const target = resolveHandleTargetIndex(this.rows, {
-      participationIndices: [],
+      participationIndices,
       linkedMessageIndices,
       receivedAt: at,
     });
@@ -578,6 +582,32 @@ describe("scenario: pharos 2026-08 incident - four underpaid instances of one ba
     sim.destExecuteAndComplete(ts(61));
     sim.destExecuteAndComplete(ts(62));
     expect(sim.rows.every((r) => r.completedAt != null)).toBe(true);
+  });
+});
+
+describe("scenario: a handle from an adapter whose only SEND participation is a specific instance routes to that instance", () => {
+  it("the unique participation hint beats FIFO and the min-index message hint", () => {
+    const sim = new SendSim();
+
+    // Instance 0: sent and delivered by adapter A.
+    sim.prepareMessage(ts(0));
+    expect(sim.underpaidBatch(ts(0))).toEqual({ action: "create", index: 0 });
+    expect(sim.sendPayload(ts(5), tx(1))).toEqual({ action: "mutate", index: 0 });
+    expect(sim.destDeliver(ts(8))).toBe(0);
+
+    // Instance 1: sent later, in transit, not yet delivered.
+    sim.prepareMessage(ts(20));
+    expect(sim.underpaidBatch(ts(20))).toEqual({ action: "create", index: 1 });
+    expect(sim.sendPayload(ts(25), tx(2))).toEqual({ action: "mutate", index: 1 });
+
+    // Adapter A only sent instance 0 (its SEND participations = [0]). A later
+    // HandlePayload from adapter A is an idempotent replay of instance 0's
+    // delivery. FIFO over undelivered open sent rows would pick row 1, and
+    // the min-index message hint would also collapse to 0, but the unique
+    // participation hint identifies instance 0 directly and must win.
+    expect(sim.destDeliver(ts(30), [0])).toBe(0);
+    // Row 1 stays undelivered: the replay did not steal its delivery slot.
+    expect(sim.rows[1]!.deliveredAt).toBeNull();
   });
 });
 
