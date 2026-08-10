@@ -1,5 +1,5 @@
 ENVIRONMENT="mainnet" 
-SELECTED_REGISTRY_VERSIONS="" 
+REGISTRY_VERSION_MAP="" 
 pnpm update-registry;
 pnpm lint;
 pnpm typecheck;

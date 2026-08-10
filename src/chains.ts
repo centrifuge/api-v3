@@ -37,6 +37,7 @@ export const networkNames = {
   "143": "monad",
   "999": "hyperliquid",
   "1672": "pharos",
+  "196": "xlayer",
 } as const;
 
 type ExtractNetworkNamesFromKeys<K> = K extends keyof typeof networkNames
@@ -152,6 +153,7 @@ export const endpoints = {
     `https://lb.drpc.live/hyperliquid/${process.env.DRPC_API_KEY}`,
   ],
   1672: [],
+  196: ["https://rpc.xlayer.tech", `https://lb.drpc.live/xlayer/${process.env.DRPC_API_KEY}`],
 };
 
 const getLogsBlockRange = {
@@ -200,6 +202,7 @@ type BlocksConfig = {
   };
 };
 
+// This should be set to 1 hour in blocks
 export const skipBlocks = {
   "84532": 1800,
   "421614": 14230,
@@ -215,6 +218,7 @@ export const skipBlocks = {
   "999": 18000,
   "998": 18000,
   "1672": 14400,
+  "196": 1800,
 };
 
 const blocks = Object.fromEntries(
@@ -312,6 +316,7 @@ export const explorerUrls = {
   "143": "https://monadvision.com",
   "999": "https://hyperevmscan.io",
   "10": "https://optimistic.etherscan.io/",
+  "196": "https://www.xlayerscan.com/",
 };
 
 // Icons definitions

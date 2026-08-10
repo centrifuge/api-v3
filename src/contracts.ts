@@ -456,6 +456,13 @@ export function decorateDeploymentContracts<
 
 /**
  * Gets the contract chain configuration for a given registry version and ABI name.
+ *
+ * The per-contract start block is `contract.blockNumber` when present, falling back to
+ * `chain.deployment.startBlock` otherwise. This matters when `REGISTRY_VERSION_MAP` folds a newer
+ * registry into an older handler version: the merged blob carries the newer `deployment.startBlock`
+ * (newest-wins), but unchanged older contracts keep their original per-contract `blockNumber` so
+ * they still index from their real deployment block. Symmetric with `computeEndBlock`, which already
+ * honors `blockNumber` for the next-version boundary.
  */
 function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
   registryVersion: V,
@@ -485,9 +492,9 @@ function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
 
   const chain = activeChainEntries.map(([chainId, chainValue]) => {
     const chainName = networkNames[chainId as keyof typeof networkNames];
-    const resolvedAddress = chainValue.contracts[
-      toContractCase(abiName) as keyof typeof chainValue.contracts
-    ].address as `0x${string}`;
+    const contractEntry =
+      chainValue.contracts[toContractCase(abiName) as keyof typeof chainValue.contracts];
+    const resolvedAddress = contractEntry.address as `0x${string}`;
 
     const address = factoryConfig
       ? factory({
@@ -504,7 +511,7 @@ function getContractChain<V extends RegistryVersions, N extends AbiName<V>>(
       throw new Error(`Address for ${abiName} on ${chainName} not found`);
     }
 
-    const startBlock = chainValue.deployment.startBlock as number;
+    const startBlock = (contractEntry.blockNumber ?? chainValue.deployment.startBlock) as number;
     const endBlock = computeEndBlock(chainId, toContractCase(abiName), registryVersion, endBlocks);
     return [chainName, { address, startBlock, endBlock }];
   });
