@@ -152,6 +152,15 @@ export abstract class Service<T extends OnchainTable> {
     return this;
   }
 
+  /**
+   * Inserts a new row with `ON CONFLICT DO NOTHING`; returns `null` on conflict. When
+   * `deferInsert` is set, returns an unsaved instance populated with defaults (no DB write).
+   * @param context - The Ponder context.
+   * @param data - The insert row (defaults applied from `event` when present).
+   * @param event - The source event for defaults, or `null` for bare inserts.
+   * @param deferInsert - When true, skip the DB write and return an in-memory instance.
+   * @returns The inserted service instance, or `null` if the row conflicted.
+   */
   static async insert<This extends ServiceSubclass>(
     this: This,
     context: Context,
@@ -316,6 +325,9 @@ export abstract class Service<T extends OnchainTable> {
     onInit?: (entity: TableTypeOf<This>["$inferSelect"]) => Promise<void>,
     deferInsert?: boolean
   ): Promise<InstanceType<This>>;
+  /**
+   * Finds an existing record or creates a new one (bare insert variant, no event defaults).
+   */
   static async getOrInit<This extends ServiceSubclass>(
     this: This,
     context: Context,
@@ -324,6 +336,9 @@ export abstract class Service<T extends OnchainTable> {
     onInit?: (entity: TableTypeOf<This>["$inferSelect"]) => Promise<void>,
     deferInsert?: boolean
   ): Promise<InstanceType<This>>;
+  /**
+   * Implementation for the `getOrInit` overloads.
+   */
   static async getOrInit<This extends ServiceSubclass>(
     this: This,
     context: Context,
@@ -373,12 +388,18 @@ export abstract class Service<T extends OnchainTable> {
     query: TableTypeOf<This>["$inferInsert"],
     event: null
   ): Promise<InstanceType<This> | null>;
+  /**
+   * Updates an existing record or creates a new one (event variant, with defaults).
+   */
   static async upsert<This extends ServiceSubclass>(
     this: This,
     context: Context,
     query: DataWithoutDefaults<TableTypeOf<This>>,
     event: Event
   ): Promise<InstanceType<This> | null>;
+  /**
+   * Implementation for the `upsert` overloads.
+   */
   static async upsert<This extends ServiceSubclass>(
     this: This,
     context: Context,

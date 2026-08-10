@@ -8,6 +8,12 @@ import { getContractNameForAddress } from "../contracts";
 import { readContractSafe } from "../helpers/readContractSafe";
 
 multiMapper("vaultRegistry:DeployVault", deployVault);
+/**
+ * Deploys a `Vault` row from a `DeployVault` event (v3 `spoke` or v3_1 `vaultRegistry`): resolves
+ * the vault manager via eth_call, looks up the asset id, and upserts the vault.
+ * @param event - The `DeployVault` event.
+ * @param context - The Ponder handler context.
+ */
 export async function deployVault({
   event,
   context,
@@ -78,6 +84,11 @@ export async function deployVault({
 }
 
 multiMapper("vaultRegistry:LinkVault", linkVault);
+/**
+ * Marks a vault as `Linked` on the spoke ack for a `LinkVault` event.
+ * @param event - The `LinkVault` event.
+ * @param context - The Ponder handler context.
+ */
 export async function linkVault({
   event,
   context,
@@ -105,6 +116,11 @@ export async function linkVault({
 }
 
 multiMapper("vaultRegistry:UnlinkVault", unlinkVault);
+/**
+ * Marks a vault as `Unlinked` on the spoke ack for an `UnlinkVault` event.
+ * @param event - The `UnlinkVault` event.
+ * @param context - The Ponder handler context.
+ */
 export async function unlinkVault({
   event,
   context,

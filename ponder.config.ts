@@ -95,6 +95,7 @@ export const contractsV3_1 = decorateDeploymentContracts(
     "MerkleProofManagerFactory",
     "MultiAdapter",
     "OnOfframpManagerFactory",
+    "OnOffRampFactory",
     "OracleValuation",
     "PoolEscrowFactory",
     "QueueManager",
@@ -135,6 +136,14 @@ export const contractsV3_1 = decorateDeploymentContracts(
       factory: {
         abi: "OnOfframpManagerFactory",
         eventName: "DeployOnOfframpManager",
+        eventParameter: "manager",
+      },
+    },
+    onOffRampV3_1: {
+      abi: "OnOffRamp",
+      factory: {
+        abi: "OnOffRampFactory",
+        eventName: "DeployOnOffRamp",
         eventParameter: "manager",
       },
     },

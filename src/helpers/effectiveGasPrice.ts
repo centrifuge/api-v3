@@ -41,6 +41,14 @@ export function effectiveGasPriceFromEvent(event: {
   return null;
 }
 
+/**
+ * Computes the EIP-1559 effective gas price: `baseFee + min(maxPriority, maxFee - baseFee)`,
+ * capped at `maxFeePerGas`.
+ * @param baseFeePerGas - The block base fee per gas.
+ * @param maxFeePerGas - The transaction max fee per gas.
+ * @param maxPriorityFeePerGas - The transaction max priority fee per gas.
+ * @returns The effective gas price in wei per gas unit.
+ */
 function eip1559EffectiveGasPrice(
   baseFeePerGas: bigint,
   maxFeePerGas: bigint,

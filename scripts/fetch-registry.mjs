@@ -4,24 +4,32 @@
  * Fetch registry data at build time and save it as a TypeScript file.
  * This ensures the indexer has typed registry data without runtime network dependencies.
  *
+ * REGISTRY_VERSION_MAP: optional JSON object mapping handler-version keys to one or more resolved
+ * registry slugs, e.g. {"v3":"v3","v3_1":["v3_1","v3_2"]}. Keys become the generated/index.ts keys
+ * (and the RegistryVersions handler versions); values are merged left-to-right with newest-wins on
+ * leaf collisions. Unset → every resolved slug is emitted as its own handler version (identity).
+ * Unreferenced resolved slugs are dropped (logged). A slug may not appear in two handler versions
+ * or twice in one value array. Keys and values accept an optional leading "v" (3_1 and v3_1 both
+ * normalize to the same slug; keys are canonicalized to v-prefixed, values to stripped).
+ *
  * Local overrides (after the registry chain is fully resolved — null-version merges and same-slug
- * collapse — before writing generated files): set env vars whose names are
- * REGISTRY_<versionSlug>_<pathSegmentsJoinedByUnderscore>, where versionSlug matches the generated
- * file key (e.g. v3.1 → 3_1). An optional leading "v" on the slug is accepted.
+ * collapse — and after REGISTRY_VERSION_MAP grouping, before writing generated files): set env vars
+ * whose names are REGISTRY_<handlerVersion>_<pathSegmentsJoinedByUnderscore>, where handlerVersion
+ * matches a generated file key (e.g. v3.1 → 3_1). An optional leading "v" on the slug is accepted.
  * Example: REGISTRY_v3_1_chains_42161_deployment_startBlock=1234
- * REGISTRY_ALL_<pathSegmentsJoinedByUnderscore> applies the same path to every resolved registry
+ * REGISTRY_ALL_<pathSegmentsJoinedByUnderscore> applies the same path to every resolved handler
  * version (before per-version patches; version-specific keys win on collision).
  * Example: REGISTRY_ALL_chains_42161_deployment_startBlock=1234
- * Path segments are split on "_"; values are coerced (numbers, booleans, null). Unrecognized keys
- * (e.g. REGISTRY_URL) are ignored because they do not start with a known version slug or ALL_.
- *
- * SELECTED_REGISTRY_VERSIONS: optional comma-separated list of registry file slugs to emit
- * (e.g. v3_1,v3_2 or 3_1,3_2). When unset, every version in the resolved chain is generated.
- * Order follows the resolved chain (oldest → newest), not the env var order.
+ * Path segments are split on "_"; values are coerced (numbers, booleans, null). The value "delete"
+ * removes the key at the patch path (the key is gone from the generated blob, not set to null).
+ * Unrecognized keys (e.g. REGISTRY_URL, REGISTRY_VERSION_MAP) are ignored because they do not
+ * start with a known handler-version slug or ALL_; a warning is logged for keys that look like
+ * patches but match no emitted handler version.
  */
 
 import { promises as fs } from "fs";
 import { join as pathJoin } from "path";
+import { pathToFileURL } from "url";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
 
@@ -63,7 +71,7 @@ function registryVersionToFileSlug(rawVersion) {
 }
 
 /**
- * Normalize a version slug from SELECTED_REGISTRY_VERSIONS (strip optional leading "v").
+ * Normalize a version slug: strip optional leading "v", trim.
  * @param {string} raw
  * @returns {string}
  */
@@ -72,65 +80,146 @@ function normalizeRegistryVersionSlug(raw) {
 }
 
 /**
- * Parse SELECTED_REGISTRY_VERSIONS (comma-separated slugs). Returns null when unset/empty.
- * @returns {string[] | null}
+ * Canonical handler-version key: stripped slug re-prefixed with "v" (e.g. 3_1 and v3_1 → "v3_1").
+ * @param {string} raw
+ * @returns {string}
  */
-function parseSelectedRegistryVersions() {
-  const raw = process.env.SELECTED_REGISTRY_VERSIONS;
-  if (raw == null || raw.trim() === "") return null;
-  const slugs = raw
-    .split(",")
-    .map((part) => normalizeRegistryVersionSlug(part))
-    .filter((slug) => slug.length > 0);
-  if (slugs.length === 0) return null;
-  return slugs;
+function canonicalHandlerVersionKey(raw) {
+  const stripped = normalizeRegistryVersionSlug(raw);
+  if (stripped.length === 0) {
+    throw new Error("REGISTRY_VERSION_MAP: empty handler version key");
+  }
+  return `v${stripped}`;
 }
 
 /**
- * Keep only registries whose file slug is listed in SELECTED_REGISTRY_VERSIONS.
- * Preserves resolved-chain order. Throws when a requested slug is missing from the chain.
- * @param {object[]} registryChain
- * @param {string[]} versionSlugs
- * @param {string[] | null} selectedSlugs
+ * Parse REGISTRY_VERSION_MAP env var into an ordered map of handler-version key → stripped slug list.
+ * Returns null when unset/empty. Throws on invalid JSON, non-object, empty arrays, duplicate slugs
+ * within one value array, or the same slug appearing under two handler keys.
+ * @returns {Map<string, string[]> | null}
+ */
+function parseRegistryVersionMap() {
+  const raw = process.env.REGISTRY_VERSION_MAP;
+  if (raw == null || raw.trim() === "") return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    throw new Error(`REGISTRY_VERSION_MAP: invalid JSON: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("REGISTRY_VERSION_MAP: must be a JSON object of { handlerVersion: slug | slug[] }");
+  }
+  /** @type {Map<string, string[]>} */
+  const map = new Map();
+  /** @type {Set<string>} */
+  const seenSlugs = new Set();
+  for (const [rawKey, rawValue] of Object.entries(parsed)) {
+    const handlerKey = canonicalHandlerVersionKey(rawKey);
+    if (map.has(handlerKey)) {
+      throw new Error(`REGISTRY_VERSION_MAP: duplicate handler version "${handlerKey}"`);
+    }
+    let slugArray;
+    if (typeof rawValue === "string") {
+      slugArray = [rawValue];
+    } else if (Array.isArray(rawValue) && rawValue.every((v) => typeof v === "string")) {
+      slugArray = rawValue;
+    } else {
+      throw new Error(
+        `REGISTRY_VERSION_MAP: value for "${handlerKey}" must be a string or string[]; got ${Array.isArray(rawValue) ? "array with non-strings" : typeof rawValue}`
+      );
+    }
+    const stripped = slugArray.map((s) => normalizeRegistryVersionSlug(s)).filter((s) => s.length > 0);
+    if (stripped.length === 0) {
+      throw new Error(`REGISTRY_VERSION_MAP: handler version "${handlerKey}" has no non-empty slugs`);
+    }
+    if (stripped.length !== slugArray.length) {
+      throw new Error(`REGISTRY_VERSION_MAP: handler version "${handlerKey}" contains an empty slug`);
+    }
+    /** @type {Set<string>} */
+    const within = new Set();
+    for (const slug of stripped) {
+      if (within.has(slug)) {
+        throw new Error(`REGISTRY_VERSION_MAP: slug "${slug}" appears twice under handler version "${handlerKey}"`);
+      }
+      within.add(slug);
+      if (seenSlugs.has(slug)) {
+        throw new Error(`REGISTRY_VERSION_MAP: slug "${slug}" appears under two handler versions`);
+      }
+      seenSlugs.add(slug);
+    }
+    map.set(handlerKey, stripped);
+  }
+  if (map.size === 0) return null;
+  return map;
+}
+
+/**
+ * Group resolved registries into handler versions per REGISTRY_VERSION_MAP.
+ * Newest-wins deep merge (reuse mergeRegistriesOlderNewer). Emits one blob per handler version,
+ * ordered by the earliest resolved-chain index of any slug in that handler's value set.
+ * Unreferenced resolved slugs are dropped with a log line. Throws when a referenced slug is not
+ * in the resolved chain.
+ * @param {object[]} registryChain resolved chain (oldest-first), post null-version + same-slug merge
+ * @param {string[]} versionSlugs stripped slugs parallel to registryChain
+ * @param {Map<string, string[]>} map parsed REGISTRY_VERSION_MAP (handler key → stripped slug list)
  * @returns {{ registryChain: object[], versionSlugs: string[] }}
  */
-function filterRegistryChainBySelectedVersions(registryChain, versionSlugs, selectedSlugs) {
-  if (selectedSlugs == null) {
-    return { registryChain, versionSlugs };
+function groupRegistriesByVersionMap(registryChain, versionSlugs, map) {
+  /** @type {Map<string, number>} */
+  const slugToIndex = new Map();
+  for (let i = 0; i < versionSlugs.length; i++) {
+    const slug = versionSlugs[i];
+    if (slug && !slugToIndex.has(slug)) slugToIndex.set(slug, i);
   }
-  const selectedSet = new Set(selectedSlugs);
-  /** @type {object[]} */
-  const filteredChain = [];
-  /** @type {string[]} */
-  const filteredSlugs = [];
+  /** @type {Map<string, object>} */
+  const slugToRegistry = new Map();
   for (let i = 0; i < registryChain.length; i++) {
     const slug = versionSlugs[i];
-    if (selectedSet.has(slug)) {
-      filteredChain.push(registryChain[i]);
-      filteredSlugs.push(slug);
+    if (slug) slugToRegistry.set(slug, registryChain[i]);
+  }
+
+  /** @type {Array<{ handlerKey: string, emitSlug: string, minIndex: number, blob: object }>} */
+  const entries = [];
+  /** @type {Set<string>} */
+  const referenced = new Set();
+  for (const [handlerKey, slugList] of map) {
+    let minIndex = Number.POSITIVE_INFINITY;
+    const missing = [];
+    for (const slug of slugList) {
+      const idx = slugToIndex.get(slug);
+      if (idx === undefined) {
+        missing.push(slug);
+      } else {
+        if (idx < minIndex) minIndex = idx;
+        referenced.add(slug);
+      }
     }
-  }
-  const available = new Set(versionSlugs);
-  const missing = selectedSlugs.filter((slug) => !available.has(slug));
-  if (missing.length > 0) {
-    throw new Error(
-      `SELECTED_REGISTRY_VERSIONS: unknown or unavailable version(s): ${missing.join(", ")}. ` +
-        `Available in resolved chain: ${versionSlugs.join(", ")}`
+    if (missing.length > 0) {
+      throw new Error(
+        `REGISTRY_VERSION_MAP: unknown or unavailable version(s) under handler "${handlerKey}": ${missing.join(", ")}. ` +
+          `Available in resolved chain: ${versionSlugs.join(", ")}`
+      );
+    }
+    const merged = slugList.reduce(
+      (acc, slug) => mergeRegistriesOlderNewer(acc, slugToRegistry.get(slug)),
+      null
     );
+    const emitSlug = handlerKey.replace(/^v/i, "");
+    entries.push({ handlerKey, emitSlug, minIndex, blob: merged });
   }
-  if (filteredChain.length === 0) {
-    throw new Error(
-      `SELECTED_REGISTRY_VERSIONS matched no registries. ` +
-        `Requested: ${selectedSlugs.join(", ")}; available: ${versionSlugs.join(", ")}`
-    );
+
+  entries.sort((a, b) => a.minIndex - b.minIndex);
+
+  const dropped = versionSlugs.filter((slug) => !referenced.has(slug));
+  if (dropped.length > 0) {
+    console.log(`REGISTRY_VERSION_MAP: dropping unreferenced registry version(s): ${dropped.join(", ")}`);
   }
-  const skipped = versionSlugs.filter((slug) => !selectedSet.has(slug));
-  if (skipped.length > 0) {
-    console.log(
-      `SELECTED_REGISTRY_VERSIONS: emitting ${filteredSlugs.join(", ")} (skipping ${skipped.join(", ")})`
-    );
-  }
-  return { registryChain: filteredChain, versionSlugs: filteredSlugs };
+
+  return {
+    registryChain: entries.map((e) => e.blob),
+    versionSlugs: entries.map((e) => e.emitSlug),
+  };
 }
 
 /**
@@ -291,11 +380,22 @@ function stripVersionPrefixFromPatchKey(rest, versionSlug) {
 }
 
 /**
- * Parse env value for registry leaf: numbers, booleans, null; otherwise string.
+ * Sentinel marking a registry patch path for deletion: the key is removed from the blob, not set
+ * to null. Produced by {@link parseRegistryPatchEnvValue} for the env value "delete".
+ */
+const REGISTRY_DELETE = Symbol("REGISTRY_DELETE");
+
+/**
+ * Parse env value for a registry patch leaf: numbers, booleans, null, and the delete sentinel
+ * ("delete"); otherwise the raw string. "delete" returns the {@link REGISTRY_DELETE} sentinel so
+ * {@link applyLocalRegistryPatches} removes the key at the patch path instead of setting it.
+ * @param raw - The raw env var string.
+ * @returns The parsed value, or the {@link REGISTRY_DELETE} sentinel for deletion.
  */
 function parseRegistryPatchEnvValue(raw) {
   if (raw === "") return raw;
   const t = raw.trim();
+  if (t === "delete") return REGISTRY_DELETE;
   if (t === "null") return null;
   if (t === "true") return true;
   if (t === "false") return false;
@@ -327,18 +427,23 @@ function collectRegistryAllPatchesFromEnv() {
 }
 
 /**
- * Collect REGISTRY_<versionSlug>_<path> entries for known version slugs (longest slug wins first).
- * @param {string[]} versionSlugs
+ * Collect REGISTRY_<handlerVersion>_<path> entries for known handler-version slugs (longest slug
+ * wins first). Keys that look like patches but match no known handler version are logged as
+ * warnings (so a folded-away slug like v3_2 is not silently ignored).
+ * @param {string[]} versionSlugs handler-version slugs (stripped, e.g. "3_1")
  * @returns {Map<string, Array<{ segments: string[], value: unknown }>>}
  */
 function collectRegistryPatchesFromEnv(versionSlugs) {
   /** @type {Map<string, Array<{ segments: string[], value: unknown }>>} */
   const byVersion = new Map();
   const sorted = [...new Set(versionSlugs)].sort((a, b) => b.length - a.length);
+  /** @type {string[]} */
+  const unrecognized = [];
 
   for (const key of Object.keys(process.env)) {
     if (!key.startsWith(REGISTRY_ENV_PREFIX)) continue;
     if (key.startsWith(REGISTRY_ALL_ENV_PREFIX)) continue;
+    if (key === "REGISTRY_URL" || key === "REGISTRY_VERSION_MAP") continue;
     const rest = key.slice(REGISTRY_ENV_PREFIX.length);
     let matchedSlug = null;
     let pathRest = null;
@@ -350,7 +455,10 @@ function collectRegistryPatchesFromEnv(versionSlugs) {
         break;
       }
     }
-    if (matchedSlug == null || pathRest == null) continue;
+    if (matchedSlug == null || pathRest == null) {
+      unrecognized.push(key);
+      continue;
+    }
     const segments = pathRest.split("_").filter((s) => s.length > 0);
     if (segments.length === 0) continue;
     const raw = process.env[key];
@@ -359,6 +467,11 @@ function collectRegistryPatchesFromEnv(versionSlugs) {
     const list = byVersion.get(matchedSlug) ?? [];
     list.push({ segments, value });
     byVersion.set(matchedSlug, list);
+  }
+  if (unrecognized.length > 0) {
+    console.log(
+      `WARNING: unrecognized registry env patch key(s) (no matching handler version): ${unrecognized.join(", ")}`
+    );
   }
   return byVersion;
 }
@@ -380,14 +493,38 @@ function setRegistryPathSegments(target, segments, value) {
 }
 
 /**
+ * Remove a nested property. Walks the parent path; if any ancestor is missing, no-ops
+ * (nothing to delete). Never creates intermediate objects.
+ */
+function deleteRegistryPathSegments(target, segments) {
+  let cur = target;
+  for (let i = 0; i < segments.length - 1; i++) {
+    const k = segments[i];
+    const next = cur[k];
+    if (next === null || next === undefined || typeof next !== "object" || Array.isArray(next)) {
+      return;
+    }
+    cur = next;
+  }
+  delete cur[segments[segments.length - 1]];
+}
+
+/**
+ * Apply local env patches to a registry blob. A patch value of {@link REGISTRY_DELETE} removes the
+ * key at the patch path; any other value sets the leaf (creating parent objects as needed).
  * @param {object} registry
  * @param {Array<{ segments: string[], value: unknown }>} patches
  */
 function applyLocalRegistryPatches(registry, patches) {
   const out = structuredClone(registry);
   for (const { segments, value } of patches) {
-    setRegistryPathSegments(out, segments, value);
-    console.log(`  env patch: .${segments.join(".")} = ${JSON.stringify(value)}`);
+    if (value === REGISTRY_DELETE) {
+      deleteRegistryPathSegments(out, segments);
+      console.log(`  env patch: delete .${segments.join(".")}`);
+    } else {
+      setRegistryPathSegments(out, segments, value);
+      console.log(`  env patch: .${segments.join(".")} = ${JSON.stringify(value)}`);
+    }
   }
   return out;
 }
@@ -457,9 +594,17 @@ async function main() {
     const allVersionSlugs = registryChain.map((registry) =>
       registryVersionToFileSlug(registry.version)
     );
-    const selectedVersions = parseSelectedRegistryVersions();
-    const { registryChain: selectedChain, versionSlugs: versions } =
-      filterRegistryChainBySelectedVersions(registryChain, allVersionSlugs, selectedVersions);
+    const versionMap = parseRegistryVersionMap();
+    let selectedChain;
+    let versions;
+    if (versionMap != null) {
+      const grouped = groupRegistriesByVersionMap(registryChain, allVersionSlugs, versionMap);
+      selectedChain = grouped.registryChain;
+      versions = grouped.versionSlugs;
+    } else {
+      selectedChain = registryChain;
+      versions = allVersionSlugs;
+    }
     const allPatches = collectRegistryAllPatchesFromEnv();
     const patchesByVersion = collectRegistryPatchesFromEnv(versions);
     const patchedChain = selectedChain.map((registry, index) => {
@@ -488,12 +633,26 @@ async function main() {
   }
 }
 
-main()
-  .then(() => {
-    console.log("Success");
-  })
-  .catch((error) => {
-    console.error("Error fetching registry:", error);
-    process.exit(1);
-  });
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isMain) {
+  main()
+    .then(() => {
+      console.log("Success");
+    })
+    .catch((error) => {
+      console.error("Error fetching registry:", error);
+      process.exit(1);
+    });
+}
+
+export {
+  parseRegistryVersionMap,
+  groupRegistriesByVersionMap,
+  resolveRegistryChain,
+  registryVersionToFileSlug,
+  normalizeRegistryVersionSlug,
+  applyLocalRegistryPatches,
+  parseRegistryPatchEnvValue,
+  REGISTRY_DELETE,
+};
 

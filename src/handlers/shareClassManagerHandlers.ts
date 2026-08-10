@@ -21,6 +21,12 @@ multiMapper(
   "shareClassManager:AddShareClass(uint64 indexed poolId, bytes16 indexed scId, uint32 indexed index, string name, string symbol, bytes32 salt)",
   addShareClassLong
 );
+/**
+ * Handles the long-form `AddShareClass` event (with name/symbol/salt): resolves share class
+ * decimals, upserts the `Token`, and activates any pending `TokenInstance`s.
+ * @param event - The `AddShareClass` event.
+ * @param context - The Ponder handler context.
+ */
 async function addShareClassLong({
   event,
   context,
