@@ -196,11 +196,7 @@ export async function getSwapQuote(
 
 /** GroveBasin swap leg pairing (`basin_swap_direction` enum values). */
 export type BasinSwapDirection =
-  | "CREDIT_TO_COLLATERAL"
-  | "CREDIT_TO_SWAP"
-  | "COLLATERAL_TO_CREDIT"
-  | "SWAP_TO_CREDIT"
-  | "OTHER";
+  "CREDIT_TO_COLLATERAL" | "CREDIT_TO_SWAP" | "COLLATERAL_TO_CREDIT" | "SWAP_TO_CREDIT" | "OTHER";
 
 /**
  * Maps a GroveBasin `Swap` asset pair to its `basin_swap_direction` enum value.

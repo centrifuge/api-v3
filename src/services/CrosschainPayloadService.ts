@@ -159,9 +159,7 @@ export type PayloadEventKind = "UnderpaidBatch" | "RepayBatch" | "SendPayload" |
 
 /** Result of resolving which payload index an event should upsert. */
 export type ResolvePayloadKeyResult =
-  | { action: "mutate"; index: number }
-  | { action: "create"; index: number }
-  | { action: "defer" };
+  { action: "mutate"; index: number } | { action: "create"; index: number } | { action: "defer" };
 
 /**
  * Whether a payload row is terminal (no further sender-side mutations).

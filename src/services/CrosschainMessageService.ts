@@ -1200,7 +1200,9 @@ const requestMessageDecoders = {
 
 type DecodedRequestMessageTypes = {
   [K in keyof typeof requestMessageDecoders]: {
-    [P in (typeof requestMessageDecoders)[K][number] as P["name"]]: DecoderReturnTypes[P["decoder"]];
+    [
+      P in (typeof requestMessageDecoders)[K][number] as P["name"]
+    ]: DecoderReturnTypes[P["decoder"]];
   };
 };
 
@@ -1284,7 +1286,9 @@ const requestCallbackMessageDecoders = {
 
 type DecodedRequestCallbackMessageTypes = {
   [K in keyof typeof requestCallbackMessageDecoders]: {
-    [P in (typeof requestCallbackMessageDecoders)[K][number] as P["name"]]: DecoderReturnTypes[P["decoder"]];
+    [
+      P in (typeof requestCallbackMessageDecoders)[K][number] as P["name"]
+    ]: DecoderReturnTypes[P["decoder"]];
   };
 };
 
@@ -1349,7 +1353,9 @@ const updateRestrictionMessageDecoders = {
 
 type DecodedUpdateRestrictionMessageTypes = {
   [K in keyof typeof updateRestrictionMessageDecoders]: {
-    [P in (typeof updateRestrictionMessageDecoders)[K][number] as P["name"]]: DecoderReturnTypes[P["decoder"]];
+    [
+      P in (typeof updateRestrictionMessageDecoders)[K][number] as P["name"]
+    ]: DecoderReturnTypes[P["decoder"]];
   };
 };
 

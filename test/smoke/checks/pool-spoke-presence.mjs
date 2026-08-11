@@ -1,6 +1,6 @@
 import { parseAbi } from "viem";
 import { poolIdArg } from "../lib/helpers.mjs";
-import { resolveCentrifugeChain, resolveEntityChain } from "../lib/context.mjs";
+import { resolveCentrifugeChain } from "../lib/context.mjs";
 
 const SPOKE_ABI = parseAbi(["function isPoolActive(uint64 poolId) view returns (bool)"]);
 
@@ -40,34 +40,11 @@ export async function runSmoke(ctx) {
     links = links.filter((r) => String(r.centrifugeId) === String(ctx.filters.centrifugeId));
   }
 
-  for (const row of links) {
-    const chain = await resolveEntityChain(ctx, row);
-    if (!chain?.deployment.spoke) {
-      skipped += 1;
-      continue;
-    }
-
-    const chainLabel = row.blockchain?.name ?? chain.chainName;
-    checked += 1;
-    const onchain = await chain.client.readContract({
-      address: chain.deployment.spoke,
-      abi: SPOKE_ABI,
-      functionName: "isPoolActive",
-      args: [poolIdArg(row.poolId)],
-      blockNumber: ctx.atBlock,
-    });
-
-    if (!onchain) {
-      mismatches.push(
-        ctx.mismatch({
-          entityId: `poolSpoke:${row.poolId}@${chainLabel}`,
-          field: "isPoolActive",
-          indexed: "link exists",
-          onchain: "false",
-        })
-      );
-    }
-  }
+  // Only the reverse direction is checked (active on chain => link must exist).
+  // The forward direction (link => isPoolActive) was removed: poolSpokeBlockchain
+  // links are append-only (created by Hub:NotifyPool, never removed), so a pool
+  // notified but never activated on the current spoke keeps its link forever and
+  // yields false mismatches. Same root cause as the escrow skip in PR #473.
 
   const map = await ctx.getBlockchainMap();
   let spokes = [...map.entries()];
