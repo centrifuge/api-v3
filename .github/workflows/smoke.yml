@@ -13,17 +13,25 @@ concurrency:
 
 jobs:
   smoke-release:
-    name: Release PR staging (${{ matrix.region }})
+    name: Release PR staging (${{ matrix.environment }} ${{ matrix.region }})
     if: startsWith(github.event.pull_request.head.ref, 'release-please--')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - region: eu
+          - environment: mainnet
+            region: eu
             graphql_url: https://api-v3-main-s.cfg.embrio.tech/
-          - region: us
+          - environment: mainnet
+            region: us
             graphql_url: https://api-v3-main-s.cfg-us.embrio.tech/
+          - environment: testnet
+            region: eu
+            graphql_url: https://api-v3-test-s.cfg.embrio.tech/
+          - environment: testnet
+            region: us
+            graphql_url: https://api-v3-test-s.cfg-us.embrio.tech/
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -44,7 +52,7 @@ jobs:
 
       - name: Fetch registry
         env:
-          ENVIRONMENT: mainnet
+          ENVIRONMENT: ${{ matrix.environment }}
         run: pnpm update-registry
 
       - name: Run indexer smokes against staging
@@ -52,17 +60,17 @@ jobs:
         continue-on-error: true
         env:
           GRAPHQL_URL: ${{ matrix.graphql_url }}
-          SMOKE_REGION: ${{ matrix.region }}
+          SMOKE_REGION: ${{ matrix.environment }}-${{ matrix.region }}
           ERPC_BASE_URL: ${{ secrets.ERPC_BASE_URL }}
           ERPC_API_KEY: ${{ secrets.ERPC_API_KEY }}
-        run: pnpm smoke --mismatches-only --report-file smoke-report-${{ matrix.region }}.json
+        run: pnpm smoke --mismatches-only --report-file smoke-report-${{ matrix.environment }}-${{ matrix.region }}.json
 
       - name: Upload smoke report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: smoke-report-${{ matrix.region }}
-          path: smoke-report-${{ matrix.region }}.json
+          name: smoke-report-${{ matrix.environment }}-${{ matrix.region }}
+          path: smoke-report-${{ matrix.environment }}-${{ matrix.region }}.json
           if-no-files-found: warn
 
       - name: Fail if smokes failed

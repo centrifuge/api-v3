@@ -22,7 +22,7 @@ for (const file of files) {
   try {
     reports.push(await readReport(file));
   } catch (err) {
-    const region = file.match(/smoke-report-([a-z]+)\.json$/i)?.[1] ?? "unknown";
+    const region = file.match(/smoke-report-([a-z-]+)\.json$/i)?.[1] ?? "unknown";
     reports.push({
       region,
       graphqlUrl: "",
