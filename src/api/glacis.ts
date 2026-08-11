@@ -469,9 +469,7 @@ async function handleStatus(c: Context, ctx: ApiContext, txHash: string): Promis
       (m) => m.messageType === "InitiateTransferShares" || m.messageType === "ExecuteTransferShares"
     );
   const msgData = transferMsg?.data as
-    | { amount?: string | number | bigint; receiver?: string }
-    | null
-    | undefined;
+    { amount?: string | number | bigint; receiver?: string } | null | undefined;
   const amount = msgData?.amount != null ? String(msgData.amount) : null;
   const toAddress = msgData?.receiver ? bytes32ToAddress(msgData.receiver) : null;
 
