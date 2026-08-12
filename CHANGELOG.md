@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.4.0](https://github.com/centrifuge/api-v3/compare/v4.3.1...v4.4.0) (2026-08-11)
+
+
+### Features
+
+* v3.2 registry bootstrap and OnOffRamp rename handling ([#477](https://github.com/centrifuge/api-v3/issues/477)) ([798dd48](https://github.com/centrifuge/api-v3/commit/798dd4890ef0d50de324a93772d34fa5c74bb469))
+
+
+### Bug Fixes
+
+* **crosschain:** one payload row per underpaid instance (design discussion) ([#474](https://github.com/centrifuge/api-v3/issues/474)) ([38b4bac](https://github.com/centrifuge/api-v3/commit/38b4bac87a59d911f7e2acca2d428673a0f69552))
+
 ## [4.3.1](https://github.com/centrifuge/api-v3/compare/v4.3.0...v4.3.1) (2026-08-06)
 
 
