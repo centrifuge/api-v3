@@ -1,8 +1,8 @@
 global:
   env:
     ENVIRONMENT: "mainnet"
-    SELECTED_NETWORKS: "42161,8453,1,98866,43114,56,10,143,999,1672"
-    REGISTRY_URL: "https://centrifuge-files.mypinata.cloud/ipfs/bafkreigcjb6hyhpkmdgzdlcpeqdta36tqixwml3ovgxfrn56psnqhspqcu"
+    SELECTED_NETWORKS: "42161,8453,1,98866,43114,56,10,143,999,1672,196"
+    REGISTRY_URL: "https://gateway.pinata.cloud/ipfs/bafybeifyand6t3siotagzuaq355ltp5sbht2gj5shtrw3qfit5ks3eth2u"
     REGISTRY_VERSION_MAP: '{"v3":"v3","v3_1":["v3_1","v3_2"]}'
     PONDER_RPC_URL_1: "http://cfg-api-erpc:4000/main/evm/1"
     PONDER_RPC_URL_10: "http://cfg-api-erpc:4000/main/evm/10"
@@ -14,8 +14,13 @@ global:
     PONDER_RPC_URL_999: "http://cfg-api-erpc:4000/main/evm/999"
     PONDER_RPC_URL_42161: "http://cfg-api-erpc:4000/main/evm/42161"
     PONDER_RPC_URL_1672: "http://cfg-api-erpc:4000/main/evm/1672"
+    PONDER_RPC_URL_196: "http://cfg-api-erpc:4000/main/evm/196"
     REGISTRY_v3_1_chains_42161_deployment_startBlock: "425757109"
     REGISTRY_v3_1_chains_98866_deployment_startBlock: "48512998"
+    REGISTRY_v3_1_chains_1_contracts_onOffRampFactory: "delete"
+    REGISTRY_v3_1_chains_10_contracts_onOffRampFactory: "delete"
+    REGISTRY_v3_1_chains_8453_contracts_onOffRampFactory: "delete"
+    REGISTRY_v3_1_chains_42161_contracts_onOffRampFactory: "delete"
   apiSecretName: cfg-api-v3-rpc-keys
 indexer:
   enabled: true
