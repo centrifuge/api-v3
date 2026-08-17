@@ -111,7 +111,7 @@ export function buildCrosschainPayloadConflictSet(): PgUpdateSetSource<typeof Cr
   set.rawData = mergeSenderWinsUnlessPlaceholder(
     PAYLOAD_TABLE,
     "raw_data",
-    `'${CROSSCHAIN_RAW_DATA_STUB}'`
+    CROSSCHAIN_RAW_DATA_STUB
   );
   set.fromCentrifugeId = mergeCoalesce(PAYLOAD_TABLE, "from_centrifuge_id");
   set.toCentrifugeId = mergeCoalesce(PAYLOAD_TABLE, "to_centrifuge_id");

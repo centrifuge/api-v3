@@ -8,6 +8,8 @@ on:
       - Build and Push Docker Image
     types:
       - completed
+    branches:
+      - main
 
 concurrency:
   group: deploy-staging
@@ -19,8 +21,12 @@ permissions:
 
 jobs:
   verify-docker-build-ran:
-    # Gated on the triggering run: only proceed when that Docker workflow run succeeded overall.
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # Gated on the triggering run: only proceed when that Docker workflow run succeeded overall
+    # and originated from this repo on a trusted event (push or release to main).
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'release')
     runs-on: ubuntu-latest
     outputs:
       image_built: ${{ steps.check.outputs.image_built }}

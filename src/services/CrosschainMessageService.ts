@@ -106,13 +106,13 @@ export function buildCrosschainMessageConflictSet(): PgUpdateSetSource<typeof Cr
   set.rawData = mergeSenderWinsUnlessPlaceholder(
     MESSAGE_TABLE,
     "raw_data",
-    `'${CROSSCHAIN_RAW_DATA_STUB}'`
+    CROSSCHAIN_RAW_DATA_STUB
   );
   set.data = mergeSenderWins(MESSAGE_TABLE, "data");
   set.messageType = mergeSenderWinsUnlessPlaceholder(
     MESSAGE_TABLE,
     "message_type",
-    `'${CROSSCHAIN_MESSAGE_TYPE_STUB}'`
+    CROSSCHAIN_MESSAGE_TYPE_STUB
   );
   set.hash = mergeCoalesce(MESSAGE_TABLE, "hash");
   set.fromCentrifugeId = mergeCoalesce(MESSAGE_TABLE, "from_centrifuge_id");
