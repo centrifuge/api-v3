@@ -18,6 +18,7 @@ export const PG_TYPED_BIND_HELPERS = [
   "bindPgBigint",
   "bindPgHex",
   "bindPgHexBytes32",
+  "bindPgText",
 ] as const;
 
 /**
@@ -137,6 +138,21 @@ export function bindPgHex(value: `0x${string}`): SQL {
 export function bindPgHexBytes32(value: `0x${string}`): SQL {
   assertHexBytes32(value, "hex");
   return bindPgHex(value);
+}
+
+/** Safe text stub for DISTINCT FROM comparisons (insert-only sentinels such as `_Stub`, `0x`). */
+const PG_TEXT_STUB = /^[a-zA-Z0-9_.-]+$/;
+
+/**
+ * Binds a short text stub as PostgreSQL `text` for DISTINCT FROM comparisons in merge SET fragments.
+ * @param value - Insert-only sentinel (alphanumeric, underscore, dot, hyphen)
+ * @returns Parameterized `CAST(... AS text)` fragment
+ */
+export function bindPgText(value: string): SQL {
+  if (!PG_TEXT_STUB.test(value)) {
+    throw new Error("Invalid text bind");
+  }
+  return sql`CAST(${value} AS text)`;
 }
 
 /**

@@ -1,5 +1,5 @@
 import { sql, type SQL } from "drizzle-orm";
-import { assertPgIdentSegment } from "./sqlSafety";
+import { assertPgIdentSegment, bindPgText } from "./sqlSafety";
 
 /** Columns recomputed in ON CONFLICT SET — must not be blind-copied via saveMany. */
 export const DERIVED_COLUMN_KEYS = new Set(["status", "crosschainInProgress", "state"]);
@@ -80,22 +80,23 @@ export function mergeSenderWins(tablePgName: string, colPgName: string): SQL {
  * existing decode fields (e.g. message_type `_Stub`, raw_data `0x`).
  * @param tablePgName - Existing row table name in SQL
  * @param colPgName - Snake_case column name
- * @param placeholderSqlLiteral - SQL literal for the insert-only sentinel (e.g. `'_Stub'`, `'0x'`)
+ * @param placeholderValue - Insert-only sentinel compared via parameterized bind (e.g. `_Stub`, `0x`)
  * @returns SQL fragment for ON CONFLICT SET
  */
 export function mergeSenderWinsUnlessPlaceholder(
   tablePgName: string,
   colPgName: string,
-  placeholderSqlLiteral: string
+  placeholderValue: string
 ): SQL {
   const t = quotePgIdent(tablePgName);
   const c = quotePgIdent(colPgName);
-  return sql.raw(`
+  const placeholderBind = bindPgText(placeholderValue);
+  return sql`
     CASE
-      WHEN excluded.${c} IS NOT NULL AND excluded.${c} IS DISTINCT FROM ${placeholderSqlLiteral} THEN excluded.${c}
-      ELSE ${t}.${c}
+      WHEN excluded.${sql.raw(c)} IS NOT NULL AND excluded.${sql.raw(c)} IS DISTINCT FROM ${placeholderBind} THEN excluded.${sql.raw(c)}
+      ELSE ${sql.raw(`${t}.${c}`)}
     END
-  `);
+  `;
 }
 
 /**
