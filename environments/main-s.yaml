@@ -24,16 +24,16 @@ global:
   apiSecretName: cfg-api-v3-rpc-keys
   dbSecretName: cfg-api-v3-main-postgres-app
 indexer:
-  enabled: false
+  enabled: true
   image:
-    tag: sha-798dd48
+    tag: sha-c9240da
   env:
     - name: NODE_OPTIONS
       value: "--max-old-space-size=1740"
 query:
   enabled: true
   image:
-    tag: sha-798dd48
+    tag: sha-c9240da
   replicaCount: 1
   ingress:
     enabled: true
