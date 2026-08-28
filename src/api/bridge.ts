@@ -207,7 +207,7 @@ type QuoteInput = {
   toAddress: string;
 };
 
-/** Shared Airlift-style fee quote (POST /quote only per Glacis off-chain interface). */
+/** Shared Airlift-style fee quote (POST /quote only per the off-chain bridge interface). */
 async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Promise<Response> {
   const { fromChainId, toChainId, fromAmount, fromToken, toToken, fromAddress, toAddress } = input;
   const ESTIMATED_DURATION = 210; // in seconds
@@ -682,7 +682,7 @@ async function handleStatus(c: Context, ctx: ApiContext, txHash: string): Promis
 }
 
 /** Bridge routes: `GET /routes`, `GET /quote`, `GET /status`, `GET /transaction/:txHash`. */
-export function createGlacisApp() {
+export function createBridgeApp() {
   const app = new Hono<ApiEnv>();
 
   // Integrators poll status by source tx hash; keep the legacy path-param route as an alias.

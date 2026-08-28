@@ -4,7 +4,7 @@ import {
   bridgeStatusForPayload,
   decodeFailReason,
   receiverToEvmAddress,
-} from "../../../src/api/glacis";
+} from "../../../src/api/bridge";
 
 describe("addressToBytes32", () => {
   const receiver = "0xca27858fef8df24148ab69f62794e6d185e7fce4";
