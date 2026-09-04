@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.4.1](https://github.com/centrifuge/api-v3/compare/v4.4.0...v4.4.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* address critical and high Aikido security findings ([#483](https://github.com/centrifuge/api-v3/issues/483)) ([c9240da](https://github.com/centrifuge/api-v3/commit/c9240daca3a52d785e9e5d4c0514bc8eccc3867d))
+* LiFi feedback for Bridge ([#485](https://github.com/centrifuge/api-v3/issues/485)) ([25a50cd](https://github.com/centrifuge/api-v3/commit/25a50cdec7c5c7469704ed1948ddc99498b79bb2))
+
 ## [4.4.0](https://github.com/centrifuge/api-v3/compare/v4.3.1...v4.4.0) (2026-08-11)
 
 
