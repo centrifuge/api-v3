@@ -2,6 +2,7 @@ import { sValidator } from "@hono/standard-validator";
 import { type Context, Hono } from "hono";
 import * as z from "zod";
 import { getContractAddressForChain, REGISTRY_VERSION_ORDER } from "../contracts";
+import { formatBytes32ToAddress } from "../helpers/formatter";
 import { emptyMessage, MessageType } from "../helpers/messaging";
 import { centrifugeId, poolId } from "../helpers/tokenId";
 import * as Services from "../services";
@@ -36,10 +37,10 @@ function routeChainFromCentrifugeId(
   return { chainId, name: Services.BlockchainService.networkNameFromChainId(chainId) };
 }
 
-/** LI.FI-style tx hash; invalid input returns 400 before lookup. */
+/** Source-chain tx hash; invalid input returns 400 before lookup. */
 const TX_HASH_PATTERN = /^0x[a-fA-F0-9]{64}$/;
 
-/** Tool identifier reported to LI.FI for every route/quote/status. */
+/** Tool identifier reported for every route/quote/status. */
 const TOOL = "centrifuge";
 const STANDARD = "CentrifugeV31";
 const NATIVE_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
@@ -47,7 +48,7 @@ const NATIVE_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000000" as con
 const UINT128_MAX_STR: `${number}` = "340282366920938463463374607431768211455";
 const UINT128_MAX = BigInt(UINT128_MAX_STR);
 
-type LifiToken = {
+type BridgeToken = {
   address: string;
   chainId: number;
   symbol: string | null;
@@ -56,8 +57,14 @@ type LifiToken = {
 };
 
 /**
- * TokenBridge `send` entrypoint per chain. Not tracked in the protocol registry, so
- * addresses are pinned here. Absent chains simply omit the executable `transactionRequest`.
+ * TokenBridge `send` entrypoint per chain. Not tracked in the protocol registry, so addresses
+ * are pinned here.
+ *
+ * A chain absent from this map has no bridge entrypoint deployed, so a transfer cannot be
+ * initiated from it: `/routes` omits those source chains and `/quote` answers 404. The request
+ * is well formed and the origin is a real registry chain — only the entrypoint is missing — so
+ * this is a 404 ("no such route from here") rather than a 400, matching the other
+ * resource-shaped errors on this endpoint. Adding a chain here makes it quotable immediately.
  */
 const TOKEN_BRIDGE_ADDRESS: Record<number, `0x${string}`> = {
   1: "0x82a6c7753380f98c093b27c53f86ef6b09c40f49",
@@ -81,14 +88,31 @@ function explorerTxLink(chainId: number | null, txHash: string | null): string |
   return base ? `${base}${txHash}` : `https://centrifugescan.io/tx/${txHash}`;
 }
 
-/** Left-pad a 20-byte address to a 32-byte word for the bridge `receiver` arg. */
-function addressToBytes32(address: string): `0x${string}` {
-  return `0x${address.replace(/^0x/, "").toLowerCase().padStart(64, "0")}` as `0x${string}`;
+/**
+ * Encode a 20-byte address as the protocol's `bytes32` receiver word.
+ *
+ * The protocol left-aligns addresses (`bytes32(bytes20(addr))`, trailing 12 bytes zero) and
+ * `CastLib.toAddress` on the destination reverts with `"Input should be 20 bytes"` on a
+ * right-aligned word, so the initiate leg would succeed and the destination leg would strand
+ * the shares at the hub. Do not switch this to `padStart`.
+ */
+export function addressToBytes32(address: string): `0x${string}` {
+  return `0x${address.replace(/^0x/, "").toLowerCase().padEnd(64, "0")}` as `0x${string}`;
 }
 
-/** Take the low 20 bytes of a 32-byte word as an address. */
-function bytes32ToAddress(word: string): `0x${string}` {
-  return `0x${word.replace(/^0x/, "").slice(-40).toLowerCase()}` as `0x${string}`;
+/**
+ * Decode a protocol `bytes32` receiver into an EVM address.
+ *
+ * Delegates the alignment handling to {@link formatBytes32ToAddress} and only adds the
+ * rejection that helper cannot express: it never returns null, so a 32-byte non-EVM receiver
+ * would come back as its leading 20 bytes — a well-formed address belonging to nobody.
+ */
+export function receiverToEvmAddress(word: string): `0x${string}` | null {
+  const hex = word.replace(/^0x/, "").toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(hex)) return null;
+  const zeros12 = "0".repeat(24);
+  if (hex.slice(40) !== zeros12 && hex.slice(0, 24) !== zeros12) return null;
+  return formatBytes32ToAddress(`0x${hex}`);
 }
 
 type Route = {
@@ -148,9 +172,12 @@ const zQueryAddressOptional = z.preprocess(
 
 /**
  * POST /quote with `fromChain`, `toChain`, `fromToken`, `fromAmount` as query params.
- * `toToken` is accepted for LI.FI parity but must resolve to the same share class as
- * `fromToken` (transfers are 1:1). `fromAddress`/`toAddress` are optional and only used
- * to build the executable `transactionRequest`.
+ * `toToken` is accepted for interface parity but must resolve to the same share class as
+ * `fromToken` (transfers are 1:1). `toAddress` is the required receiver; `fromAddress` is
+ * optional and only supplies the refund address, defaulting to the receiver.
+ *
+ * Answers 404 when the source chain has no {@link TOKEN_BRIDGE_ADDRESS} entry, so a 200 always
+ * carries an executable `parameters` block and a non-null `approvalAddress`.
  */
 const quoteParams = z.object({
   fromChain: zQueryChainId,
@@ -180,7 +207,7 @@ type QuoteInput = {
   toAddress: string;
 };
 
-/** Shared Airlift-style fee quote (POST /quote only per Glacis off-chain interface). */
+/** Shared Airlift-style fee quote (POST /quote only per the off-chain bridge interface). */
 async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Promise<Response> {
   const { fromChainId, toChainId, fromAmount, fromToken, toToken, fromAddress, toAddress } = input;
   const ESTIMATED_DURATION = 210; // in seconds
@@ -194,6 +221,12 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
   const toCentId = Number(toCentIdStr);
   if (fromCentId === toCentId) {
     return c.json({ error: "Origin and destination chain cannot be the same" }, 400);
+  }
+
+  // Checked before the on-chain fee reads: without an entrypoint there is nothing to quote for.
+  const bridgeAddress = TOKEN_BRIDGE_ADDRESS[fromChainId];
+  if (!bridgeAddress) {
+    return c.json({ error: "No bridge entrypoint deployed on the origin chain" }, 404);
   }
 
   const [fromInstance, toInstance] = await Promise.all([
@@ -222,7 +255,7 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
 
   const tokenId = fromData.tokenId;
 
-  // `toToken` is accepted for LI.FI parity but must resolve to the same share class as
+  // `toToken` is accepted for interface parity but must resolve to the same share class as
   // `fromToken` on the destination chain. Transfers are 1:1, so a mismatch is rejected.
   if (toToken !== undefined && toToken !== fromToken) {
     const toTokenInstance = await Services.TokenInstanceService.get(ctx, {
@@ -310,14 +343,14 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
   const [token] = await Services.TokenService.query(ctx, { id: tokenId });
   const tokenMeta = token?.read();
 
-  const fromTokenObj: LifiToken = {
+  const fromTokenObj: BridgeToken = {
     address: fromData.address,
     chainId: fromChainId,
     symbol: tokenMeta?.symbol ?? null,
     name: tokenMeta?.name ?? null,
     decimals: fromData.decimals,
   };
-  const toTokenObj: LifiToken = {
+  const toTokenObj: BridgeToken = {
     address: toData.address,
     chainId: toChainId,
     symbol: tokenMeta?.symbol ?? null,
@@ -327,37 +360,20 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
 
   // Uncompiled contract interaction parameters for the TokenBridge `send` call.
   // Fee is paid in native (value); refund defaults to the receiver.
-  const bridgeAddress = TOKEN_BRIDGE_ADDRESS[fromChainId] ?? null;
-  const receiver = toAddress ?? fromAddress ?? null;
-
-  let parameters: {
-    contractAddress: `0x${string}`;
-    functionName: string;
-    value: string;
-    chainId: number;
+  const receiver = toAddress;
+  const parameters = {
+    contractAddress: bridgeAddress,
+    functionName: "send",
+    value: totalFee.toString(),
+    chainId: fromChainId,
     args: {
-      token: string;
-      amount: string;
-      receiver: `0x${string}`;
-      destinationChainId: string;
-      refundAddress: string;
-    };
-  } | null = null;
-  if (bridgeAddress && receiver) {
-    parameters = {
-      contractAddress: bridgeAddress,
-      functionName: "send",
-      value: totalFee.toString(),
-      chainId: fromChainId,
-      args: {
-        token: fromToken,
-        amount: fromAmount.toString(),
-        receiver: addressToBytes32(receiver),
-        destinationChainId: String(toChainId),
-        refundAddress: fromAddress ?? receiver,
-      },
-    };
-  }
+      token: fromToken,
+      amount: fromAmount.toString(),
+      receiver: addressToBytes32(receiver),
+      destinationChainId: String(toChainId),
+      refundAddress: fromAddress ?? receiver,
+    },
+  };
 
   const amount = fromAmount.toString(); // 1:1 transfer — toAmount equals fromAmount
 
@@ -393,6 +409,135 @@ async function handleQuote(c: Context, ctx: ApiContext, input: QuoteInput): Prom
   });
 }
 
+/**
+ * Reported token for one share class on one chain.
+ *
+ * The ERC-20 address is per chain (`TokenInstance.address`) — `Token.id` is the internal share
+ * class id, not an address, and instances of one share class do differ across chains.
+ */
+async function bridgeTokenForChain(
+  ctx: ApiContext,
+  tokenId: `0x${string}`,
+  centrifugeId: string,
+  meta: { symbol: string | null; name: string | null }
+): Promise<BridgeToken | null> {
+  const chainId = Services.BlockchainService.getChainIdFromCentrifugeId(centrifugeId);
+  if (chainId == null) return null;
+  const instance = await Services.TokenInstanceService.get(ctx, { tokenId, centrifugeId });
+  const data = instance?.read();
+  if (!data) return null;
+  return {
+    address: data.address,
+    chainId,
+    symbol: meta.symbol,
+    name: meta.name,
+    decimals: data.decimals,
+  };
+}
+
+/** Decoded transfer-message fields used to describe the transfer. */
+type TransferMessageData = {
+  amount?: string | number | bigint;
+  receiver?: string;
+  centrifugeId?: number | string;
+};
+
+/** Messages belonging to one payload, newest facts already merged by the indexer. */
+async function messagesForPayload(ctx: ApiContext, payload: { id: `0x${string}`; index: number }) {
+  const rows = await Services.CrosschainMessageService.query(ctx, {
+    payloadId: payload.id,
+    payloadIndex: payload.index,
+  });
+  return rows.map((m) => m.read());
+}
+
+/**
+ * Locate the second leg of a spoke -> spoke transfer.
+ *
+ * Such a transfer is two payloads: `InitiateTransferShares` from the source to the hub, then a
+ * separate hub-created `ExecuteTransferShares` payload to the final destination. The second
+ * payload has its own id and its own source tx on the hub, so it is unreachable from the
+ * original tx hash — match it on (hub -> destination, share class, receiver, amount) at or
+ * after the first leg.
+ */
+async function findSecondHopPayload(
+  ctx: ApiContext,
+  firstHop: { toCentrifugeId: string; tokenId: `0x${string}`; createdAt: Date | null },
+  destCentrifugeId: string,
+  receiver: string,
+  amount: string
+) {
+  const candidates = await Services.CrosschainMessageService.query(ctx, {
+    messageType: "ExecuteTransferShares",
+    fromCentrifugeId: firstHop.toCentrifugeId,
+    toCentrifugeId: destCentrifugeId,
+    tokenId: firstHop.tokenId,
+    ...(firstHop.createdAt ? { preparedAt_gte: firstHop.createdAt } : {}),
+    _sort: [{ field: "preparedAt", direction: "asc" }],
+  });
+  const match = candidates
+    .map((m) => m.read())
+    .find((m) => {
+      const data = m.data as TransferMessageData | null | undefined;
+      return (
+        data?.receiver?.toLowerCase() === receiver.toLowerCase() &&
+        data?.amount != null &&
+        String(data.amount) === amount
+      );
+    });
+  if (!match?.payloadId) return null;
+  const [hopPayload] = await Services.CrosschainPayloadService.query(ctx, {
+    id: match.payloadId,
+    index: match.payloadIndex ?? 0,
+  });
+  return hopPayload?.read() ?? null;
+}
+
+/** Decoded `Error(string)` revert reason, or the bare 4-byte selector for custom errors. */
+export function decodeFailReason(failReason: string | null | undefined): string | null {
+  if (!failReason || failReason === "0x") return null;
+  const hex = failReason.replace(/^0x/, "").toLowerCase();
+  const selector = `0x${hex.slice(0, 8)}`;
+  if (!hex.startsWith("08c379a0")) return selector;
+  try {
+    // ABI `Error(string)`: 32-byte offset, 32-byte length, then the UTF-8 bytes.
+    const body = Buffer.from(hex.slice(8), "hex");
+    const length = Number(body.readBigUInt64BE(56));
+    return body.subarray(64, 64 + length).toString("utf-8") || selector;
+  } catch {
+    return selector;
+  }
+}
+
+/**
+ * Reported status/substatus for a single payload leg.
+ *
+ * `PartiallyFailed` is **not** terminal: it means the payload reached the destination but at
+ * least one of its messages reverted. The indexer clears `failedAt`/`failReason` on a
+ * successful retry and the payload then derives to `Completed`, so reporting it as DONE would
+ * tell users a stuck transfer had settled.
+ */
+export function bridgeStatusForPayload(
+  payloadStatus: string,
+  deliveredAt: Date | null
+): { status: string; substatus: string } {
+  switch (payloadStatus) {
+    case "Underpaid":
+    case "InTransit":
+      return {
+        status: "PENDING",
+        substatus: deliveredAt ? "WAIT_DESTINATION_TRANSACTION" : "WAIT_SOURCE_CONFIRMATIONS",
+      };
+    case "Delivered":
+    case "PartiallyFailed":
+      return { status: "PENDING", substatus: "WAIT_DESTINATION_TRANSACTION" };
+    case "Completed":
+      return { status: "DONE", substatus: "COMPLETED" };
+    default:
+      return { status: "PENDING", substatus: "UNKNOWN_ERROR" };
+  }
+}
+
 /** Unix seconds from a DB timestamp (Date), or null. */
 function toUnix(value: unknown): number | null {
   if (value instanceof Date) return Math.floor(value.getTime() / 1000);
@@ -400,8 +545,8 @@ function toUnix(value: unknown): number | null {
 }
 
 /**
- * LI.FI-style transfer status for a source-chain tx hash. Returns HTTP 200 with a
- * `NOT_FOUND`/`PENDING`/`DONE` status even before the payload is indexed, since LI.FI polls it.
+ * Transfer status for a source-chain tx hash. Returns HTTP 200 with a `NOT_FOUND`/`PENDING`/
+ * `DONE` status even before the payload is indexed, since integrators poll it.
  */
 async function handleStatus(c: Context, ctx: ApiContext, txHash: string): Promise<Response> {
   if (!TX_HASH_PATTERN.test(txHash)) {
@@ -417,6 +562,7 @@ async function handleStatus(c: Context, ctx: ApiContext, txHash: string): Promis
       status: "NOT_FOUND",
       substatus: null,
       substatusMessage: null,
+      toAddress: null,
       sending: { txHash: txHashNorm, txLink: null, chainId: null, amount: null, token: null },
       receiving: null,
     });
@@ -424,107 +570,122 @@ async function handleStatus(c: Context, ctx: ApiContext, txHash: string): Promis
 
   const payload = payloadSvc.read();
 
-  let status: string;
-  let substatus: string;
-  // CrosschainPayload has no hard FAILED state (Underpaid | InTransit | Delivered |
-  // PartiallyFailed | Completed), so FAILED is not surfaced yet.
-  switch (payload.status) {
-    case "Underpaid":
-    case "InTransit":
-      status = "PENDING";
-      substatus = payload.deliveredAt
-        ? "WAIT_DESTINATION_TRANSACTION"
-        : "WAIT_SOURCE_CONFIRMATIONS";
-      break;
-    case "Delivered":
-      status = "PENDING";
-      substatus = "WAIT_DESTINATION_TRANSACTION";
-      break;
-    case "Completed":
-      status = "DONE";
-      substatus = "COMPLETED";
-      break;
-    case "PartiallyFailed":
-      status = "DONE";
-      substatus = "PARTIAL";
-      break;
-    default:
-      status = "PENDING";
-      substatus = "UNKNOWN_ERROR";
-  }
-
   const fromChainId = Services.BlockchainService.getChainIdFromCentrifugeId(
     payload.fromCentrifugeId
   );
-  const toChainId = Services.BlockchainService.getChainIdFromCentrifugeId(payload.toCentrifugeId);
 
   // Transfer amount and receiver live on the transfer message's decoded `data`.
-  const messages = await Services.CrosschainMessageService.query(ctx, {
-    payloadId: payload.id,
-    payloadIndex: payload.index,
-  });
-  const transferMsg = messages
-    .map((m) => m.read())
-    .find(
-      (m) => m.messageType === "InitiateTransferShares" || m.messageType === "ExecuteTransferShares"
-    );
-  const msgData = transferMsg?.data as
-    { amount?: string | number | bigint; receiver?: string } | null | undefined;
+  const firstHopMessages = await messagesForPayload(ctx, payload);
+  const transferMsg = firstHopMessages.find(
+    (m) => m.messageType === "InitiateTransferShares" || m.messageType === "ExecuteTransferShares"
+  );
+  const msgData = transferMsg?.data as TransferMessageData | null | undefined;
   const amount = msgData?.amount != null ? String(msgData.amount) : null;
-  const toAddress = msgData?.receiver ? bytes32ToAddress(msgData.receiver) : null;
+  // Non-EVM destinations use the full 32 bytes, in which case there is no EVM address to report.
+  const toAddress = msgData?.receiver ? receiverToEvmAddress(msgData.receiver) : null;
 
-  let tokenObj: LifiToken | null = null;
-  if (payload.tokenId) {
-    const [token] = await Services.TokenService.query(ctx, { id: payload.tokenId });
-    const meta = token?.read();
-    if (meta) {
-      tokenObj = {
-        address: payload.tokenId,
-        chainId: fromChainId ?? 0,
-        symbol: meta.symbol ?? null,
-        name: meta.name ?? null,
-        decimals: meta.decimals,
-      };
+  // `InitiateTransferShares.centrifugeId` is the transfer's final destination, which equals the
+  // payload's own destination only for single-hop transfers. A spoke -> spoke transfer routes
+  // through the hub, and this payload is just the first of its two legs.
+  const destCentrifugeId =
+    msgData?.centrifugeId != null ? String(msgData.centrifugeId) : payload.toCentrifugeId;
+  const destChainId = Services.BlockchainService.getChainIdFromCentrifugeId(destCentrifugeId);
+  const isTwoHops = destCentrifugeId !== payload.toCentrifugeId;
+
+  // The reported status must track the leg that actually delivers the shares. When the first leg
+  // has completed on a two-hop transfer, the shares sit at the hub until the second leg lands.
+  let statusPayload = payload;
+  let statusMessages = firstHopMessages;
+  let awaitingSecondHop = false;
+  if (isTwoHops && payload.status === "Completed") {
+    const secondHop =
+      payload.tokenId && msgData?.receiver && amount
+        ? await findSecondHopPayload(
+            ctx,
+            {
+              toCentrifugeId: payload.toCentrifugeId,
+              tokenId: payload.tokenId,
+              createdAt: payload.createdAt,
+            },
+            destCentrifugeId,
+            msgData.receiver,
+            amount
+          )
+        : null;
+    if (secondHop) {
+      statusPayload = secondHop;
+      statusMessages = await messagesForPayload(ctx, secondHop);
+    } else {
+      awaitingSecondHop = true;
     }
   }
 
-  const receivingTxHash = payload.completedAtTxHash ?? payload.deliveredAtTxHash ?? null;
-  const receivingDone = Boolean(receivingTxHash);
+  const { status, substatus } = awaitingSecondHop
+    ? { status: "PENDING", substatus: "WAIT_DESTINATION_TRANSACTION" }
+    : bridgeStatusForPayload(statusPayload.status, statusPayload.deliveredAt);
+
+  // Surface why a leg is stuck (e.g. `EmptyAdapterSet` when the destination has no adapter set).
+  const failedMsg = statusMessages.find((m) => m.status === "Failed" && m.failReason);
+  const substatusMessage = decodeFailReason(failedMsg?.failReason);
+
+  const [token] = payload.tokenId
+    ? await Services.TokenService.query(ctx, { id: payload.tokenId })
+    : [];
+  const tokenMeta = token?.read();
+  const [sendingToken, receivingToken] =
+    payload.tokenId && tokenMeta
+      ? await Promise.all([
+          bridgeTokenForChain(ctx, payload.tokenId, payload.fromCentrifugeId, {
+            symbol: tokenMeta.symbol ?? null,
+            name: tokenMeta.name ?? null,
+          }),
+          bridgeTokenForChain(ctx, payload.tokenId, destCentrifugeId, {
+            symbol: tokenMeta.symbol ?? null,
+            name: tokenMeta.name ?? null,
+          }),
+        ])
+      : [null, null];
+
+  // Only a completed delivering leg means the shares arrived. `deliveredAt` marks the payload
+  // reaching the destination gateway, which is also set when its messages then revert, so it
+  // must never stand in for a delivery.
+  const receivingTxHash =
+    statusPayload.status === "Completed" ? statusPayload.completedAtTxHash : null;
 
   return c.json({
     transactionId: payload.id,
     tool: TOOL,
     status,
     substatus,
-    substatusMessage: null,
+    substatusMessage,
     toAddress,
     sending: {
       txHash: payload.createdAtTxHash,
       txLink: explorerTxLink(fromChainId, payload.createdAtTxHash),
       chainId: fromChainId,
       amount,
-      token: tokenObj ? { ...tokenObj, chainId: fromChainId ?? tokenObj.chainId } : null,
+      token: sendingToken,
       gasPrice: payload.gasPrice != null ? payload.gasPrice.toString() : null,
       timestamp: toUnix(payload.createdAt),
     },
-    receiving: receivingDone
+    receiving: receivingTxHash
       ? {
           txHash: receivingTxHash,
-          txLink: explorerTxLink(toChainId, receivingTxHash),
-          chainId: toChainId,
-          tokenAddress: tokenObj?.address ?? null,
+          txLink: explorerTxLink(destChainId, receivingTxHash),
+          chainId: destChainId,
+          tokenAddress: receivingToken?.address ?? null,
           tokenAmount: amount,
-          timestamp: toUnix(payload.completedAt ?? payload.deliveredAt),
+          timestamp: toUnix(statusPayload.completedAt),
         }
       : null,
   });
 }
 
-/** LI.FI-style routes: `GET /routes`, `GET /quote`, `GET /status`, `GET /transaction/:txHash`. */
-export function createGlacisApp() {
+/** Bridge routes: `GET /routes`, `GET /quote`, `GET /status`, `GET /transaction/:txHash`. */
+export function createBridgeApp() {
   const app = new Hono<ApiEnv>();
 
-  // LI.FI polls status by source tx hash; keep the legacy path-param route as an alias.
+  // Integrators poll status by source tx hash; keep the legacy path-param route as an alias.
   app.get("/status", async (c) => {
     const ctx = apiContext(c);
     return handleStatus(c, ctx, c.req.query("txHash") ?? "");

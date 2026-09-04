@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { client, graphql } from "ponder";
 import { db } from "ponder:api";
 import schema from "ponder:schema";
-import { createGlacisApp } from "./glacis";
+import { createBridgeApp } from "./bridge";
 import { apiDbMiddleware } from "./middleware";
 import { createStatsApp } from "./stats";
 import { createTokensApp } from "./tokens";
@@ -24,6 +24,6 @@ app.route("/tokens", createTokensApp());
 
 app.use("/bridge", apiDbMiddleware);
 app.use("/bridge/*", apiDbMiddleware);
-app.route("/bridge", createGlacisApp());
+app.route("/bridge", createBridgeApp());
 
 export default app;
