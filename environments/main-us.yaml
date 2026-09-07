@@ -25,14 +25,14 @@ global:
 indexer:
   enabled: true
   image:
-    tag: sha-798dd48
+    tag: sha-25a50cd
   env:
     - name: NODE_OPTIONS
       value: "--max-old-space-size=1740"
 query:
   enabled: true
   image:
-    tag: sha-798dd48
+    tag: sha-25a50cd
   replicaCount: 2
   ingress:
     enabled: true
