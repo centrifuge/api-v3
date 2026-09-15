@@ -38,6 +38,7 @@ export const networkNames = {
   "999": "hyperliquid",
   "1672": "pharos",
   "196": "xlayer",
+  "5042": "arc",
 } as const;
 
 type ExtractNetworkNamesFromKeys<K> = K extends keyof typeof networkNames
@@ -219,6 +220,7 @@ export const skipBlocks = {
   "998": 18000,
   "1672": 14400,
   "196": 1800,
+  "5042": 7200,
 };
 
 const blocks = Object.fromEntries(
@@ -317,6 +319,7 @@ export const explorerUrls = {
   "999": "https://hyperevmscan.io",
   "10": "https://optimistic.etherscan.io/",
   "196": "https://www.xlayerscan.com/",
+  "5042": "https://arc-scan.org/",
 };
 
 // Icons definitions
@@ -344,4 +347,6 @@ export const chainIcons = {
   "998":
     "https://centrifuge-files.mypinata.cloud/ipfs/QmZnmSzzq3Jspa3HxUdk4JQAWgtAQtinBdDTBdAFn2jijX",
   "10": "https://centrifuge-files.mypinata.cloud/ipfs/QmXR2gUAwJdEhH7MAqEqd6NTGB58XibiKvtE3TUoe6CcMK",
+  "5042":
+    "https://centrifuge-files.mypinata.cloud/ipfs/bafkreidwyrho2xqal6ts7zgoqdyeyrc5kpwpbldncz34lx27m72q756qx4",
 };
