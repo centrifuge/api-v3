@@ -155,6 +155,10 @@ export const endpoints = {
   ],
   1672: [],
   196: ["https://rpc.xlayer.tech", `https://lb.drpc.live/xlayer/${process.env.DRPC_API_KEY}`],
+  5042: [
+    `https://arc-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+    `https://lb.drpc.live/arc/${process.env.DRPC_API_KEY}`,
+  ],
 };
 
 const getLogsBlockRange = {

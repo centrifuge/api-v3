@@ -15,6 +15,7 @@ global:
     PONDER_RPC_URL_42161: "http://cfg-api-erpc:4000/main/evm/42161"
     PONDER_RPC_URL_1672: "http://cfg-api-erpc:4000/main/evm/1672"
     PONDER_RPC_URL_196: "http://cfg-api-erpc:4000/main/evm/196"
+    PONDER_RPC_URL_5042: "http://cfg-api-erpc:4000/main/evm/5042"
     REGISTRY_v3_1_chains_42161_deployment_startBlock: "425757109"
     REGISTRY_v3_1_chains_98866_deployment_startBlock: "48512998"
     REGISTRY_v3_1_chains_1_contracts_onOffRampFactory: "delete"
