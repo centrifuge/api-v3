@@ -36,6 +36,8 @@ jobs:
               - 'src/**'
               - 'scripts/**'
               - 'Dockerfile'
+              - 'patches/**'
+              - 'pnpm-lock.yaml'
             release_bump:
               - 'package.json'
               - 'CHANGELOG.md'
