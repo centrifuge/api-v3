@@ -2,7 +2,7 @@ global:
   env:
     ENVIRONMENT: "mainnet"
     SELECTED_NETWORKS: "42161,8453,1,98866,43114,56,10,143,999,1672,196,5042"
-    REGISTRY_URL: "https://centrifuge-files.mypinata.cloud/ipfs/bafybeia6nahab2jjqyslao3fley7asdiumu7mmsvrea6dgz3kfwa7n5e2e"
+    REGISTRY_URL: "https://centrifuge-files.mypinata.cloud/ipfs/bafkreif3upmmqo5ulmu2clbgkgoy2w5qtw5frrm5hzj5tqme4rczlpgf7m"
     REGISTRY_VERSION_MAP: '{"v3":"v3","v3_1":["v3_1","v3_2"]}'
     PONDER_RPC_URL_1: "http://cfg-api-erpc:4000/main/evm/1"
     PONDER_RPC_URL_10: "http://cfg-api-erpc:4000/main/evm/10"
