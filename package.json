@@ -94,6 +94,9 @@
     },
     "onlyBuiltDependencies": [
       "esbuild"
-    ]
+    ],
+    "patchedDependencies": {
+      "ponder@0.17.5": "patches/ponder@0.17.5.patch"
+    }
   }
 }
