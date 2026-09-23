@@ -1,8 +1,8 @@
 global:
   env:
     ENVIRONMENT: "mainnet"
-    SELECTED_NETWORKS: "42161,8453,1,98866,43114,56,10,143,999,1672,196"
-    REGISTRY_URL: "https://gateway.pinata.cloud/ipfs/bafybeifyand6t3siotagzuaq355ltp5sbht2gj5shtrw3qfit5ks3eth2u"
+    SELECTED_NETWORKS: "42161,8453,1,98866,43114,56,10,143,999,1672,196,5042"
+    REGISTRY_URL: "https://centrifuge-files.mypinata.cloud/ipfs/bafybeia6nahab2jjqyslao3fley7asdiumu7mmsvrea6dgz3kfwa7n5e2e"
     REGISTRY_VERSION_MAP: '{"v3":"v3","v3_1":["v3_1","v3_2"]}'
     PONDER_RPC_URL_1: "http://cfg-api-erpc:4000/main/evm/1"
     PONDER_RPC_URL_10: "http://cfg-api-erpc:4000/main/evm/10"
@@ -22,11 +22,31 @@ global:
     REGISTRY_v3_1_chains_10_contracts_onOffRampFactory: "delete"
     REGISTRY_v3_1_chains_8453_contracts_onOffRampFactory: "delete"
     REGISTRY_v3_1_chains_42161_contracts_onOffRampFactory: "delete"
+    REGISTRY_v3_1_chains_1_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_1_contracts_onOfframpManagerFactory_blockNumber: "24319368"
+    REGISTRY_v3_1_chains_10_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_10_contracts_onOfframpManagerFactory_blockNumber: "147002871"
+    REGISTRY_v3_1_chains_56_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_56_contracts_onOfframpManagerFactory_blockNumber: "77735916"
+    REGISTRY_v3_1_chains_143_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_143_contracts_onOfframpManagerFactory_blockNumber: "51884375"
+    REGISTRY_v3_1_chains_999_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_999_contracts_onOfframpManagerFactory_blockNumber: "25784519"
+    REGISTRY_v3_1_chains_1672_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_1672_contracts_onOfframpManagerFactory_blockNumber: "3194367"
+    REGISTRY_v3_1_chains_8453_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_8453_contracts_onOfframpManagerFactory_blockNumber: "41362489"
+    REGISTRY_v3_1_chains_42161_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_42161_contracts_onOfframpManagerFactory_blockNumber: "425760020"
+    REGISTRY_v3_1_chains_43114_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_43114_contracts_onOfframpManagerFactory_blockNumber: "76720476"
+    REGISTRY_v3_1_chains_98866_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_98866_contracts_onOfframpManagerFactory_blockNumber: "48513926"
   apiSecretName: cfg-api-v3-rpc-keys
 indexer:
   enabled: true
   image:
-    tag: sha-25a50cd
+    tag: sha-24fe0ca
   resources:
     requests:
       memory: 3Gi
@@ -38,7 +58,7 @@ indexer:
 query:
   enabled: true
   image:
-    tag: sha-25a50cd
+    tag: sha-24fe0ca
   replicaCount: 2
   ingress:
     enabled: true
