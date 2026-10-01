@@ -1,5 +1,5 @@
 # Rebuild trigger: ensure GHCR image includes pnpm patchedDependencies (ponder).
-#slight change
+# Rebuild trigger: new image tag for Arc OnchainPM registry rollout (fresh staging schema).
 FROM node:22-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
