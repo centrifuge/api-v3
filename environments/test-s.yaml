@@ -14,7 +14,7 @@ global:
 indexer:
   enabled: true
   image:
-    tag: sha-a4fa798
+    tag: sha-023f5e0
   resources:
     requests:
       memory: 3Gi
@@ -26,7 +26,7 @@ indexer:
 query:
   enabled: true
   image:
-    tag: sha-a4fa798
+    tag: sha-023f5e0
   replicaCount: 1
   ingress:
     enabled: true
