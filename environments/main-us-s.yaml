@@ -2,7 +2,7 @@ global:
   env:
     ENVIRONMENT: "mainnet"
     SELECTED_NETWORKS: "42161,8453,1,98866,43114,56,10,143,999,1672,196,5042"
-    REGISTRY_URL: "https://centrifuge-files.mypinata.cloud/ipfs/bafybeia6nahab2jjqyslao3fley7asdiumu7mmsvrea6dgz3kfwa7n5e2e"
+    REGISTRY_URL: "https://centrifuge-files.mypinata.cloud/ipfs/bafkreif3upmmqo5ulmu2clbgkgoy2w5qtw5frrm5hzj5tqme4rczlpgf7m"
     REGISTRY_VERSION_MAP: '{"v3":"v3","v3_1":["v3_1","v3_2"]}'
     PONDER_RPC_URL_1: "http://cfg-api-erpc-us:4000/main/evm/1"
     PONDER_RPC_URL_10: "http://cfg-api-erpc-us:4000/main/evm/10"
@@ -15,25 +15,64 @@ global:
     PONDER_RPC_URL_42161: "http://cfg-api-erpc-us:4000/main/evm/42161"
     PONDER_RPC_URL_1672: "http://cfg-api-erpc-us:4000/main/evm/1672"
     PONDER_RPC_URL_196: "http://cfg-api-erpc-us:4000/main/evm/196"
+    PONDER_RPC_URL_5042: "http://cfg-api-erpc-us:4000/main/evm/5042"
     REGISTRY_v3_1_chains_42161_deployment_startBlock: "425757109"
     REGISTRY_v3_1_chains_98866_deployment_startBlock: "48512998"
     REGISTRY_v3_1_chains_1_contracts_onOffRampFactory: "delete"
     REGISTRY_v3_1_chains_10_contracts_onOffRampFactory: "delete"
     REGISTRY_v3_1_chains_8453_contracts_onOffRampFactory: "delete"
     REGISTRY_v3_1_chains_42161_contracts_onOffRampFactory: "delete"
+    REGISTRY_v3_1_chains_1_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_1_contracts_onOfframpManagerFactory_blockNumber: "24319368"
+    REGISTRY_v3_1_chains_10_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_10_contracts_onOfframpManagerFactory_blockNumber: "147002871"
+    REGISTRY_v3_1_chains_56_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_56_contracts_onOfframpManagerFactory_blockNumber: "77735916"
+    REGISTRY_v3_1_chains_143_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_143_contracts_onOfframpManagerFactory_blockNumber: "51884375"
+    REGISTRY_v3_1_chains_999_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_999_contracts_onOfframpManagerFactory_blockNumber: "25784519"
+    REGISTRY_v3_1_chains_1672_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_1672_contracts_onOfframpManagerFactory_blockNumber: "3194367"
+    REGISTRY_v3_1_chains_8453_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_8453_contracts_onOfframpManagerFactory_blockNumber: "41362489"
+    REGISTRY_v3_1_chains_42161_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_42161_contracts_onOfframpManagerFactory_blockNumber: "425760020"
+    REGISTRY_v3_1_chains_43114_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_43114_contracts_onOfframpManagerFactory_blockNumber: "76720476"
+    REGISTRY_v3_1_chains_98866_contracts_onOfframpManagerFactory_address: "0x2539e60B0B50D7BD004A09e9D2b7E8c86EB0AaF6"
+    REGISTRY_v3_1_chains_98866_contracts_onOfframpManagerFactory_blockNumber: "48513926"
+    # Arc (5042): OnchainPM contracts from the null-version registry layer on top of v3.2.0 (registry.centrifuge.io, gitCommit 7b34298)
+    REGISTRY_v3_1_chains_5042_contracts_accountingToken_address: "0x25cD3c315d21251e2D413A0F0B14F2951b218313"
+    REGISTRY_v3_1_chains_5042_contracts_accountingToken_blockNumber: "20855720"
+    REGISTRY_v3_1_chains_5042_contracts_accountingToken_txHash: "0x3ef5d297a71ab87465d14e65462deaa6ffca66e932f12b26094e4b6cf81fb25e"
+    REGISTRY_v3_1_chains_5042_contracts_scriptHelpers_address: "0x29480BadbD6bB3D660e3cA350e8E983450a829b3"
+    REGISTRY_v3_1_chains_5042_contracts_scriptHelpers_blockNumber: "20855741"
+    REGISTRY_v3_1_chains_5042_contracts_scriptHelpers_txHash: "0xe427e43a99753444c5d55bf714df71fb9b486f28a7f15e2a62e16e107f9f161b"
+    REGISTRY_v3_1_chains_5042_contracts_onchainPMFactory_address: "0x98d52b248eDB87ebdCAB91bFa3e418343ae0930B"
+    REGISTRY_v3_1_chains_5042_contracts_onchainPMFactory_blockNumber: "20855763"
+    REGISTRY_v3_1_chains_5042_contracts_onchainPMFactory_txHash: "0x375b9247d2b396b14a791e168fa28a653ba945df58893b86e7b236197df9b8a3"
+    REGISTRY_v3_1_chains_5042_contracts_flashLoanHelper_address: "0xEe673F3b26b39C66Ae69a20EB5F3512Ab76a0b4F"
+    REGISTRY_v3_1_chains_5042_contracts_flashLoanHelper_blockNumber: "20855798"
+    REGISTRY_v3_1_chains_5042_contracts_flashLoanHelper_txHash: "0x2039eecc688299744d312963cf1a6480aea4abb3d555e82d26b357d9c6f0423d"
   apiSecretName: cfg-api-v3-rpc-keys
   dbSecretName: cfg-api-v3-main-us-postgres-app
 indexer:
   enabled: true
   image:
-    tag: sha-24fe0ca
+    tag: sha-023f5e0
+  resources:
+    requests:
+      memory: 3Gi
+    limits:
+      memory: 3Gi
   env:
     - name: NODE_OPTIONS
-      value: "--max-old-space-size=1740"
+      value: "--max-old-space-size=2560"
 query:
   enabled: true
   image:
-    tag: sha-24fe0ca
+    tag: sha-023f5e0
   replicaCount: 1
   ingress:
     enabled: true

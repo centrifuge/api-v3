@@ -1,0 +1,30 @@
+diff --git a/dist/esm/sync-realtime/index.js b/dist/esm/sync-realtime/index.js
+index 7ef427f49fe1a3307fe0dcee12d0728ae1e5f4b7..00d43346a3001cd6f67f3aefeee5f206d0c53705 100644
+--- a/dist/esm/sync-realtime/index.js
++++ b/dist/esm/sync-realtime/index.js
+@@ -166,7 +166,24 @@ export const createRealtimeSync = (args) => {
+             else {
+                 logs = await eth_getLogs(args.rpc, [{ blockHash: block.hash }], context);
+             }
+-            validateLogsAndBlock(logs, block, {
++            // Some chains (e.g. Avalanche C-chain) produce canonical blocks whose header
++            // logsBloom is non-zero while no receipt emits logs. Accept an empty logs
++            // response only when every receipt in the block confirms zero logs.
++            let emptyLogsConfirmedByReceipts = false;
++            if (logs.length === 0 && block.logsBloom !== zeroLogsBloom) {
++                const receipts = await Promise.all(block.transactions.map((transaction) => eth_getTransactionReceipt(args.rpc, [transaction.hash], context)));
++                emptyLogsConfirmedByReceipts = receipts.every((receipt) => receipt.blockHash === block.hash && receipt.logs.length === 0);
++                if (emptyLogsConfirmedByReceipts) {
++                    args.common.logger.warn({
++                        msg: "Accepted block with non-empty logsBloom and no logs (confirmed by receipts)",
++                        chain: args.chain.name,
++                        chain_id: args.chain.id,
++                        number: hexToNumber(block.number),
++                        hash: block.hash,
++                    });
++                }
++            }
++            if (!emptyLogsConfirmedByReceipts) validateLogsAndBlock(logs, block, {
+                 method: "eth_getLogs",
+                 params: [{ blockHash: block.hash }],
+             }, ethGetBlockMethod === "eth_getBlockByNumber"

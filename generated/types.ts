@@ -29,6 +29,7 @@ export interface RegistryChain<N extends number, C extends string> {
     protocolAdmin?: string;
     opsAdmin?: string;
     etherscanUrl?: string;
+    explorerApiUrl?: string;
     network?: string;
     batchLimit?: number;
     safeAdmin?: string;

@@ -42,9 +42,14 @@ indexer:
   enabled: true|false           # staging disables when its tag matches prod (avoids duplicate indexers on the same schema)
   image:
     tag: sha-<short>             # ghcr.io/centrifuge/api-v3 image tag
+  resources:
+    requests:
+      memory: 3Gi
+    limits:
+      memory: 3Gi
   env:
     - name: NODE_OPTIONS
-      value: "--max-old-space-size=1740"
+      value: "--max-old-space-size=2560"
 
 query:
   enabled: true

@@ -14,14 +14,19 @@ global:
 indexer:
   enabled: true
   image:
-    tag: sha-24fe0ca
+    tag: sha-023f5e0
+  resources:
+    requests:
+      memory: 3Gi
+    limits:
+      memory: 3Gi
   env:
     - name: NODE_OPTIONS
-      value: "--max-old-space-size=1740"
+      value: "--max-old-space-size=2560"
 query:
   enabled: true
   image:
-    tag: sha-24fe0ca
+    tag: sha-023f5e0
   replicaCount: 1
   ingress:
     enabled: true
