@@ -322,6 +322,7 @@ export const explorerUrls = {
   "143": "https://monadvision.com",
   "999": "https://hyperevmscan.io",
   "10": "https://optimistic.etherscan.io/",
+  "1672": "https://www.pharosscan.xyz",
   "196": "https://www.xlayerscan.com/",
   "5042": "https://arc-scan.org/",
 };
