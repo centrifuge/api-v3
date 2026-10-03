@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.4.2](https://github.com/centrifuge/api-v3/compare/v4.4.1...v4.4.2) (2026-10-01)
+
+
+### Bug Fixes
+
+* **chains:** add Pharos explorer URL ([#489](https://github.com/centrifuge/api-v3/issues/489)) ([478c052](https://github.com/centrifuge/api-v3/commit/478c052d5dcb5ccfce97e89c70fb2ef0df6ecf1a))
+* stop indexer crash on Avalanche logsBloom mismatch ([#492](https://github.com/centrifuge/api-v3/issues/492)) ([1c6bc44](https://github.com/centrifuge/api-v3/commit/1c6bc446b609e4ee8b48accdac265eaa2bb9b301))
+
 ## [4.4.1](https://github.com/centrifuge/api-v3/compare/v4.4.0...v4.4.1) (2026-09-04)
 
 
