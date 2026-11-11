@@ -31,31 +31,55 @@ async function allEntityCounts(
   return Promise.all(services.map((s) => s.count(ctx, {})));
 }
 
+type StatsPayload = Record<string, string | number>;
+
+/**
+ * Computes the `/stats` payload: normalised TVL and supply plus one `count(*)` per entity table.
+ *
+ * @param ctx - Database and client context
+ * @returns The JSON body served at `/stats`
+ */
+async function computeStats(ctx: ApiContext): Promise<StatsPayload> {
+  const tvl = await Services.TokenService.getNormalisedTvl(ctx);
+  const aggregatedSupply = await Services.TokenService.getNormalisedAggregatedSupply(ctx);
+  const services = Object.values(Services).filter((service) => "count" in service);
+  const entityNames = services.map(
+    (service) => service.name.substring(0, service.name.length - "Service".length) + "s"
+  );
+  const entityCounts = await allEntityCounts(ctx, services);
+  const response = Object.fromEntries(
+    entityNames.map((name, index) => [name, entityCounts[index]])
+  );
+  return {
+    tvl: formatBigIntToDecimal(tvl),
+    aggregatedSupply: formatBigIntToDecimal(aggregatedSupply),
+    ...response,
+  };
+}
+
+/**
+ * The payload is a dozen-plus sequential scans against the same Postgres the indexer writes
+ * to, so under indexer load one request can stall for tens of seconds. Serving one computation
+ * per minute per process keeps the endpoint off that contention path.
+ */
+const STATS_CACHE_TTL_MS = 60_000;
+
 /** Aggregated indexer stats mounted at `/stats`. */
 export function createStatsApp() {
   const app = new Hono<ApiEnv>();
+  let cached: { payload: StatsPayload; expiresAt: number } | undefined;
+  let inflight: Promise<StatsPayload> | undefined;
 
   app.get("/", async (c) => {
-    const ctx = apiContext(c);
-    const tvl = await Services.TokenService.getNormalisedTvl(ctx);
-    const aggregatedSupply = await Services.TokenService.getNormalisedAggregatedSupply(ctx);
-    const services = Object.values(Services).filter((service) => "count" in service);
-    const entityNames = services.map(
-      (service) => service.name.substring(0, service.name.length - "Service".length) + "s"
-    );
-    const entityCounts = await allEntityCounts(ctx, services);
-    const response = Object.fromEntries(
-      entityNames.map((name, index) => [name, entityCounts[index]])
-    );
-    return c.json(
-      {
-        tvl: formatBigIntToDecimal(tvl),
-        aggregatedSupply: formatBigIntToDecimal(aggregatedSupply),
-        ...response,
-      },
-      200,
-      jsonDefaultHeaders
-    );
+    if (!cached || cached.expiresAt <= Date.now()) {
+      // Concurrent requests that find the cache expired share one computation.
+      inflight ??= computeStats(apiContext(c)).finally(() => {
+        inflight = undefined;
+      });
+      const payload = await inflight;
+      cached = { payload, expiresAt: Date.now() + STATS_CACHE_TTL_MS };
+    }
+    return c.json(cached.payload, 200, jsonDefaultHeaders);
   });
 
   app.get("/basin-debt", async (c) => {
