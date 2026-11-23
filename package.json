@@ -90,7 +90,8 @@
       "@eslint/eslintrc>ajv": "^6.12.6",
       "rollup": "^4.59.0",
       "ws": "8.21.3",
-      "@fastify/busboy": "3.2.1"
+      "@fastify/busboy": "3.2.1",
+      "vite": "6.4.6"
     },
     "onlyBuiltDependencies": [
       "esbuild"
